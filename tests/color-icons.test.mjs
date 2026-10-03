@@ -120,12 +120,12 @@ test('illustration paint tokens exist centrally for light and AMOLED', () => {
 
 test('the new icon dependency ships in the bumped offline release', () => {
   const sw = read('sw.js');
-  assert.match(sw, /CACHE_VERSION = 157/);
+  assert.match(sw, /CACHE_VERSION = 158/);
   assert.ok(sw.includes("'./js/icon-set.js'"));
   assert.ok(existsSync(new URL('../js/icon-set.js', import.meta.url)));
   assert.match(read('js/icons.js'), /from '\.\/icon-set\.js'/);
   for (const page of ['index','admin','manager','teacher','payment','offline-roles']) {
-    assert.match(read(page + '.html'), /css\/design-system\.css\?v=157/);
+    assert.match(read(page + '.html'), /css\/design-system\.css\?v=158/);
   }
   for (const file of ['js/icons.js','js/icon-set.js']) {
     assert.doesNotMatch(read(file), /localStorage|indexedDB|fetch\s*\(|XMLHttpRequest|firebase|https?:\/\//i);

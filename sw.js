@@ -1,4 +1,4 @@
-// v157: practice pace fixed at one minute per question (every sheet); the low-time flag sounds at five minutes on long sheets or at half the time left on short ones.
+// v158: whole-app audit fixes — a legacy in-flight practice sheet now keeps the deadline it first picked up (no timer reset on re-open); the practice list follows exam/shelf changes live; README documents the v151–v157 work.
 // v156: practice sheets now run under a live timer like the real sitting — the past paper keeps its original window, a random drill gets two minutes a question; at zero the paper submits itself and the result appears.
 // v155: instant MCQ practice — নিজে নিজে যেকোনো মুহূর্তে MCQ অনুশীলন (সময়সীমা/সময়সূচি ছাড়া, তাৎক্ষণিক ফলাফল); প্রতিটি নেওয়া MCQ পরীক্ষা এখন নিজে থেকে প্রশ্নব্যাংকে সংরক্ষিত হয় যাতে ভবিষ্যতে পরীক্ষার্থীগুলো অনুশীলন করতে পারে।
 // v154: topbar প্যানেল-নাম সব ৫ পোর্টালেই বাদ (লোগো + স্লোগান মাত্র); app-brand-name CSS নিষ্ক্রিয় হওয়ায় মুছেছে।
@@ -13,7 +13,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 157;
+const CACHE_VERSION = 158;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

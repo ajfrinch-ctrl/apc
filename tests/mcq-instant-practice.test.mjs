@@ -1,6 +1,7 @@
 /* Instant MCQ practice + the automatic shelf rule (user request, 2026-10-03):
    • an MCQ paper can be sat instantly, as self-study, at any moment — no
-     schedule, no late window, no roster, no timer — and is marked on the
+     schedule, no late window, no roster — under a one-minute-per-question
+     timer (the sheet auto-submits when it runs out), and is marked on the
      spot with the correct answer beside every question;
    • every MCQ examination the students have actually sat is kept in the
      question bank: auto-shelved the moment it is published, and backfilled
@@ -312,4 +313,47 @@ test('a reload restores the practice history and the best score', async () => {
   const rows = fresh.$$('#studentPracticeWorkspace .practice-history-row');
   assert.equal(rows.length, 3, 'all sessions come back from the device');
   assert.match(fresh.$('#studentPracticeWorkspace').textContent, /তোমার সেরা: ১\/৩/, 'the best score is restored too');
+});
+
+/* ---------- a pre-timer (legacy) in-flight draft ---------------------------- */
+
+test('a pre-timer draft is given its deadline on first visit and keeps it on the next', async () => {
+  const now = Date.now();
+  const legacyQuestions = [
+    { id: 'q1', text: 'প্রশ্ন: বাংলাদেশের রাজধানী কোনটি?', answer: 'A', options: [{ id: 'A', text: 'ঢাকা' }, { id: 'B', text: 'চট্টগ্রাম' }, { id: 'C', text: 'খুলনা' }, { id: 'D', text: 'রাজশাহী' }] },
+    { id: 'q2', text: 'প্রশ্ন: ৫ + ৭ = কত?', answer: 'B', options: [{ id: 'A', text: '১১' }, { id: 'B', text: '১২' }, { id: 'C', text: '১৩' }, { id: 'D', text: '১৪' }] },
+    { id: 'q3', text: 'প্রশ্ন: পানির রাসায়নিক সংকেত কোনটি?', answer: 'B', options: [{ id: 'A', text: 'CO2' }, { id: 'B', text: 'H2O' }, { id: 'C', text: 'NaCl' }, { id: 'D', text: 'O2' }] }
+  ];
+  const seed = {
+    [EXAM_KEY]: JSON.stringify({ version: 1, exams: uiExams(), attempts: [] }),
+    /* A sheet started before the timer existed: no endsAt, no lowMs. */
+    [PRACTICE_KEY]: JSON.stringify({
+      [student.id]: {
+        active: {
+          id: 'PLEGACY', at: now - 60000, kind: 'paper', title: 'গত গণিত MCQ পরীক্ষা',
+          examId: 'EX-PAST', examCode: '', className: 'দশম শ্রেণি', subject: '',
+          startsAt: now - 60000, durationMs: 180000, total: 3, answers: {},
+          order: legacyQuestions.map(question => ({ id: question.id, options: question.options.map(option => option.id) })),
+          questions: legacyQuestions
+        }, sessions: []
+      }
+    })
+  };
+  const first = await loadApp(seed);
+  initStudentPractice({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
+  await first.waitFor(() => Boolean(first.$('#studentPracticeWorkspace [data-practice-action="resume-active"]')));
+  const pickedUp = JSON.parse(first.window.localStorage.getItem(PRACTICE_KEY))[student.id].active;
+  assert.ok(Number.isFinite(pickedUp.endsAt) && pickedUp.endsAt > Date.now(), 'the draft was given a standard deadline and saved it');
+
+  /* Re-open the same device: the window must be the one already saved — not a
+     fresh three minutes. */
+  const carried = {
+    [EXAM_KEY]: JSON.stringify({ version: 1, exams: uiExams(), attempts: [] }),
+    [PRACTICE_KEY]: first.window.localStorage.getItem(PRACTICE_KEY)
+  };
+  const second = await loadApp(carried);
+  initStudentPractice({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
+  await second.waitFor(() => Boolean(second.$('#studentPracticeWorkspace [data-practice-action="resume-active"]')));
+  const kept = JSON.parse(second.window.localStorage.getItem(PRACTICE_KEY))[student.id].active;
+  assert.equal(kept.endsAt, pickedUp.endsAt, 'the deadline does not restart on the next visit');
 });

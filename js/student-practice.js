@@ -23,8 +23,8 @@
        retry.
    Sessions live in `activePlus.mcqPractice.v1`, local to this device —
    self-study history is personal and offline, like the rest of the demo. */
-import { examRepository as repo, examMatchesStudent } from './exam-data.js';
-import { ensureExamsInBank, listQuestions } from './question-bank.js';
+import { examRepository as repo, examMatchesStudent, watchExams } from './exam-data.js';
+import { ensureExamsInBank, listQuestions, watchQuestionBank } from './question-bank.js';
 import { esc, num, when } from './exam-ui.js';
 
 const PRACTICE_KEY = 'activePlus.mcqPractice.v1';
@@ -160,11 +160,19 @@ export function initStudentPractice({ getStudent, getAccount }) {
     const student = getStudent(), now = Date.now();
     const papers = practicePapers(student, now), pool = practicePool(student, now);
     let entry = storeFor(student);
-    /* A sheet whose time ran out while the student was away is closed and
-       marked like the official paper — the result waits on the history. */
-    if (entry.active && withTimer(entry.active).endsAt <= now) {
-      finishSession(student, entry.active, { auto: true });
-      entry = storeFor(student);
+    if (entry.active) {
+      const pickedUpTimer = !Number.isFinite(entry.active.endsAt) || entry.active.endsAt <= 0;
+      withTimer(entry.active);
+      if (entry.active.endsAt <= now) {
+        /* Time ran out while the student was away: close and mark the sheet
+           like the official paper — the result waits on the history. */
+        finishSession(student, entry.active, { auto: true });
+        entry = storeFor(student);
+      } else if (pickedUpTimer) {
+        /* A pre-timer draft just picked up its window — persist it so the
+           deadline does not restart on the next visit. */
+        saveFor(student, { ...storeFor(student), active: entry.active });
+      }
     }
     const poolSize = pool.length ? Math.min(RANDOM_SIZE, pool.length) : 0;
     content.innerHTML = `
@@ -193,7 +201,9 @@ export function initStudentPractice({ getStudent, getAccount }) {
     if (node && activeSession) node.textContent = `${num(Object.keys(activeSession.answers).length)} / ${num(activeSession.total)} উত্তর দেওয়া • এই ফোনে সংরক্ষিত`;
   }
   function active(session) {
+    const pickedUpTimer = !Number.isFinite(session?.endsAt) || session.endsAt <= 0;
     session = withTimer(session);
+    if (pickedUpTimer) saveFor(getStudent(), { ...storeFor(getStudent()), active: session });
     if (session.endsAt <= Date.now()) { autoFinish('সময় শেষ — উত্তরপত্র নিজে থেকেই জমা হয়েছে।'); return; }
     view = 'active'; activeSession = session; lastRecord = null;
     const minutes = Math.max(1, Math.round(session.durationMs / 60000));
@@ -335,6 +345,10 @@ export function initStudentPractice({ getStudent, getAccount }) {
     }
   });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
+  /* A paper landing (demo autofill, a manager publish in another tab) or a
+     shelf change must reach the practice list without a manual refresh. */
+  watchExams(() => { if (!busy) refresh(); });
+  watchQuestionBank(() => { if (!busy) refresh(); });
   /* One heartbeat for the whole module; it only acts while a sheet is on
      screen, so the list and the result cost nothing. */
   setInterval(tickClock, 1000);
