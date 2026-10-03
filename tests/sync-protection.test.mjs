@@ -35,7 +35,7 @@ test('destructive storage reset is absent from protected sync layer', () => {
 
 test('PWA shell contains the protected sync zone and a new cache version', () => {
   const sw = read('sw.js');
-  assert.match(sw, /const CACHE_VERSION = 156/);
+  assert.match(sw, /const CACHE_VERSION = 157/);
   for (const path of ['firebase/firebase-config.js','firebase/firebase-init.js','firebase/firebase-services.js','sync/sync-core.js','sync/sync-guard.js']) {
     assert.match(sw, new RegExp(path.replace(/[.*+?^$()|[\]\\]/g, '\\$&')));
   }

@@ -157,8 +157,8 @@ test('the practice list offers only this student’s papers whose window has end
   assert.doesNotMatch(text, /আসন্ন গণিত MCQ পরীক্ষা/, 'an upcoming paper’s questions never leak');
   assert.doesNotMatch(text, /অন্য শ্রেণির MCQ পরীক্ষা/, 'another class’s paper stays out of this student’s lane');
   assert.equal($$2('#studentPracticeWorkspace [data-practice-action="start-paper"]').length, 1);
-  assert.match($$2('#studentPracticeWorkspace [data-practice-action="start-random"]')[0].textContent, /৩টি প্রশ্ন • ৬ মিনিট/, 'the random drill sizes itself to the bank and its pace');
-  assert.match(workspace().textContent, /গত গণিত MCQ পরীক্ষা[\s\S]*৬০ মিনিট/, 'the paper card shows the original time limit');
+  assert.match($$2('#studentPracticeWorkspace [data-practice-action="start-random"]')[0].textContent, /৩টি প্রশ্ন • ৩ মিনিট/, 'the random drill sizes itself to the bank and its pace');
+  assert.match(workspace().textContent, /গত গণিত MCQ পরীক্ষা[\s\S]*৩ মিনিট/, 'the paper card prices its sheet at one minute a question');
   const rows = bankRows().filter(row => row.source?.examId);
   assert.ok(rows.length >= 8, 'the student’s own device backfilled the shelf from its papers');
   const pastRow = rows.find(row => row.source.examId === 'EX-PAST');
@@ -173,9 +173,31 @@ test('a paper is sat instantly — no clock, no window — and marked on the spo
   const clock = $2('#studentPracticeWorkspace [data-practice-clock]');
   assert.ok(clock, 'the sheet runs under a clock, like the real exam');
   assert.equal($2('#studentPracticeWorkspace [data-exam-clock]'), null, '…under its own clock, not the official one');
-  assert.match($2('#studentPracticeWorkspace .exam-timer').textContent, /৬০ মিনিট/, 'the past paper keeps its original one-hour window');
-  assert.match(clock.textContent, /সময় বাকি (৬০:০০|৫[০-৯]:[০-৯]{2})/, 'the countdown is live');
-  assert.equal(clock.dataset.lowTime, 'false', 'not yet in the last-five-minutes flag');
+  assert.match($2('#studentPracticeWorkspace .exam-timer').textContent, /৩ মিনিট/, 'three questions price the sheet at three minutes');
+  assert.match(clock.textContent, /সময় বাকি (৩:০০|২:[০-৯]{2})/, 'the countdown is live, from three minutes');
+  assert.equal(clock.dataset.lowTime, 'false', 'not yet in the low-time band (half of three minutes)');
+
+  /* Slide the clock into the low-time band (30s left on a 3-minute sheet):
+     the flag and the warning appear — then back out again. */
+  {
+    const realNow = Date.now, realWinNow = uiCtx.window.Date.now;
+    const endsAt = practiceStore().active.endsAt;
+    let offset = endsAt - realNow() - 30000;
+    let fakeNow = () => realNow() + offset;
+    Date.now = fakeNow; uiCtx.window.Date.now = fakeNow;
+    try {
+      await uiCtx.waitFor(() => $2('#studentPracticeWorkspace [data-practice-clock]')?.dataset.lowTime === 'true', 5000);
+      const hint = $2('#studentPracticeWorkspace [data-low-hint]');
+      assert.equal(hint.hidden, false, 'the warning is visible');
+      assert.match(hint.textContent, /জমা হবে/, '…and it says the paper will submit itself');
+      offset = endsAt - realNow() - 120000;
+      fakeNow = () => realNow() + offset;
+      Date.now = fakeNow; uiCtx.window.Date.now = fakeNow;
+      await uiCtx.waitFor(() => $2('#studentPracticeWorkspace [data-practice-clock]')?.dataset.lowTime === 'false', 5000);
+    } finally {
+      Date.now = realNow; uiCtx.window.Date.now = realWinNow;
+    }
+  }
 
   const pick = async (fragment, option) => {
     const fieldset = $$2('#studentPracticeWorkspace .exam-question').find(node => node.textContent.includes(fragment));

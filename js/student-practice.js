@@ -7,10 +7,10 @@
        moment it is published (js/exam-data.js) or is backfilled on load
        (questionBank.ensureExamsInBank), so past exams accumulate here;
      • when — any moment: no schedule, no late window, no roster. The sheet
-       runs under a live timer like the real sitting — the past paper keeps
-       its original window length, a random drill gets two minutes per
-       question — and when the clock hits zero the paper submits itself and
-       the result appears, exactly like the end of an official exam;
+       runs under a live timer like the real sitting — one minute per
+       question on every sheet — and when the clock hits zero the paper
+       submits itself and the result appears, exactly like the end of an
+       official exam;
      • result — shown at the end of the exam: self-marked the moment the
        sheet closes (early submit or time up), with the correct answer
        beside every question, so a practice session doubles as a study
@@ -30,9 +30,9 @@ import { esc, num, when } from './exam-ui.js';
 const PRACTICE_KEY = 'activePlus.mcqPractice.v1';
 const MAX_SESSIONS = 20;
 const RANDOM_SIZE = 20;
-/* Random drills are paced like the official MCQ sitting: two minutes a
-   question. Past papers keep their own original window length. */
-const PRACTICE_MINUTES_PER_QUESTION = 2;
+/* One practice minute per question — a uniform, predictable pace for every
+   sheet, whether it is a full past paper or a random drill. */
+const PRACTICE_MINUTES_PER_QUESTION = 1;
 const LOW_TIME_MS = 5 * 60000;
 
 const readStore = () => { try { return JSON.parse(localStorage.getItem(PRACTICE_KEY) || '{}') || {}; } catch { return {}; } };
@@ -48,8 +48,7 @@ const saveFor = (student, entry) => { const store = readStore(); store[student.i
 
 /** Papers a student may drill: bank questions grouped by the examination
     they came from, class/batch-matched, and only after the official window
-    has ended. Each paper keeps its original window, so a drill runs under
-    the same time pressure the real exam had. */
+    has ended. Every drill is paced at one minute per question. */
 function practicePapers(student, now = Date.now()) {
   const rows = listQuestions().filter(row => row.type === 'mcq' && row.active && row.source?.examId && row.endAt > 0 && row.endAt < now);
   const byExam = new Map();
@@ -67,11 +66,8 @@ function practicePapers(student, now = Date.now()) {
     .sort((a, b) => b.endAt - a.endAt)
     .map(paper => ({
       ...paper,
-      /* The original window length; a row missing it (very old shelf) falls
-         back to the standard two-minutes-a-question pace. */
-      durationMinutes: paper.startAt > 0 && paper.endAt > paper.startAt
-        ? Math.max(1, Math.round((paper.endAt - paper.startAt) / 60000))
-        : paper.questions.length * PRACTICE_MINUTES_PER_QUESTION
+      /* One minute a question, the same rule the random drill uses. */
+      durationMinutes: paper.questions.length * PRACTICE_MINUTES_PER_QUESTION
     }));
 }
 /** The pool the random drill draws from — the questions of every practicable
@@ -92,8 +88,12 @@ function startSession(student, { kind, title, examId = '', examCode = '', questi
     id: sessionId(), at: startsAt, kind, title, examId, examCode,
     className: student.className || '', subject: '',
     /* The deadline is absolute — it does not pause while the student leaves
-       the screen, exactly like the official paper's shared end time. */
+       the screen, exactly like the official paper's shared end time. The
+       low-time flag sounds at five minutes on a long sheet, or at half the
+       time left on a short one, so a 3-minute drill is never "last five
+       minutes" from the first second. */
     startsAt, durationMs: minutes * 60000, endsAt: startsAt + minutes * 60000,
+    lowMs: Math.min(LOW_TIME_MS, minutes * 30000),
     order: shuffle(questions).map(row => ({ id: row.id, options: row.options.map(option => option.id) })),
     total: questions.length, answers: {},
     /* A copy, on purpose: a practice sheet keeps working even if the shelf
@@ -112,6 +112,7 @@ function withTimer(session) {
     session.startsAt = startsAt;
     session.durationMs = minutes * 60000;
     session.endsAt = startsAt + minutes * 60000;
+    session.lowMs = Math.min(LOW_TIME_MS, minutes * 30000);
   }
   return session;
 }
@@ -169,7 +170,7 @@ export function initStudentPractice({ getStudent, getAccount }) {
     content.innerHTML = `
       <section class="exam-card practice-card" aria-label="ইনস্ট্যান্ট MCQ অনুশীলন">
         <h2>ইনস্ট্যান্ট MCQ অনুশীলন</h2>
-        <p class="exam-note">যেকোনো মুহূর্তে শুরু করো — প্রতিটি অনুশীলনে আসল পরীক্ষার মতোই সময়সীমা থাকে। সময় শেষ হলে উত্তরপত্র নিজে থেকেই জমা হয়ে পরীক্ষা শেষে ফলাফল দেখাবে। এটি নিজের অনুশীলন; আনুষ্ঠানিক পরীক্ষার ফলাফলে এর কোনো প্রভাব পড়ে না।</p>
+        <p class="exam-note">যেকোনো মুহূর্তে শুরু করো — প্রতিটি প্রশ্নের জন্য ${num(PRACTICE_MINUTES_PER_QUESTION)} মিনিট করে সময়সীমা থাকে। সময় শেষ হলে উত্তরপত্র নিজে থেকেই জমা হয়ে পরীক্ষা শেষে ফলাফল দেখাবে। এটি নিজের অনুশীলন; আনুষ্ঠানিক পরীক্ষার ফলাফলে এর কোনো প্রভাব পড়ে না।</p>
         ${entry.active ? `<div class="exam-actions">${button('resume-active', 'চলন্ত অনুশীলনে ফিরে যাও', entry.active.id, 'primary')}</div>` : ''}
         <div class="exam-actions">${poolSize ? button('start-random', `র‍্যান্ডম অনুশীলন (${num(poolSize)}টি প্রশ্ন • ${num(poolSize * PRACTICE_MINUTES_PER_QUESTION)} মিনিট)`, '', 'primary') : '<small>অনুশীলনের জন্য এখনও প্রশ্ন নেই — MCQ পরীক্ষার সময় শেষ হলে তার প্রশ্নগুলো নিজে থেকেই এখানে আসবে।</small>'}</div>
         <p class="exam-note">র‍্যান্ডম ড্রিলে প্রতি প্রশ্নে ${num(PRACTICE_MINUTES_PER_QUESTION)} মিনিট।</p>
@@ -217,19 +218,20 @@ export function initStudentPractice({ getStudent, getAccount }) {
   function tickClock() {
     if (view !== 'active' || !activeSession) return;
     const left = activeSession.endsAt - Date.now();
+    const lowMs = activeSession.lowMs || LOW_TIME_MS;
     const node = $('[data-practice-clock]');
     if (node) {
       const seconds = Math.max(0, Math.ceil(left / 1000));
       node.textContent = left <= 0 ? 'সময় শেষ' : `সময় বাকি ${num(`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`)}`;
-      const low = left > 0 && left <= LOW_TIME_MS;
+      const low = left > 0 && left <= lowMs;
       node.dataset.lowTime = low ? 'true' : 'false';
-      node.title = low ? 'শেষ ৫ মিনিট — উত্তরপত্র স্বয়ংক্রিয়ভাবে জমা হবে।' : '';
+      node.title = low ? 'সময় কমে আসছে — উত্তরপত্র স্বয়ংক্রিয়ভাবে জমা হবে।' : '';
     }
     const hint = $('[data-low-hint]');
     if (hint) {
-      const low = left > 0 && left <= LOW_TIME_MS;
+      const low = left > 0 && left <= lowMs;
       hint.hidden = !low;
-      hint.textContent = low ? 'শেষ ৫ মিনিট — সময় শেষে উত্তরপত্র নিজে থেকে জমা হবে।' : '';
+      hint.textContent = low ? 'সময় কমে আসছে — শেষে উত্তরপত্র নিজে থেকেই জমা হবে।' : '';
     }
     if (left <= 0) autoFinish('সময় শেষ — উত্তরপত্র নিজে থেকেই জমা হয়েছে।');
   }
