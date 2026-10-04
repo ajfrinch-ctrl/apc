@@ -83,6 +83,45 @@ test('secondary screens have accessible home/back controls and staff More has ro
   }
 });
 
+test('hero band covers the whole hero and the summary card straddles its edge', () => {
+  const css = read('css/ui-wallet.css');
+  // The band must reach the hero's bottom edge: the greeting/name/meta are
+  // white text and would sit on the page background in light mode otherwise.
+  assert.match(css, /\.pay-hero::before \{\s*content: ''; position: absolute; z-index: -1; top: 0; bottom: 0;/);
+  // The card pulls up onto the band edge (wallet signature) instead of
+  // floating in a dead gap below it.
+  assert.match(css, /\.study-progress-card \{\s*position: relative; margin: -22px 0 0;/);
+  // The compact one-screen home keeps its small hero — no overlap there.
+  assert.match(css, /#homeView\.is-empty-routine \.study-progress-card \{ margin-top: 0;/);
+});
+
+test('exam workspace rows keep one even gap with no dead space', () => {
+  const css = read('css/exam-archive.css');
+  // The grid gap is the only spacer: direct <p> rows carry no margins of
+  // their own (no 12px + 16px stacks), an empty status row takes no space,
+  // and the first content row does not double the gap.
+  assert.match(css, /\.exam-workspace>p\{margin:0\}/);
+  assert.match(css, /\.exam-auto-notice:empty\{display:none\}/);
+  assert.match(css, /\[data-exam-content\]>\.exam-actions:first-child\{margin-top:0\}/);
+});
+
+test('notification settings live inside a hidden view, never floating outside the panels', () => {
+  for (const name of ['index', 'admin', 'manager', 'teacher']) {
+    const document = doc(name);
+    const mount = document.getElementById('notificationSettings');
+    assert.ok(mount, name + ' is missing its notification settings mount');
+    // The mount must sit inside a view panel that is hidden by default, so the
+    // settings never render outside the open page (below/around the active view).
+    const view = mount.closest('.view, .admin-view, .manager-view, .teacher-view');
+    assert.ok(view, name + ' settings mount is outside every view panel');
+    if (name === 'teacher') assert.equal(view.hidden, true, name + ' settings view is not hidden by default');
+    else assert.equal(view.classList.contains('active'), false, name + ' settings view is active by default');
+    // A view panel hides its whole subtree; the mount must not escape it.
+    assert.equal(mount.parentElement, view, name + ' settings mount is not a direct view child subtree');
+  }
+  assert.equal(doc('payment').getElementById('notificationSettings'), null, 'counter has no staff settings mount');
+});
+
 test('counter keeps only the requested today/search/payment surfaces, not wallet dashboard extras', () => {
   const document = doc('payment');
   for (const selector of ['.admin-bottom','#payStickyBar','#payKeypad','#payDeskTools','#payQuickPicks','#payTodayAmount','#payMonthAmount','#payDueStudents']) assert.equal(document.querySelector(selector),null,selector);

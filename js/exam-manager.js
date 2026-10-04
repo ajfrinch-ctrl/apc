@@ -9,7 +9,7 @@ import { examRecord, questionPreview, resultMarkup, downloadResults, statusTag, 
 import { downloadExamPDF } from './exam-pdf.js';
 import { enabledClasses } from './config.js';
 import { listClasses, listChapters, subjectsForClass, isSubjectEnabled } from './academics.js';
-import { questionBank, searchQuestions, listQuestions, questionById, QUESTION_TYPES, QUESTION_DIFFICULTIES, QUESTION_TYPE_ORDER, QUESTION_DIFFICULTY_ORDER, watchQuestionBank, questionForExam } from './question-bank.js';
+import { questionBank, searchQuestions, listQuestions, questionById, ensureExamsInBank, QUESTION_TYPES, QUESTION_DIFFICULTIES, QUESTION_TYPE_ORDER, QUESTION_DIFFICULTY_ORDER, watchQuestionBank, questionForExam } from './question-bank.js';
 import { subjectsForTeacherClass } from './teacher-assignments.js';
 import { listTeacherAssignments } from './teacher-assignments.js';
 import {
@@ -508,6 +508,15 @@ export function initExamManager(container, role) {
     try {
       db = await repo.list(actor); ready = true;
       paint();
+      /* The shelf keeps every paper the students have actually sat. This is
+         the backfill for exams published before auto-shelving existed; the
+         check is a no-op on a device whose bank is already current, and a
+         failure here must never block the examination screens. */
+      ensureExamsInBank(db.exams, actor.role === 'teacher' ? 'Teacher' : 'Manager')
+        .then(result => {
+          if (result.added > 0 && !busy && view === 'bank') bankView();
+        })
+        .catch(() => { /* shelf backfill is best-effort */ });
     } catch (e) { ready = false; error(e.message || 'পরীক্ষার ডেটা পড়া যায়নি।'); }
   }
   function repaintSelected(exam) {

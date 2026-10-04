@@ -114,7 +114,7 @@ for (const width of [320, 390, 480]) {
     await expect(page.locator('#notificationButton')).toHaveCount(1);
     await expect(page.locator('#notificationButton')).toBeVisible();
     await expect(page.locator('#studentLogout')).toBeVisible();
-    expect(await page.locator('#studentHeader .app-brand-name').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await page.locator('#studentHeader .app-brand [data-fixed-tagline]').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator('#notificationButton').click();
     await expect(page.locator('#noticeModal')).toBeVisible();

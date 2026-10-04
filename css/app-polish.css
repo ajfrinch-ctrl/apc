@@ -6,7 +6,7 @@
   .app-topbar-inner { min-height:72px; }
   .app-brand-logo { border-radius:10px; }
   .app-topbar-icon { border-radius:50%; background:var(--color-bg); }
-  .app-brand-name { font-weight:650; }
+
   .app-brand-slogan { color:var(--color-text-secondary); }
   .app-main,.admin-main,.pay-main { padding-top:24px; }
   .page-intro,.admin-welcome,.admin-hero { line-height:1.65; }

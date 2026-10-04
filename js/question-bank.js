@@ -29,6 +29,10 @@ export const QUESTION_TYPES = Object.freeze({
 export const QUESTION_DIFFICULTIES = Object.freeze({ easy: 'সহজ', medium: 'মাধ্যম', hard: 'কঠিন' });
 export const QUESTION_TYPE_ORDER = Object.freeze(['mcq', 'true_false', 'short_answer', 'written']);
 export const QUESTION_DIFFICULTY_ORDER = Object.freeze(['easy', 'medium', 'hard']);
+/* The statuses at which an examination has actually been (or will be) sat:
+   exactly these papers belong on the practice shelf, and only after their
+   window has ended (a student must never drill an upcoming paper). */
+export const BANKABLE_EXAM_STATUSES = Object.freeze(['published', 'completed', 'archived']);
 
 /** An MCQ lives inside a paper as the four A–D options; everything else is a
     written-shaped question with an optional model answer. */
@@ -59,9 +63,16 @@ export function normalizeQuestion(row = {}) {
     code: text(row.code) || text(row.id),
     className: text(row.className),
     subject: text(row.subject),
+    group: text(row.group),
     chapterId: text(row.chapterId),
     chapterName: text(row.chapterName),
     topic: text(row.topic),
+    /* The official window of the paper this question came from (0 for
+       standalone rows): the instant-practice lane only opens a paper after
+       `endAt` (so an upcoming exam's questions can never leak) and times the
+       drill with the paper's original duration (`endAt - startAt`). */
+    startAt: Number(row.startAt) || 0,
+    endAt: Number(row.endAt) || 0,
     type,
     difficulty: Object.hasOwn(QUESTION_DIFFICULTIES, row.difficulty) ? row.difficulty : 'medium',
     text: String(row.text ?? '').trim(),
@@ -168,6 +179,9 @@ export function cleanBankQuestion(input = {}) {
   if (!body || body.length > 1200) fail(`${label}: প্রশ্নের লেখা দিন (সর্বোচ্চ ১২০০ অক্ষর)।`);
   const className = String(input.className ?? '').trim().slice(0, 80);
   const subject = String(input.subject ?? '').trim().slice(0, 80);
+  const group = String(input.group ?? '').trim().slice(0, 80);
+  const startAt = Math.max(0, Math.round(Number(input.startAt) || 0));
+  const endAt = Math.max(0, Math.round(Number(input.endAt) || 0));
   const chapterName = String(input.chapterName ?? '').trim().slice(0, 120);
   const chapterId = String(input.chapterId ?? '').trim().slice(0, 120);
   const topic = String(input.topic ?? '').trim().slice(0, 120);
@@ -179,16 +193,97 @@ export function cleanBankQuestion(input = {}) {
     const answer = String(input.answer ?? '').trim().toUpperCase();
     if (options.length !== 4 || options.map(option => option.id).join('') !== 'ABCD' || options.some(option => !option.text || option.text.length > 500) || !['A', 'B', 'C', 'D'].includes(answer)) fail('MCQ: চারটি অপশন ও সঠিক উত্তর A/B/C/D দিন।');
     if (new Set(options.map(option => option.text)).size !== 4) fail('MCQ: একই অপশন একাধিকবার দেওয়া যাবে না।');
-    return { type, text: body, className, subject, chapterId, chapterName, topic, difficulty, marks: 1, options, answer, answerText: '' };
+    return { type, text: body, className, subject, group, startAt, endAt, chapterId, chapterName, topic, difficulty, marks: 1, options, answer, answerText: '' };
   }
   if (type === 'true_false') {
     const answer = ['সত্য', 'মিথ্যা'].includes(String(input.answer ?? '').trim()) ? String(input.answer).trim() : '';
     if (!answer) fail('সত্য/মিথ্যা: সঠিক উত্তর নির্বাচন করুন।');
     if (!Number.isFinite(marks) || marks <= 0 || marks > 1000) fail('সত্য/মিথ্যা: নম্বর ১ থেকে ১০০০-এর মধ্যে দিন।');
-    return { type, text: body, className, subject, chapterId, chapterName, topic, difficulty, marks, options: [], answer: '', answerText: answer };
+    return { type, text: body, className, subject, group, startAt, endAt, chapterId, chapterName, topic, difficulty, marks, options: [], answer: '', answerText: answer };
   }
   if (!Number.isFinite(marks) || marks <= 0 || marks > 1000 || Math.round(marks * 100) / 100 !== marks) fail('নম্বর ১ থেকে ১০০০-এর মধ্যে দিন।');
-  return { type, text: body, className, subject, chapterId, chapterName, topic, difficulty, marks, options: [], answer: '', answerText: String(input.answerText ?? '').trim().slice(0, 1200) };
+  return { type, text: body, className, subject, group, startAt, endAt, chapterId, chapterName, topic, difficulty, marks, options: [], answer: '', answerText: String(input.answerText ?? '').trim().slice(0, 1200) };
+}
+
+/** The metadata a shelf row still needs to serve the practice lane: the
+    source (only while it is empty — the first paper that shelved a question
+    stays its source), the window end and the batch. */
+function rowNeedsExamMetadata(row, clean) {
+  return row.source === null || row.startAt <= 0 || row.endAt <= 0 || row.group !== clean.group;
+}
+
+/** The bank draft for one paper question. One builder for the manual
+    "save to bank" button and the automatic backfill, so the content identity
+    can never drift between the two paths. */
+export function bankDraftForQuestion(exam, question) {
+  return {
+    id: '', type: exam.type === 'mcq' ? 'mcq' : 'written', text: question.text,
+    className: exam.className || '', subject: exam.subject || '', group: exam.group || '',
+    startAt: Number(exam.startAt) || 0, endAt: Number(exam.endAt) || 0,
+    chapterId: exam.chapterId || '', chapterName: exam.chapterName || '', topic: exam.topic || '',
+    difficulty: question.difficulty || 'medium', marks: question.marks,
+    options: question.options || [], answer: question.answer || '', answerText: question.answerText || ''
+  };
+}
+
+/** Every examination the students have actually sat joins the shelf, in one
+    idempotent pass: a paper whose questions are all shelved already costs
+    neither a write nor a lock, and rows shelved before this build existed
+    are backfilled with the exam metadata practice needs (window end, batch,
+    source) instead of being duplicated. */
+export async function ensureExamsInBank(exams, actor = 'SYSTEM') {
+  const targets = (exams || []).filter(exam =>
+    exam?.type === 'mcq' && BANKABLE_EXAM_STATUSES.includes(exam.status) && (exam.questions || []).length > 0);
+  if (!targets.length) return { exams: 0, added: 0, updated: 0 };
+  /* Nothing new? No lock, no write, no event — the check is the common path
+     on a device whose shelf is already current. */
+  const current = readDatabase();
+  const currentByKey = new Map(current.questions.map(row => [questionKey(normalizeQuestion(row)), row]));
+  const needsWork = targets.some(exam => exam.questions.some(question => {
+    const clean = cleanBankQuestion(bankDraftForQuestion(exam, question));
+    const existing = currentByKey.get(questionKey(clean));
+    if (!existing) return true;
+    const row = normalizeQuestion(existing);
+    return rowNeedsExamMetadata(row, clean);
+  }));
+  if (!needsWork) return { exams: 0, added: 0, updated: 0 };
+  const actorName = text(actor) || 'SYSTEM';
+  return mutate(db => {
+    const now = Date.now();
+    const byContent = new Map(db.questions.map(row => [questionKey(normalizeQuestion(row)), row]));
+    let added = 0, updated = 0;
+    for (const exam of targets) {
+      const source = { examId: exam.id, examCode: text(exam.code), examTitle: exam.title, at: now };
+      for (const question of exam.questions) {
+        const clean = cleanBankQuestion(bankDraftForQuestion(exam, question));
+        const key = questionKey(clean);
+        const existing = byContent.get(key);
+        if (existing) {
+          const row = normalizeQuestion(existing);
+          if (!rowNeedsExamMetadata(row, clean)) continue;
+          /* A row that already remembers an exam keeps that first source:
+             the same question can legally sit in two papers (repeat exams),
+             and re-pointing it on every pass would churn the shelf for
+             nothing. */
+          Object.assign(existing, {
+            ...(row.source === null ? { source: { ...source, at: Number(row.createdAt) || now } } : {}),
+            ...(row.startAt <= 0 ? { startAt: clean.startAt } : {}),
+            ...(row.endAt <= 0 ? { endAt: clean.endAt } : {}),
+            ...(row.group !== clean.group ? { group: clean.group } : {}),
+            updatedBy: actorName, updatedAt: now
+          });
+          updated += 1;
+          continue;
+        }
+        const id = nextSequentialId('QUESTION', db.questions);
+        const row = { id, code: id, ...clean, source, ...record(now, actorName) };
+        db.questions.unshift(row);
+        byContent.set(key, row);
+        added += 1;
+      }
+    }
+    return { exams: targets.length, added, updated };
+  }, actorName);
 }
 
 export const questionBank = {
@@ -227,14 +322,7 @@ export const questionBank = {
       const now = Date.now();
       let added = 0, skipped = 0;
       for (const question of questions) {
-        const type = exam.type === 'mcq' ? 'mcq' : 'written';
-        const draft = {
-          id: '', type, text: question.text, className: exam.className || '', subject: exam.subject || '',
-          chapterId: exam.chapterId || '', chapterName: exam.chapterName || '', topic: exam.topic || '',
-          difficulty: question.difficulty || 'medium', marks: question.marks,
-          options: question.options || [], answer: question.answer || '', answerText: question.answerText || ''
-        };
-        const clean = cleanBankQuestion(draft);
+        const clean = cleanBankQuestion(bankDraftForQuestion(exam, question));
         if (known.has(questionKey(clean))) { skipped += 1; continue; }
         const id = nextSequentialId('QUESTION', db.questions);
         const row = {

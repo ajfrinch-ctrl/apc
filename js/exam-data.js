@@ -7,6 +7,7 @@ import { allocateExamCode, examCodeParts, orderPaperForAttempt, timeLabel } from
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
 import { enabledClasses } from './config.js';
 import { KEYS, readRaw, writeRaw, newId } from './database.js';
+import { questionBank } from './question-bank.js';
 export const EXAM_KEY = KEYS.exams;
 export const EXAM_TYPES = Object.freeze({ mcq: 'MCQ', written: 'লিখিত', short: 'সংক্ষিপ্ত উত্তর' });
 /* Draft → Review (pending) → Approved → Published → Completed → Archived.
@@ -841,7 +842,7 @@ export const examRepository = {
   async review(id, decision, options = {}, actor) {
     const name = await managerActor(actor);
     const students = decision === 'publish' ? await teachingRepository.listApprovedStudents() : [];
-    return mutate(db => {
+    const db = await mutate(db => {
       const exam = examById(db, id);
       if (decision === 'approve') {
         if (!['draft', 'pending', 'rejected'].includes(exam.status)) fail('শুধু খসড়া বা পর্যালোচনার অপেক্ষায় থাকা পরীক্ষা অনুমোদন করা যাবে।');
@@ -867,6 +868,14 @@ export const examRepository = {
       } else fail('সঠিক সিদ্ধান্ত নির্বাচন করুন।');
       exam.updatedAt = Date.now(); exam.updatedBy = name;
     });
+    /* A published MCQ paper joins the question bank the moment it goes live,
+       so every taken paper is on the shelf a student can practise later.
+       Already-shelved content is skipped, so re-publishing is a no-op. */
+    if (decision === 'publish') {
+      const published = db.exams.find(e => e.id === id);
+      if (published?.type === 'mcq') await questionBank.saveFromExam(published, name);
+    }
+    return db;
   },
   async approve(id, actor = MANAGER_ACTOR) { return examRepository.review(id, 'approve', {}, actor); },
   async publish(id, actor = MANAGER_ACTOR) { return examRepository.review(id, 'publish', {}, actor); },

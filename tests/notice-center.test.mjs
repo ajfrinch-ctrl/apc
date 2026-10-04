@@ -29,18 +29,19 @@ const markup = file => new JSDOM(readFileSync(new URL(`../${file}`, import.meta.
 const drawable = svg => Boolean(svg && svg.querySelector('path, rect, circle, line, polyline, polygon'));
 
 /** The bar a signed-in person sees: brand + slogan + bell + sign-out. */
-function shellBar(document, name) {
+function shellBar(document, exitId) {
   return [...document.querySelectorAll('.app-topbar')]
-    .find(bar => bar.querySelector('.app-brand-name')?.textContent.trim() === name);
+    .find(bar => bar.querySelector(`#${exitId}`));
 }
 
 /** Same markup everywhere, ignoring the two values that must differ per panel. */
-function normalised(bar, name) {
-  // ids, titles and data-actions differ per panel by necessity (that is how the
-  // shell wires them); everything else — order, classes, icons, labels — must
-  // be byte-for-byte the same.
+function normalised(bar) {
+  // No bar shows a panel name any more (logo + slogan only); the strip below
+  // stays as a guard. ids, titles and data-actions differ per panel
+  // by necessity (that is how the shell wires them) — everything else, order,
+  // classes, icons, labels, must be byte-for-byte the same.
   return bar.outerHTML
-    .replace(name, '<NAME>')
+    .replace(/<strong class="app-brand-name">[\s\S]*?<\/strong>/, '')
     .replace(/\s(?:id|title|data-action)="[^"]*"/g, '');
 }
 
@@ -50,7 +51,7 @@ test('every panel ships the identical topbar: logo, slogan, bell, sign-out only'
     const document = markup(page.file);
     const bars = document.querySelectorAll('.app-topbar');
     assert.ok(bars.length >= 1, `${page.file} has no topbar`);
-    const bar = shellBar(document, page.name);
+    const bar = shellBar(document, page.exit);
     assert.ok(bar, `${page.file} has no signed-in topbar`);
 
     const brand = bar.querySelector('.app-brand');
@@ -107,7 +108,7 @@ test('every panel ships the identical topbar: logo, slogan, bell, sign-out only'
       const checkbox = themeSwitch.querySelector('#darkModeToggle');
       assert.ok(checkbox && checkbox.type === 'checkbox', `${page.file}: the switch is not wired to the theme checkbox`);
       assert.ok(themeSwitch.querySelector('.toggle-switch i'), `${page.file}: the switch lost its track`);
-      const shape = normalised(bar, page.name);
+      const shape = normalised(bar);
       shapes.set(page.file, shape);
     }
   }

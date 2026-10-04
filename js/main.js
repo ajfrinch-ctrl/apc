@@ -26,6 +26,7 @@ import { registerServiceWorker } from './service-worker.js';
 import { initDynamicTheme } from './theme.js';
 import { initFixedShell } from './fixed-shell.js';
 import { initStudentExams } from './student-exams.js';
+import { initStudentPractice } from './student-practice.js';
 import { initStudentTeaching } from './student-teaching.js';
 import { initStudentDashboard } from './student-dashboard.js';
 import { mountReports, refreshReports } from './reports.js';
@@ -166,6 +167,9 @@ const state = {
   account: loadAccount()
 };
 const refreshExams = initStudentExams({ getStudent: () => state.student, getAccount: () => state.account });
+/* ইনস্ট্যান্ট MCQ অনুশীলন — official papers are untouched; the practice lane
+   reads the same papers through the question bank they join on publish. */
+const refreshPractice = initStudentPractice({ getStudent: () => state.student, getAccount: () => state.account });
 const refreshTeaching = initStudentTeaching({ getStudent: () => state.student });
 const refreshDashboard = initStudentDashboard({ getStudent: () => state.student, getAccount: () => state.account });
 /* The Learning Hub (Class → Subject → Chapter → Content) reads the same exams
@@ -242,7 +246,7 @@ function enterApp() {
   refreshDashboard();
   refreshTeaching(); refreshCourses.paint();
   dailyQuote.paint();
-  refreshExams();
+  refreshExams(); refreshPractice();
   refreshNotices();
   window.dispatchEvent(new Event('apc-session-ready'));
   // A student's reports are their own: the module re-reads the signed-in id.
@@ -274,7 +278,7 @@ initNavigation({ onAction: handleAction });
 const refreshNotices = () => window.apcNoticeCenter?.paint?.();
 initProfile({
   state,
-  onStudentChange: student => { renderStudent(student); refreshTeaching(); refreshExams(); refreshCourses.paint(); refreshReports($('#studentReports')); }
+  onStudentChange: student => { renderStudent(student); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshReports($('#studentReports')); }
 });
 initRoutine();
 // Settings → Notification Settings: switches, permission, preview and history.
@@ -369,7 +373,7 @@ window.addEventListener('storage', async event => {
     if (!$('#appShell').hidden) openStudentApp(state);
     refreshDashboard();
     refreshTeaching(); refreshCourses.paint();
-    refreshExams();
+    refreshExams(); refreshPractice();
     refreshNotices();
     refreshReports($('#studentReports'));
   } catch (error) {

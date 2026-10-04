@@ -6,6 +6,13 @@
 
 .exam-workspace{display:grid;gap:var(--space-4);min-width:0}
 .exam-workspace>*{min-width:0}
+/* Row spacing: the grid gap is the one spacer — direct <p> rows add no
+   margins of their own, an empty status row takes no space at all, and the
+   first row inside the content area does not double the gap. */
+.exam-workspace>p{margin:0}
+.exam-auto-notice:empty{display:none}
+[data-exam-content]>.exam-actions:first-child{margin-top:0}
+.exam-timer{margin-top:var(--space-3)}
 
 /* ---- module tiles + counters ------------------------------------------- */
 .exam-hub{display:grid;gap:var(--space-3)}
@@ -56,6 +63,7 @@
 .exam-status-danger{color:var(--color-danger)}
 .exam-questions-head{display:grid;gap:var(--space-2)}
 .exam-tags{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.exam-tags .exam-tag{margin:0}
 .exam-question-options p{margin:0 0 4px}
 .exam-option-correct{color:var(--color-success);font-weight:600}
 /* ---- exam code + the six stages ---------------------------------------- */
