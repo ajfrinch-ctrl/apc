@@ -36,7 +36,7 @@ test('session restore lands in the app and every bottom-nav view opens', async (
   assert.equal($('#appShell').hidden, false, 'the student shell stayed hidden');
   assert.equal($('#authScreen').hidden, true, 'the login screen must not linger');
 
-  for (const view of ['routine', 'courses', 'results', 'profile', 'home']) {
+  for (const view of ['routine', 'courses', 'exams', 'profile', 'home']) {
     click($(`.bottom-link[data-view="${view}"]`));
     await ctx.flush(4);
     const panel = $(`[data-view-panel="${view}"]`);

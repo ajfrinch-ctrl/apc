@@ -32,6 +32,8 @@ import { initStudentDashboard } from './student-dashboard.js';
 import { mountReports, refreshReports } from './reports.js';
 import { initNotificationSettings } from './notification-settings.js';
 import { initCourseHub } from './course-hub.js';
+import { initStudentStudySections } from './student-study-sections.js';
+import { initStudentFee } from './student-more.js';
 import { initDailyQuote } from './daily-quote.js';
 
 /* Always reveal the login shell before optional startup work. A failure in any
@@ -123,15 +125,23 @@ function applyAppConfig(cfg) {
       $('.bottom-link[data-view="courses"]')?.classList.add('disabled-nav');
     }
     if (cfg.modules.results === false) {
-      $('.bottom-link[data-view="results"]')?.classList.add('disabled-nav');
+      $('.bottom-link[data-view="exams"]')?.classList.add('disabled-nav');
     }
   }
 
-  // Home shortcuts mirror the same optional modules as the existing tabs.
-  // A disabled module must not become reachable just because it has a new tile.
-  for (const module of ['routine', 'courses', 'results']) {
+  // Home shortcuts mirror the same optional modules as the navigation. A
+  // disabled module must not become reachable just because it has a tile.
+  const TILE_MODULES = [
+    ['#studentServices [data-action="homework"]', 'courses'],
+    ['#studentServices [data-action="suggestion"]', 'courses'],
+    ['#studentServices [data-action="question-bank"]', 'courses'],
+    ['#studentServices [data-view="exams"]:not([data-exam-tab])', 'courses'],
+    ['#studentServices [data-exam-tab="results"]', 'results'],
+    ['#studentServices [data-view="notice-board"]', null]
+  ];
+  for (const [selector, module] of TILE_MODULES) {
+    if (!module) continue;
     const disabled = cfg.modules?.[module] === false;
-    const selector = `#studentServices [data-view="${module}"]` + (module === 'courses' ? ', #studentServices [data-action="homework"]' : '');
     document.querySelectorAll(selector).forEach(button => { button.disabled = disabled; });
   }
 
@@ -162,6 +172,12 @@ const refreshExams = initStudentExams({ getStudent: () => state.student, getAcco
    reads the same papers through the question bank they join on publish. */
 const refreshPractice = initStudentPractice({ getStudent: () => state.student, getAccount: () => state.account });
 const refreshTeaching = initStudentTeaching({ getStudent: () => state.student });
+/* পড়াশোনা = one screen with five sections; the sections own the teaching board's
+   scope, so the board is initialised first and handed in. */
+const refreshStudySections = initStudentStudySections({ getStudent: () => state.student, teaching: refreshTeaching });
+/* ফি is read-only: the same finance repository the Home card reads. */
+const refreshFee = initStudentFee({ getStudent: () => state.student });
+const refreshStudentSections = () => { void refreshStudySections(); void refreshFee(); };
 const refreshDashboard = initStudentDashboard({ getStudent: () => state.student, getAccount: () => state.account });
 /* The Learning Hub (Class → Subject → Chapter → Content) reads the same exams,
    questions, practice history and results the existing learning modules own —
@@ -185,6 +201,15 @@ const refreshCourses = initCourseHub({
 /* আজকের অনুপ্রেরণা — the day's quote is on screen before this line returns and
    never waits for a network or a decision from the reader. */
 const dailyQuote = initDailyQuote({ mount: '#dailyQuoteCard' });
+
+/* A control that names a tab of the পরীক্ষা section (Home's ফলাফল card) opens
+   that tab. Tabs inside the section are handled by the exam module itself. */
+document.addEventListener('click', event => {
+  const trigger = event.target.closest('[data-exam-tab]');
+  if (!trigger || trigger.closest('#examTabs')) return;
+  setView('exams');
+  refreshExams.setTab?.(trigger.dataset.examTab);
+});
 
 function handleAction(action) {
   switch (action) {
@@ -217,24 +242,22 @@ function handleAction(action) {
     /* Home icon-grid shortcuts. Each one only opens something that already
        exists: a filtered list, the bell's inbox, or the fee card on Home. */
     case 'homework':
+    case 'suggestion':
+    case 'question-bank': {
+      const section = action === 'homework' ? 'homework' : action === 'suggestion' ? 'suggestion' : 'bank';
       setView('courses');
-      document.querySelector('[data-learning-filter="homework"]')?.click();
+      window.dispatchEvent(new CustomEvent('apc-open-study-section', { detail: { section } }));
       break;
+    }
     case 'notices':
       setView('notice-board');
       noticeBoard.refresh();
       break;
-    case 'fees': {
-      const card = $('#dashboardFeeCard');
-      if (card && !card.hidden) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        card.classList.add('is-flash');
-        setTimeout(() => card.classList.remove('is-flash'), 1600);
-      } else {
-        showFeedback('ফি-র তথ্য এখনও যোগ হয়নি — দরকার হলে অফিসে যোগাযোগ করুন');
-      }
+    case 'fees':
+      // ফি now has one read-only screen; Home keeps the summary card.
+      setView('student-fee');
+      void refreshFee();
       break;
-    }
     case 'logout':
       requestLogout();
       break;
@@ -255,6 +278,7 @@ function enterApp() {
   refreshTeaching(); refreshCourses.paint();
   dailyQuote.paint();
   refreshExams(); refreshPractice();
+  refreshStudentSections();
   refreshNotices();
   window.dispatchEvent(new Event('apc-session-ready'));
   // A student's reports are their own: the module re-reads the signed-in id.
@@ -287,7 +311,7 @@ const refreshNotices = () => { window.apcNoticeCenter?.paint?.(); noticeBoard.re
 const refreshRoutine = initRoutine({ getStudent: () => state.student });
 initProfile({
   state,
-  onStudentChange: student => { renderStudent(student); noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshReports($('#studentReports')); }
+  onStudentChange: student => { renderStudent(student); noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshStudentSections(); refreshReports($('#studentReports')); }
 });
 let rosterProfileSyncFlight = null;
 async function applyRosterProfileToStudent() {
@@ -300,7 +324,7 @@ async function applyRosterProfileToStudent() {
     if (account.status !== 'active') { leaveApp(); return; }
     renderStudent(state.student);
     noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice();
-    refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshReports($('#studentReports'));
+    refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshStudentSections(); refreshReports($('#studentReports'));
   }).catch(() => {}).finally(() => { rosterProfileSyncFlight = null; });
   return rosterProfileSyncFlight;
 }
@@ -403,6 +427,7 @@ window.addEventListener('storage', async event => {
     refreshDashboard();
     refreshTeaching(); refreshCourses.paint();
     refreshExams(); refreshPractice();
+    refreshStudentSections();
     refreshNotices();
     refreshReports($('#studentReports'));
   } catch (error) {

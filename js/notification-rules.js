@@ -185,7 +185,7 @@ export function examItems(examDb, viewer, now = Date.now()) {
         source: 'exams',
         sourceId: text(exam.id),
         kind: 'result',
-        target: 'results',
+        target: 'exams', // ফলাফল is a tab of the পরীক্ষা section
         action: 'open',
         actionLabel: 'ফলাফল দেখুন',
         title: 'ফলাফল প্রকাশিত হয়েছে',

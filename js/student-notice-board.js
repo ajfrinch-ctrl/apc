@@ -18,6 +18,7 @@ const esc = value => String(value ?? '')
 
 let root = null;
 let getStudent = () => ({});
+let homeGetter = null;
 let selectedCategory = 'all';
 let selectedKey = '';
 let sessionRead = new Set();
@@ -45,8 +46,8 @@ function readReceipts(studentId) {
   } catch { return { keys: new Set(), corrupt: true }; }
 }
 
-function boardItems() {
-  const viewer = studentViewer();
+function boardItems(viewerOverride = null) {
+  const viewer = viewerOverride || studentViewer();
   if (!viewer.studentId) return [];
   let notices = [];
   try { notices = loadNotices(); } catch { notices = []; }
@@ -141,6 +142,39 @@ function updateTileBadge(count) {
   if (tile) tile.setAttribute('aria-label', `Notice Board${count ? ` — ${count}টি অপঠিত` : ''}`);
 }
 
+/** Home preview: the three newest notices this student may see. It is the
+    same boardItems() reader the Notice Board paints, so a notice can never
+    appear on Home while being missing from the board. */
+function paintHomeNotices() {
+  const mount = document.getElementById('homeNoticeList');
+  if (!mount) return;
+  const student = (homeGetter || getStudent)() || {};
+  const viewer = {
+    kind: 'student', studentId: text(student.id || student.studentId),
+    className: text(student.className), group: text(student.group)
+  };
+  const receipts = readReceipts(viewer.studentId);
+  const items = boardItems(viewer).slice(0, 3);
+  if (!items.length) {
+    mount.innerHTML = '<p class="notice-board-empty">এখনো কোনো notice প্রকাশিত হয়নি।</p>';
+    return;
+  }
+  mount.innerHTML = items.map(item => {
+    const category = categoryFor(item);
+    const read = itemIsRead(item, viewer.studentId, receipts);
+    return '<article class="notice-board-card notice-board-card-compact' + (read ? ' is-read' : ' is-unread') + '" data-notice-card="' + esc(item.key) + '">' +
+      '<div class="notice-board-card-head"><span class="notice-board-tag notice-board-tag-' + category.id + '">' + esc(category.label) + '</span>' +
+        '<span class="notice-board-read-state">' + (read ? 'পড়া হয়েছে ✓' : 'অপঠিত') + '</span></div>' +
+      '<h2>' + esc(item.title) + '</h2>' +
+      '<div class="notice-board-card-foot"><time>' + esc(whenText(item)) + '</time>' +
+        '<button type="button" class="notice-board-open" data-view="notice-board" data-notice-home-open="' + esc(item.key) + '">পড়ুন</button></div>' +
+    '</article>';
+  }).join('');
+  mount.querySelectorAll('[data-notice-home-open]').forEach(button => button.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('apc-notice-open', { detail: { key: button.dataset.noticeHomeOpen } }));
+  }));
+}
+
 function paint() {
   if (!root) return { total: 0, unread: 0 };
   const viewer = studentViewer();
@@ -187,6 +221,7 @@ function paint() {
     const detail = root.querySelector('#noticeBoardDetail');
     if (detail) detail.hidden = true;
   }
+  paintHomeNotices();
   return { total: items.length, unread: unreadItems.length };
 }
 
@@ -211,6 +246,11 @@ function openItem(keyOrId) {
   const detail = root.querySelector('#noticeBoardDetail');
   detail?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   return true;
+}
+
+export function paintHomeNoticePreview({ getStudent: getter } = {}) {
+  if (typeof getter === 'function') homeGetter = getter;
+  paintHomeNotices();
 }
 
 export function initStudentNoticeBoard({ getStudent: getter } = {}) {
@@ -246,6 +286,7 @@ export function initStudentNoticeBoard({ getStudent: getter } = {}) {
       markRead(viewerKey, [item.key]);
       window.dispatchEvent(new CustomEvent('apc-notifications-updated', { detail: { noticeRead: item.key } }));
       paint();
+      paintHomeNotices();
       if (!saved) root.querySelector('#noticeBoardReadStatus').textContent = 'এই ডিভাইসে Read state সংরক্ষণ হয়নি; এই সেশনে চিহ্নটি দেখা যাবে।';
       return;
     }
@@ -264,8 +305,9 @@ export function initStudentNoticeBoard({ getStudent: getter } = {}) {
   window.addEventListener('apc-session-ready', paint);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') paint(); });
   paint();
+  paintHomeNotices();
 
-  const api = { refresh: paint, open: openItem };
+  const api = { refresh: () => { const result = paint(); paintHomeNotices(); return result; }, open: openItem, home: paintHomeNotices };
   window.apcStudentNoticeBoard = api;
   return api;
 }

@@ -71,7 +71,7 @@ const NEEDS = Object.freeze({
 });
 /* Where a tapped item goes when the payload does not name a view. */
 const KIND_TARGET = Object.freeze({
-  exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'results', homework: 'courses',
+  exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'exams', homework: 'courses',
   notice: 'notice-board', broadcast: 'notice-board',
   approved: 'home', rejected: 'home',
   'payment-review': 'cash-counter', 'payment-rejected': 'cash-counter', 'exam-review': 'exams',
@@ -438,6 +438,9 @@ export function openNotificationTarget(data) {
   }
   const openTarget = () => {
     const opened = navigateTo(target);
+    /* ফলাফল is a tab of the পরীক্ষা section (docs/APP-ARCHITECTURE.md §3), so a
+       result notification lands on that tab instead of a view of its own. */
+    if (opened && kind === 'result') document.querySelector('#examTabs [data-exam-tab="results"]')?.click();
     if (opened && isBoardItem && viewer?.kind === 'student') {
       window.dispatchEvent(new CustomEvent('apc-notice-open', {
         detail: { kind, id: sourceId, key }

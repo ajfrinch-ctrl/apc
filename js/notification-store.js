@@ -58,7 +58,7 @@ export const SECTION_TARGET = Object.freeze({
   'exam-review': 'exams',
   'exam-returned': 'exams',
   'exam-approved': 'exams',
-  result: 'results',
+  result: 'exams',
   approved: 'home',
   rejected: 'home',
   registration: 'approvals',

@@ -24,10 +24,26 @@ async function boot(extraSeed = {}) {
 test('every student service tile opens its original view or truthful existing action', async () => {
   const ctx = await boot();
   const { $, click, window } = ctx;
-  for (const view of ['routine', 'courses', 'exams', 'results', 'profile']) {
-    click($(`#studentServices [data-view="${view}"]`));
+  /* The five quick academic cards open a section of পড়াশোনা or the পরীক্ষা section. */
+  const cards = [
+    ['homework', 'homework', 'courses'], ['suggestion', 'suggestion', 'courses'],
+    ['question-bank', 'bank', 'courses'], ['exams', null, 'exams'], ['results', null, 'exams']
+  ];
+  for (const [action, section, view] of cards) {
+    const tile = action === 'exams' || action === 'results'
+      ? $(`#studentServices [data-action="${action}"]`) || $(`#studentServices [data-exam-tab="${action}"]`) || $('#studentServices [data-view="exams"]')
+      : $(`#studentServices [data-action="${action}"]`);
+    click(tile);
     await ctx.flush();
-    assert.equal($(`[data-view-panel="${view}"]`).classList.contains('active'), true, view);
+    assert.equal($(`[data-view-panel="${view}"]`).classList.contains('active'), true, action);
+    if (section) {
+      assert.equal($(`[data-study-section="${section}"]`).getAttribute('aria-pressed'), 'true', action + ' section');
+      assert.equal($(`[data-study-panel="${section}"]`).hidden, false, action + ' panel');
+    }
+    if (action === 'results') {
+      assert.equal($('#examTabs [data-exam-tab="results"]').getAttribute('aria-pressed'), 'true', 'ফলাফল opens its tab');
+      assert.equal($('[data-exam-panel="results"]').hidden, false, 'the result panel is shown');
+    }
     click($('.bottom-link[data-view="home"]'));
   }
   click($('#studentServices [data-action="homework"]'));
@@ -44,16 +60,19 @@ test('every student service tile opens its original view or truthful existing ac
 
   const before = window.localStorage.getItem(KEYS.transactions);
   $('#dashboardFeeCard').hidden = true; // an honest empty-data state, not a fabricated balance
-  click($('#studentServices [data-action="fees"]'));
-  assert.match($('.feedback-toast').textContent, /তথ্য এখনও যোগ হয়নি/);
-  assert.equal(window.localStorage.getItem(KEYS.transactions), before, 'fees shortcut must not write a ledger');
+  /* ফি is a read-only screen: no ledger write, ever. */
+  click($('#profileView [data-view="student-fee"]'));
+  await ctx.flush();
+  assert.equal($('#studentFeeView').classList.contains('active'), true, 'ফি opens its own screen');
+  assert.equal($('#studentFeeView').querySelectorAll('input, textarea, select, form').length, 0, 'ফি must stay read-only');
+  assert.equal(window.localStorage.getItem(KEYS.transactions), before, 'fees screen must not write a ledger');
   assert.deepEqual(ctx.jsdomErrors.filter(error => !/navigation/i.test(error)), []);
 });
 
 test('the new tile entrances respect the existing optional-module settings', async () => {
   const ctx = await boot({ [KEYS.settings]: JSON.stringify({ modules: { routine: false, courses: false, results: false } }) });
-  for (const selector of ['[data-view="routine"]', '[data-view="courses"]', '[data-view="results"]', '[data-action="homework"]']) {
+  for (const selector of ['[data-action="homework"]', '[data-action="suggestion"]', '[data-action="question-bank"]', '[data-exam-tab="results"]']) {
     assert.equal(ctx.$('#studentServices ' + selector).disabled, true, selector + ' must not bypass module settings');
   }
-  assert.equal(ctx.$('#studentServices [data-view="profile"]').disabled, false, 'an unrelated tile must stay available');
+  assert.equal(ctx.$('#studentServices [data-view="notice-board"]').disabled, false, 'an unrelated tile must stay available');
 });

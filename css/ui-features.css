@@ -147,3 +147,18 @@
 .learning-summary span{font-size:var(--font-xs);color:var(--color-text-secondary)}
 @media(max-width:380px){.apc-inapp-alert-row{grid-template-columns:minmax(0,1fr)}.apc-inapp-alert-action{width:100%}}
 @media(max-width:300px){.learning-summary{grid-template-columns:1fr}}
+
+/* ---- v168: the পড়াশোনা section panels --------------------------------------
+   The five sections are one screen with five panels; only the open panel is
+   visible, and the single learning board is moved into the open panel's slot
+   by js/student-study-sections.js. A hidden panel must really collapse (the
+   hidden attribute is not enough once a display rule is set on the class). */
+.study-section-panel{display:grid;gap:var(--space-4);margin-top:var(--space-4)}
+.study-section-panel[hidden]{display:none}
+.study-section-filters{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center}
+.study-section-filters label{display:grid;gap:4px;min-width:140px;font-size:var(--font-xs);color:var(--color-text-secondary)}
+.study-section-filters select{min-height:40px;padding:0 var(--space-2);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:inherit;font-size:var(--font-sm);width:auto}
+.study-section-list{display:grid;gap:var(--space-3)}
+.study-section-count{margin:0;font-size:var(--font-sm);color:var(--color-text-secondary)}
+#studyBankFilters,#studySuggestionFilters,#studyMaterialFilters{margin-bottom:var(--space-2)}
+#learningFilters{display:none}

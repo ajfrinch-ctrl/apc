@@ -38,12 +38,27 @@ test('all portals retain the same uncluttered two-action brand bar', () => {
   }
 });
 
-test('student, manager and teacher have eight real, named service shortcuts', () => {
+test('student, manager and teacher have real, named service shortcuts', () => {
+  /* The student grid is the five quick academic cards of the app architecture
+     plus the Notice Board entrance; the staff panels keep their eight tiles. */
   const allowed = {
-    index: ['routine', 'courses', 'exams', 'results', 'profile', 'notice-board'],
     manager: ['approvals', 'classes', 'teachers', 'finance', 'routine', 'exams', 'notices', 'reports'],
     teacher: ['classes', 'students', 'routine-view', 'routine', 'homework', 'online-exams', 'exam', 'reports']
   };
+  const studentCards = [
+    ['homework', 'বাড়ির কাজ'], ['suggestion', 'সাজেশন'], ['question-bank', 'প্রশ্নব্যাংক'],
+    ['exams', 'পরীক্ষা'], ['exams', 'ফলাফল'], ['notice-board', 'Notice Board']
+  ];
+  const studentTiles = [...doc('index').querySelectorAll('#studentServices .pay-tile')];
+  assert.equal(studentTiles.length, studentCards.length);
+  studentTiles.forEach((tile, index) => {
+    const [route, label] = studentCards[index];
+    assert.equal(tile.getAttribute('type'), 'button');
+    assert.ok(tile.querySelector('.pay-tile-icon svg[aria-hidden="true"]'), 'student blank icon');
+    assert.equal(tile.querySelector('.pay-tile-label').textContent.trim(), label);
+    assert.ok(tile.dataset.view === route || tile.dataset.action === route, 'student card ' + label + ' points nowhere');
+  });
+  assert.equal(studentTiles[4].dataset.examTab, 'results', 'ফলাফল opens the results tab of পরীক্ষা');
   for (const [name, views] of Object.entries(allowed)) {
     const document = doc(name);
     const tiles = [...document.querySelectorAll('.pay-grid > .pay-tile')];
@@ -61,16 +76,17 @@ test('student, manager and teacher have eight real, named service shortcuts', ()
 });
 
 test('secondary screens have accessible home/back controls and staff More has round icons', () => {
+  const MORE_SUBPAGES = '#reportsView, #notificationSettingsView, #myProfileView, #settingsView, #studentFeeView';
   for (const [name, attribute, target, count] of [
-    ['index', 'data-view', 'home', 7], ['admin', 'data-admin-view', 'dashboard', 11],
+    ['index', 'data-view', 'home', 10], ['admin', 'data-admin-view', 'dashboard', 11],
     ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 9]
   ]) {
     const document = doc(name);
     const backs = [...document.querySelectorAll('.pay-back')];
     assert.equal(backs.length, count, name);
     for (const button of backs) {
-      // The More sub-pages (Reports, Notification Settings) go back to More.
-      const parent = name === 'index' && button.closest('#reportsView, #notificationSettingsView') ? 'profile' : target;
+      // Every আরও sub-page (প্রোফাইল, রিপোর্ট, নোটিফিকেশন, ফি, সেটিংস) goes back to More.
+      const parent = name === 'index' && button.closest(MORE_SUBPAGES) ? 'profile' : target;
       assert.equal(button.getAttribute(attribute), parent);
       assert.ok(button.getAttribute('aria-label'));
       assert.ok(button.querySelector('svg'));
