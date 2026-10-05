@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Active Plus — Sync Indicator (টপবারের উপরের বর্ডার) · ১৬৭</title>
+<!-- The REAL app stylesheet. The demo topbar below is the app's own markup and
+     the state buttons drive the production js/sync-status.js — nothing is copied. -->
+<link rel="stylesheet" href="../../css/design-system.css">
+<script src="../../js/topbar-connectivity.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-bg);font-family:'Noto Sans Bengali',system-ui,sans-serif}
+.wrap{max-width:1160px;margin:auto;padding:0 20px 48px}
+header.page{padding:26px 20px 18px;background:var(--color-surface);border-bottom:1px solid var(--color-border);margin-bottom:20px}
+header.page .inner{max-width:1160px;margin:auto}
+header.page small.kicker{font-size:12px;letter-spacing:.08em;color:var(--color-text-secondary);font-weight:700}
+header.page h1{font-size:clamp(20px,3.4vw,27px);margin:6px 0 6px}
+header.page p{margin:0;max-width:900px;color:var(--color-text-secondary);font-size:14px}
+h2{font-size:17px;margin:26px 0 4px}
+h2 small,h3 small{display:block;font-weight:400;font-size:12.5px;color:var(--color-text-secondary);margin-top:3px}
+h3{font-size:14.5px;margin:18px 0 8px}
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:16px 18px;margin:12px 0}
+/* The embedded app topbar: a self-contained frame, so the bar's own sticky/z-index cannot fight this page. */
+.demo-shell{position:relative;isolation:isolate;overflow:hidden;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.row button{min-height:42px;padding:8px 14px;border:1px solid var(--color-border);border-radius:999px;background:var(--color-surface);color:var(--color-text);font:inherit;font-size:13.5px;cursor:pointer}
+.row button:hover{border-color:var(--color-primary);color:var(--color-primary)}
+.row button[aria-pressed="true"]{border-color:var(--color-primary);background:var(--color-surface-muted);color:var(--color-primary);font-weight:600}
+label.toggle{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;min-height:42px}
+.readout{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;font-size:13.5px}
+.readout b{font-weight:600}
+.swatch{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;border:1px solid var(--color-border);background:var(--color-surface-muted)}
+code{background:var(--color-surface-muted);border-radius:6px;padding:1px 5px;font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--color-border);vertical-align:top}
+th{font-size:12px;color:var(--color-text-secondary);font-weight:600}
+.gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:12px}
+figure{margin:0}
+figure img{display:block;width:100%;height:auto;border:1px solid var(--color-border);border-radius:12px}
+figcaption{font-size:12.5px;color:var(--color-text-secondary);margin-top:6px}
+.note{background:var(--color-surface-muted);border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;margin:12px 0}
+.hint{font-size:12.5px;color:var(--color-text-secondary)}
+a{color:var(--color-primary)}
+@media(max-width:760px){.gallery{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="page"><div class="inner">
+  <small class="kicker">ACTIVE PLUS · ১৬৭ · SYNC STATUS</small>
+  <h1>Sync Status এখন শুধু টপবারের উপরের বর্ডার</h1>
+  <p>কোনো চিপ, লেবেল, টোস্ট বা স্থায়ী সিঙ্ক-বার্তা নেই। উপরের সরু লাইনটির রঙই একমাত্র স্থায়ী ইন্ডিকেটর — 🟢 সিঙ্ক সম্পন্ন · 🟡 সিঙ্ক চলছে/pending · 🔴 ব্যর্থ বা অফলাইন · ⚪ শুরু হয়নি।</p>
+</div></header>
+
+<main class="wrap">
+  <h2>লাইভ ডেমো — আসল অ্যাপ কোড দিয়ে <small>নিচের topbar-টি <code>index.html</code> থেকে হুবহু আনা, আর বাটনগুলো আসল <code>js/sync-status.js</code> চালায়</small></h2>
+  <section class="card">
+    <div class="demo-shell" id="liveDemo" aria-live="off">
+      <p class="hint" style="padding:14px">ডেমো লোড হচ্ছে… (এই অংশটি HTTP সার্ভারে খুললে আসল topbar ও স্টেট বাটন দেখা যাবে)</p>
+    </div>
+    <div class="row" id="controls" hidden>
+      <button type="button" data-state="paused" aria-pressed="true">⚪ শুরু হয়নি (paused)</button>
+      <button type="button" data-state="connecting">🟡 সংযোগ হচ্ছে (connecting)</button>
+      <button type="button" data-state="pending">🟡 সিঙ্ক চলছে (pending)</button>
+      <button type="button" data-state="online">🟢 সিঙ্ক সম্পন্ন (markSyncSuccess + online)</button>
+      <button type="button" data-state="conflict">🔴 দ্বন্দ্ব (conflict)</button>
+      <button type="button" data-state="error">🔴 সিঙ্ক ব্যর্থ (reportSyncError)</button>
+      <button type="button" data-state="offline">🔴 অফলাইন (offline)</button>
+      <label class="toggle"><input type="checkbox" id="deviceOffline"> ডিভাইস অফলাইন (navigator.onLine = false)</label>
+      <label class="toggle"><input type="checkbox" id="darkTheme"> AMOLED থিম</label>
+    </div>
+    <div class="readout" id="readout" hidden style="margin-top:14px">
+      <b>verdict (<code>&lt;html data-sync-visual&gt;</code>)</b><span id="verdict">—</span>
+      <b>border-top-color</b><span><i class="swatch" id="swatch"></i> <span id="color">—</span></span>
+      <b>border-top</b><span id="border">—</span>
+    </div>
+    <p class="hint" id="demoNote" style="margin-top:10px"></p>
+  </section>
+
+  <h2>অবস্থা অনুযায়ী বর্ডার <small>আসল অ্যাপের স্ক্রিনশট (headless Chromium, লাইট + AMOLED) · লাইনটি সব অবস্থায় ৩px, শুধু রঙ বদলায়</small></h2>
+  <div class="gallery">
+    <figure><img src="state-light-synced.png" alt="Synced — সবুজ উপরের বর্ডার" loading="lazy"><figcaption>🟢 <code>online</code> + <code>firebaseLastSync</code> — সিঙ্ক সম্পন্ন (অপেক্ষার পরেও সবুজ থাকে)</figcaption></figure>
+    <figure><img src="state-light-syncing.png" alt="Syncing — অ্যাম্বার উপরের বর্ডার" loading="lazy"><figcaption>🟡 <code>pending</code> / <code>connecting</code> — সিঙ্ক চলছে (ধীর breathing animation)</figcaption></figure>
+    <figure><img src="state-light-error.png" alt="Error — লাল উপরের বর্ডার" loading="lazy"><figcaption>🔴 <code>error</code> / <code>offline</code> / <code>conflict</code> / <code>storage</code> — কোনো লেখা নেই, শুধু লাল</figcaption></figure>
+    <figure><img src="state-light-idle.png" alt="Idle — ধূসর উপরের বর্ডার" loading="lazy"><figcaption>⚪ <code>paused</code> / কিছুই নির্ধারিত নয় — নিরপেক্ষ ধূসর</figcaption></figure>
+    <figure><img src="state-dark-synced.png" alt="AMOLED synced"><figcaption>🟢 সিঙ্ক সম্পন্ন · AMOLED</figcaption></figure>
+    <figure><img src="state-dark-syncing.png" alt="AMOLED syncing"><figcaption>🟡 সিঙ্ক চলছে · AMOLED</figcaption></figure>
+    <figure><img src="state-dark-error.png" alt="AMOLED error"><figcaption>🔴 সমস্যা / অফলাইন · AMOLED</figcaption></figure>
+    <figure><img src="state-dark-idle.png" alt="AMOLED idle"><figcaption>⚪ শুরু হয়নি · AMOLED</figcaption></figure>
+  </div>
+
+  <h2>পাঁচ প্যানেলেই একই আচরণ <small>একটি <code>&lt;html data-sync-visual&gt;</code> verdict → সব topbar; পরে তৈরি হওয়া bar-ও সঙ্গে সঙ্গে সঠিক রঙ পায়</small></h2>
+  <div class="gallery">
+    <figure><img src="context-student-home-synced.png" alt="শিক্ষার্থী হোম, সবুজ লাইন" loading="lazy"><figcaption>শিক্ষার্থী · হোম — সবুজ লাইন প্রেক্ষিতে</figcaption></figure>
+    <figure><img src="panel-admin-synced.png" alt="এডমিন topbar" loading="lazy"><figcaption>এডমিন প্যানেল</figcaption></figure>
+    <figure><img src="panel-payment-synced.png" alt="পেমেন্ট topbar" loading="lazy"><figcaption>পেমেন্ট কাউন্টার</figcaption></figure>
+    <figure><img src="state-light-idle.png" alt="লগইন স্ক্রিনে কোনো topbar নেই" loading="lazy"><figcaption>লগইন স্ক্রিনে কোনো topbar নেই, তাই কোনো সিঙ্ক লাইন বা লেখাও নেই</figcaption></figure>
+  </div>
+  <p class="hint">ম্যানেজার ও শিক্ষক প্যানেলেও হুবহু একই রঙ ও একই উচ্চতা (৬৩px) পাওয়া গেছে — ছবি এক হলে পুনরাবৃত্তি এড়ানো হয়েছে।</p>
+
+  <h2>স্বয়ংক্রিয় যাচাই <small>আসল <code>js/sync-status.js</code> চালিয়ে computed style পড়া হ‍য়েছে · <code>pageerror</code> শূন্য</small></h2>
+  <section class="card">
+    <table>
+      <thead><tr><th>sync-status state</th><th>verdict</th><th>border-top (light)</th><th>border-top (AMOLED)</th></tr></thead>
+      <tbody>
+        <tr><td><code>paused</code></td><td><code>idle</code></td><td><code>rgb(101,116,138)</code> ⚪</td><td><code>rgb(142,150,163)</code> ⚪</td></tr>
+        <tr><td><code>pending</code> / <code>connecting</code></td><td><code>syncing</code></td><td>amber (breath) 🟡</td><td>lifted amber 🟡</td></tr>
+        <tr><td><code>online</code> + <code>firebaseLastSync</code></td><td><code>synced</code></td><td><code>rgb(14,159,110)</code> 🟢</td><td><code>rgb(84,224,164)</code> 🟢</td></tr>
+        <tr><td><code>error</code> / <code>offline</code></td><td><code>error</code></td><td><code>rgb(184,50,57)</code> 🔴</td><td><code>rgb(255,141,146)</code> 🔴</td></tr>
+      </tbody>
+    </table>
+    <p class="hint" style="margin:10px 0 0">পুরো টেস্ট স্যুট ৮২৩/৮২৩ পাস; নতুন <code>tests/sync-border-indicator.test.mjs</code> রঙ-মানচিত্র, “সবুজ থেকে যায়”, topbar-এ সিঙ্ক-টেক্সট নিষিদ্ধ, দুই থিমের প্যালেট টোকেন ও অন্য শিট যাতে লাইনটি না ভাঙে — সব যাচাই করে।</p>
+  </section>
+
+  <p class="hint">বিস্তারিত: <a href="../../docs/SYNC-INDICATOR-167.md">docs/SYNC-INDICATOR-167.md</a> · <a href="../../index.html">অ্যাপের লগইন পাতা</a><br>
+  ছবিগুলো আসল অ্যাপের, নমুনা ডেটাসহ — কোনো বাস্তব শিক্ষার্থী, লেনদেন বা ক্লাউড ডেটা নয়। Firebase/সিঙ্ক লজিক, ডেটা ও authentication অপরিবর্তিত।</p>
+</main>
+
+<script type="module">
+  const $ = selector => document.querySelector(selector);
+  const liveDemo = $('#liveDemo');
+  const readout = $('#readout');
+  const swatch = $('#swatch');
+
+  function paintReadout(bar) {
+    const style = getComputedStyle(bar);
+    $('#verdict').textContent = document.documentElement.dataset.syncVisual ?? '(none)';
+    $('#color').textContent = style.borderTopColor;
+    swatch.style.background = style.borderTopColor;
+    $('#border').textContent = `${style.borderTopWidth} ${style.borderTopStyle}`;
+  }
+
+  try {
+    // The bar is the app's own markup, fetched live so it can never drift.
+    const html = await fetch('../../index.html').then(response => response.text());
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const bar = doc.querySelector('.app-topbar');
+    if (!bar) throw new Error('no topbar in index.html');
+    for (const image of bar.querySelectorAll('img[src^="assets/"]')) image.src = `../../${image.getAttribute('src')}`;
+    liveDemo.replaceChildren(bar);
+    for (const button of bar.querySelectorAll('button')) button.tabIndex = -1;   // display only
+
+    const { setSyncStatus, markSyncSuccess, reportSyncError } = await import('../../js/sync-status.js');
+    const controls = $('#controls');
+    const buttons = [...controls.querySelectorAll('[data-state]')];
+    const apply = state => {
+      if (state === 'online') { markSyncSuccess('read'); setSyncStatus('online'); return; }
+      if (state === 'error') { reportSyncError({ code: 'auth/network-request-failed' }); return; }
+      setSyncStatus(state);
+    };
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        apply(button.dataset.state);
+        for (const other of buttons) other.setAttribute('aria-pressed', String(other === button));
+      });
+    }
+    // A phone with no connectivity reports exactly this.
+    $('#deviceOffline').addEventListener('change', event => {
+      const offline = event.target.checked;
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => !offline });
+      window.dispatchEvent(new Event(offline ? 'offline' : 'online'));
+    });
+    $('#darkTheme').addEventListener('change', event => {
+      if (event.target.checked) document.documentElement.dataset.theme = 'dark';
+      else delete document.documentElement.dataset.theme;
+    });
+
+    controls.hidden = false;
+    readout.hidden = false;
+    $('#demoNote').textContent = 'এটি আসল topbar-এর একটি নিষ্ক্রিয় নমুনা — ঘণ্টা/লগআউট বাটন এখানে কাজ করে না। বাটনে চাপলে সত্যিকারের sync-status module চলে এবং উপরের লাইনের রঙ সঙ্গে সঙ্গে বদলায়; সবুজ রঙ সফল transfer-এর পরে অপেক্ষা করলেও থাকে।';
+    apply('paused');
+    paintReadout(bar);
+    setInterval(() => paintReadout(bar), 150);
+  } catch (error) {
+    liveDemo.innerHTML = '<p class="hint" style="padding:14px">লাইভ ডেমোটি শুধু HTTP সার্ভারে (অ্যাপের মতো) চলে — নিচের স্ক্রিনশটগুলোতে চারটি অবস্থা দেখা যাচ্ছে।</p>';
+    console.warn('[preview] live demo unavailable:', error?.message || error);
+  }
+</script>
+</body>
+</html>

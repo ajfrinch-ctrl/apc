@@ -65,3 +65,5 @@
 | `sw.js` | `CACHE_VERSION 167`, অফলাইন শেলে নতুন ফাইল-সেট |
 | `*.html` | `css/design-system.css?v=167`, `js/topbar-connectivity.js?v=20261005-syncborder` |
 | `tests/sync-border-indicator.test.mjs` | রঙ-মানচিত্র, topbar-এ টেক্সট নিষিদ্ধ, প্যালেট-টোকেন ও cascade রক্ষা |
+| `tests/preview-sync-indicator.test.mjs` | গ্যালারিটি আসল ফাইল ব্যবহার করে কি না, উদ্ধৃত রঙ প্যালেটের সাথে মেলে কি না, ছবি আছে কি না |
+| `preview/sync-indicator-167/` | চার অবস্থার ছবি (লাইট + AMOLED), প্যানেল-ছবি, নিষ্ক্রিয় লগইন ছবি, লাইভ ডেমো (আসল topbar + আসল `setSyncStatus`) |
