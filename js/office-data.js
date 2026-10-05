@@ -1,8 +1,10 @@
 /* Live office records: roster, notices and weekly routine.
    An empty browser starts empty. Sample arrays in admin-data.js stay available
    as fixtures for tests; they are not loaded here. */
-import { loadAccount, saveAccount, readJSON, writeJSON } from './storage.js';
-import { KEYS, listDocuments } from './database.js';
+import { loadAccount, saveAccount, saveStudent, readJSON, writeJSON } from './storage.js';
+import { KEYS, listDocuments, listDocumentsStrict, replaceDocumentsStrict } from './database.js';
+import { hasStaffSession, readStaffAccount } from './staff-auth.js';
+import { listClasses } from './academics.js';
 import { LOCAL_WRITE_KEY, markLocalSource } from './notification-rules.js';
 
 export const ROSTER_KEY = KEYS.students;
@@ -70,6 +72,36 @@ export function saveRoster(students) {
   return writeJSON(ROSTER_KEY, students);
 }
 
+/** Manager-only operational edits. Identifiers and approval state are copied
+ * from the stored row, never accepted from the form. */
+export async function updateStudentOperationalInfo(studentId, patch = {}) {
+  if (!(await hasStaffSession('manager'))) throw Object.assign(new Error('শুধু Manager শিক্ষার্থীর operational তথ্য বদলাতে পারবেন।'), { code: 'ACCESS_DENIED' });
+  const reviewer = await readStaffAccount('manager');
+  if (!reviewer || ['disabled', 'inactive', 'rejected'].includes(reviewer.status) || reviewer.accountStatus === 'disabled') {
+    throw Object.assign(new Error('সক্রিয় Manager profile ছাড়া এই কাজ করা যাবে না।'), { code: 'ACCESS_DENIED' });
+  }
+  const records = listDocumentsStrict('students', row => Boolean(row && typeof row.id === 'string' && row.id));
+  const index = records.findIndex(row => row.id === String(studentId));
+  if (index < 0) throw new Error('শিক্ষার্থী রেকর্ড পাওয়া যায়নি।');
+  const current = records[index];
+  const name = String(patch.name ?? current.name ?? '').trim();
+  const mobile = String(patch.mobile ?? current.mobile ?? '').trim();
+  const guardianMobile = String(patch.guardianMobile ?? current.guardianMobile ?? '').trim();
+  const className = String(patch.className ?? current.className ?? '').trim();
+  const group = String(patch.group ?? current.group ?? '').trim();
+  const monthlyFee = Number(patch.monthlyFee ?? current.monthlyFee ?? 1500);
+  if (!name || name.length > 100 || mobile.length > 32 || guardianMobile.length > 32 || group.length > 80) throw new Error('শিক্ষার্থীর নাম, মোবাইল বা batch/group তথ্য সঠিক নয়।');
+  if (!listClasses().some(item => item.active !== false && item.name === className)) throw new Error('সঠিক সক্রিয় শ্রেণি নির্বাচন করুন।');
+  if (!Number.isSafeInteger(monthlyFee) || monthlyFee < 0 || monthlyFee > 1000000) throw new Error('মাসিক ফি ০ থেকে ১০,০০,০০০ টাকার মধ্যে দিন।');
+  const updated = {
+    ...current, name, mobile, guardianMobile, className, group, monthlyFee,
+    updatedAt: new Date().toISOString(), updatedBy: reviewer.username || 'manager'
+  };
+  records[index] = updated;
+  replaceDocumentsStrict('students', records);
+  return updated;
+}
+
 /** Make sure the device's student account is visible to the admin roster. */
 export function upsertLocalAccount() {
   return saveRoster(loadRoster());
@@ -116,6 +148,47 @@ export async function syncAccountStatus(studentId, status) {
   if (id !== studentId) return false;
   const mapped = status === 'approved' ? 'active' : status === 'rejected' ? 'rejected' : 'pending';
   return saveAccount({ ...account, status: mapped });
+}
+
+/** Adopt Manager-owned profile/class/fee changes from the synced roster row on
+ * the student's own device. Student ID and credentials remain untouched. */
+export async function syncStudentProfileFromRoster(studentId) {
+  const account = loadAccount();
+  if (!account) return false;
+  const id = account.student?.id || account.studentId;
+  if (id !== String(studentId || '') || !account.student) return false;
+  const rows = listDocumentsStrict('students', row => Boolean(row && typeof row.id === 'string' && row.id));
+  const row = rows.find(item => item.id === id);
+  if (!row) return false;
+  const current = account.student;
+  const mappedStatus = row.status === 'approved' ? 'active' : row.status === 'rejected' ? 'rejected' : 'pending';
+  const nextStudent = {
+    ...current,
+    name: row.name ?? current.name,
+    nameBn: row.name ?? current.nameBn,
+    fatherName: row.fatherName ?? current.fatherName,
+    className: row.className ?? current.className,
+    group: row.group ?? current.group,
+    studentMobile: row.mobile ?? current.studentMobile,
+    guardianMobile: row.guardianMobile ?? current.guardianMobile,
+    monthlyFee: row.monthlyFee ?? current.monthlyFee
+  };
+  const nextAccount = {
+    ...account,
+    status: mappedStatus,
+    ...(row.mobile ? { mobile: row.mobile, registrationMobile: row.mobile } : {}),
+    student: nextStudent
+  };
+  const changed = mappedStatus !== account.status
+    || nextStudent.name !== current.name || nextStudent.nameBn !== current.nameBn
+    || nextStudent.fatherName !== current.fatherName || nextStudent.className !== current.className
+    || nextStudent.group !== current.group || nextStudent.studentMobile !== current.studentMobile
+    || nextStudent.guardianMobile !== current.guardianMobile || nextStudent.monthlyFee !== current.monthlyFee
+    || (row.mobile && (account.mobile !== row.mobile || account.registrationMobile !== row.mobile));
+  if (!changed) return false;
+  if (!(await saveAccount(nextAccount))) return false;
+  saveStudent(nextStudent);
+  return loadAccount();
 }
 
 export function loadNotices() {

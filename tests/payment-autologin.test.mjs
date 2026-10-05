@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { PAYMENT_SESSION_KEY, hasPaymentSession } from '../js/payment-auth.js';
-import { seedStaffSession } from './staff-harness.mjs';
+import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
 import { adminStudents } from '../js/admin-data.js';
 import { ROSTER_KEY } from '../js/office-data.js';
 
@@ -16,7 +16,8 @@ test('an existing counter session opens the desk directly and it is usable', asy
       [ROSTER_KEY]: JSON.stringify(adminStudents)
     }
   });
-  // A remembered session is a device-bound token with an expiry.
+  // A remembered session belongs to an already provisioned, active Counter profile.
+  await provisionStaff('payment');
   seedStaffSession(ctx.window, 'payment', { ttlDays: 1 });
   await import('../js/payment.js');
   const { $, $$, click, type, waitFor } = ctx;

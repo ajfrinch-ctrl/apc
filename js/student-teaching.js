@@ -70,7 +70,7 @@ export function initStudentTeaching({ getStudent }) {
   async function refresh() {
     const current = ++request;
     try {
-      const next = await teachingRepository.list();
+      const next = await teachingRepository.listForStudent(getStudent()?.id);
       if (current !== request) return;
       db = next; $('#learningError').hidden = true; render();
     } catch {
@@ -84,6 +84,20 @@ export function initStudentTeaching({ getStudent }) {
     const button = event.target.closest('[data-learning-filter]'); if (!button) return;
     filter = button.dataset.learningFilter;
     $('#learningFilters').querySelectorAll('button').forEach(el => el.setAttribute('aria-pressed', String(el === button))); render();
+  });
+  window.addEventListener('apc-notification-action', event => {
+    const detail = event.detail || {};
+    if (detail.kind !== 'homework' || !detail.id) return;
+    $('#learningFilters').querySelector('[data-learning-filter="homework"]')?.click();
+    void refresh().then(() => {
+      const card = [...$('#learningList').querySelectorAll('[data-learning-id]')]
+        .find(item => item.dataset.learningId === String(detail.id));
+      if (!card) return;
+      const toggle = card.querySelector('.learning-card-toggle');
+      if (toggle && toggle.getAttribute('aria-expanded') !== 'true') toggle.click();
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toggle?.focus?.({ preventScroll: true });
+    });
   });
   /* Tap a card to reveal its details; works on the courses board, the home
      routine board and the results board alike. The homework-complete button

@@ -2,9 +2,8 @@ import { iconMarkup } from './icons.js';
 /* Application composition root. Feature modules can be replaced independently. */
 import { runMigrations } from './storage/migration.js';
 import { KEYS, listDocuments } from './database.js';
-import { syncAccountStatus } from './office-data.js';
+import { syncAccountStatus, syncStudentProfileFromRoster, ROSTER_KEY } from './office-data.js';
 import { APP_TAGLINE, STORAGE_KEYS, defaultStudent, maintenanceState } from './config.js';
-import { BRAND_NAME } from './brand.js';
 import { loadStudent, loadAccount, hasSession, saveStudent, clearSession, loadAppConfig } from './storage.js';
 import { escapeHtml } from './sanitize.js';
 import { $, setAuthMessage, showFeedback } from './ui.js';
@@ -28,6 +27,7 @@ import { initFixedShell } from './fixed-shell.js';
 import { initStudentExams } from './student-exams.js';
 import { initStudentPractice } from './student-practice.js';
 import { initStudentTeaching } from './student-teaching.js';
+import { initStudentNoticeBoard } from './student-notice-board.js';
 import { initStudentDashboard } from './student-dashboard.js';
 import { mountReports, refreshReports } from './reports.js';
 import { initNotificationSettings } from './notification-settings.js';
@@ -95,20 +95,10 @@ function applyMaintenanceMode(cfg = loadAppConfig()) {
 function applyAppConfig(cfg) {
   if (!cfg) return;
 
-  // 1. Tagline
+  // 1. Tagline — shown on its own line under the institute name.
   const taglineText = cfg.tagline || APP_TAGLINE;
   document.querySelectorAll('[data-fixed-tagline]').forEach(tagline => {
-    /* The same slogan line carries the institute name and the logo sits beside
-       it, on every page: name + logo + slogan, one brand. */
-    tagline.setAttribute('aria-label', `${BRAND_NAME} • ${taglineText}`);
-    const institute = tagline.querySelector('.app-brand-institute');
-    const separator = tagline.querySelector('.app-brand-sep');
-    if (institute && separator) {
-      tagline.textContent = '';
-      tagline.append(institute, separator, document.createTextNode(taglineText));
-    } else {
-      tagline.textContent = taglineText;
-    }
+    tagline.textContent = taglineText;
   });
 
   // 3. Maintenance Mode
@@ -166,15 +156,32 @@ const state = {
   student: loadStudent(),
   account: loadAccount()
 };
+const noticeBoard = initStudentNoticeBoard({ getStudent: () => state.student });
 const refreshExams = initStudentExams({ getStudent: () => state.student, getAccount: () => state.account });
 /* ইনস্ট্যান্ট MCQ অনুশীলন — official papers are untouched; the practice lane
    reads the same papers through the question bank they join on publish. */
 const refreshPractice = initStudentPractice({ getStudent: () => state.student, getAccount: () => state.account });
 const refreshTeaching = initStudentTeaching({ getStudent: () => state.student });
 const refreshDashboard = initStudentDashboard({ getStudent: () => state.student, getAccount: () => state.account });
-/* The Learning Hub (Class → Subject → Chapter → Content) reads the same exams
-   and results the Examination module owns — it never keeps a second copy. */
-const refreshCourses = initCourseHub({ getStudent: () => state.student });
+/* The Learning Hub (Class → Subject → Chapter → Content) reads the same exams,
+   questions, practice history and results the existing learning modules own —
+   it never keeps a second copy. Chapter MCQ practice and model tests route to
+   those modules rather than starting parallel workflows. */
+const refreshCourses = initCourseHub({
+  getStudent: () => state.student,
+  onAction: action => {
+    if (action.kind === 'chapter-mcq-practice') {
+      setView('exams');
+      if (window.apcStudentPractice?.openChapter) window.apcStudentPractice.openChapter(action);
+      else refreshPractice();
+    } else if (action.kind === 'chapter-model-test') {
+      setView('exams');
+      window.dispatchEvent(new CustomEvent('apc-notification-action', {
+        detail: { kind: 'exam', id: action.examId, action: 'start' }
+      }));
+    }
+  }
+});
 /* আজকের অনুপ্রেরণা — the day's quote is on screen before this line returns and
    never waits for a network or a decision from the reader. */
 const dailyQuote = initDailyQuote({ mount: '#dailyQuoteCard' });
@@ -214,7 +221,8 @@ function handleAction(action) {
       document.querySelector('[data-learning-filter="homework"]')?.click();
       break;
     case 'notices':
-      document.getElementById('notificationButton')?.click();
+      setView('notice-board');
+      noticeBoard.refresh();
       break;
     case 'fees': {
       const card = $('#dashboardFeeCard');
@@ -275,12 +283,33 @@ renderStudent(state.student);
 initNavigation({ onAction: handleAction });
 /* The bell and its inbox are owned by the notification engine
    (js/notifications.js) so every panel shares one receipt list. */
-const refreshNotices = () => window.apcNoticeCenter?.paint?.();
+const refreshNotices = () => { window.apcNoticeCenter?.paint?.(); noticeBoard.refresh(); };
+const refreshRoutine = initRoutine({ getStudent: () => state.student });
 initProfile({
   state,
-  onStudentChange: student => { renderStudent(student); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshReports($('#studentReports')); }
+  onStudentChange: student => { renderStudent(student); noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshReports($('#studentReports')); }
 });
-initRoutine();
+let rosterProfileSyncFlight = null;
+async function applyRosterProfileToStudent() {
+  const studentId = state.student?.id;
+  if (!studentId || rosterProfileSyncFlight) return rosterProfileSyncFlight;
+  rosterProfileSyncFlight = syncStudentProfileFromRoster(studentId).then(account => {
+    if (!account) return;
+    state.account = account;
+    state.student = account.student;
+    if (account.status !== 'active') { leaveApp(); return; }
+    renderStudent(state.student);
+    noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice();
+    refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshReports($('#studentReports'));
+  }).catch(() => {}).finally(() => { rosterProfileSyncFlight = null; });
+  return rosterProfileSyncFlight;
+}
+window.addEventListener('apc-sync-updated', event => {
+  if (event.detail?.collection === 'students') void applyRosterProfileToStudent();
+});
+window.addEventListener('storage', event => {
+  if (!event.key || event.key === ROSTER_KEY) void applyRosterProfileToStudent();
+});
 // Settings → Notification Settings: switches, permission, preview and history.
 initNotificationSettings({ mount: '#notificationSettings' });
 initConnectivity();

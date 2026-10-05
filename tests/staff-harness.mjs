@@ -75,7 +75,11 @@ export async function openStaffPanel(ctx, role, { importPanel, shellId, ready } 
   const { $, waitFor } = ctx;
   await provisionStaff(role);
   seedStaffSession(ctx.window, role);
-  if (importPanel) await importPanel();
+  if (importPanel) {
+    const module = await importPanel();
+    if (module?.managerReady) await module.managerReady;
+    if (module?.teacherReady) await module.teacherReady;
+  }
   const shell = shellId ? $(`#${shellId}`) : null;
   if (shell) await waitFor(() => shell.hidden === false);
   if (ready) await waitFor(ready);

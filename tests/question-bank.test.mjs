@@ -8,10 +8,14 @@ import { loadPage } from './jsdom-harness.mjs';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
 import {
   questionBank, searchQuestions, questionById, questionKey, questionForExam,
-  cleanBankQuestion, questionBankStats, QUESTION_BANK_KEY, QUESTION_TYPES, bankIdFrom
+  listQuestionsForStaff, listQuestionsForStudent, cleanBankQuestion, questionBankStats,
+  QUESTION_BANK_KEY, QUESTION_TYPES, bankIdFrom
 } from '../js/question-bank.js';
 import { examRepository, examTemplate, MANAGER_ACTOR, EXAM_KEY, TEACHER_ACTOR } from '../js/exam-data.js';
 import { dhakaDateKey } from '../js/exam-core.js';
+import { STORAGE_KEYS } from '../js/config.js';
+import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
+import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
 
 let ctx;
 const store = () => ctx.window.localStorage;
@@ -176,4 +180,52 @@ test('switching a question off hides it from new work but keeps it stored', asyn
   assert.equal(searchQuestions({ active: true }).total, 1);
   await assert.rejects(questionBank.remove('QUESTION-9999'), /খুঁজে পাওয়া যায়নি/);
   assert.throws(() => cleanBankQuestion({ type: 'mcq', text: 'x', options: [], answer: 'A' }), /চারটি অপশন/);
+});
+
+test('Question Bank writes enforce staff role and Teacher assignments; Student reads stay batch/class isolated', async () => {
+  store().removeItem(QUESTION_BANK_KEY);
+  store().setItem(TEACHER_ASSIGNMENTS_KEY, JSON.stringify([{
+    id: 'ASSIGNMENT-QB-1', teacherUsername: STAFF_ACCOUNTS.teacher.username, teacherName: 'পরীক্ষক শিক্ষক',
+    className: 'দশম শ্রেণি', group: 'Batch A', subjects: ['গণিত']
+  }]));
+
+  const batchA = await questionBank.save(mcq({ group: 'Batch A', text: 'Batch A-র অনুশীলনী' }), 'MANAGER');
+  const classWide = await questionBank.save(mcq({ group: '', text: 'সবার গণিত অনুশীলনী' }), 'MANAGER');
+  const batchB = await questionBank.save(mcq({ group: 'Batch B', text: 'Batch B-র অনুশীলনী' }), 'MANAGER');
+  const otherClass = await questionBank.save(mcq({ className: 'একাদশ শ্রেণি', group: 'বিজ্ঞান', text: 'একাদশের অনুশীলনী' }), 'MANAGER');
+  const inactive = await questionBank.save(mcq({ group: 'Batch A', text: 'নিষ্ক্রিয় অনুশীলনী' }), 'MANAGER');
+  await questionBank.setActive(inactive.id, false, 'MANAGER');
+
+  const teacherRows = await listQuestionsForStaff('teacher');
+  assert.ok(teacherRows.length >= 1);
+  assert.ok(teacherRows.every(row => row.className === 'দশম শ্রেণি' && row.subject === 'গণিত' && row.group === 'Batch A'),
+    'Teacher bank reads are restricted to the assigned class, batch and subject');
+  const teacherWrite = await questionBank.save(mcq({ group: 'Batch A', text: 'শিক্ষকের নতুন প্রশ্ন' }), 'Teacher');
+  assert.equal(teacherWrite.createdBy, 'teacher.apc');
+  await assert.rejects(questionBank.save(mcq({ group: 'Batch B', text: 'ভুল ব্যাচের প্রশ্ন' }), 'Teacher'), { code: 'ACCESS_DENIED' });
+  await assert.rejects(questionBank.save(mcq({ className: 'একাদশ শ্রেণি', group: 'বিজ্ঞান', text: 'ভুল শ্রেণির প্রশ্ন' }), 'Teacher'), { code: 'ACCESS_DENIED' });
+
+  const managerSession = store().getItem(STAFF_ACCOUNTS.manager.sessionKey);
+  store().removeItem(STAFF_ACCOUNTS.manager.sessionKey);
+  await assert.rejects(questionBank.save(mcq({ text: 'কোনো Manager session ছাড়া' }), 'MANAGER'), { code: 'ACCESS_DENIED' });
+  store().setItem(STAFF_ACCOUNTS.manager.sessionKey, managerSession);
+  await assert.rejects(questionBank.save(mcq({ text: 'শিক্ষার্থী লিখতে পারবে না' }), 'STUDENT'), { code: 'ACCESS_DENIED' });
+  await assert.rejects(listQuestionsForStaff('admin'), { code: 'ACCESS_DENIED' });
+
+  const student = { id: 'STU-QB-A', name: 'ব্যাচ A', className: 'দশম শ্রেণি', group: 'Batch A' };
+  store().setItem(STORAGE_KEYS.account, JSON.stringify({ status: 'active', student }));
+  ctx.window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
+  const delivered = await listQuestionsForStudent(student.id);
+  const deliveredIds = new Set(delivered.map(row => row.id));
+  assert.equal(deliveredIds.has(batchA.id), true);
+  assert.equal(deliveredIds.has(classWide.id), true, 'unbatched class material is available to the class');
+  assert.equal(deliveredIds.has(teacherWrite.id), true);
+  assert.equal(deliveredIds.has(batchB.id), false, 'another batch does not receive the question');
+  assert.equal(deliveredIds.has(otherClass.id), false, 'another class does not receive the question');
+  assert.equal(deliveredIds.has(inactive.id), false, 'inactive questions are not delivered');
+
+  const otherStudent = { id: 'STU-QB-OTHER', name: 'অন্য শ্রেণি', className: 'একাদশ শ্রেণি', group: 'বিজ্ঞান' };
+  store().setItem(STORAGE_KEYS.account, JSON.stringify({ status: 'active', student: otherStudent }));
+  assert.deepEqual((await listQuestionsForStudent(otherStudent.id)).map(row => row.id), [otherClass.id], 'another Student sees only their class and batch');
+  await assert.rejects(listQuestionsForStudent(student.id), { code: 'ACCESS_DENIED' }, 'a caller cannot request the first Student while signed in as the second');
 });

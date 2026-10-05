@@ -1,11 +1,14 @@
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { financeRepository, TRANSACTIONS_KEY } from '../js/finance-data.js';
+import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
 let data;
 beforeEach(() => {
   data = new Map();
   const storage = { getItem:key=>data.get(key) ?? null, setItem:(key,value)=>data.set(key,String(value)) };
-  globalThis.window = { localStorage:storage };
+  data.set(STAFF_ACCOUNTS.payment.accountKey, JSON.stringify({ role: 'payment', username: STAFF_ACCOUNTS.payment.username, status: 'active' }));
+  const sessionStorage = { getItem:key=>key === STAFF_ACCOUNTS.payment.sessionKey ? '1' : null, setItem:()=>{}, removeItem:()=>{} };
+  globalThis.window = { localStorage:storage, sessionStorage };
   Object.defineProperty(globalThis,'navigator',{configurable:true,value:{}});
 });
 const date = new Date(2026,9,1,16,30);

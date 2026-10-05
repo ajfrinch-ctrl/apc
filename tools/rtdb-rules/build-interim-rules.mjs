@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const AUTH = 'auth != null';
 const STAFF_ROLES = ['admin', 'manager', 'teacher', 'payment'];
-const RECORD_COLLECTIONS = ['students', 'transactions', 'notices', 'routine', 'teaching', 'teacherAssignments'];
+const RECORD_COLLECTIONS = ['students', 'transactions', 'notices', 'routine', 'teaching', 'academics', 'courseContent', 'teacherAssignments'];
 const hasChildren = "newData.hasChildren()";
 const idMatches = variable => `newData.child('id').val() === ${variable}`;
 

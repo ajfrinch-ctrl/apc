@@ -40,7 +40,7 @@ test('all portals retain the same uncluttered two-action brand bar', () => {
 
 test('student, manager and teacher have eight real, named service shortcuts', () => {
   const allowed = {
-    index: ['routine', 'courses', 'exams', 'results', 'profile'],
+    index: ['routine', 'courses', 'exams', 'results', 'profile', 'notice-board'],
     manager: ['approvals', 'classes', 'teachers', 'finance', 'routine', 'exams', 'notices', 'reports'],
     teacher: ['classes', 'students', 'routine-view', 'routine', 'homework', 'online-exams', 'exam', 'reports']
   };
@@ -62,7 +62,7 @@ test('student, manager and teacher have eight real, named service shortcuts', ()
 
 test('secondary screens have accessible home/back controls and staff More has round icons', () => {
   for (const [name, attribute, target, count] of [
-    ['index', 'data-view', 'home', 6], ['admin', 'data-admin-view', 'dashboard', 11],
+    ['index', 'data-view', 'home', 7], ['admin', 'data-admin-view', 'dashboard', 11],
     ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 9]
   ]) {
     const document = doc(name);
@@ -93,6 +93,13 @@ test('hero band covers the whole hero and the summary card straddles its edge', 
   assert.match(css, /\.study-progress-card \{\s*position: relative; margin: -22px 0 0;/);
   // The compact one-screen home keeps its small hero — no overlap there.
   assert.match(css, /#homeView\.is-empty-routine \.study-progress-card \{ margin-top: 0;/);
+});
+
+test('the home exams banner spans both columns on the wide dashboard', () => {
+  const home = doc('index');
+  assert.ok(home.querySelector('#homeView #dashboardExamCard'), 'the exam banner is on Home');
+  assert.match(css, /@media \(min-width: 1000px\)[\s\S]*?\.student-home-view #dashboardExamCard \{ grid-column: 1 \/ -1; \}/,
+    'the two-column desktop grid must not leave the exam banner half-width');
 });
 
 test('exam workspace rows keep one even gap with no dead space', () => {

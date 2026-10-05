@@ -32,6 +32,7 @@ export const SECTION_LABEL = Object.freeze({
   notice: 'নোটিশ',
   broadcast: 'জরুরি ঘোষণা',
   exam: 'পরীক্ষা',
+  homework: 'বাড়ির কাজ',
   'exam-soon': 'পরীক্ষা',
   'exam-live': 'পরীক্ষা',
   'exam-review': 'পরীক্ষা',
@@ -48,9 +49,10 @@ export const SECTION_LABEL = Object.freeze({
 
 /** Which view a type opens when the record does not carry its own target. */
 export const SECTION_TARGET = Object.freeze({
-  notice: 'home',
-  broadcast: 'home',
+  notice: 'notice-board',
+  broadcast: 'notice-board',
   exam: 'exams',
+  homework: 'courses',
   'exam-soon': 'exams',
   'exam-live': 'exams',
   'exam-review': 'exams',
@@ -265,7 +267,9 @@ export function recordFromFeedItem(item, { userId, read = false, at = Date.now()
  *
  * `legacyRead` lists the item keys this device already knew about (its read
  * receipts and cleared items). They are stored as already read, so updating the
- * app never turns yesterday's news into a pile of unread notifications.
+ * app never turns yesterday's news into a pile of unread notifications. A
+ * homework reminder that leaves the live feed (completed or past its deadline)
+ * is acknowledged here so it cannot leave a stale unread badge behind.
  *
  * Idempotent: running it twice writes nothing the second time.
  *
@@ -275,26 +279,35 @@ export function syncNotifications({ userId, feed = [], legacyRead = [], now = Da
   const owner = text(userId);
   if (!owner) return { created: 0, kept: 0, records: [] };
   const store = loadRecords();
-  const known = new Set(store.records.filter(record => text(record.userId) === owner).map(record => text(record.key)));
+  const items = Array.isArray(feed) ? feed : [];
+  const live = new Set(items.map(item => text(item?.key)).filter(Boolean));
+  const stamp = Number(now) || Date.now();
+  let resolved = false;
+  const base = store.records.map(record => {
+    if (text(record.userId) !== owner || record.type !== 'homework' || record.read !== false || live.has(text(record.key))) return record;
+    resolved = true;
+    return { ...record, read: true, readAt: new Date(stamp).toISOString() };
+  });
+  const known = new Set(base.filter(record => text(record.userId) === owner).map(record => text(record.key)));
   const legacy = new Set((Array.isArray(legacyRead) ? legacyRead : []).map(text));
   const fresh = [];
-  for (const item of Array.isArray(feed) ? feed : []) {
+  for (const item of items) {
     const key = text(item?.key);
     if (!key || known.has(key)) continue;
     known.add(key);
     fresh.push(recordFromFeedItem(item, { userId: owner, read: legacy.has(key), at: now }));
   }
-  if (!fresh.length) return { created: 0, kept: 0, records: listNotifications(owner) };
+  if (!fresh.length && !resolved) return { created: 0, kept: 0, records: listNotifications(owner) };
   const withIds = [];
-  const pool = [...store.records];
+  const pool = [...base];
   for (const record of fresh) {
     record.id = nextNotificationId(pool, new Date(record.at));
     pool.push(record);
     withIds.push(record);
   }
-  saveRecords([...store.records, ...withIds]);
+  saveRecords([...base, ...withIds]);
   pruneRecords(owner);
-  return { created: withIds.length, kept: 0, records: withIds };
+  return { created: withIds.length, kept: 0, records: withIds.length ? withIds : listNotifications(owner) };
 }
 
 /* ---- Per-user settings ------------------------------------------------------- */

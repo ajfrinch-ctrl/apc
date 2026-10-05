@@ -114,6 +114,19 @@ test('an update stores what the device already knew as read, so old news never b
   assert.equal(unreadCount('student:AP-1'), 1);
 });
 
+test('a homework task leaving the due feed is resolved instead of leaving a stale unread badge', async () => {
+  await loadPage('index.html');
+  const task = {
+    key: 'homework:ACT-1:rev1', kind: 'homework', title: 'অধ্যায় ৩', body: 'আগামীকাল জমা',
+    sourceId: 'ACT-1', target: 'courses', at: DAY
+  };
+  syncNotifications({ userId: 'student:AP-1', feed: [task], now: DAY });
+  assert.equal(unreadCount('student:AP-1'), 1);
+  syncNotifications({ userId: 'student:AP-1', feed: [], now: DAY + 86400000 });
+  assert.equal(unreadCount('student:AP-1'), 0);
+  assert.equal(notificationByKey('student:AP-1', task.key).read, true);
+});
+
 test('the newest records are kept and unread ones are never pruned', async () => {
   await loadPage('index.html');
   const feed = Array.from({ length: 30 }, (_, index) => item(`notice:N${index}`, DAY + index * 1000));
@@ -204,7 +217,7 @@ test('the student app ships Settings → Notification Settings with every switch
   assert.equal(ctx.$('#noticeMasterToggle').checked, false, 'the screen redrew with the off state');
 
   // The history shows what has arrived, with its read state.
-  syncNotifications({ userId: 'student:AP-1024', feed: [item('notice:H1')], now: DAY });
+  syncNotifications({ userId: 'student:AP-1024', feed: [{ ...item('result:H1'), kind: 'result' }], now: DAY });
   api.refresh();
   await ctx.flush();
   await ctx.waitFor(() => ctx.$('#notificationSettings .notice-history-row'), 3000);

@@ -63,7 +63,7 @@ export function showAuthScreen() {
    Reports is a More/profile sub-page. Browser
    and system Back walk the visited views; refresh and shared links reopen the
    exact view (pattern: hash router + back button). */
-const VIEW_ROUTES = Object.freeze(['home', 'routine', 'courses', 'exams', 'results', 'profile', 'reports', 'notification-settings']);
+const VIEW_ROUTES = Object.freeze(['home', 'routine', 'courses', 'exams', 'results', 'profile', 'reports', 'notification-settings', 'notice-board']);
 
 export function viewRouteFromHash(hash = window.location.hash) {
   const name = String(hash || '').replace('#', '');
@@ -96,7 +96,7 @@ export function setView(viewName, { history: historyMode = 'push' } = {}) {
   if (!panel) return;
   $$('[data-view-panel]').forEach(item => item.classList.toggle('active', item === panel));
   $$('.bottom-link').forEach(item => {
-    const parent = viewName === 'exams' ? 'courses' : viewName === 'reports' ? 'profile' : viewName;
+    const parent = viewName === 'exams' ? 'courses' : viewName === 'reports' ? 'profile' : viewName === 'notice-board' ? 'home' : viewName;
     const active = item.dataset.view === parent;
     item.classList.toggle('active', active);
     if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');

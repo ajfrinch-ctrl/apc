@@ -1,8 +1,15 @@
 import test, {beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {financeRepository,TRANSACTIONS_KEY} from '../js/finance-data.js';
+import {STAFF_ACCOUNTS} from '../js/staff-auth.js';
 let data;
-beforeEach(()=>{data=new Map();globalThis.window={localStorage:{getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,String(value))}};Object.defineProperty(globalThis,'navigator',{configurable:true,value:{}});});
+beforeEach(()=>{
+ data=new Map();
+ data.set(STAFF_ACCOUNTS.payment.accountKey,JSON.stringify({role:'payment',username:STAFF_ACCOUNTS.payment.username,status:'active'}));
+ const sessionStorage={getItem:key=>key===STAFF_ACCOUNTS.payment.sessionKey?'1':null,setItem:()=>{},removeItem:()=>{}};
+ globalThis.window={localStorage:{getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,String(value))},sessionStorage};
+ Object.defineProperty(globalThis,'navigator',{configurable:true,value:{}});
+});
 const date=new Date(2026,9,1);
 const tx=id=>({id,studentId:'S',amount:800});
 const save=(id,now=date)=>financeRepository.saveTransaction(tx(id),{serialTransaction:true,receiptDate:now});

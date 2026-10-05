@@ -10,8 +10,14 @@ import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
 
 function setup() {
   const assignments = enabledClasses.map((className, index) => ({ id: `TAS-${index}`, teacherUsername: 'teacher.apc', teacherName: 'Test Teacher', className, group: '', subject: 'Test' }));
-  const storage = new Map([[ROSTER_KEY, JSON.stringify(adminStudents)], [TEACHER_ASSIGNMENTS_KEY, JSON.stringify(assignments)], [STAFF_ACCOUNTS.teacher.accountKey, JSON.stringify({ role: 'teacher', username: 'teacher.apc', fullName: 'Test Teacher', status: 'active' })]]); let writes = 0, events = 0, failWrite = false;
-  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1']]);
+  const storage = new Map([
+    [ROSTER_KEY, JSON.stringify(adminStudents)],
+    [TEACHER_ASSIGNMENTS_KEY, JSON.stringify(assignments)],
+    [STAFF_ACCOUNTS.teacher.accountKey, JSON.stringify({ role: 'teacher', username: 'teacher.apc', fullName: 'Test Teacher', status: 'active' })],
+    [STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', fullName: 'Test Manager', status: 'active' })],
+    [STORAGE_KEYS.account, JSON.stringify({ status: 'active', student })]
+  ]); let writes = 0, events = 0, failWrite = false;
+  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1'], [STORAGE_KEYS.session, '1']]);
   globalThis.window = { localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => { if (failWrite) throw new Error('quota'); storage.set(key, value); writes++; } }, sessionStorage: { getItem: key => sessions.get(key) ?? null, setItem: (key, value) => sessions.set(key, value), removeItem: key => sessions.delete(key) }, dispatchEvent: () => events++ };
   return { storage, get writes() { return writes; }, get events() { return events; }, fail() { failWrite = true; } };
 }
@@ -68,8 +74,9 @@ test('class/batch assignment bounds student reads and activity actions', async (
 test('homework self-report, teacher review, attendance and published-only progress', async () => {
   setup(); let db = await repo.saveActivity(make({ type: 'homework' })); const hw = db.activities[0].id;
   db = await repo.markHomeworkDone(hw, student); assert.equal(db.activities[0].progress[student.id].value, 'done');
-  await assert.rejects(repo.markHomeworkDone(hw, { ...student, className: 'অষ্টম শ্রেণি' }));
-  await assert.rejects(repo.markHomeworkDone(hw, { ...student, id: 'unknown' }));
+  const spoofedProfile = await repo.markHomeworkDone(hw, { ...student, className: 'অষ্টম শ্রেণি' });
+  assert.equal(spoofedProfile.activities[0].progress[student.id].value, 'done', 'the repository trusts the signed-in profile, not caller-supplied class data');
+  await assert.rejects(repo.markHomeworkDone(hw, { ...student, id: 'unknown' }), { code: 'ACCESS_DENIED' });
   await repo.saveProgress(hw, { [student.id]: 'reviewed' });
   db = await repo.markHomeworkDone(hw, student); assert.equal(db.activities[0].progress[student.id].value, 'reviewed');
   db = await repo.saveActivity(make({ type: 'routine' })); const routine = db.activities[0].id;

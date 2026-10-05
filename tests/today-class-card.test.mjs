@@ -7,6 +7,7 @@ import { initStudentDashboard } from '../js/student-dashboard.js';
 import { blankRoutine, ROUTINE_KEY } from '../js/office-data.js';
 import { TEACHING_KEY } from '../js/teaching-data.js';
 import { TRANSACTIONS_KEY } from '../js/finance-data.js';
+import { STORAGE_KEYS } from '../js/config.js';
 
 const NativeDate = globalThis.Date;
 const student = { id: 'TODAY-SAMPLE', name: 'নমুনা শিক্ষার্থী', className: 'দশম শ্রেণি', group: 'বিজ্ঞান' };
@@ -21,9 +22,11 @@ afterEach(() => { globalThis.Date = NativeDate; });
 async function render({ routine = blankRoutine(), teaching = { version: 1, activities: [] } } = {}) {
   const seed = {
     'activePlus.demo.autofill.v1': 'off', [ROUTINE_KEY]: JSON.stringify(routine),
-    [TEACHING_KEY]: typeof teaching === 'string' ? teaching : JSON.stringify(teaching), [TRANSACTIONS_KEY]: '[]'
+    [TEACHING_KEY]: typeof teaching === 'string' ? teaching : JSON.stringify(teaching), [TRANSACTIONS_KEY]: '[]',
+    [STORAGE_KEYS.account]: JSON.stringify({ status: 'active', student })
   };
   const ctx = await loadPage('index.html', { seed });
+  ctx.window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
   const refresh = initStudentDashboard({ getStudent: () => student, getAccount: () => ({ student }) });
   await refresh();
   return { ...ctx, refresh, seed };

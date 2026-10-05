@@ -11,7 +11,7 @@ import { loadPage } from './jsdom-harness.mjs';
 import { openStaffPanel } from './staff-harness.mjs';
 import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
 import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
-import { COURSE_CONTENT_KEY, listCourseContent } from '../js/course-content.js';
+import { COURSE_CONTENT_KEY, listCourseContentForStaff } from '../js/course-content.js';
 import { classByName, subjectByName } from '../js/academics.js';
 
 const ASSIGNMENT = [{
@@ -50,7 +50,10 @@ test('the Teacher panel opens the learning-library page for the assigned class o
   ctx.type(ctx.$('#teacherCourseEditor input[name="title"]'), 'নবম অধ্যায়ের নোট');
   ctx.submit(ctx.$('#teacherCourseEditor form'));
   await ctx.waitFor(() => /সংরক্ষিত হয়েছে/.test(ctx.$('#teacherCourseEditor [data-course-status]').textContent));
-  const stored = listCourseContent({ classId: classByName('দশম শ্রেণি').id, subjectId: subjectByName('গণিত').id, includeInactive: true });
+  const stored = await listCourseContentForStaff(
+    { classId: classByName('দশম শ্রেণি').id, subjectId: subjectByName('গণিত').id, includeInactive: true },
+    { role: 'teacher', actor: 'TEACHER' }
+  );
   assert.equal(stored.length, 1);
   assert.equal(stored[0].title, 'নবম অধ্যায়ের নোট');
   assert.equal(stored[0].published, false, 'a Teacher never publishes by accident');

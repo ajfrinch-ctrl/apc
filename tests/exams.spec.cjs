@@ -99,12 +99,18 @@ test('offline reload resumes same shuffled answers, deadline locks and online re
   const attempts = await pupil.evaluate(key=>JSON.parse(localStorage.getItem(key)).attempts,KEY); expect(attempts).toHaveLength(1); expect(attempts[0].score).toBe(2);
 });
 
-test('global deadline auto-submits and auto-downloads a real Bengali answer PDF', async ({ page, context }) => {
+test('global deadline auto-submits but the answer PDF downloads only on one explicit request', async ({ page, context }) => {
   await teacher(page); await seed(page); const pupil = await student(context); await pupil.locator('[data-student-exam-action=start]').click(); await pupil.locator('[data-answer-question=q1][value=A]').check();
-  const downloadPromise = pupil.waitForEvent('download'); await pupil.clock.setFixedTime(end); const download = await downloadPromise;
+  let downloadCount = 0; pupil.on('download', () => { downloadCount += 1; });
+  await pupil.clock.setFixedTime(end);
+  await expect(pupil.locator('[data-student-exam-action=solutions]')).toBeVisible();
+  await expect(pupil.locator('[data-answer-question]')).toHaveCount(0);
+  await pupil.waitForTimeout(1500);
+  expect(downloadCount).toBe(0, 'reaching the exam deadline must not start a surprise download');
+  const manual = pupil.waitForEvent('download'); await pupil.locator('[data-student-exam-action=solutions]').click();
+  const download = await manual;
   expect(download.suggestedFilename()).toContain('solutions'); const bytes=await fs.readFile(await download.path()); expect(bytes.subarray(0,8).toString()).toBe('%PDF-1.4'); expect(bytes.length).toBeGreaterThan(30000);
-  await expect(pupil.locator('[data-student-exam-action=solutions]')).toBeVisible(); await expect(pupil.locator('[data-answer-question]')).toHaveCount(0);
-  const manual=pupil.waitForEvent('download'); await pupil.locator('[data-student-exam-action=solutions]').click(); expect((await manual).suggestedFilename()).toContain('solutions');
+  expect(downloadCount).toBe(1, 'one button press creates exactly one PDF download');
 });
 
 for (const type of ['written','short']) {

@@ -133,7 +133,8 @@ test('login IDs and data created on device A work on device B', async () => {
     username: 'dolon',
     pin: '4321',
     fullName: 'দোলন আক্তার',
-    mobile: '01812345678'
+    mobile: '01812345678',
+    studentId: 'STU-1', className: 'নবম শ্রেণি'
   });
   await waitForCloud(() => root().studentAccounts?.dolon?.username === 'dolon', 'student login pushed');
   const cloudStudent = root().studentAccounts?.dolon;

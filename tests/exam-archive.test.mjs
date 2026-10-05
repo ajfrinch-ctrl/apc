@@ -17,7 +17,7 @@ import {
 } from '../js/exam-archive.js';
 import { adminStudents } from '../js/admin-data.js';
 import { ROSTER_KEY } from '../js/office-data.js';
-import { enabledClasses } from '../js/config.js';
+import { enabledClasses, STORAGE_KEYS } from '../js/config.js';
 import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
 import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
 
@@ -32,9 +32,10 @@ function setup() {
     [ROSTER_KEY, JSON.stringify(adminStudents)],
     [TEACHER_ASSIGNMENTS_KEY, JSON.stringify(assignments)],
     [STAFF_ACCOUNTS.teacher.accountKey, JSON.stringify({ role: 'teacher', username: 'teacher.apc', fullName: 'Test Teacher', status: 'active' })],
-    [STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', fullName: 'Test Manager', status: 'active' })]
+    [STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', fullName: 'Test Manager', status: 'active' })],
+    [STORAGE_KEYS.account, JSON.stringify({ status: 'active', student: one })]
   ]);
-  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1']]);
+  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1'], [STORAGE_KEYS.session, '1']]);
   clock = start - 3600000;
   Date.now = () => clock;
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
@@ -53,6 +54,8 @@ async function publishVia(extra = {}) {
   await repo.requestApproval(id); return repo.publish(id, MANAGER_ACTOR).then(() => id);
 }
 async function answerOne(examId) {
+  window.localStorage.setItem(STORAGE_KEYS.account, JSON.stringify({ status: 'active', student: one }));
+  window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
   clock = start;
   let db = await repo.startAttempt(examId, one);
   const attempt = db.attempts.find(item => item.studentId === one.id && item.examId === examId && item.status === 'active');

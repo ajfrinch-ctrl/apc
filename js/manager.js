@@ -3,8 +3,8 @@ import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
 import { decideRegistration, DECISION_MESSAGES, DECIDED_EVENT } from './registration-review.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
-import { loadRoster, saveRoster, syncAccountStatus, loadNotices, saveNotices, loadRoutine, saveRoutine, WEEK_DAYS } from './office-data.js';
-import { financeRepository, monthLabel, dateLabel, studentFeeSummary, newestTransactions, isFinalizedTransaction } from './finance-data.js';
+import { loadRoster, saveRoster, updateStudentOperationalInfo, syncAccountStatus, loadNotices, saveNotices, loadRoutine, saveRoutine, WEEK_DAYS } from './office-data.js';
+import { financeRepository, monthLabel, dateLabel, studentFeeSummary, newestTransactions, isFinalizedTransaction, DEFAULT_MONTHLY_FEE } from './finance-data.js';
 import { examRepository, examResults, isLiveExam, MANAGER_ACTOR } from './exam-data.js';
 import { examMeta, resultMarkup, downloadResults } from './exam-ui.js';
 import { teachingRepository, todayISO, TEACHING_KEY } from './teaching-data.js';
@@ -19,6 +19,7 @@ import { initExamManager } from './exam-manager.js';
 import { listTeacherAssignments, saveTeacherAssignment, deleteTeacherAssignment, deleteAssignmentSubject, selectableSubjects, TEACHER_ASSIGNMENTS_KEY } from './teacher-assignments.js';
 import { listClasses } from './academics.js';
 import { initNotificationSettings } from './notification-settings.js';
+import { noticeCategory, noticeCategoryInfo } from './notification-rules.js';
 import { mountReports, refreshReports } from './reports.js';
 import { iconElement } from './icons.js';
 
@@ -146,12 +147,14 @@ function renderApprovals() {
 }
 function renderRoutineClassOptions() {
   const select = $('#managerRoutineClass'), selected = select.value;
-  select.innerHTML = `<option value="">শ্রেণি নির্বাচন</option>${enabledClasses.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
-  select.value = enabledClasses.includes(selected) ? selected : '';
+  const classes = listClasses().filter(item => item.active !== false).map(item => item.name);
+  select.innerHTML = `<option value="">শ্রেণি নির্বাচন</option>${classes.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+  select.value = classes.includes(selected) ? selected : '';
 }
 function renderClasses() {
   renderRoutineClassOptions();
-  $('#managerClassList').innerHTML = enabledClasses.map(className => {
+  const classNames = listClasses().filter(item => item.active !== false).map(item => item.name);
+  $('#managerClassList').innerHTML = classNames.map(className => {
     const classStudents = students.filter(student => student.className === className && student.status !== 'rejected');
     const groups = [...new Set(classStudents.map(student => student.group).filter(Boolean))];
     const teacherNames = [...new Set(Object.values(routine).flatMap(info => info.classes).filter(item => item.className === className).map(item => item.teacher).filter(Boolean))];
@@ -231,7 +234,10 @@ function renderCashCounter() {
   $$('[data-cash-scope]').forEach(button => button.classList.toggle('active', button.dataset.cashScope === cashScope));
 }
 function renderNotices() {
-  $('#managerNoticeList').innerHTML = notices.length ? notices.map(item => `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.title)}</h2><p class="manager-meta">${escapeHtml(item.id)} • ${escapeHtml(item.audience || 'সকল শিক্ষার্থী')} • ${escapeHtml(item.date || '')}</p></div><div class="manager-actions"><button class="mini-btn" data-manager-action="edit-notice" data-id="${escapeHtml(item.id)}" type="button">Edit</button><button class="mini-btn reject" data-manager-action="delete-notice" data-id="${escapeHtml(item.id)}" type="button">Delete</button></div></div><p>${escapeHtml(item.body)}</p></article>`).join('') : '<p class="admin-empty">কোনো operational notice নেই।</p>';
+  $('#managerNoticeList').innerHTML = notices.length ? notices.map(item => {
+    const category = noticeCategoryInfo(noticeCategory(item));
+    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.title)}</h2><p class="manager-meta"><span class="notice-category-admin" data-notice-category="${category.id}">${category.label}</span> • ${escapeHtml(item.id)} • ${escapeHtml(item.audience || 'সকল শিক্ষার্থী')} • ${escapeHtml(item.date || '')}</p></div><div class="manager-actions"><button class="mini-btn" data-manager-action="edit-notice" data-id="${escapeHtml(item.id)}" type="button">Edit</button><button class="mini-btn reject" data-manager-action="delete-notice" data-id="${escapeHtml(item.id)}" type="button">Delete</button></div></div><p>${escapeHtml(item.body)}</p></article>`;
+  }).join('') : '<p class="admin-empty">কোনো operational notice নেই।</p>';
 }
 function renderRoutine() {
   // This route is reachable directly from Home/More: required class choices
@@ -253,7 +259,7 @@ function renderProfile() {
 }
 async function loadOperationalData() {
   students = loadRoster(); notices = loadNotices(); routine = loadRoutine();
-  const [tx, examData, teachingData] = await Promise.allSettled([financeRepository.listTransactions(), examRepository.list(), teachingRepository.listForManager()]);
+  const [tx, examData, teachingData] = await Promise.allSettled([financeRepository.listTransactions({ role: 'manager' }), examRepository.list(MANAGER_ACTOR), teachingRepository.listForManager()]);
   const failures = [tx, examData, teachingData].filter(result => result.status === 'rejected').length;
   $('#managerDataError').hidden = failures === 0;
   transactions = tx.status === 'fulfilled' ? tx.value : [];
@@ -304,7 +310,8 @@ function studentProfile(student) {
 function showStudentEditor(card, student) {
   const root = card.querySelector('.manager-student-extra');
   root.hidden = false;
-  root.innerHTML = `<form class="manager-form manager-edit-form"><label>নাম<input name="name" maxlength="100" required value="${escapeHtml(student.name || '')}"></label><label>Student mobile<input name="mobile" maxlength="32" value="${escapeHtml(student.mobile || '')}"></label><label>Guardian mobile<input name="guardianMobile" maxlength="32" value="${escapeHtml(student.guardianMobile || '')}"></label><label>ক্লাস<select name="className">${enabledClasses.map(name => `<option value="${escapeHtml(name)}" ${name === student.className ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label><label>Batch / Group<input name="group" maxlength="80" value="${escapeHtml(student.group || '')}"></label><label>মাসিক ফি<input name="monthlyFee" type="number" min="0" max="1000000" step="1" value="${Number(student.monthlyFee || 0)}"></label><button class="admin-btn primary" type="submit">পরিবর্তন সংরক্ষণ</button></form>`;
+  const classNames = listClasses().filter(item => item.active !== false).map(item => item.name);
+  root.innerHTML = `<form class="manager-form manager-edit-form"><label>নাম<input name="name" maxlength="100" required value="${escapeHtml(student.name || '')}"></label><label>Student mobile<input name="mobile" maxlength="32" value="${escapeHtml(student.mobile || '')}"></label><label>Guardian mobile<input name="guardianMobile" maxlength="32" value="${escapeHtml(student.guardianMobile || '')}"></label><label>ক্লাস<select name="className" required>${classNames.map(name => `<option value="${escapeHtml(name)}" ${name === student.className ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label><label>Batch / Group<input name="group" maxlength="80" value="${escapeHtml(student.group || '')}"></label><label>মাসিক ফি<input name="monthlyFee" type="number" min="0" max="1000000" step="1" value="${Number(student.monthlyFee ?? DEFAULT_MONTHLY_FEE)}"></label><button class="admin-btn primary" type="submit">পরিবর্তন সংরক্ষণ</button></form>`;
   root.querySelector('form').addEventListener('submit', async event => {
     event.preventDefault();
     /* Captured now: an async handler resumes after the dispatch is over, when
@@ -312,18 +319,24 @@ function showStudentEditor(card, student) {
     const form = event.currentTarget;
     if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
     const fields = Object.fromEntries(new FormData(form));
-    const updated = { ...student, ...fields, monthlyFee: Number(fields.monthlyFee) };
-    students = students.map(item => item.id === student.id ? updated : item);
-    if (!saveRoster(students)) { students = loadRoster(); return toast('পরিবর্তন সংরক্ষণ হয়নি।', true); }
-    await loadOperationalData(); toast('Student operational information আপডেট হয়েছে।');
+    managerBusy = true;
+    try {
+      await updateStudentOperationalInfo(student.id, { ...fields, monthlyFee: Number(fields.monthlyFee) });
+      students = loadRoster();
+      await loadOperationalData(); toast('Student operational information আপডেট হয়েছে।');
+    } catch (error) {
+      toast(error.message || 'পরিবর্তন সংরক্ষণ হয়নি।', true);
+    } finally { managerBusy = false; }
   });
 }
 async function editNotice(notice) {
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
   const title = window.prompt('নোটিশের শিরোনাম', notice.title); if (title == null || !title.trim()) return;
   const body = window.prompt('নোটিশের বিবরণ', notice.body); if (body == null || !body.trim()) return;
-  if (!managerGuard()) return;
-  notices = notices.map(item => item.id === notice.id ? { ...item, title: title.trim().slice(0, 120), body: body.trim().slice(0, 1000), updatedAt: new Date().toISOString() } : item);
+  const categoryInput = window.prompt('Notice Board বিভাগ লিখুন: urgent / academic / class / fee / exam', noticeCategory(notice));
+  if (categoryInput == null) return;
+  if (!(await managerGuard())) return;
+  notices = notices.map(item => item.id === notice.id ? { ...item, title: title.trim().slice(0, 120), body: body.trim().slice(0, 1000), category: noticeCategory(categoryInput), updatedAt: new Date().toISOString() } : item);
   if (!saveNotices(notices)) return toast('নোটিশ সংরক্ষণ হয়নি।', true);
   void loadOperationalData(); toast('নোটিশ আপডেট হয়েছে।');
 }
@@ -332,6 +345,7 @@ async function changeRoutine(index) {
   const item = routine[routineDay]?.classes?.[index]; if (!item) return;
   const subject = window.prompt('বিষয়', item.subject); if (subject == null || !subject.trim()) return;
   const teacher = window.prompt('Teacher assignment', item.teacher); if (teacher == null || !teacher.trim()) return;
+  if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
   item.subject = subject.trim().slice(0, 80); item.teacher = teacher.trim().slice(0, 100);
   if (!saveRoutine(routine)) return toast('Routine সংরক্ষণ হয়নি।', true);
   void loadOperationalData(); toast('Routine assignment আপডেট হয়েছে।');
@@ -419,7 +433,7 @@ $('#managerNoticeForm').addEventListener('submit', async event => {
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
   const data = new FormData(form); const title = String(data.get('title') || '').trim(), body = String(data.get('body') || '').trim();
   if (!title || !body) return;
-  notices.unshift({ id: newId('NOT'), title: title.slice(0, 120), body: body.slice(0, 1000), audience: String(data.get('audience')), date: dateLabel(new Date()), createdAt: new Date().toISOString(), status: 'published', author: managerAccount?.username || 'manager' });
+  notices.unshift({ id: newId('NOT'), title: title.slice(0, 120), body: body.slice(0, 1000), category: noticeCategory(String(data.get('category') || 'academic')), audience: String(data.get('audience')), date: dateLabel(new Date()), createdAt: new Date().toISOString(), status: 'published', author: managerAccount?.username || 'manager' });
   if (!saveNotices(notices)) return toast('নোটিশ সংরক্ষণ হয়নি।', true);
   form.reset(); await loadOperationalData(); renderNotices(); toast('নোটিশ প্রকাশিত হয়েছে।');
 });
@@ -517,21 +531,28 @@ async function enterManager() {
   // Settings → Notification Settings, inside the Manager's own profile page.
   initNotificationSettings({ mount: '#notificationSettings' });
   // পড়াশোনা পরিচালনা করুন: the same content library the Teacher writes into.
-  mountCourseEditor();
-  mountReports($('#managerReports'), { panel: 'manager' });
+  await mountCourseEditor();
+  await mountReports($('#managerReports'), { panel: 'manager' });
   watchOwnPanelSession('manager');
 }
 /** The content editor is mounted once and only painted when its page opens. */
 let courseEditor = null;
+let courseEditorMountFlight = null;
 async function mountCourseEditor() {
-  try {
-    const { initCourseEditor } = await import('./course-editor.js');
-    courseEditor = initCourseEditor({ mount: '#managerCourseEditor', role: 'manager', actor: 'MANAGER', toast: message => toast(message) });
-    courseEditor.paint?.();
-  } catch (error) { console.warn('[Active Plus] course editor unavailable:', error?.name || 'unknown'); }
+  if (courseEditorMountFlight) return courseEditorMountFlight;
+  if (courseEditor) { await courseEditor.paint?.(); return courseEditor; }
+  courseEditorMountFlight = (async () => {
+    try {
+      const { initCourseEditor } = await import('./course-editor.js');
+      courseEditor = initCourseEditor({ mount: '#managerCourseEditor', role: 'manager', actor: 'MANAGER', toast: message => toast(message) });
+      await courseEditor.ready;
+      return courseEditor;
+    } catch (error) { console.warn('[Active Plus] course editor unavailable:', error?.name || 'unknown'); return null; }
+  })().finally(() => { courseEditorMountFlight = null; });
+  return courseEditorMountFlight;
 }
 $('#managerLogout').addEventListener('click', () => { clearStaffSession('manager'); goToLoginPage(); });
 window.addEventListener('storage', event => {
   if (!event.key || [ 'activePlus.admin.students.v1', 'activePlus.admin.transactions.v1', 'activePlus.admin.notices.v1', 'activePlus.admin.routine.v1', TEACHING_KEY, TEACHER_ASSIGNMENTS_KEY, 'activePlus.exams.v1' ].includes(event.key)) { void loadOperationalData(); refreshReports($('#managerReports')); }
 });
-void enterManager();
+export const managerReady = enterManager();

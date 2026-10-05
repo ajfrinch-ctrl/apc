@@ -16,6 +16,10 @@
    the strict four-option rule of an MCQ paper intact. */
 import { KEYS, readRaw, writeRaw, newId } from './database.js';
 import { nextSequentialId } from './exam-core.js';
+import { hasStaffSession, readStaffAccount } from './staff-auth.js';
+import { authenticatedStudent } from './student-access.js';
+import { isTeacherAssignedSubject } from './teacher-assignments.js';
+import { classByName } from './academics.js';
 
 export const QUESTION_BANK_KEY = KEYS.questionBank;
 export const QUESTION_BANK_VERSION = 1;
@@ -42,6 +46,31 @@ const text = value => String(value ?? '').trim();
 const fail = message => { throw new Error(message); };
 const record = (now, actor) => ({ createdBy: actor, createdAt: now, updatedBy: actor, updatedAt: now });
 const normalized = value => text(value).normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+const groupKey = value => normalized(value).replace(/\s*বিভাগ$/, '').trim();
+function roleFromActor(actor, hint = '') {
+  if (hint === 'teacher' || hint === 'manager') return hint;
+  const label = String(actor || '').toLowerCase();
+  if (label.includes('teacher')) return 'teacher';
+  if (label.includes('manager') || label === 'admin') return 'manager';
+  return '';
+}
+async function requireBankWriter(actor, input = {}, { role: roleHint = '' } = {}) {
+  const role = roleFromActor(actor, roleHint);
+  if (!role || !(await hasStaffSession(role))) {
+    throw Object.assign(new Error('প্রশ্ন ব্যাংক বদলাতে সক্রিয় Teacher বা Manager session প্রয়োজন।'), { code: 'ACCESS_DENIED' });
+  }
+  const account = await readStaffAccount(role);
+  if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') {
+    throw Object.assign(new Error('সক্রিয় staff profile ছাড়া প্রশ্ন ব্যাংক বদলানো যাবে না।'), { code: 'ACCESS_DENIED' });
+  }
+  const className = text(input.className), subject = text(input.subject), group = text(input.group);
+  const academic = className ? classByName(className) : null;
+  if (role === 'teacher' && (!academic || !subject)) fail('সক্রিয় Academic Setup-এর শ্রেণি ও বিষয় নির্বাচন করুন।');
+  if (role === 'teacher' && !isTeacherAssignedSubject(account.username, className, subject, group)) {
+    throw Object.assign(new Error('এই class/batch/subject আপনার Manager assignment-এ নেই।'), { code: 'ACCESS_DENIED' });
+  }
+  return { role, account, name: text(account.fullName || account.username || role) };
+}
 
 function readDatabase() {
   const raw = readRaw(QUESTION_BANK_KEY);
@@ -107,6 +136,32 @@ async function mutate(fn, actor = 'SYSTEM') {
 export const listQuestions = ({ includeInactive = true } = {}) => readDatabase().questions
   .map(normalizeQuestion)
   .filter(row => includeInactive || row.active);
+
+/** A Student receives only active questions for their active class and batch;
+ * questions copied from official exams stay sealed until that exam ends. */
+export async function listQuestionsForStudent(studentId) {
+  const student = await authenticatedStudent(studentId);
+  if (!classByName(student.className)) return [];
+  const now = Date.now();
+  return listQuestions({ includeInactive: false })
+    .filter(row => normalized(row.className) === normalized(student.className))
+    .filter(row => !row.group || groupKey(row.group) === groupKey(student.group))
+    .filter(row => !row.source?.examId || (row.endAt > 0 && row.endAt < now));
+}
+
+/** Scoped staff reader for Teacher/Manager workspaces. */
+export async function listQuestionsForStaff(role) {
+  if (!['teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
+    throw Object.assign(new Error('সক্রিয় Teacher বা Manager session প্রয়োজন।'), { code: 'ACCESS_DENIED' });
+  }
+  const account = await readStaffAccount(role);
+  if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') {
+    throw Object.assign(new Error('সক্রিয় staff profile প্রয়োজন।'), { code: 'ACCESS_DENIED' });
+  }
+  const rows = listQuestions();
+  return role === 'teacher' ? rows.filter(row => isTeacherAssignedSubject(account.username, row.className, row.subject, row.group)) : rows;
+}
+
 export const questionById = id => listQuestions().find(row => row.id === text(id)) || null;
 export const questionByCode = code => listQuestions().find(row => row.code.toUpperCase() === text(code).toUpperCase()) || null;
 
@@ -121,7 +176,7 @@ export function questionKey(row) {
 export function searchQuestions({
   query = '', className = '', subject = '', chapterId = '', chapterName = '', topic = '',
   type = '', difficulty = '', examId = '', from = '', to = '',
-  active = null, includeInactive = true, limit = 0, offset = 0, sort = 'newest'
+  active = null, includeInactive = true, limit = 0, offset = 0, sort = 'newest', records = null
 } = {}) {
   const terms = normalized(query).split(/\s+/).filter(Boolean);
   const fromAt = from ? Date.parse(`${from}T00:00:00+06:00`) : NaN;
@@ -129,7 +184,8 @@ export function searchQuestions({
   /* `active: true|false` narrows to one state; leaving it out keeps working
      questions only, unless the caller asks for the whole history. */
   const activeFilter = active === true ? true : active === false ? false : null;
-  let rows = listQuestions({ includeInactive: activeFilter === null ? includeInactive : true });
+  let rows = (records || listQuestions({ includeInactive: activeFilter === null ? includeInactive : true }))
+    .filter(row => includeInactive || row.active !== false);
   if (activeFilter !== null) rows = rows.filter(row => row.active === activeFilter);
   if (className) rows = rows.filter(row => normalized(row.className) === normalized(className));
   if (subject) rows = rows.filter(row => normalized(row.subject) === normalized(subject));
@@ -220,10 +276,39 @@ export function bankDraftForQuestion(exam, question) {
     id: '', type: exam.type === 'mcq' ? 'mcq' : 'written', text: question.text,
     className: exam.className || '', subject: exam.subject || '', group: exam.group || '',
     startAt: Number(exam.startAt) || 0, endAt: Number(exam.endAt) || 0,
-    chapterId: exam.chapterId || '', chapterName: exam.chapterName || '', topic: exam.topic || '',
+    chapterId: question.chapterId || exam.chapterId || '', chapterName: question.chapterName || exam.chapterName || '', topic: question.topic || exam.topic || '',
     difficulty: question.difficulty || 'medium', marks: question.marks,
     options: question.options || [], answer: question.answer || '', answerText: question.answerText || ''
   };
+}
+
+/** Temporary, read-only practice rows from the authenticated student's own
+ * already-ended exam snapshot. This preserves offline practice without letting
+ * a student write the shared Question Bank. */
+export function questionRowsFromPastExams(exams = [], now = Date.now()) {
+  const known = new Set(listQuestions().map(row => questionKey(row)));
+  const rows = [];
+  for (const exam of exams || []) {
+    if (exam?.type !== 'mcq' || !['published', 'completed', 'archived'].includes(exam.status)
+      || !(Number(exam.endAt) > 0 && Number(exam.endAt) < now)) continue;
+    for (const [index, question] of (exam.questions || []).entries()) {
+      try {
+        const clean = cleanBankQuestion(bankDraftForQuestion(exam, question));
+        const key = questionKey(clean);
+        if (known.has(key)) continue;
+        known.add(key);
+        const safeId = value => String(value || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 100);
+        const id = `PAST-${safeId(exam.id)}-${safeId(question.uid || question.id || index)}`;
+        rows.push({
+          id, code: id, ...clean,
+          source: { examId: exam.id, examCode: text(exam.code), examTitle: text(exam.title), at: Number(exam.createdAt) || now },
+          tags: [], createdBy: 'PAST-EXAM', createdAt: Number(exam.createdAt) || now,
+          updatedBy: 'PAST-EXAM', updatedAt: Number(exam.updatedAt) || now, active: true
+        });
+      } catch { /* a malformed legacy row is not practice material */ }
+    }
+  }
+  return rows;
 }
 
 /** Every examination the students have actually sat joins the shelf, in one
@@ -231,7 +316,7 @@ export function bankDraftForQuestion(exam, question) {
     neither a write nor a lock, and rows shelved before this build existed
     are backfilled with the exam metadata practice needs (window end, batch,
     source) instead of being duplicated. */
-export async function ensureExamsInBank(exams, actor = 'SYSTEM') {
+export async function ensureExamsInBank(exams, actor = 'SYSTEM', options = {}) {
   const targets = (exams || []).filter(exam =>
     exam?.type === 'mcq' && BANKABLE_EXAM_STATUSES.includes(exam.status) && (exam.questions || []).length > 0);
   if (!targets.length) return { exams: 0, added: 0, updated: 0 };
@@ -247,7 +332,11 @@ export async function ensureExamsInBank(exams, actor = 'SYSTEM') {
     return rowNeedsExamMetadata(row, clean);
   }));
   if (!needsWork) return { exams: 0, added: 0, updated: 0 };
-  const actorName = text(actor) || 'SYSTEM';
+  const writer = await requireBankWriter(actor, targets[0], options);
+  if (writer.role === 'teacher' && targets.some(exam => !isTeacherAssignedSubject(writer.account.username, exam.className, exam.subject, exam.group || ''))) {
+    throw Object.assign(new Error('এই পরীক্ষা আপনার assigned class/batch/subject-এর নয়।'), { code: 'ACCESS_DENIED' });
+  }
+  const actorName = writer.name;
   return mutate(db => {
     const now = Date.now();
     const byContent = new Map(db.questions.map(row => [questionKey(normalizeQuestion(row)), row]));
@@ -287,36 +376,62 @@ export async function ensureExamsInBank(exams, actor = 'SYSTEM') {
 }
 
 export const questionBank = {
-  async list(options) { return searchQuestions(options); },
-  async stats() { return questionBankStats(); },
-  async get(id) { return questionById(id); },
+  async list(options = {}, actor = {}) {
+    const role = actor?.role;
+    if (role === 'student') {
+      const rows = await listQuestionsForStudent(actor.studentId || actor.id);
+      return searchQuestions({ ...options, records: rows });
+    }
+    return searchQuestions({ ...options, records: await listQuestionsForStaff(role) });
+  },
+  async stats(role) {
+    const rows = await listQuestionsForStaff(role);
+    const by = key => rows.reduce((map, row) => { map[row[key]] = (map[row[key]] || 0) + 1; return map; }, {});
+    return { total: rows.length, active: rows.filter(row => row.active).length, byType: by('type'), bySubject: by('subject'), byClass: by('className') };
+  },
+  async get(id, actor = {}) {
+    const rows = actor?.role === 'student'
+      ? await listQuestionsForStudent(actor.studentId || actor.id)
+      : await listQuestionsForStaff(actor?.role);
+    return rows.find(row => row.id === text(id)) || null;
+  },
+  listForStudent: listQuestionsForStudent,
+  listForStaff: listQuestionsForStaff,
   /** Create (`input.id` empty) or edit one question. The id/code is issued once
       and never re-used, so a deleted question's code is not recycled. */
-  async save(input = {}, actor = 'MANAGER') {
+  async save(input = {}, actor = 'MANAGER', options = {}) {
     const clean = cleanBankQuestion(input);
+    const writer = await requireBankWriter(actor, clean, options);
+    if (!clean.className || !clean.subject) fail('সক্রিয় Academic Setup-এর শ্রেণি ও বিষয় নির্বাচন করুন।');
     return mutate(db => {
       const now = Date.now();
       const existing = input.id ? db.questions.find(row => row.id === text(input.id)) : null;
       if (input.id && !existing) fail('প্রশ্নটি খুঁজে পাওয়া যায়নি।');
+      if (existing && (normalized(existing.className) !== normalized(clean.className)
+        || normalized(existing.subject) !== normalized(clean.subject) || groupKey(existing.group) !== groupKey(clean.group))) {
+        fail('সম্পাদনায় প্রশ্নের class/subject/batch বদলানো যাবে না। নতুন প্রশ্ন তৈরি করুন।');
+      }
       if (existing) {
         const source = existing.source || null;
-        Object.assign(existing, clean, { source, updatedBy: actor, updatedAt: now });
+        Object.assign(existing, clean, { source, updatedBy: writer.name, updatedAt: now });
         return normalizeQuestion(existing);
       }
       const id = nextSequentialId('QUESTION', db.questions);
       const row = {
-        id, code: id, ...clean, source: null, ...record(now, actor)
+        id, code: id, ...clean, source: null, ...record(now, writer.name)
       };
       db.questions.unshift(row);
       return normalizeQuestion(row);
-    }, actor);
+    }, writer.name);
   },
   /** Shelve every question of a paper (or one question) into the bank.
       Already-shelved content is skipped, so pressing the button twice is safe. */
-  async saveFromExam(exam, actor = 'MANAGER', { onlyUid = '' } = {}) {
+  async saveFromExam(exam, actor = 'MANAGER', options = {}) {
+    const onlyUid = options.onlyUid || '';
     const questions = (exam?.questions || []).filter(question => !onlyUid || question.uid === onlyUid);
     if (!questions.length) fail('সংরক্ষণ করার মতো প্রশ্ন পাওয়া যায়নি।');
-    const actorName = text(actor);
+    const writer = await requireBankWriter(actor, exam, options);
+    const actorName = writer.name;
     return mutate(db => {
       const known = new Set(db.questions.map(row => questionKey(row)));
       const now = Date.now();
@@ -338,35 +453,47 @@ export const questionBank = {
     }, actorName);
   },
   /** Change one field (marks, difficulty, chapter, activation) of a question. */
-  async patch(id, patch = {}, actor = 'MANAGER') {
+  async patch(id, patch = {}, actor = 'MANAGER', options = {}) {
+    const currentRow = readDatabase().questions.find(item => item.id === text(id));
+    if (!currentRow) fail('প্রশ্নটি খুঁজে পাওয়া যায়নি।');
+    const current = normalizeQuestion(currentRow);
+    const clean = cleanBankQuestion({ ...current, ...patch, id: current.id });
+    const writer = await requireBankWriter(actor, current, options);
+    if (normalized(current.className) !== normalized(clean.className)
+      || normalized(current.subject) !== normalized(clean.subject) || groupKey(current.group) !== groupKey(clean.group)) {
+      fail('সম্পাদনায় প্রশ্নের class/subject/batch বদলানো যাবে না।');
+    }
     return mutate(db => {
       const row = db.questions.find(item => item.id === text(id));
       if (!row) fail('প্রশ্নটি খুঁজে পাওয়া যায়নি।');
-      const current = normalizeQuestion(row);
-      const merged = { ...current, ...patch, id: current.id };
-      const clean = cleanBankQuestion(merged);
-      Object.assign(row, clean, { updatedBy: actor, updatedAt: Date.now() });
+      Object.assign(row, clean, { updatedBy: writer.name, updatedAt: Date.now() });
       return normalizeQuestion(row);
-    }, actor);
+    }, writer.name);
   },
-  async setActive(id, active, actor = 'MANAGER') {
+  async setActive(id, active, actor = 'MANAGER', options = {}) {
+    const existing = readDatabase().questions.find(item => item.id === text(id));
+    if (!existing) fail('প্রশ্নটি খুঁজে পাওয়া যায়নি।');
+    const writer = await requireBankWriter(actor, normalizeQuestion(existing), options);
     return mutate(db => {
       const row = db.questions.find(item => item.id === text(id));
       if (!row) fail('প্রশ্নটি খুঁজে পাওয়া যায়নি।');
       row.active = !!active;
-      row.updatedBy = actor; row.updatedAt = Date.now();
+      row.updatedBy = writer.name; row.updatedAt = Date.now();
       return normalizeQuestion(row);
-    }, actor);
+    }, writer.name);
   },
   /** Removing a bank question only removes the shelf copy — a paper that
       already used it keeps its own record untouched. */
-  async remove(id, actor = 'MANAGER') {
+  async remove(id, actor = 'MANAGER', options = {}) {
+    const existing = readDatabase().questions.find(item => item.id === text(id));
+    if (!existing) fail('প্রশ্নটি খুঁজে পাওয়া যায়নি।');
+    const writer = await requireBankWriter(actor, normalizeQuestion(existing), options);
     return mutate(db => {
       const index = db.questions.findIndex(row => row.id === text(id));
       if (index < 0) fail('প্রশ্নটি খুঁজে পাওয়া যায়নি।');
       const [removed] = db.questions.splice(index, 1);
       return normalizeQuestion(removed);
-    }, actor);
+    }, writer.name);
   }
 };
 

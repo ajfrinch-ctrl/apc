@@ -10,11 +10,11 @@ import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { initCourseEditor } from '../js/course-editor.js';
-import { COURSE_CONTENT_KEY, contentById, listCourseContent, saveCourseRecord } from '../js/course-content.js';
+import { COURSE_CONTENT_KEY, archiveCourseRecord, contentById, listCourseContent, listCourseContentForStaff, saveCourseRecord, setContentPublished } from '../js/course-content.js';
 import { classByName, subjectByName, subjectsForClass } from '../js/academics.js';
 import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
 import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
-import { provisionStaff } from './staff-harness.mjs';
+import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
 
 const TEACHER_USER = STAFF_ACCOUNTS.teacher.username;
 let ctx;
@@ -49,6 +49,9 @@ before(async () => {
   /* The Teacher's own account is what decides their scope, exactly like the
      real panel: without it they have no assigned class at all. */
   await provisionStaff('teacher');
+  await provisionStaff('manager');
+  seedStaffSession(ctx.window, 'teacher');
+  seedStaffSession(ctx.window, 'manager');
 });
 after(() => ctx?.window.close());
 
@@ -86,10 +89,15 @@ test('the Teacher editor saves inside the assignment and can publish, then archi
   ctx.submit(ctx.$('#courseEditorHost1 form'));
   await ctx.waitFor(() => /সংরক্ষিত হয়েছে/.test(ctx.$('#courseEditorHost1 [data-course-status]').textContent));
   const subject = subjectByName('গণিত');
-  const [record] = listCourseContent({ classId: classByName('দশম শ্রেণি').id, subjectId: subject.id, includeInactive: true });
+  const [record] = await listCourseContentForStaff(
+    { classId: classByName('দশম শ্রেণি').id, subjectId: subject.id, includeInactive: true },
+    { role: 'teacher', actor: 'নমুনা শিক্ষক' }
+  );
   assert.equal(record.title, 'বরাদ্দের ভেতরের পাঠ');
   assert.equal(record.published, false, 'it starts as a draft');
-  assert.equal(record.createdBy, 'নমুনা শিক্ষক');
+  assert.equal(listCourseContent({ classId: record.classId, subjectId: record.subjectId, publishedOnly: false }).some(item => item.id === record.id), false,
+    'the general/student read API stays published-only even when a caller requests drafts');
+  assert.equal(record.createdBy, STAFF_ACCOUNTS.teacher.username, 'the repository resolves the signed-in Teacher as author');
   assert.equal(record.active, true);
 
   ctx.click(ctx.$(`#courseEditorHost1 [data-course-publish="${record.id}"]`));
@@ -101,9 +109,37 @@ test('the Teacher editor saves inside the assignment and can publish, then archi
   assert.equal(archived.title, 'বরাদ্দের ভেতরের পাঠ', 'the writing survives');
 });
 
-test('a Manager works within the whole Admin-configured structure', () => {
+test('Teacher draft reads and lifecycle writes cannot cross authors, while Manager can review them', async () => {
+  const classId = classByName('দশম শ্রেণি').id;
+  const subjectId = subjectByName('গণিত').id;
+  const foreign = {
+    id: 'CONTENT-FOREIGN-DRAFT', classId, subjectId, group: '', chapterId: '', type: 'note',
+    title: 'অন্য শিক্ষকের খসড়া', description: '', content: '', attachmentUrl: '', thumbnail: '',
+    createdBy: 'other.teacher', createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z',
+    published: false, active: true
+  };
+  const stored = JSON.parse(ctx.window.localStorage.getItem(COURSE_CONTENT_KEY));
+  stored.records.push(foreign);
+  ctx.window.localStorage.setItem(COURSE_CONTENT_KEY, JSON.stringify(stored));
+  const scope = { classId, subjectId, includeInactive: true };
+  const teacherRows = await listCourseContentForStaff(scope, { role: 'teacher', actor: 'TEACHER' });
+  assert.equal(teacherRows.some(item => item.id === foreign.id), false, 'a Teacher does not read another Teacher’s draft');
+  await assert.rejects(setContentPublished(foreign.id, true, { role: 'teacher', actor: 'TEACHER' }), /অন্য শিক্ষকের/);
+  await assert.rejects(saveCourseRecord({ ...foreign, title: 'চুরি করে সম্পাদনা' }, { role: 'teacher', actor: 'TEACHER' }), /অন্য শিক্ষকের/);
+
+  const managerRows = await listCourseContentForStaff(scope, { role: 'manager', actor: 'MANAGER' });
+  assert.equal(managerRows.some(item => item.id === foreign.id), true, 'Manager can review the draft');
+  const published = await setContentPublished(foreign.id, true, { role: 'manager', actor: 'MANAGER' });
+  assert.equal(published.published, true);
+  const teacherPublishedRows = await listCourseContentForStaff(scope, { role: 'teacher', actor: 'TEACHER' });
+  assert.equal(teacherPublishedRows.some(item => item.id === foreign.id), true, 'published course content is visible inside the assigned scope');
+  await assert.rejects(archiveCourseRecord(foreign.id, { role: 'teacher', actor: 'TEACHER' }), /অন্য শিক্ষকের/);
+});
+
+test('a Manager works within the whole Admin-configured structure', async () => {
   const host = mount();
   initCourseEditor({ mount: host, role: 'manager', actor: 'MANAGER' });
+  await ctx.waitFor(() => ctx.$(`${host} select[name="className"]`)?.options.length > 0);
   const classes = Array.from(ctx.$(`${host} select[name="className"]`).options).map(option => option.value);
   assert.ok(classes.length >= 3, 'every enabled class is offered');
   assert.ok(classes.includes('নবম শ্রেণি'));
@@ -113,21 +149,24 @@ test('a Manager works within the whole Admin-configured structure', () => {
   /* Switching class re-cascades the subject list from the same source. */
   const ninth = classByName('নবম শ্রেণি');
   change(ctx.$(`${host} select[name="className"]`), 'নবম শ্রেণি');
+  await ctx.waitFor(() => ctx.$(`${host} select[name="className"]`)?.value === ninth.name
+    && JSON.stringify(Array.from(ctx.$(`${host} select[name="subject"]`)?.options || []).map(option => option.value))
+      === JSON.stringify(subjectsForClass('নবম শ্রেণি').map(item => item.name)));
   const after = Array.from(ctx.$(`${host} select[name="subject"]`).options).map(option => option.value);
   assert.deepEqual(after, subjectsForClass('নবম শ্রেণি').map(item => item.name), 'the subjects follow the chosen class');
   assert.equal(ctx.$(`${host} select[name="className"]`).value, ninth.name);
 });
 
-test('every record carries its stable id and an archive is never a delete', () => {
-  const record = saveCourseRecord({
+test('every record carries its stable id and an archive is never a delete', async () => {
+  const record = await saveCourseRecord({
     classId: classByName('দশম শ্রেণি').id, subjectId: subjectByName('বাংলা').id, type: 'note',
     title: 'Manager-এর নোট', published: true, createdBy: 'MANAGER'
-  }, { actor: 'MANAGER' });
+  }, { actor: 'MANAGER', role: 'manager' });
   assert.match(record.id, /^CONTENT-\d{4}$/, 'the learning library has its own id series');
   const stored = () => JSON.parse(ctx.window.localStorage.getItem(COURSE_CONTENT_KEY)).records;
   assert.equal(stored().filter(row => row.id === record.id).length, 1, 'exactly one record, never a copy');
   /* A second save on the same id is an edit, not a new record. */
-  const edited = saveCourseRecord({ ...record, title: 'সম্পাদিত নোট' }, { actor: 'MANAGER' });
+  const edited = await saveCourseRecord({ ...record, title: 'সম্পাদিত নোট' }, { actor: 'MANAGER', role: 'manager' });
   assert.equal(edited.id, record.id);
   assert.equal(stored().filter(row => row.id === record.id).length, 1);
   assert.equal(contentById(record.id).title, 'সম্পাদিত নোট');

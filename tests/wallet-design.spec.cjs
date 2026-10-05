@@ -93,9 +93,10 @@ test('student home tiles open homework, notices and a truthful fee state', async
   await expect(page.locator('#coursesView')).toBeVisible();
   await expect(page.locator('#learningFilters [data-learning-filter="homework"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#coursesView .pay-back').click();
-  await page.locator('#studentServices [data-action="notices"]').click();
-  await expect(page.locator('#noticeModal')).toBeVisible();
-  await page.locator('#noticeModal .modal-close').click();
+  await page.locator('#studentServices [data-view="notice-board"]').click();
+  await expect(page.locator('#notice-boardView')).toBeVisible();
+  await expect(page.locator('#noticeBoardCategories [data-notice-board-category="urgent"]')).toContainText('জরুরি');
+  await page.locator('#notice-boardView .pay-back').click();
   await page.locator('#studentServices [data-action="fees"]').click();
   await expect(page.locator('.feedback-toast')).toContainText('তথ্য এখনও যোগ হয়নি');
   expect(await page.locator('.feedback-toast').evaluate(el => { const r=el.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth; })).toBe(true);

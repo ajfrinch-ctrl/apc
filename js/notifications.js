@@ -21,13 +21,14 @@ import { KEYS, STAFF_KEYS, listDocuments } from './database.js';
 import { loadNotices, loadRoster } from './office-data.js';
 import { getDeviceId } from './session.js';
 import {
-  BOOT_KEY_PREFIX, CLEARED_KEY_PREFIX, LOCAL_WRITE_KEY, PROMPT_HIDDEN_KEY, REGISTRATION_REVIEWERS,
-  SEEN_KEY_PREFIX, SHOWN_KEY, INAPP_KEY_PREFIX, claimDelivery, planInAppAlerts, clearedRecord, nextExamBoundary, notificationFeed,
+  BOOT_KEY_PREFIX, CLEARED_KEY_PREFIX, LOCAL_WRITE_KEY, NOTICE_BOARD_READ_PREFIX, PROMPT_HIDDEN_KEY, REGISTRATION_REVIEWERS,
+  SEEN_KEY_PREFIX, SHOWN_KEY, INAPP_KEY_PREFIX, claimDelivery, planInAppAlerts, clearedRecord,
+  nextExamBoundary, nextHomeworkBoundary, notificationFeed,
   planDeliveries, pushPayload, seenRecord, viewerKeyOf
 } from './notification-rules.js';
 import {
-  listNotifications, markAllRead, markDelivered, markRead, notificationSettings,
-  saveNotificationSettings, syncNotifications, unreadCount, unreadNotifications
+  listNotifications, markDelivered, markRead, notificationSettings,
+  saveNotificationSettings, syncNotifications, unreadNotifications
 } from './notification-store.js';
 
 /* A notification tapped while no app window was open: the service worker
@@ -58,11 +59,11 @@ const PROMPT_HIDE_MS = 7 * 24 * 60 * 60 * 1000;
 const REFRESH_DEBOUNCE_MS = 400;
 const ARM_FALLBACK_MS = 12000;
 const SW_READY_TIMEOUT_MS = 2500;
-const WATCHED_KEYS = new Set([KEYS.notices, KEYS.settings, KEYS.exams, KEYS.students, KEYS.transactions]);
-const WATCHED_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'students', 'transactions']);
+const WATCHED_KEYS = new Set([KEYS.notices, KEYS.settings, KEYS.exams, KEYS.students, KEYS.transactions, KEYS.teaching]);
+const WATCHED_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'students', 'transactions', 'teaching']);
 /* Which records each person's notifications are built from. */
 const NEEDS = Object.freeze({
-  student: { students: true, transactions: true, exams: true },
+  student: { students: true, transactions: true, exams: true, teaching: true },
   admin: { students: true },
   manager: { students: true, transactions: true, exams: true },
   teacher: { exams: true },
@@ -70,11 +71,20 @@ const NEEDS = Object.freeze({
 });
 /* Where a tapped item goes when the payload does not name a view. */
 const KIND_TARGET = Object.freeze({
-  exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'results',
+  exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'results', homework: 'courses',
+  notice: 'notice-board', broadcast: 'notice-board',
   approved: 'home', rejected: 'home',
-  'payment-review': 'cash-counter', 'exam-review': 'exams',
+  'payment-review': 'cash-counter', 'payment-rejected': 'cash-counter', 'exam-review': 'exams',
   'exam-returned': 'online-exams', 'exam-approved': 'online-exams'
 });
+const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework']);
+const NOTICE_BOARD_KINDS = new Set(['notice', 'broadcast']);
+const generalNotificationItems = items => viewer?.kind === 'student'
+  ? items.filter(item => !NOTICE_BOARD_KINDS.has(item.kind))
+  : items;
+const generalNotificationRecords = records => viewer?.kind === 'student'
+  ? records.filter(record => !NOTICE_BOARD_KINDS.has(record.type))
+  : records;
 const NAV_ATTRIBUTE = Object.freeze({
   student: 'data-view', manager: 'data-manager-view', teacher: 'data-teacher-view', admin: 'data-admin-view'
 });
@@ -86,15 +96,15 @@ const PANEL_SHELL = Object.freeze({
   student: '#appShell', manager: '#managerShell', teacher: '#teacherShell', admin: '#adminShell', payment: '#payShell'
 });
 const PANEL_READY_TIMEOUT_MS = 20000;
-/* Kinds added on 2026-09-30. The first refresh after the update records them
-   silently: old approvals/payments must not buzz a phone as if they were new.
-   Their list entries still appear; only the system notification is skipped. */
-export const RULES_VERSION = 2;
+/* Rules versions prevent newly-added feed types from replaying old records as
+   fresh. Time-critical exam reminders remain current across an upgrade. */
+export const RULES_VERSION = 3;
 export const RULES_KEY_PREFIX = 'activePlus.notifications.rules.v1:';
 const V2_KINDS = new Set([
   'registration', 'approved', 'rejected', 'exam-soon', 'exam-live', 'payment',
   'payment-review', 'payment-rejected', 'exam-review', 'exam-returned', 'exam-approved'
 ]);
+const V3_KINDS = new Set(['homework']);
 let boundaryTimer = null;
 /* Items waiting for the in-app card (shown once the panel is on screen). */
 let alertQueue = [];
@@ -103,6 +113,19 @@ let controller = null;
 let viewer = null;
 let viewerKey = '';
 let armed = false;
+
+/* Notice Board receipts are separate from the bell, but they still suppress a
+   later tray replay if notification delivery starts after the student marked
+   the notice Read. */
+function noticeBoardReadKeys() {
+  const studentId = String(viewer?.studentId ?? '').trim();
+  if (viewer?.kind !== 'student' || !studentId) return [];
+  const key = NOTICE_BOARD_READ_PREFIX + encodeURIComponent(studentId);
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(key) || 'null');
+    return Array.isArray(saved?.keys) ? saved.keys.filter(value => typeof value === 'string') : [];
+  } catch { return []; }
+}
 let refreshTimer = null;
 let armTimer = null;
 let pill = null;
@@ -156,7 +179,9 @@ export function currentViewer() {
     kind: 'student',
     studentId,
     username: String(account?.username || student.username || ''),
-    name: String(student.name || student.nameBn || '')
+    name: String(student.name || student.nameBn || ''),
+    className: String(student.className || ''),
+    group: String(student.group || '')
   };
 }
 
@@ -210,6 +235,7 @@ function rawFeed(cleared = null) {
     notices: loadNotices(),
     config: loadAppConfig(),
     examDb: want.exams ? readJSON(KEYS.exams, null) : null,
+    teachingDb: want.teaching ? readJSON(KEYS.teaching, null) : null,
     students: want.students ? safely(loadRoster) : null,
     transactions: want.transactions ? safely(() => listDocuments('transactions')) : null,
     viewer,
@@ -218,15 +244,19 @@ function rawFeed(cleared = null) {
   });
 }
 
-/* Exam reminders are time-based, not data-based: wake up at the next start /
-   reminder / end moment (browsers may delay a background timer; the refresh on
-   becoming visible covers that). */
-function scheduleExamBoundary() {
+/* Exam reminders and homework deadlines change with the clock, not just when
+   sync writes data. Recheck at the next relevant boundary, capped hourly while
+   the app is open and refreshed again when it becomes visible. */
+function scheduleActionBoundary() {
   clearTimeout(boundaryTimer);
-  if (!needs().exams || viewer?.kind !== 'student') return;
-  const next = nextExamBoundary(readJSON(KEYS.exams, null), viewer, Date.now());
+  if (viewer?.kind !== 'student') return;
+  const now = Date.now();
+  const boundaries = [];
+  if (needs().exams) boundaries.push(nextExamBoundary(readJSON(KEYS.exams, null), viewer, now));
+  if (needs().teaching) boundaries.push(nextHomeworkBoundary(readJSON(KEYS.teaching, null), viewer, now));
+  const next = boundaries.filter(value => Number.isFinite(value) && value > now).sort((a, b) => a - b)[0];
   if (!next) return;
-  const delay = Math.min(MAX_TIMER_MS, Math.max(1000, next - Date.now() + 500));
+  const delay = Math.min(MAX_TIMER_MS, Math.max(1000, next - now + 500));
   boundaryTimer = setTimeout(() => refreshNotifications(), delay);
 }
 
@@ -240,7 +270,7 @@ export function buildFeed() {
  */
 export function clearNotifications(keys = null) {
   const all = rawFeed(null).map(item => item.key);
-  const target = Array.isArray(keys) ? keys : buildFeed().map(item => item.key);
+  const target = Array.isArray(keys) ? keys : generalNotificationItems(buildFeed()).map(item => item.key);
   const saved = writeJSON(CLEARED_KEY_PREFIX + viewerKey, clearedRecord([...readCleared(), ...target], all));
   writeSeen([...new Set([...readSeen(), ...target])]);
   window.dispatchEvent(new CustomEvent('apc-notifications-updated', { detail: { cleared: target.length, saved } }));
@@ -311,19 +341,43 @@ function writeInApp(keys) {
   return writeJSON(INAPP_KEY_PREFIX + viewerKey, { version: 1, at: Date.now(), keys });
 }
 
+/* Reading an item in the inbox is also an acknowledgement for the in-app
+   popup. Keep that receipt alongside the read record so a message that was
+   already read cannot reappear as "new" on the next login. */
+function markInAppHandled(keys) {
+  const handled = new Set((Array.isArray(keys) ? keys : [keys]).filter(key => typeof key === 'string' && key));
+  if (!handled.size) return;
+  const stored = readInApp();
+  const baseline = stored === null ? buildFeed().map(item => item.key) : stored;
+  writeInApp([...new Set([...baseline, ...handled])]);
+  alertQueue = alertQueue.filter(item => item.preview || !handled.has(item.key));
+}
+
+function readRecordKeys() {
+  return new Set(listNotifications(viewerKey)
+    .filter(record => record.read === true)
+    .map(record => record.key)
+    .filter(key => typeof key === 'string' && key));
+}
+
 function queueInAppAlerts(feed, full) {
   const stored = readInApp();
-  const queued = alertQueue.map(item => item.key);
+  const read = readRecordKeys();
+  const eligible = feed.filter(item => !read.has(item.key));
+  // A read decision can race with an alert that has not reached the screen yet.
+  alertQueue = alertQueue.filter(item => item.preview || !read.has(item.key));
+  const queued = alertQueue.filter(item => !item.preview).map(item => item.key);
   const plan = planInAppAlerts({
-    feed, known: full, initialise: stored === null,
+    feed: eligible, known: full, initialise: stored === null,
     shown: stored === null ? null : [...stored, ...queued]
   });
   // Queued keys are not receipts yet: only the stored ones are kept (pruned).
   const known = new Set(full.map(item => item.key));
-  writeInApp(stored === null ? plan.record : stored.filter(key => known.has(key)));
-  const visible = new Set(feed.map(item => item.key));
+  const previous = stored === null ? plan.record : stored.filter(key => known.has(key));
+  writeInApp([...new Set([...previous, ...[...read].filter(key => known.has(key))])]);
+  const visible = new Set(eligible.map(item => item.key));
   const fresh = plan.show.filter(item => !queued.includes(item.key));
-  alertQueue = [...fresh, ...alertQueue.filter(item => visible.has(item.key))];
+  alertQueue = [...fresh, ...alertQueue.filter(item => item.preview || visible.has(item.key))];
   if (alertQueue.length) window.dispatchEvent(new CustomEvent('apc-inapp-alerts', { detail: { count: alertQueue.length } }));
 }
 
@@ -334,8 +388,12 @@ function queueInAppAlerts(feed, full) {
 export function takeInAppAlerts() {
   if (!viewer || !alertQueue.length) return [];
   const current = new Map(buildFeed().map(item => [item.key, item]));
-  // A sample the person asked for has no feed item behind it; it is shown once.
-  const items = alertQueue.map(item => current.get(item.key) || (item.preview ? item : null)).filter(Boolean);
+  const read = readRecordKeys();
+  // A sample the person asked for has no feed item behind it; a real item that
+  // was marked read while waiting must not be shown on the next login.
+  const items = alertQueue
+    .map(item => current.get(item.key) || (item.preview ? item : null))
+    .filter(item => item && (item.preview || !read.has(item.key)));
   alertQueue = [];
   if (items.length) writeInApp([...new Set([...(readInApp() || []), ...items.map(item => item.key)])]);
   return items;
@@ -361,12 +419,39 @@ export function openNotificationTarget(data) {
   if (data?.kind === 'registration' || key.startsWith('registration:')) {
     return openRegistration(data.id || key.slice('registration:'.length));
   }
-  const item = key ? rawFeed(null).find(entry => entry.key === key) : null;
-  const target = data?.target || item?.target || KIND_TARGET[data?.kind] || '';
-  if (key && item) clearNotifications([key]);
-  if (panelVisible()) return Promise.resolve(navigateTo(target));
+  const kind = String(data?.kind || '');
+  const sourceId = String(data?.id || data?.sourceId || '');
+  const item = rawFeed(null).find(entry => key
+    ? entry.key === key
+    : sourceId && entry.sourceId === sourceId && entry.kind === kind) || null;
+  const isBoardItem = NOTICE_BOARD_KINDS.has(kind);
+  const target = isBoardItem
+    ? (viewer?.kind === 'student' ? 'notice-board' : 'home')
+    : data?.target || item?.target || KIND_TARGET[kind] || '';
+  const action = item?.action || data?.action || 'open';
+  if (key && item && !(isBoardItem && viewer?.kind === 'student')) {
+    clearNotifications([key]);
+    writeSeen([...new Set([...readSeen(), key])]);
+    markRead(viewerKey, [key]);
+    markInAppHandled([key]);
+    publish({ read: 1, opened: key });
+  }
+  const openTarget = () => {
+    const opened = navigateTo(target);
+    if (opened && isBoardItem && viewer?.kind === 'student') {
+      window.dispatchEvent(new CustomEvent('apc-notice-open', {
+        detail: { kind, id: sourceId, key }
+      }));
+    } else if (opened && ACTION_KINDS.has(kind) && sourceId) {
+      window.dispatchEvent(new CustomEvent('apc-notification-action', {
+        detail: { kind, id: sourceId, action, target }
+      }));
+    }
+    return opened;
+  };
+  if (panelVisible()) return Promise.resolve(openTarget());
   // Tapped in the tray while the app was starting: go there once it is open.
-  return whenPanelReady().then(ready => ready && navigateTo(target));
+  return whenPanelReady().then(ready => ready && openTarget());
 }
 
 async function takePendingClick() {
@@ -402,7 +487,7 @@ export function seenKeys() {
 
 /** Everything in the feed is read: used when the inbox is opened. */
 export function markAllSeen() {
-  const feed = buildFeed();
+  const feed = generalNotificationItems(buildFeed());
   const keys = [...new Set([...readSeen(), ...feed.map(item => item.key)])];
   const saved = writeSeen(keys);
   window.dispatchEvent(new CustomEvent('apc-notifications-updated', { detail: { read: keys.length, saved } }));
@@ -448,23 +533,28 @@ async function serviceWorkerRegistration() {
   } catch { return null; }
 }
 
-function notificationOptions(payload) {
-  return {
+function notificationOptions(payload, supportsActions = false) {
+  const options = {
     body: payload.body,
     icon: './assets/icons/icon-192.png',
     tag: payload.tag,
     data: payload.data
   };
+  if (supportsActions && payload.actionLabel) {
+    options.actions = [{ action: 'open', title: payload.actionLabel.slice(0, 32) }];
+  }
+  return options;
 }
 
 /** Android Chrome refuses `new Notification(...)`; the service worker is the
-    supported path there, with the constructor as a desktop fallback. */
-async function showSystemNotification(title, options) {
+    supported path there. Service-worker notifications can also carry a button
+    that opens the same focused action as the in-app Action Center. */
+async function showSystemNotification(payload) {
   const registration = await serviceWorkerRegistration();
   if (registration && typeof registration.showNotification === 'function') {
-    return registration.showNotification(title, options);
+    return registration.showNotification(payload.title, notificationOptions(payload, true));
   }
-  return new window.Notification(title, options);
+  return new window.Notification(payload.title, notificationOptions(payload));
 }
 
 function deliver(item) {
@@ -473,7 +563,7 @@ function deliver(item) {
   if (!claim) return;                      // the push already showed this one
   const payload = pushPayload(item);
   Promise.resolve()
-    .then(() => showSystemNotification(payload.title, notificationOptions(payload)))
+    .then(() => showSystemNotification(payload))
     .then(() => markDelivered(viewerKey, [item.key]))
     .catch(error => console.warn('[Active Plus] notification not shown:', error?.name || 'unknown'));
   window.dispatchEvent(new CustomEvent('apc-notification', { detail: item }));
@@ -519,31 +609,46 @@ export function refreshNotifications() {
   // What this device already knew BEFORE this refresh: the receipts are read
   // state, so an item delivered for the first time now must stay unread.
   const receiptsBefore = readSeen();
+  const boardReadReceipts = noticeBoardReadKeys();
+  const boardRead = new Set(boardReadReceipts);
   const plan = planDeliveries({ feed: full, seen: receiptsBefore, firstRun: !armed });
-  plan.notify = plan.notify.filter(item => !cleared.has(item.key));
+  plan.notify = plan.notify.filter(item => !cleared.has(item.key) && !boardRead.has(item.key));
   const rulesVersion = Number(readJSON(RULES_KEY_PREFIX + viewerKey, null)?.version) || 1;
-  if (rulesVersion < RULES_VERSION) {
+  if (rulesVersion < 2) {
     // Time-based exam reminders are always current, so they may still ring.
     plan.notify = plan.notify.filter(item => !V2_KINDS.has(item.kind) || item.kind === 'exam-soon' || item.kind === 'exam-live');
-    if (armed) writeJSON(RULES_KEY_PREFIX + viewerKey, { version: RULES_VERSION, at: Date.now() });
+  }
+  let upgradeRead = [];
+  if (rulesVersion < 3) {
+    // Homework reminders are new: don't treat assignments already on the
+    // device as fresh news during the upgrade, either in the tray or popup.
+    plan.notify = plan.notify.filter(item => !V3_KINDS.has(item.kind));
+    upgradeRead = full.filter(item => V3_KINDS.has(item.kind)).map(item => item.key);
+    const inApp = readInApp();
+    if (inApp !== null) {
+      writeInApp([...new Set([...inApp, ...upgradeRead])]);
+    }
+  }
+  if (rulesVersion < RULES_VERSION && armed) {
+    writeJSON(RULES_KEY_PREFIX + viewerKey, { version: RULES_VERSION, at: Date.now() });
   }
   writeSeen(plan.seen);
   // Every item this device knows about now has a record (id NOTIF-YYYYMMDD-0001).
   // Items the engine had already announced are stored as read: updating the app
   // never turns yesterday's news into unread notifications.
   try {
-    syncNotifications({ userId: viewerKey, feed: full, legacyRead: [...receiptsBefore, ...cleared] });
+    syncNotifications({ userId: viewerKey, feed: full, legacyRead: [...receiptsBefore, ...cleared, ...upgradeRead, ...boardReadReceipts] });
   } catch (error) {
     console.warn('[Active Plus] notification records unavailable:', error?.name || 'unknown');
   }
   // The in-app card needs no phone permission (owner decision 2026-09-30).
-  if (armed && inAppNotificationsEnabled()) queueInAppAlerts(feed, full);
+  if (armed && inAppNotificationsEnabled()) queueInAppAlerts(generalNotificationItems(feed), generalNotificationItems(full));
   let delivered = 0;
   if (armed && systemNotificationsEnabled() && permission() === 'granted') {
     for (const item of plan.notify) { deliver(item); delivered += 1; }
   }
   paintPill();
-  scheduleExamBoundary();
+  scheduleActionBoundary();
   window.dispatchEvent(new CustomEvent('apc-notifications-updated', { detail: { delivered } }));
   return { delivered, feed };
 }
@@ -739,7 +844,7 @@ function previewNotification() {
   if (systemNotificationsEnabled() && permission() === 'granted') {
     const payload = pushPayload(item);
     void Promise.resolve()
-      .then(() => showSystemNotification(payload.title, notificationOptions(payload)))
+      .then(() => showSystemNotification(payload))
       .catch(error => console.warn('[Active Plus] preview notification not shown:', error?.name || 'unknown'));
   }
   return item;
@@ -772,8 +877,9 @@ export function initNotifications() {
       const collection = event.detail?.collection;
       if (!collection || WATCHED_COLLECTIONS.includes(collection)) scheduleRefresh();
     });
-    // A decision taken on this device does not fire a storage event here.
+    // Same-window data writes do not emit native storage events.
     window.addEventListener('apc-registration-decided', scheduleRefresh);
+    window.addEventListener('teaching-data-updated', scheduleRefresh);
     watchNotificationClicks();
     window.addEventListener('apc-sync-status', () => { if (!armed) return; paintPill(); });
     document.addEventListener('visibilitychange', () => {
@@ -787,9 +893,9 @@ export function initNotifications() {
     });
     controller = {
       refresh: refreshNotifications,
-      unread: () => unreadCount(viewerKey),
-      unreadKeys: () => unreadNotifications(viewerKey).map(record => record.key),
-      records: () => listNotifications(viewerKey),
+      unread: () => generalNotificationRecords(unreadNotifications(viewerKey)).length,
+      unreadKeys: () => generalNotificationRecords(unreadNotifications(viewerKey)).map(record => record.key),
+      records: () => generalNotificationRecords(listNotifications(viewerKey)),
       markRead: keys => {
         const list = [...new Set((Array.isArray(keys) ? keys : [keys]).map(key => String(key || '')).filter(Boolean))];
         if (!list.length) return 0;
@@ -797,12 +903,15 @@ export function initNotifications() {
         // receipt stops the tray from announcing the item a second time.
         writeSeen([...new Set([...readSeen(), ...list])]);
         const changed = markRead(viewerKey, list);
+        markInAppHandled(list);
         publish();
         return changed;
       },
       markAllRead: () => {
+        const unreadKeys = generalNotificationRecords(unreadNotifications(viewerKey)).map(record => record.key);
         markAllSeen();
-        const changed = markAllRead(viewerKey);
+        const changed = markRead(viewerKey, unreadKeys);
+        markInAppHandled(unreadKeys);
         publish();
         return changed;
       },
@@ -817,7 +926,7 @@ export function initNotifications() {
       },
       preview: () => previewNotification(),
       playTone,
-      feed: buildFeed,
+      feed: () => generalNotificationItems(buildFeed()),
       seen: seenKeys,
       markAllSeen,
       clear: clearNotifications,

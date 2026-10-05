@@ -1024,6 +1024,7 @@ html[data-theme="dark"] .pay-toast { background: var(--color-surface-muted); col
   .student-home-view:not(.is-empty-routine) > .student-home-overview { display: contents; }
   .student-home-view .pay-hero { grid-column: 1 / -1; }
   .student-home-view .pay-grid { grid-column: 1 / -1; grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .student-home-view #dashboardExamCard { grid-column: 1 / -1; }
   .student-home-view:not(.is-empty-routine) .dashboard-today-section { grid-row: span 3; }
   .daily-quote-section { grid-column: 1 / -1; }
   .daily-challenge-section { grid-column: 1 / -1; }

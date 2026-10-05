@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { adminStudents, initialTransactions } from '../js/admin-data.js';
 import { searchStudents, studentFeeSummary, newestTransactions, monthLabel, dateLabel, financeRepository, TRANSACTIONS_KEY, isFinalizedTransaction } from '../js/finance-data.js';
 import { seedStaffSession } from './staff-harness.mjs';
+import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
 import { receiptMarkup, imagePDF } from '../js/finance-receipt.js';
 const now = new Date(2026, 8, 22);
 
@@ -50,6 +51,7 @@ test('Manager review changes only approval metadata, stores a trail and denies r
   globalThis.window = { localStorage: store, sessionStorage: store };
   const entry = { id: 'pending-1', studentId: 'AP-1024', studentName: 'Raisa', amount: 750, method: 'Cash', collectedBy: 'পেমেন্ট কাউন্টার', status: 'pending', reviewHistory: [] };
   rows.set(TRANSACTIONS_KEY, JSON.stringify([entry]));
+  rows.set(STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', status: 'active' }));
   await assert.rejects(() => financeRepository.reviewTransaction(entry.id, 'approved'), { code: 'ACCESS_DENIED' });
   seedStaffSession(window, 'manager');
   const approvedRows = await financeRepository.reviewTransaction(entry.id, 'approved');
@@ -84,8 +86,17 @@ test('an empty ledger stays empty; a seeded ledger persists, merges saves and re
   const storage = new Map();
   globalThis.window = { localStorage: {
     getItem: key => storage.get(key) ?? null,
-    setItem: (key, value) => storage.set(key, value)
+    setItem: (key, value) => storage.set(key, value),
+    removeItem: key => storage.delete(key)
+  }, sessionStorage: {
+    getItem: key => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, value),
+    removeItem: key => storage.delete(key)
   } };
+  storage.set(STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', status: 'active' }));
+  storage.set(STAFF_ACCOUNTS.payment.accountKey, JSON.stringify({ role: 'payment', username: 'payment.apc', status: 'active' }));
+  seedStaffSession(window, 'manager');
+  seedStaffSession(window, 'payment');
   assert.deepEqual(await financeRepository.listTransactions(), []);
   storage.set(TRANSACTIONS_KEY, JSON.stringify(initialTransactions));
   const before = await financeRepository.listTransactions();

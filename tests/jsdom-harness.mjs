@@ -26,6 +26,11 @@ export async function loadPage(file, { seed = {}, hash = '' } = {}) {
   // refresh of that page does.
   const dom = new JSDOM(html, { url: `http://localhost/${hash || ''}`, pretendToBeVisual: true, virtualConsole });
   const { window } = dom;
+  /* jsdom.close() does not emit pagehide. Real page departure does, and the
+     app uses it to stop its staff-session watchdogs; mirror that lifecycle so
+     test contexts do not leave 60-second timers running after teardown. */
+  const closeWindow = window.close.bind(window);
+  window.close = () => { window.dispatchEvent(new window.Event('pagehide')); closeWindow(); };
 
   Object.entries(seed).forEach(([key, value]) => window.localStorage.setItem(key, value));
 

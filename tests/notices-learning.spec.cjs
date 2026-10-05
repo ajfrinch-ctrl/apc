@@ -1,71 +1,96 @@
 const { test, expect } = require('./fixtures.cjs');
 const { enterStudentApp } = require('./portal-session.cjs');
-const READ_KEY = 'activePlus.notifications.seen.v1:student:AP-1024';
+const NOTICE_KEY = 'activePlus.admin.notices.v1';
 const CONFIG_KEY = 'active-plus-app-config-v1';
+const BOARD_READ_KEY = 'activePlus.noticeBoard.read.v1:AP-1024';
+const NOTICE_FIXTURE = [
+  { id: 'NB-U', category: 'urgent', title: 'জরুরি ছুটি ঘোষণা', body: 'আজকের ক্লাস স্থগিত।', audience: 'সকল শিক্ষার্থী', status: 'published', createdAt: '2026-10-04T09:00:00.000Z' },
+  { id: 'NB-A', category: 'academic', title: 'নতুন পাঠসূচি', body: 'নতুন অধ্যায়ের তালিকা দেখো।', audience: 'সকল শিক্ষার্থী', status: 'published', createdAt: '2026-10-03T09:00:00.000Z' },
+  { id: 'NB-E', category: 'exam', title: 'গণিত পরীক্ষার সূচি', body: 'পরীক্ষা আগামী সপ্তাহে।', audience: 'সকল শিক্ষার্থী', status: 'published', createdAt: '2026-10-02T09:00:00.000Z' }
+];
 test.use({ viewport: { width: 390, height: 844 } });
 async function enter(page) {
-  // The demo button is gone on purpose, so the student signs in for real on
-  // the one shared login card.
   await enterStudentApp(page);
 }
+async function seedNoticeBoard(page) {
+  await page.addInitScript(({ key, notices }) => localStorage.setItem(key, JSON.stringify(notices)), { key: NOTICE_KEY, notices: NOTICE_FIXTURE });
+}
+async function openBoard(page) {
+  if (!(await page.locator('#notice-boardView').isVisible())) {
+    await page.locator('#studentServices [data-view="notice-board"]').click();
+  }
+  await expect(page.locator('#notice-boardView')).toBeVisible();
+}
 
-test('only bell opens notices; read state survives closing, reload and offline', async ({ page, context }) => {
+test('student Notice Board is separate from the bell and Read ✓ survives reload/offline', async ({ page, context }) => {
+  await seedNoticeBoard(page);
   await enter(page);
-  await expect(page.locator('#noticeShortcut, #noticeStrip, .js-notice-open')).toHaveCount(0);
-  await expect(page.locator('.notification-dot')).toBeVisible();
+  await expect(page.locator('#noticeBoardUnreadBadge')).toHaveText('৩');
+  await expect(page.locator('.notification-dot')).toBeHidden();
+  await page.locator('#studentServices [data-view="notice-board"]').click();
+  await expect(page.locator('#notice-boardView')).toBeVisible();
+  await expect(page.locator('#noticeBoardList .notice-board-card')).toHaveCount(3);
+  await expect(page.locator('#noticeBoardCategories [data-notice-board-category="urgent"]')).toContainText('জরুরি');
+  await page.locator('#noticeBoardCategories [data-notice-board-category="exam"]').click();
+  await expect(page.locator('#noticeBoardList .notice-board-card')).toHaveCount(1);
+  await expect(page.locator('#noticeBoardList')).toContainText('গণিত পরীক্ষার সূচি');
+  await page.locator('#noticeBoardCategories [data-notice-board-category="all"]').click();
+
+  const urgent = page.locator('#noticeBoardList .notice-board-card').first();
+  await urgent.locator('[data-notice-board-open]').click();
+  await expect(page.locator('#noticeBoardDetailTitle')).toHaveText('জরুরি ছুটি ঘোষণা');
+  await expect(page.locator('#noticeBoardReadButton')).toHaveText('Read ✓');
+  await page.locator('#noticeBoardReadButton').click();
+  await expect(page.locator('#noticeBoardReadButton')).toHaveText('পড়া হয়েছে ✓');
+  await expect(page.locator('#noticeBoardUnreadBadge')).toHaveText('২');
+
+  // The ordinary inbox stays clean and points the student to the separate Board.
   await page.locator('#notificationButton').click();
   await expect(page.locator('#noticeModal')).toBeVisible();
+  await expect(page.locator('#noticeListStudent')).toContainText('আলাদা Notice Board');
+  await expect(page.locator('#noticeListStudent')).not.toContainText('জরুরি ছুটি ঘোষণা');
   await expect(page.locator('.notification-dot')).toBeHidden();
-  await expect(page.locator('#noticeListStudent .unread')).toHaveCount(0);
-  await expect(page.locator('#noticeReadStatus')).toContainText('সব নোটিফিকেশন পড়া হয়েছে');
-  await page.locator('#noticeModal .modal-action').click();
+  await page.locator('#noticeModal .modal-close').click();
+
   await page.reload();
-  await expect(page.locator('.notification-dot')).toBeHidden();
+  await expect(page.locator('#appShell')).toBeVisible();
+  await openBoard(page);
+  await expect(page.locator('#noticeBoardUnreadBadge')).toHaveText('২');
+  await expect(page.locator('#noticeBoardList .notice-board-card.is-read')).toHaveCount(1);
+
   await page.evaluate(async () => navigator.serviceWorker.ready);
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await context.setOffline(true); await page.reload();
-  await expect(page.locator('.notification-dot')).toBeHidden();
-  await page.locator('#notificationButton').click();
-  await expect(page.locator('#noticeListStudent .notice-detail')).toHaveCount(3);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#appShell')).toBeVisible();
+  await openBoard(page);
+  await expect(page.locator('#noticeBoardUnreadBadge')).toHaveText('২');
+  await expect(page.locator('#noticeBoardList .notice-board-card.is-read')).toHaveCount(1);
   await context.setOffline(false);
 });
 
-test('read receipts sync across tabs and edited broadcasts become unread without HTML injection', async ({ page, context }) => {
+test('per-student Read ✓ receipts sync across tabs; urgent broadcast stays on the Board', async ({ page, context }) => {
+  await seedNoticeBoard(page);
   await enter(page);
-  const other = await context.newPage(); await other.goto('/index.html');
-  await expect(other.locator('.notification-dot')).toBeVisible();
-  await page.locator('#notificationButton').click();
-  await expect(other.locator('.notification-dot')).toBeHidden();
-  await page.locator('#noticeModal .modal-action').click();
-  const message = '<img src=x onerror=alert(1)> নতুন ক্লাসের সময়';
+  await page.locator('#studentServices [data-view="notice-board"]').click();
+  await expect(page.locator('#noticeBoardList .notice-board-card')).toHaveCount(3);
+
+  const other = await context.newPage();
+  await other.goto('/index.html');
+  await expect(other.locator('#appShell')).toBeVisible();
+  await openBoard(other);
+  await page.locator('#noticeBoardList .notice-board-card').first().locator('[data-notice-board-open]').click();
+  await page.locator('#noticeBoardReadButton').click();
+  await expect(other.locator('#noticeBoardList .notice-board-card.is-read')).toHaveCount(1);
+
+  const message = '<img src=x onerror=alert(1)> জরুরি সার্ভার ঘোষণা';
   await other.evaluate(({ key, message }) => localStorage.setItem(key, JSON.stringify({ broadcastAlert: true, broadcastMessage: message })), { key: CONFIG_KEY, message });
-  await expect(page.locator('.notification-dot')).toBeVisible();
-  await expect(page.locator('#notificationButton')).toHaveAttribute('aria-label', 'নোটিফিকেশন — ১টি অপঠিত');
+  await expect(page.locator('#noticeBoardList')).toContainText(message);
+  await expect(page.locator('#noticeBoardList img')).toHaveCount(0);
+  await expect(page.locator('.notification-dot')).toBeHidden();
   await page.locator('#notificationButton').click();
-  await expect(page.locator('#noticeListStudent')).toContainText(message);
-  await expect(page.locator('#noticeListStudent img')).toHaveCount(0);
-  await expect(page.locator('.notification-dot')).toBeHidden();
-  await page.reload(); await expect(page.locator('.notification-dot')).toBeHidden();
-});
-
-test('read state belongs to the student, not every account on the device', async ({ page }) => {
-  await enter(page); await page.locator('#notificationButton').click();
-  expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).keys.length, READ_KEY)).toBe(3);
-  await page.evaluate(() => {
-    const key = 'active-plus-account-v1', account = JSON.parse(localStorage.getItem(key));
-    account.student.id = 'ANOTHER-STUDENT'; localStorage.setItem(key, JSON.stringify(account));
-  });
-  await page.reload(); await expect(page.locator('.notification-dot')).toBeVisible();
-});
-
-test('unreadable receipt storage is preserved and failed persistence is explained', async ({ page }) => {
-  await enter(page);
-  await page.evaluate(key => localStorage.setItem(key, '{broken'), READ_KEY);
-  await page.reload(); await page.locator('#notificationButton').click();
-  await expect(page.locator('#noticeReadStatus')).toContainText('ডিভাইসে সংরক্ষণ হয়নি');
-  expect(await page.evaluate(key => localStorage.getItem(key), READ_KEY)).toBe('{broken');
-  await expect(page.locator('.notification-dot')).toBeHidden();
-  await page.reload(); await expect(page.locator('.notification-dot')).toBeVisible();
+  await expect(page.locator('#noticeListStudent')).toContainText('আলাদা Notice Board');
+  await expect(page.locator('#noticeListStudent')).not.toContainText('জরুরি সার্ভার ঘোষণা');
 });
 
 for (const width of [320, 390, 480]) {

@@ -5,6 +5,7 @@ import { isTeacherAssigned, subjectsForTeacherClass } from './teacher-assignment
 import { isSubjectEnabled, academicCodes, chapterByName, ensureChapter as ensureAcademicChapter } from './academics.js';
 import { allocateExamCode, examCodeParts, orderPaperForAttempt, timeLabel } from './exam-core.js';
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
+import { authenticatedStudent } from './student-access.js';
 import { enabledClasses } from './config.js';
 import { KEYS, readRaw, writeRaw, newId } from './database.js';
 import { questionBank } from './question-bank.js';
@@ -540,11 +541,46 @@ export function examMatchesStudent(exam, student) {
   const normalize = value => String(value || '').normalize('NFC').trim().replace(/\s*বিভাগ$/, '').trim();
   return examMatchesClass(exam, student?.className) && (!exam.group || normalize(exam.group) === normalize(student?.group));
 }
+function academicClassNames() {
+  try {
+    const saved = JSON.parse(readRaw(KEYS.academics) || 'null');
+    if (Array.isArray(saved?.classes)) return saved.classes.map(item => item?.name).filter(Boolean);
+  } catch { /* keep the shipped class names if an old file is unreadable */ }
+  return enabledClasses;
+}
+function studentExamSnapshot(db, student) {
+  const exams = db.exams
+    .filter(exam => isStudentVisibleExam(exam) && examMatchesStudent(exam, student))
+    .map(exam => {
+      const questions = (exam.questions || []).map(question => {
+        if (exam.type !== 'mcq' || Date.now() >= Number(exam.endAt)) return { ...question };
+        const { answer, answerText, ...safeQuestion } = question;
+        return safeQuestion;
+      });
+      return {
+        ...exam,
+        questions,
+        participants: (exam.participants || []).filter(person => person.id === student.id).map(person => ({ ...person })),
+        absentIds: (exam.absentIds || []).filter(id => id === student.id)
+      };
+    });
+  const visibleIds = new Set(exams.map(exam => exam.id));
+  /* The retry policy depends on the cohort's first-attempt average. Keep that
+     one aggregate per visible exam so the Student UI can show the right retry
+     action without receiving any other student's identity or attempt row. */
+  const firstAttemptMeans = Object.fromEntries(exams.map(exam => [exam.id, firstAttemptMean(db, exam.id)]));
+  return {
+    version: db.version,
+    exams,
+    attempts: db.attempts.filter(attempt => attempt.studentId === student.id && visibleIds.has(attempt.examId)).map(attempt => ({ ...attempt })),
+    firstAttemptMeans
+  };
+}
 export function validateExam(input) {
   const title = String(input.title || '').trim(), subject = String(input.subject || '').trim();
   if (!title || title.length > 150 || !subject || subject.length > 80) fail('পরীক্ষার নাম ও একটি বিষয় দিন।');
   const className = String(input.className || '').trim(), group = String(input.group || '').trim();
-  if (className && !enabledClasses.includes(className)) fail('সঠিক শ্রেণি নির্বাচন করুন।');
+  if (className && !academicClassNames().includes(className)) fail('সঠিক শ্রেণি নির্বাচন করুন।');
   if (group.length > 80) fail('Batch/Group সর্বোচ্চ ৮০ অক্ষরের মধ্যে দিন।');
   const startAt = Number(input.startAt), endAt = Number(input.endAt), lateMinutes = input.type === 'mcq' ? Number(input.lateMinutes ?? 10) : 0, negative = Number(input.negative ?? 0), passPercent = Number(input.passPercent ?? 33);
   if (!Number.isFinite(startAt) || !Number.isFinite(endAt) || endAt <= startAt || endAt - startAt > 86400000 || startAt < 1577836800000 || endAt > 4102444800000) fail('সঠিক শুরু ও শেষ সময় দিন; সময়কাল সর্বোচ্চ ২৪ ঘণ্টা।');
@@ -732,6 +768,11 @@ export function scoreAttempt(exam, attempt) {
   return { score: round(Math.max(0, score)), correct, wrong, unanswered };
 }
 export function firstAttemptMean(db, examId) {
+  if (db?.firstAttemptMeans && Object.hasOwn(db.firstAttemptMeans, examId)) {
+    const aggregate = db.firstAttemptMeans[examId];
+    if (aggregate === null || aggregate === undefined || aggregate === '') return null;
+    return Number.isFinite(Number(aggregate)) ? Number(aggregate) : null;
+  }
   const first = db.attempts.filter(a => a.examId === examId && a.number === 1 && a.status === 'submitted');
   return first.length ? first.reduce((sum, a) => sum + a.score, 0) / first.length : null;
 }
@@ -755,10 +796,20 @@ export function examResults(db, exam) {
   return rows.map((a, index) => ({ ...a, rank: rows.findIndex(other => other.score === a.score) + 1, grade: gradeFor(a.score, totalMarks(exam), exam.passPercent) }));
 }
 export const examRepository = {
-  async list(actor) {
-    const db = read();
-    if (actor?.role === 'teacher') return teacherExamSnapshot(db, actor);
-    return db;
+  async list(actor = null) {
+    if (actor?.role === 'student') return examRepository.listForStudent(actor.studentId || actor.id);
+    if (actor?.role === 'teacher') { await requireRoleSession('teacher'); return teacherExamSnapshot(read(), actor); }
+    if (actor?.role === 'manager') { await requireRoleSession('manager'); return read(); }
+    if (actor?.role === 'admin') { await requireRoleSession('admin'); return read(); }
+    if (await hasStaffSession('manager')) { await requireRoleSession('manager'); return read(); }
+    if (await hasStaffSession('admin')) { await requireRoleSession('admin'); return read(); }
+    if (await hasStaffSession('teacher')) { await requireRoleSession('teacher'); return teacherExamSnapshot(read(), TEACHER_ACTOR); }
+    const student = await authenticatedStudent();
+    return studentExamSnapshot(read(), student);
+  },
+  async listForStudent(studentId) {
+    const student = await authenticatedStudent(studentId);
+    return studentExamSnapshot(read(), student);
   },
   async listStudents() { return teachingRepository.listStudents(); },
   /* Idempotent: gives every stored paper its permanent Exam Code. Called when
@@ -873,7 +924,7 @@ export const examRepository = {
        Already-shelved content is skipped, so re-publishing is a no-op. */
     if (decision === 'publish') {
       const published = db.exams.find(e => e.id === id);
-      if (published?.type === 'mcq') await questionBank.saveFromExam(published, name);
+      if (published?.type === 'mcq') await questionBank.saveFromExam(published, name, { role: actor.role });
     }
     return db;
   },
@@ -1082,11 +1133,16 @@ export const examRepository = {
     return examRepository.deleteExam(id, actor);
   },
   async startAttempt(examId, student) {
-    return mutate(db => {
-      const e = examById(db, examId), person = eligibleParticipant(e, student), now = Date.now();
+    const actual = await authenticatedStudent(student?.id);
+    const db = await mutate(db => {
+      const e = examById(db, examId), now = Date.now();
       if (e.type !== 'mcq' || !isLiveExam(e) || now < e.startAt || now >= e.endAt) fail('এখন পরীক্ষা শুরু করা যাবে না।');
-      if (!examMatchesStudent(e, person)) fail('এই পরীক্ষা তোমার শ্রেণি/ব্যাচের জন্য নয়.');
-      if (!e.participants?.some(item => item.id === person.id)) fail('এই পরীক্ষার অংশগ্রহণকারী তালিকায় তোমার নাম নেই।');
+      const person = { id: actual.id, name: actual.name || actual.nameBn || '', className: actual.className || '', group: actual.group || '' };
+      if (!examMatchesStudent(e, person)) fail('এই পরীক্ষা তোমার শ্রেণি/ব্যাচের জন্য নয়।');
+      /* Participant snapshots are retained for history. A currently approved
+         student who has moved into this class/batch can join a live paper; the
+         authenticated account, not a caller-supplied profile, decides scope. */
+      if (!e.participants.some(item => item.id === person.id)) e.participants.push(person);
       const own = db.attempts.filter(a => a.examId === e.id && a.studentId === person.id);
       if (own.some(a => a.status === 'active')) return;
       if (!own.length && now > e.startAt + e.lateMinutes * 60000) fail('দেরিতে প্রবেশের সময়সীমা শেষ।');
@@ -1096,35 +1152,41 @@ export const examRepository = {
       const attemptId = newId('A');
       const order = orderPaperForAttempt(e, person.id, attemptId);
       db.attempts.push({ id: attemptId, examId, studentId: person.id, name: person.name, className: person.className, number: own.length + 1, status: 'active', startedAt: now, savedAt: now, order, answers: {} });
-      if (!e.participants.some(s => s.id === person.id)) e.participants.push(person);
     });
+    return studentExamSnapshot(db, actual);
   },
   async saveAnswer(attemptId, studentId, questionId, optionId) {
+    const actual = await authenticatedStudent(studentId);
     const receivedAt = Date.now();
-    return mutate(db => {
-      const a = attemptById(db, attemptId, studentId), e = examById(db, a.examId);
-      if (a.status !== 'active' || receivedAt >= e.endAt) fail('সময় শেষ বা উত্তরপত্র জমা হয়েছে।');
-      const q = e.questions.find(q => q.id === questionId);
-      if (!q || !q.options.some(o => o.id === optionId)) fail('উত্তরের অপশন সঠিক নয়।');
-      a.answers[questionId] = optionId; a.savedAt = receivedAt;
+    const db = await mutate(db => {
+      const attempt = attemptById(db, attemptId, actual.id), exam = examById(db, attempt.examId);
+      if (attempt.status !== 'active' || receivedAt >= exam.endAt) fail('সময় শেষ বা উত্তরপত্র জমা হয়েছে।');
+      const question = exam.questions.find(item => item.id === questionId);
+      if (!question || !question.options.some(option => option.id === optionId)) fail('উত্তরের অপশন সঠিক নয়।');
+      attempt.answers[questionId] = optionId; attempt.savedAt = receivedAt;
     });
+    return studentExamSnapshot(db, actual);
   },
   async finishAttempt(attemptId, studentId) {
-    return mutate(db => {
-      const a = attemptById(db, attemptId, studentId), e = examById(db, a.examId);
-      if (a.status !== 'active') return;
-      a.finishedAt = Math.min(Date.now(), e.endAt); a.status = navigator.onLine === false ? 'queued' : 'submitted';
-      if (a.status === 'submitted') Object.assign(a, scoreAttempt(e, a));
+    const actual = await authenticatedStudent(studentId);
+    const db = await mutate(db => {
+      const attempt = attemptById(db, attemptId, actual.id), exam = examById(db, attempt.examId);
+      if (attempt.status !== 'active') return;
+      attempt.finishedAt = Math.min(Date.now(), exam.endAt); attempt.status = navigator.onLine === false ? 'queued' : 'submitted';
+      if (attempt.status === 'submitted') Object.assign(attempt, scoreAttempt(exam, attempt));
     });
+    return studentExamSnapshot(db, actual);
   },
   async syncStudent(studentId) {
-    return mutate(db => {
-      for (const a of db.attempts.filter(a => a.studentId === studentId && a.status !== 'submitted')) {
-        const e = examById(db, a.examId);
-        if (a.status === 'active' && Date.now() >= e.endAt) { a.finishedAt = e.endAt; a.status = 'queued'; }
-        if (a.status === 'queued' && navigator.onLine !== false) { a.status = 'submitted'; Object.assign(a, scoreAttempt(e, a)); }
+    const actual = await authenticatedStudent(studentId);
+    const db = await mutate(db => {
+      for (const attempt of db.attempts.filter(item => item.studentId === actual.id && item.status !== 'submitted')) {
+        const exam = examById(db, attempt.examId);
+        if (attempt.status === 'active' && Date.now() >= exam.endAt) { attempt.finishedAt = exam.endAt; attempt.status = 'queued'; }
+        if (attempt.status === 'queued' && navigator.onLine !== false) { attempt.status = 'submitted'; Object.assign(attempt, scoreAttempt(exam, attempt)); }
       }
     });
+    return studentExamSnapshot(db, actual);
   },
   async markWrittenAbsent(examId, student, actor = TEACHER_ACTOR) {
     await requireRoleSession('teacher');

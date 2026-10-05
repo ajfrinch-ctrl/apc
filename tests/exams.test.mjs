@@ -7,18 +7,29 @@ import { ROSTER_KEY } from '../js/office-data.js';
 import { enabledClasses } from '../js/config.js';
 import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
 import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
+import { STORAGE_KEYS } from '../js/config.js';
 const realNow = Date.now;
 let clock;
 const start = new Date('2026-10-01T10:00:00Z').getTime(), end = start + 3600000;
 const [one, two, three] = adminStudents.filter(s => s.status === 'approved');
 function setup() {
   const assignments = enabledClasses.map((className, index) => ({ id: `TAS-${index}`, teacherUsername: 'teacher.apc', teacherName: 'Test Teacher', className, group: '', subject: 'Test', subjects: ['গণিত', 'ইংরেজি', 'বিজ্ঞান', 'বাংলা', 'Test'] }));
-  const store = new Map([[ROSTER_KEY, JSON.stringify(adminStudents)], [TEACHER_ASSIGNMENTS_KEY, JSON.stringify(assignments)], [STAFF_ACCOUNTS.teacher.accountKey, JSON.stringify({ role: 'teacher', username: 'teacher.apc', fullName: 'Test Teacher', status: 'active' })], [STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', fullName: 'Test Manager', status: 'active' })]]); let fail = false, events = 0;
+  const store = new Map([
+    [ROSTER_KEY, JSON.stringify(adminStudents)],
+    [TEACHER_ASSIGNMENTS_KEY, JSON.stringify(assignments)],
+    [STAFF_ACCOUNTS.teacher.accountKey, JSON.stringify({ role: 'teacher', username: 'teacher.apc', fullName: 'Test Teacher', status: 'active' })],
+    [STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', fullName: 'Test Manager', status: 'active' })],
+    [STORAGE_KEYS.account, JSON.stringify({ status: 'active', student: one })]
+  ]); let fail = false, events = 0;
   clock = start - 3600000; Date.now = () => clock;
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
-  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1']]);
+  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1'], [STORAGE_KEYS.session, '1']]);
   globalThis.window = { localStorage: { getItem: key => store.get(key) ?? null, setItem: (key, value) => { if (fail) throw new Error('quota'); store.set(key, value); } }, sessionStorage: { getItem: key => sessions.get(key) ?? null, setItem: (key, value) => sessions.set(key, value), removeItem: key => sessions.delete(key) }, dispatchEvent: () => events++ };
   return { store, fail: () => { fail = true; }, get events() { return events; } };
+}
+function seedStudentSession(student, status = 'active') {
+  window.localStorage.setItem(STORAGE_KEYS.account, JSON.stringify({ status, student }));
+  window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
 }
 const fields = (extra = {}) => ({ title: 'গণিত মূল্যায়ন', subject: 'গণিত', className: 'দশম শ্রেণি', type: 'mcq', startAt: start, endAt: end, lateMinutes: 10, negative: .5, passPercent: 33, template: examTemplate('mcq'), ...extra });
 async function publish(extra = {}) {
@@ -26,6 +37,7 @@ async function publish(extra = {}) {
   await repo.requestApproval(id); db = await repo.review(id, 'publish', {}, MANAGER_ACTOR); return db.exams[0];
 }
 async function attempt(e, student, answers = {}) {
+  seedStudentSession(student);
   let db = await repo.startAttempt(e.id, student); const a = db.attempts.find(a => a.studentId === student.id && a.examId === e.id && a.status === 'active');
   for (const [qid, option] of Object.entries(answers)) db = await repo.saveAnswer(a.id, student.id, qid, option);
   return { a, db };
@@ -81,10 +93,17 @@ test('start/end, late entry, all-class approved students, stable shuffled resume
   assert.deepEqual(new Set(a.order.map(q => q.id)), new Set(e.questions.map(q => q.id)));
   for (const q of a.order) assert.deepEqual(new Set(q.options), new Set(['A', 'B', 'C', 'D']));
   let db = await repo.startAttempt(e.id, one); assert.equal(db.attempts.length, 1); assert.deepEqual(db.attempts[0].order, a.order);
-  await assert.rejects(repo.startAttempt(e.id, three), /অনুমোদিত participant/); // A different class cannot access this exam.
-  await assert.rejects(repo.startAttempt(e.id, { id: 'pending' }));
+  seedStudentSession(three);
+  await assert.rejects(repo.startAttempt(e.id, three), /শ্রেণি\/ব্যাচের জন্য নয়/); // A different class cannot access this exam.
+  seedStudentSession({ id: 'pending', className: one.className, group: one.group }, 'pending');
+  await assert.rejects(repo.startAttempt(e.id, { id: 'pending' }), { code: 'ACCESS_DENIED' });
+  seedStudentSession(two);
   clock = start + 11 * 60000; await assert.rejects(repo.startAttempt(e.id, two));
-  clock = end; await assert.rejects(repo.saveAnswer(a.id, one.id, 'q1', 'A')); await assert.rejects(repo.startAttempt(e.id, two));
+  clock = end;
+  seedStudentSession(one);
+  await assert.rejects(repo.saveAnswer(a.id, one.id, 'q1', 'A'));
+  seedStudentSession(two);
+  await assert.rejects(repo.startAttempt(e.id, two));
 });
 test('different question weights, wrong/unanswered, change answer, zero floor, immediate marks', async () => {
   setup(); const e = await publish(); clock = start;
@@ -99,7 +118,13 @@ test('running FIRST attempt mean enables one retry only, ignores second scores a
   setup(); const e = await publish(); clock = start;
   let { a } = await attempt(e, one, { q1: 'A' }); let db = await repo.finishAttempt(a.id, one.id); assert.equal(retryEligibility(db, e, one.id), false);
   ({ a } = await attempt(e, two, { q1: 'A', q2: 'C' })); db = await repo.finishAttempt(a.id, two.id);
+  db = await repo.list(MANAGER_ACTOR);
   assert.equal(firstAttemptMean(db, e.id), 1.5); assert.equal(retryEligibility(db, e, one.id), true);
+  seedStudentSession(one);
+  const studentSnapshot = await repo.listForStudent(one.id);
+  assert.equal(firstAttemptMean(studentSnapshot, e.id), 1.5, 'the Student gets only the aggregate required for the retry rule');
+  assert.equal(studentSnapshot.attempts.every(row => row.studentId === one.id), true, 'another Student’s attempt stays hidden');
+  assert.equal(retryEligibility(studentSnapshot, e, one.id), true, 'the Student view exposes the eligible retry action without peer rows');
   clock = start + 20 * 60000; ({ a } = await attempt(e, one, { q1: 'B' })); assert.equal(a.number, 2);
   db = await repo.finishAttempt(a.id, one.id); assert.equal(firstAttemptMean(db, e.id), 1.5);
   assert.equal(examResults(db, e).find(a => a.studentId === one.id).score, 1);
