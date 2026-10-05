@@ -11,6 +11,7 @@ import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { examTemplate, validateExam, EXAM_KEY } from '../js/exam-data.js';
+import { STORAGE_KEYS } from '../js/config.js';
 import { initStudentExams } from '../js/student-exams.js';
 
 /* The app reads the wall clock, so the test moves it: `offset` shifts "now"
@@ -51,6 +52,8 @@ before(async () => {
   ctx = await loadPage('index.html', { seed: { 'activePlus.demo.autofill.v1': 'off' } });
   Date.now = clockNow;
   ctx.window.Date.now = clockNow;
+  ctx.window.localStorage.setItem(STORAGE_KEYS.account, JSON.stringify({ status: 'active', student }));
+  ctx.window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
   ctx.window.localStorage.setItem(EXAM_KEY, JSON.stringify({ version: 1, exams: [exam], attempts: [] }));
   initStudentExams({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
   await ctx.waitFor(() => ctx.$$('[data-student-exam-action="start"]').length > 0);
@@ -128,6 +131,8 @@ test('when time runs out the paper is submitted automatically and the result say
   await ctx.waitFor(() => $('[data-answer-question]') === null, 25000);
   assert.ok($('.exam-summary'), 'the result is on screen');
   assert.match($('#studentExamWorkspace').textContent, /স্বয়ংক্রিয় জমা/, 'the result names the automatic submission');
+  assert.ok($('[data-student-exam-action="solutions"]'), 'the student can explicitly request the combined question-and-answer PDF');
+  assert.equal($('[data-auto-download]'), null, 'the student panel does not trigger an extra background PDF download');
   // The paper is no longer editable.
   assert.equal(ctx.$$('[data-answer-question]').length, 0, 'no answer control is left');
   assert.equal(stored().attempts[0].status, 'submitted', 'and it is stored as submitted');

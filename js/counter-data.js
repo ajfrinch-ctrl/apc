@@ -60,7 +60,7 @@ function ownToday(records, username, now) {
 export async function listCounterTodayTransactions() {
   const now = new Date();
   const username = await assertCounterActor();
-  return ownToday(await financeRepository.listTransactions(),username,now);
+  return ownToday(await financeRepository.listTransactions({ role: 'payment' }),username,now);
 }
 export async function saveCounterPayment(input) {
   const now = new Date();

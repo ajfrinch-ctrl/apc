@@ -1,4 +1,10 @@
-// v158: whole-app audit fixes — a legacy in-flight practice sheet now keeps the deadline it first picked up (no timer reset on re-open); the practice list follows exam/shelf changes live; README documents the v151–v157 work.
+// v166: treat an absent cloud collection as empty only after a device has a durable record view.
+// v165: keep the cohort retry average as a privacy-safe aggregate in the Student exam snapshot.
+// v164: cache the authenticated Student access gate so exam, finance and teaching reads still work offline.
+// v163: MCQ answer PDFs download only after an explicit student click; exam completion no longer triggers extra background downloads.
+// v162: Course Hub adds nine chapter-specific study actions with chapter-filtered MCQ practice, written drills, model tests and chapter results.
+// v161: student notices get a separate categorized Notice Board with explicit Read ✓ receipts.
+// v159: student topbar brand now stacks the institute name and slogan; the Home exam banner spans both desktop columns; acknowledged notices no longer replay as login popups.
 // v156: practice sheets now run under a live timer like the real sitting — the past paper keeps its original window, a random drill gets two minutes a question; at zero the paper submits itself and the result appears.
 // v155: instant MCQ practice — নিজে নিজে যেকোনো মুহূর্তে MCQ অনুশীলন (সময়সীমা/সময়সূচি ছাড়া, তাৎক্ষণিক ফলাফল); প্রতিটি নেওয়া MCQ পরীক্ষা এখন নিজে থেকে প্রশ্নব্যাংকে সংরক্ষিত হয় যাতে ভবিষ্যতে পরীক্ষার্থীগুলো অনুশীলন করতে পারে।
 // v154: topbar প্যানেল-নাম সব ৫ পোর্টালেই বাদ (লোগো + স্লোগান মাত্র); app-brand-name CSS নিষ্ক্রিয় হওয়ায় মুছেছে।
@@ -13,7 +19,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 158;
+const CACHE_VERSION = 166;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -41,6 +47,7 @@ const APP_SHELL = [
   './css/ui-components.css',
   './css/ui-forms.css',
   './css/ui-features.css',
+  './css/notice-board.css',
 
   './js/panel-lockdown.js',
   './firebase/firebase-config.js',
@@ -106,6 +113,7 @@ const APP_SHELL = [
   './js/theme-entry.js',
   './assets/fonts/NotoSansBengali-Variable.ttf',
   './js/config.js',
+  './js/student-access.js',
   './js/password-hash.js',
   './js/secure-store.js',
   './js/session.js',
@@ -161,6 +169,7 @@ const APP_SHELL = [
   './js/teaching-data.js',
   './js/teacher-assignments.js',
   './js/student-teaching.js',
+  './js/student-notice-board.js',
   './js/admin-data.js',
   './js/office-data.js',
   './js/finance-data.js',

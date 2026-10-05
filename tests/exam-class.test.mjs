@@ -4,7 +4,7 @@ import test, { before } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { EXAM_KEY, examTemplate, examMatchesClass, validateExam, MANAGER_ACTOR } from '../js/exam-data.js';
-import { enabledClasses } from '../js/config.js';
+import { enabledClasses, STORAGE_KEYS } from '../js/config.js';
 import { adminStudents } from '../js/admin-data.js';
 import { ROSTER_KEY } from '../js/office-data.js';
 import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
@@ -16,6 +16,10 @@ const $ = sel => ctx.$(sel);
 const settle = () => new Promise(resolve => setTimeout(resolve, 60));
 const exams = () => JSON.parse(ctx.window.localStorage.getItem(EXAM_KEY)).exams;
 const write = db => ctx.window.localStorage.setItem(EXAM_KEY, JSON.stringify(db));
+const seedStudentSession = student => {
+  ctx.window.localStorage.setItem(STORAGE_KEYS.account, JSON.stringify({ status: 'active', student }));
+  ctx.window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
+};
 
 const tenth = adminStudents.find(s => s.id === 'AP-1024');            // দশম শ্রেণি
 const honours = adminStudents.find(s => s.id === '260716011');        // অনার্স ১ম বর্ষ
@@ -84,7 +88,9 @@ test('only that class can start the published exam', async () => {
   db.exams[0].endAt = Date.now() + 3600000;
   write(db);
 
-  await assert.rejects(() => repo.startAttempt(id, honours), /অনুমোদিত participant/);
+  seedStudentSession(honours);
+  await assert.rejects(() => repo.startAttempt(id, honours), /শ্রেণি\/ব্যাচের জন্য নয়/);
+  seedStudentSession(tenth);
   const after = await repo.startAttempt(id, tenth);
   assert.ok(after.attempts.some(a => a.examId === id && a.studentId === tenth.id), 'the class it was made for can sit it');
 });

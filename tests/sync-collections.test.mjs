@@ -36,6 +36,38 @@ test('a whole routine survives the transport codec unchanged', () => {
   assert.deepEqual(Object.keys(restored), ['sat', 'sun', 'mon', 'tue', 'wed', 'thu']);
 });
 
+test('course library preserves stable ids, authorship, scope and publish state through RTDB transport', () => {
+  const local = {
+    version: 1, updatedAt: '2026-10-05T02:00:00.000Z', createdBy: 'teacher.apc',
+    records: [
+      { id: 'CONTENT-0001', classId: 'CLASS-10', subjectId: 'SUB-MATH', group: 'Batch A', chapterId: '', type: 'chapter', title: 'চ্যাপ্টার', published: true, active: true, updatedAt: '2026-10-05T01:00:00.000Z' },
+      { id: 'CONTENT-0002', classId: 'CLASS-10', subjectId: 'SUB-MATH', group: 'Batch A', chapterId: 'CONTENT-0001', type: 'note', title: 'খসড়া', published: false, active: true, updatedAt: '2026-10-05T02:00:00.000Z' }
+    ]
+  };
+  const payload = collectionPayload('courseContent', local);
+  const remote = decodeRealtimeRecords(encodeRealtimeRecords(payload));
+  const restored = remoteToLocal('courseContent', remote);
+  assert.deepEqual(restored.records.sort((a, b) => a.id.localeCompare(b.id)), local.records.sort((a, b) => a.id.localeCompare(b.id)));
+  assert.equal(restored.updatedAt, local.updatedAt);
+  assert.deepEqual(collectionPayload('courseContent', restored), payload);
+  assert.equal(collectionPayload('courseContent', { version: 2, records: [] }), null);
+});
+
+test('Academic Setup keeps class, subject, mapping and chapter ids through RTDB transport', () => {
+  const local = {
+    version: 2, seededDefaults: true, updatedAt: 1000, createdBy: 'manager.apc',
+    classes: [{ id: 'CLASS-10', name: 'দশম শ্রেণি', active: true, order: 0, updatedAt: 1000 }],
+    subjects: [{ id: 'SUB-MATH', name: 'গণিত', active: true, updatedAt: 1000 }],
+    mappings: [{ id: 'MAP-1', classId: 'CLASS-10', subjectId: 'SUB-MATH', active: true, updatedAt: 1000 }],
+    chapters: [{ id: 'CHAP-1', classId: 'CLASS-10', subjectId: 'SUB-MATH', name: 'বাস্তব সংখ্যা', active: true, order: 0, updatedAt: 1000 }]
+  };
+  const payload = collectionPayload('academics', local);
+  const remote = decodeRealtimeRecords(encodeRealtimeRecords(payload));
+  const restored = remoteToLocal('academics', remote);
+  assert.deepEqual(restored, local);
+  assert.deepEqual(collectionPayload('academics', restored), payload);
+});
+
 test('teaching keeps its document shape and settings pass through', () => {
   const teaching = { version: 1, activities: [{ id: 'A1', progress: {}, title: 'x' }] };
   assert.deepEqual(remoteToLocal('teaching', collectionPayload('teaching', teaching)), teaching);

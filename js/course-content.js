@@ -19,7 +19,10 @@
    Published is what a student may see. Unpublished content stays a draft for
    the teacher who wrote it and the Manager, exactly like exam drafts. */
 
-import { KEYS, readRaw, writeRaw } from './database.js';
+import { KEYS, readRaw, writeRaw, listDocuments } from './database.js';
+import { hasStaffSession, readStaffAccount } from './staff-auth.js';
+import { classById, listClasses, subjectsForClass } from './academics.js';
+import { isTeacherAssignedSubject } from './teacher-assignments.js';
 
 export const COURSE_CONTENT_KEY = KEYS.courseContent;
 export const COURSE_VERSION = 1;
@@ -59,13 +62,14 @@ export const COURSE_SECTIONS = Object.freeze([
 
 const isObject = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const text = value => (typeof value === 'string' ? value.trim() : '');
-const keyOf = value => text(value).toLocaleLowerCase();
+const keyOf = value => text(value).normalize('NFC').toLocaleLowerCase();
+const groupKey = value => text(value).normalize('NFC').replace(/\s*বিভাগ$/, '').trim().toLocaleLowerCase();
 const pad = (value, size) => String(value).padStart(size, '0');
 
 const asArray = value => (Array.isArray(value) ? value : []);
 
 /** `{ version, records: [] }`, parsed from the raw store. */
-export function loadCourseContent() {
+function loadCourseContent() {
   const raw = readRaw(COURSE_CONTENT_KEY);
   if (typeof raw !== 'string' || !raw) return { version: COURSE_VERSION, records: [] };
   try {
@@ -75,8 +79,8 @@ export function loadCourseContent() {
   } catch { return { version: COURSE_VERSION, records: [] }; }
 }
 
-export function saveCourseContent(records) {
-  writeRaw(COURSE_CONTENT_KEY, JSON.stringify({ version: COURSE_VERSION, records: asArray(records) }));
+function saveCourseContent(records) {
+  writeRaw(COURSE_CONTENT_KEY, JSON.stringify({ version: COURSE_VERSION, updatedAt: new Date().toISOString(), records: asArray(records) }));
   return true;
 }
 
@@ -109,17 +113,29 @@ export const isVisible = record => record?.published === true && record?.active 
  * content inside the current class/subject scope.
  */
 export function listCourseContent({
-  classId = '', subjectId = '', chapterId = '', type = '', section = '', search = '',
-  publishedOnly = false, includeInactive = false, records = null
+  classId = '', subjectId = '', chapterId = '', group = '', groupScoped = false, type = '', section = '', search = '',
+  publishedOnly = true, includeInactive = false, records = null
 } = {}) {
   const needle = keyOf(search);
-  return (records || loadCourseContent().records)
+  const source = records || loadCourseContent().records;
+  const byId = new Map(source.map(record => [text(record.id), record]));
+  return source
     .filter(record => {
       if (!includeInactive && record.active === false) return false;
-      if (publishedOnly && record.published !== true) return false;
+      if (record.published !== true) return false;
+      if (typeOf(record) !== 'chapter' && record.chapterId) {
+        const parent = byId.get(text(record.chapterId));
+        if (parent && (typeOf(parent) !== 'chapter' || parent.active === false || parent.published !== true
+          || parent.classId !== record.classId || parent.subjectId !== record.subjectId)) return false;
+        if (parent?.group && groupKey(parent.group) !== groupKey(record.group || parent.group)) return false;
+        if (groupScoped && parent?.group && groupKey(parent.group) !== groupKey(group)) return false;
+        if (!groupScoped && group && parent?.group && groupKey(parent.group) !== groupKey(group)) return false;
+      }
       if (classId && text(record.classId) !== classId) return false;
       if (subjectId && text(record.subjectId) !== subjectId) return false;
       if (chapterId && text(record.chapterId) !== chapterId) return false;
+      if (groupScoped && record.group && groupKey(record.group) !== groupKey(group)) return false;
+      if (!groupScoped && group && record.group && groupKey(record.group) !== groupKey(group)) return false;
       if (type && typeOf(record) !== type) return false;
       if (section && sectionOf(record) !== section) return false;
       if (needle) {
@@ -129,6 +145,30 @@ export function listCourseContent({
       return true;
     })
     .sort((left, right) => text(left.title).localeCompare(text(right.title), 'bn'));
+}
+
+/** Explicit staff-only draft/archive read path. Student/general reads above
+ * remain published-only even if a caller passes `publishedOnly: false`. */
+export async function listCourseContentForStaff({
+  classId = '', subjectId = '', group = '', type = '', section = '', search = '',
+  publishedOnly = false, includeInactive = true
+} = {}, { role = '', actor = '' } = {}) {
+  const staffName = await requireCourseWriter(role, text(classId), text(subjectId), text(group));
+  const needle = keyOf(search);
+  return loadCourseContent().records.filter(record => {
+    if (text(record.classId) !== text(classId) || text(record.subjectId) !== text(subjectId)) return false;
+    if (!includeInactive && record.active === false) return false;
+    if (publishedOnly && record.published !== true) return false;
+    if (group && record.group && groupKey(record.group) !== groupKey(group)) return false;
+    if (type && typeOf(record) !== type) return false;
+    if (section && sectionOf(record) !== section) return false;
+    if (role === 'teacher' && record.published !== true && record.createdBy !== staffName) return false;
+    if (needle) {
+      const haystack = [record.title, record.description, record.content].map(keyOf).join(' ');
+      if (!haystack.includes(needle)) return false;
+    }
+    return true;
+  }).sort((left, right) => text(left.title).localeCompare(text(right.title), 'bn'));
 }
 
 /** Chapters of one class+subject, in the order they were created. */
@@ -177,6 +217,7 @@ function clean(patch, { records, id, actor }) {
     id: id || nextContentId(records),
     classId: text(patch.classId),
     subjectId: text(patch.subjectId),
+    group: text(patch.group).slice(0, 80),
     chapterId: type === 'chapter' ? '' : text(patch.chapterId),
     title,
     type,
@@ -192,52 +233,105 @@ function clean(patch, { records, id, actor }) {
   };
 }
 
+/** Verify every content write against the active staff role and, for a
+ * Teacher, their assigned class/batch/subject. The editor controls are not the
+ * permission boundary. */
+async function requireCourseWriter(role, classId, subjectId, group = '') {
+  if (!['teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
+    throw Object.assign(new Error('সক্রিয় Teacher বা Manager session ছাড়া course content বদলানো যাবে না।'), { code: 'ACCESS_DENIED' });
+  }
+  const account = await readStaffAccount(role);
+  if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') {
+    throw Object.assign(new Error('সক্রিয় staff profile ছাড়া course content বদলানো যাবে না।'), { code: 'ACCESS_DENIED' });
+  }
+  const classRecord = classById(text(classId));
+  if (!classRecord || !listClasses().some(item => item.id === classRecord.id)) throw new Error('সক্রিয় Academic Setup-এর শ্রেণি নির্বাচন করুন।');
+  const subject = subjectsForClass(classRecord.name).find(item => item.id === text(subjectId));
+  if (!subject) throw new Error('এই শ্রেণির চালু বিষয় নির্বাচন করুন।');
+  if (role === 'manager' && group && !listDocuments('students').some(item =>
+    item.className === classRecord.name && item.status !== 'rejected' && groupKey(item.group) === groupKey(group))) {
+    throw new Error('এই শ্রেণির জন্য roster-এ থাকা batch/group নির্বাচন করুন।');
+  }
+  if (role === 'teacher' && !isTeacherAssignedSubject(account.username, classRecord.name, subject.name, group)) {
+    throw new Error('এই class/batch/subject আপনার Manager assignment-এ নেই।');
+  }
+  return String(account.fullName || account.username || role).trim();
+}
+
 /**
  * Create or update one record. Re-saving keeps the id, the author and the
  * original creation date; nothing is ever deleted by an edit.
  */
-export function saveCourseRecord(patch = {}, { actor = '' } = {}) {
-  const store = loadCourseContent();
-  const existingId = text(patch.id);
-  const existing = existingId ? contentById(existingId, store.records) : null;
-  const record = clean({ ...(existing || {}), ...patch }, { records: store.records, id: existingId, actor });
-  if (!isObject(record)) throw new Error('সংরক্ষণ করা যায়নি।');
-  if (record.type !== 'chapter' && !record.chapterId && !record.classId) {
-    throw new Error('অন্তত ক্লাস ও বিষয় নির্বাচন করুন।');
-  }
-  const records = existing
-    ? store.records.map(item => (text(item.id) === existingId ? record : item))
-    : [...store.records, record];
-  if (records.length > MAX_CONTENT) throw new Error('সংরক্ষণের সীমা পূর্ণ হয়েছে।');
-  saveCourseContent(records);
-  return record;
+export async function saveCourseRecord(patch = {}, { actor = '', role = '' } = {}) {
+  const requestedClassId = text(patch.classId);
+  const requestedSubjectId = text(patch.subjectId);
+  const requestedGroup = text(patch.group).slice(0, 80);
+  const staffName = await requireCourseWriter(role, requestedClassId, requestedSubjectId, requestedGroup);
+  const save = () => {
+    const store = loadCourseContent();
+    const existingId = text(patch.id);
+    const existing = existingId ? contentById(existingId, store.records) : null;
+    if (existing && role === 'teacher' && existing.createdBy !== staffName) {
+      throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content সম্পাদনা করা যাবে না।'), { code: 'ACCESS_DENIED' });
+    }
+    if (existing && (existing.classId !== requestedClassId || existing.subjectId !== requestedSubjectId)) {
+      throw new Error('সম্পাদনায় record-এর class/subject বদলানো যাবে না। নতুন record তৈরি করুন।');
+    }
+    const record = clean({ ...(existing || {}), ...patch, createdBy: existing?.createdBy || staffName, group: requestedGroup }, { records: store.records, id: existingId, actor: staffName || actor });
+    if (!isObject(record) || !record.classId || !record.subjectId) throw new Error('অন্তত ক্লাস ও বিষয় নির্বাচন করুন।');
+    if (existing) { record.createdBy = existing.createdBy; record.createdAt = existing.createdAt; }
+    if (record.type !== 'chapter' && record.chapterId) {
+      const parent = contentById(record.chapterId, store.records);
+      if (!parent || typeOf(parent) !== 'chapter' || parent.active === false
+        || parent.classId !== record.classId || parent.subjectId !== record.subjectId) {
+        throw new Error('এই class/subject-এর সক্রিয় chapter নির্বাচন করুন।');
+      }
+      if (parent.group && !record.group) record.group = parent.group;
+      if (parent.group && groupKey(parent.group) !== groupKey(record.group)) throw new Error('কনটেন্টের batch/group তার chapter-এর সঙ্গে মিলতে হবে।');
+    }
+    const records = existing
+      ? store.records.map(item => (text(item.id) === existingId ? record : item))
+      : [...store.records, record];
+    if (records.length > MAX_CONTENT) throw new Error('সংরক্ষণের সীমা পূর্ণ হয়েছে।');
+    saveCourseContent(records);
+    return record;
+  };
+  return navigator.locks ? navigator.locks.request(COURSE_CONTENT_KEY, save) : save();
 }
 
-export function setContentPublished(id, published) {
-  const store = loadCourseContent();
-  const wanted = text(id);
-  let saved = null;
-  const records = store.records.map(record => {
-    if (text(record.id) !== wanted) return record;
-    saved = { ...record, published: published === true, updatedAt: new Date().toISOString() };
+export async function setContentPublished(id, published, { role = '', actor = '' } = {}) {
+  const save = async () => {
+    const store = loadCourseContent();
+    const wanted = text(id);
+    const current = contentById(wanted, store.records);
+    if (!current) return null;
+    const staffName = await requireCourseWriter(role, current.classId, current.subjectId, current.group);
+    if (role === 'teacher' && current.createdBy !== staffName) {
+      throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content প্রকাশ বা পরিবর্তন করা যাবে না।'), { code: 'ACCESS_DENIED' });
+    }
+    const saved = { ...current, published: published === true, updatedAt: new Date().toISOString(), updatedBy: actor || role };
+    saveCourseContent(store.records.map(record => text(record.id) === wanted ? saved : record));
     return saved;
-  });
-  saveCourseContent(records);
-  return saved;
+  };
+  return navigator.locks ? navigator.locks.request(COURSE_CONTENT_KEY, save) : save();
 }
 
 /** Archive instead of delete: `active:false` keeps the record readable. */
-export function archiveCourseRecord(id) {
-  const store = loadCourseContent();
-  const wanted = text(id);
-  let saved = null;
-  const records = store.records.map(record => {
-    if (text(record.id) !== wanted) return record;
-    saved = { ...record, active: false, updatedAt: new Date().toISOString() };
+export async function archiveCourseRecord(id, { role = '', actor = '' } = {}) {
+  const save = async () => {
+    const store = loadCourseContent();
+    const wanted = text(id);
+    const current = contentById(wanted, store.records);
+    if (!current) return null;
+    const staffName = await requireCourseWriter(role, current.classId, current.subjectId, current.group);
+    if (role === 'teacher' && current.createdBy !== staffName) {
+      throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content archive করা যাবে না।'), { code: 'ACCESS_DENIED' });
+    }
+    const saved = { ...current, active: false, updatedAt: new Date().toISOString(), updatedBy: actor || role };
+    saveCourseContent(store.records.map(record => text(record.id) === wanted ? saved : record));
     return saved;
-  });
-  saveCourseContent(records);
-  return saved;
+  };
+  return navigator.locks ? navigator.locks.request(COURSE_CONTENT_KEY, save) : save();
 }
 
 /** Announce a write so every open screen (and the student app) repaints. */

@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { loadPage } from './jsdom-harness.mjs';
 import { initStudentDashboard } from '../js/student-dashboard.js';
 import { KEYS } from '../js/database.js';
+import { STORAGE_KEYS } from '../js/config.js';
 
 const student = { id: 'ROUTINE-ERR-1', name: 'নমুনা শিক্ষার্থী', className: 'দশম শ্রেণি', group: '' };
 const CONTEXT = [
@@ -23,8 +24,13 @@ after(() => contexts.forEach(ctx => ctx.window.close()));
    exact situation the error row exists for, and nothing is deleted to reach it. */
 async function brokenRender() {
   const ctx = await loadPage('index.html', {
-    seed: { 'activePlus.demo.autofill.v1': 'off', [KEYS.exams]: '{broken' }
+    seed: {
+      'activePlus.demo.autofill.v1': 'off',
+      [KEYS.exams]: '{broken',
+      [STORAGE_KEYS.account]: JSON.stringify({ status: 'active', student })
+    }
   });
+  ctx.window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
   contexts.push(ctx);
   const refresh = initStudentDashboard({
     getStudent: () => student, getAccount: () => ({ student })

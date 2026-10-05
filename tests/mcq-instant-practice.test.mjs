@@ -21,6 +21,8 @@ import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
 import { examRepository as repo, validateExam, EXAM_KEY, MANAGER_ACTOR } from '../js/exam-data.js';
+import { KEYS } from '../js/database.js';
+import { STORAGE_KEYS } from '../js/config.js';
 import { questionBank, listQuestions, ensureExamsInBank, QUESTION_BANK_KEY } from '../js/question-bank.js';
 import { initStudentPractice } from '../js/student-practice.js';
 
@@ -66,11 +68,15 @@ async function loadApp(seed = {}) {
   windows.push(context);
   return context;
 }
+function seedStudentSession(context) {
+  context.window.localStorage.setItem(STORAGE_KEYS.account, JSON.stringify({ status: 'active', student }));
+  context.window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
+}
 after(() => { for (const context of windows) context?.window.close?.(); });
 
 /* The app modules read the current globals, so each section boots its own
    page on first use and the sections stay strictly ordered. */
-let ctx, uiCtx, uiReady = false;
+let ctx, uiCtx, uiReady = false, uiBankInitially = null;
 async function repoContext() {
   if (ctx) return ctx;
   ctx = await loadApp();
@@ -81,6 +87,8 @@ async function repoContext() {
 async function uiContext() {
   if (uiReady) return uiCtx;
   uiCtx = await loadApp({ [EXAM_KEY]: JSON.stringify({ version: 1, exams: uiExams(), attempts: [] }) });
+  seedStudentSession(uiCtx);
+  uiBankInitially = uiCtx.window.localStorage.getItem(QUESTION_BANK_KEY);
   initStudentPractice({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
   await uiCtx.waitFor(() => Boolean(uiCtx.$('#studentPracticeWorkspace [data-practice-action="start-paper"]')));
   uiReady = true;
@@ -160,11 +168,62 @@ test('the practice list offers only this student’s papers whose window has end
   assert.equal($$2('#studentPracticeWorkspace [data-practice-action="start-paper"]').length, 1);
   assert.match($$2('#studentPracticeWorkspace [data-practice-action="start-random"]')[0].textContent, /৩টি প্রশ্ন • ৩ মিনিট/, 'the random drill sizes itself to the bank and its pace');
   assert.match(workspace().textContent, /গত গণিত MCQ পরীক্ষা[\s\S]*৩ মিনিট/, 'the paper card prices its sheet at one minute a question');
-  const rows = bankRows().filter(row => row.source?.examId);
-  assert.ok(rows.length >= 8, 'the student’s own device backfilled the shelf from its papers');
-  const pastRow = rows.find(row => row.source.examId === 'EX-PAST');
-  assert.equal(pastRow.startAt, uiExams()[0].startAt);
-  assert.equal(pastRow.endAt, uiExams()[0].endAt);
+  assert.equal(uiCtx.window.localStorage.getItem(QUESTION_BANK_KEY), uiBankInitially,
+    'a Student may practise from their scoped exam snapshot but never writes the shared Question Bank');
+});
+
+test('chapter MCQ practice filters the shared bank and records a personal chapter result', async () => {
+  await uiContext();
+  const now = Date.now();
+  const qbankBefore = uiCtx.window.localStorage.getItem(QUESTION_BANK_KEY);
+  const practiceBefore = uiCtx.window.localStorage.getItem(PRACTICE_KEY);
+  const db = JSON.parse(qbankBefore || '{"version":1,"questions":[]}');
+  const makeQuestion = (id, { chapterName = 'বাস্তব সংখ্যা', subject = 'গণিত', source = null, endAt = 0, active = true } = {}) => ({
+    id, className: student.className, subject, chapterName, chapterId: '', topic: '', type: 'mcq',
+    text: `${id} — অনুশীলনের প্রশ্ন`, options: [{ id: 'A', text: 'সঠিক' }, { id: 'B', text: 'ভুল ১' }, { id: 'C', text: 'ভুল ২' }, { id: 'D', text: 'ভুল ৩' }],
+    answer: 'A', marks: 1, source, startAt: source ? endAt - H : 0, endAt, active
+  });
+  db.questions.push(
+    makeQuestion('Q-CHAPTER-TEACHER'),
+    makeQuestion('Q-CHAPTER-PAST', { source: { examId: 'EX-CHAPTER-PAST', examTitle: 'গত পরীক্ষা' }, endAt: now - H }),
+    makeQuestion('Q-CHAPTER-FUTURE', { source: { examId: 'EX-CHAPTER-FUTURE', examTitle: 'আসন্ন পরীক্ষা' }, endAt: now + H }),
+    makeQuestion('Q-CHAPTER-OTHER', { chapterName: 'বীজগণিত' }),
+    makeQuestion('Q-CHAPTER-INACTIVE', { active: false }),
+    makeQuestion('Q-CHAPTER-OTHER-SUBJECT', { subject: 'বাংলা' })
+  );
+  uiCtx.window.localStorage.setItem(QUESTION_BANK_KEY, JSON.stringify(db));
+  await uiCtx.window.apcStudentPractice.openChapter({
+    className: student.className, subject: 'গণিত', chapterId: 'CONTENT-REAL-NUMBERS',
+    chapterName: 'অধ্যায় ১ — বাস্তব সংখ্যা'
+  });
+  await uiCtx.waitFor(() => Boolean($2('#studentPracticeWorkspace [data-practice-action="start-chapter"]')));
+  const text = workspace().textContent;
+  assert.match(text, /২টি প্রশ্ন/, 'standalone and completed-paper questions are included');
+  assert.doesNotMatch(text, /Q-CHAPTER-FUTURE|Q-CHAPTER-OTHER|Q-CHAPTER-INACTIVE|Q-CHAPTER-OTHER-SUBJECT/);
+  ctx2click($2('#studentPracticeWorkspace [data-practice-action="start-chapter"]'));
+  await uiCtx.waitFor(() => $$2('#studentPracticeWorkspace .exam-question').length === 2);
+  assert.match(workspace().textContent, /অধ্যায় ১ — বাস্তব সংখ্যা — MCQ Practice/);
+  ctx2click($2('#studentPracticeWorkspace [data-practice-action="confirm"]'));
+  ctx2click($2('#studentPracticeWorkspace [data-practice-action="finish"]'));
+  await uiCtx.waitFor(() => Boolean($2('#studentPracticeWorkspace .exam-summary')));
+  const saved = practiceStore();
+  assert.equal(saved.sessions[0].kind, 'chapter');
+  assert.equal(saved.sessions[0].chapterId, 'CONTENT-REAL-NUMBERS');
+  assert.equal(saved.sessions[0].subject, 'গণিত');
+  assert.equal(JSON.parse(uiCtx.window.localStorage.getItem(EXAM_KEY)).attempts.length, 0, 'chapter practice does not touch official attempts');
+
+  /* This test is part of a longer shared practice-lane story; restore its
+     fixture and clear the in-memory chapter context for the following tests. */
+  await uiCtx.window.apcStudentPractice.openChapter(null);
+  if (qbankBefore === null) uiCtx.window.localStorage.removeItem(QUESTION_BANK_KEY);
+  else {
+    const restoredBank = JSON.parse(qbankBefore);
+    restoredBank.questions = restoredBank.questions.filter(row => !String(row.id).startsWith('Q-CHAPTER-'));
+    uiCtx.window.localStorage.setItem(QUESTION_BANK_KEY, JSON.stringify(restoredBank));
+  }
+  if (practiceBefore === null) uiCtx.window.localStorage.removeItem(PRACTICE_KEY);
+  else uiCtx.window.localStorage.setItem(PRACTICE_KEY, practiceBefore);
+  await uiCtx.window.apcStudentPractice.refresh();
 });
 
 test('a paper is sat instantly — no clock, no window — and marked on the spot', async () => {
@@ -308,6 +367,7 @@ test('a reload restores the practice history and the best score', async () => {
     [EXAM_KEY]: JSON.stringify({ version: 1, exams: uiExams(), attempts: [] }),
     [PRACTICE_KEY]: savedPractice
   });
+  seedStudentSession(fresh);
   initStudentPractice({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
   await fresh.waitFor(() => Boolean(fresh.$('#studentPracticeWorkspace [data-practice-action="start-paper"]')));
   const rows = fresh.$$('#studentPracticeWorkspace .practice-history-row');
@@ -340,6 +400,7 @@ test('a pre-timer draft is given its deadline on first visit and keeps it on the
     })
   };
   const first = await loadApp(seed);
+  seedStudentSession(first);
   initStudentPractice({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
   await first.waitFor(() => Boolean(first.$('#studentPracticeWorkspace [data-practice-action="resume-active"]')));
   const pickedUp = JSON.parse(first.window.localStorage.getItem(PRACTICE_KEY))[student.id].active;
@@ -352,6 +413,7 @@ test('a pre-timer draft is given its deadline on first visit and keeps it on the
     [PRACTICE_KEY]: first.window.localStorage.getItem(PRACTICE_KEY)
   };
   const second = await loadApp(carried);
+  seedStudentSession(second);
   initStudentPractice({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
   await second.waitFor(() => Boolean(second.$('#studentPracticeWorkspace [data-practice-action="resume-active"]')));
   const kept = JSON.parse(second.window.localStorage.getItem(PRACTICE_KEY))[student.id].active;

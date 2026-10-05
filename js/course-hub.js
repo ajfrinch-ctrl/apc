@@ -1,28 +1,23 @@
 /* The student's learning hub (Courses).
 
-   Class → Subject → Chapter → content, with the sections the school asked for:
-   পড়ুন / নোট / গুরুত্বপূর্ণ / সাজেশন / প্রশ্ন / MCQ / পূর্বের প্রশ্ন / মডেল টেস্ট /
-   পরীক্ষা / আমার ফলাফল.
+   Class → Subject → Chapter → Content, with a chapter-level ecosystem:
+   read, class notes, teacher materials, important questions, MCQ practice,
+   short questions, written practice, model tests and personal results.
 
-   Three rules shape this screen:
-     • The class comes from the student's own record, and the subjects are the
-       ones Admin enabled for that class (js/academics.js) — nothing else is
-       ever offered.
-     • Only published content is shown. Drafts stay in the panel that wrote
-       them.
-     • Exams are NOT duplicated here: the পরীক্ষা tab lists the real exams from
-       the Examination module and opens it, and আমার ফলাফল shows the marks that
-       module already recorded for this student.
+   The learning library, question bank, instant-practice history and Exam
+   module remain the source of truth. This screen only composes their existing
+   published records; it never creates a parallel course, question, exam or
+   official-result store.
 */
 
-import { loadNotices } from './office-data.js';
-import { classByName, subjectsForClass } from './academics.js';
+import { classByName, listChapters as listAcademicChapters, subjectsForClass } from './academics.js';
 import { KEYS, readRaw } from './database.js';
 import { iconMarkup } from './icons.js';
 import {
-  COURSE_SECTIONS, COURSE_TYPES, listChapters, listCourseContent, typeLabel, typeOf
+  COURSE_SECTIONS, COURSE_TYPES, listCourseContent, typeLabel, typeOf
 } from './course-content.js';
-import { examMatchesClass, isStudentVisibleExam } from './exam-data.js';
+import { examMatchesClass, examMatchesStudent, examRepository, isStudentVisibleExam, watchExams } from './exam-data.js';
+import { listQuestionsForStudent, questionRowsFromPastExams } from './question-bank.js';
 
 const esc = value => String(value ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -30,33 +25,52 @@ const esc = value => String(value ?? '')
 
 const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
 const bn = value => String(value).replace(/\d/g, digit => BN_DIGITS[Number(digit)]);
+const normalized = value => String(value ?? '').normalize('NFC').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+const normalizedChapter = value => normalized(value)
+  .replace(/^(?:(?:chapter|অধ্যায়|অধ্যায়)\s*)?(?:no\.?\s*)?[0-9০-৯]+(?:\.[0-9০-৯]+)*\s*[-–—:.)]\s*/i, '')
+  .replace(/[‐‑–—:]/g, ' ').replace(/\s+/g, ' ').trim();
+const PRACTICE_KEY = 'activePlus.mcqPractice.v1';
+const DRAFT_KEY = 'activePlus.chapterPracticeDraft.v1';
+
+export const COURSE_CHAPTER_ACTIONS = Object.freeze([
+  { key: 'read', label: '📖 অধ্যায় পড়ুন' },
+  { key: 'notes', label: '📝 Class Note' },
+  { key: 'materials', label: '📎 Teacher Material' },
+  { key: 'important', label: '⭐ Important Question' },
+  { key: 'mcq', label: '❓ MCQ Practice' },
+  { key: 'short', label: '✍️ Short Question' },
+  { key: 'written', label: '📝 Written Practice' },
+  { key: 'model-test', label: '🧪 Model Test' },
+  { key: 'results', label: '📊 আমার ফলাফল' }
+]);
 
 function whenText(value) {
-  const at = Date.parse(value || '');
-  if (!Number.isFinite(at)) return '';
+  const at = typeof value === 'number' ? value : Date.parse(value || '');
+  if (!Number.isFinite(at) || at <= 0) return '';
   try { return new Date(at).toLocaleDateString('bn-BD', { dateStyle: 'medium' }); }
   catch { return new Date(at).toLocaleDateString(); }
 }
 
-/* ---- Which exams belong to this student's class+subject ---------------------- */
-function examDb() {
-  try {
-    const raw = readRaw(KEYS.exams);
-    const parsed = typeof raw === 'string' && raw ? JSON.parse(raw) : null;
-    return parsed && Array.isArray(parsed.exams) ? parsed : { exams: [], attempts: [] };
-  } catch { return { exams: [], attempts: [] }; }
+/* ---- the existing Examination store ---------------------------------------- */
+function matchesChapter(record, context) {
+  if (!record || !context) return false;
+  const ids = [context.chapterId, context.academicChapterId].filter(Boolean);
+  if (record.chapterId && ids.includes(String(record.chapterId))) return true;
+  const names = [context.chapterName, context.academicChapterName]
+    .map(normalizedChapter).filter(Boolean);
+  const name = normalizedChapter(record.chapterName || record.chapter || '');
+  return Boolean(name && names.includes(name));
 }
 
-function examsFor(student, subjectName) {
-  const db = examDb();
+function examsFor(db, student, subjectName, context = null) {
   return db.exams
     .filter(exam => isStudentVisibleExam(exam) && examMatchesClass(exam, student.className))
-    .filter(exam => !subjectName || !exam.subject || exam.subject === subjectName)
+    .filter(exam => !subjectName || !exam.subject || normalized(exam.subject) === normalized(subjectName))
+    .filter(exam => !context || matchesChapter(exam, context))
     .sort((left, right) => (right.startAt || 0) - (left.startAt || 0));
 }
 
-function resultsFor(student, subjectName) {
-  const db = examDb();
+function resultsFor(db, student, subjectName, context = null) {
   const own = new Map();
   for (const attempt of db.attempts || []) {
     if (attempt.studentId !== student.id || attempt.status !== 'submitted') continue;
@@ -64,24 +78,67 @@ function resultsFor(student, subjectName) {
   }
   return db.exams
     .filter(exam => own.has(exam.id))
-    .filter(exam => !subjectName || !exam.subject || exam.subject === subjectName)
+    .filter(exam => !subjectName || !exam.subject || normalized(exam.subject) === normalized(subjectName))
+    .filter(exam => !context || matchesChapter(exam, context))
     .map(exam => ({ exam, attempt: own.get(exam.id) }))
     .sort((left, right) => (right.attempt.finishedAt || 0) - (left.attempt.finishedAt || 0));
+}
+
+function chapterPracticeResults(student, context) {
+  try {
+    const raw = readRaw(PRACTICE_KEY);
+    const store = typeof raw === 'string' && raw ? JSON.parse(raw) : {};
+    return (store?.[student.id]?.sessions || [])
+      .filter(session => matchesChapter(session, context))
+      .sort((left, right) => (right.at || 0) - (left.at || 0));
+  } catch { return []; }
+}
+
+function practiceQuestionIsAvailable(row, now = Date.now()) {
+  /* Standalone teacher-bank questions are practice material. A row copied
+     from an official paper is not exposed until that paper's end time. */
+  return !row.source?.examId || (row.endAt > 0 && row.endAt < now);
+}
+
+function chapterQuestions(student, context, { type = '', types = null } = {}, pastRows = [], bankRows = []) {
+  return [...bankRows.filter(row => row.active), ...pastRows.filter(row => row.active)]
+    .filter(row => row.active && (!type || row.type === type) && (!types || types.includes(row.type)))
+    .filter(row => normalized(row.className) === normalized(student.className))
+    .filter(row => normalized(row.subject) === normalized(context.subject))
+    .filter(row => examMatchesStudent(row, student))
+    .filter(row => matchesChapter(row, context))
+    .filter(row => practiceQuestionIsAvailable(row));
+}
+
+function draftStorageKey(student, chapter, action) {
+  return `${DRAFT_KEY}:${encodeURIComponent(student.id || 'student')}:${encodeURIComponent(chapter.id)}:${action}`;
+}
+function readDrafts(student, chapter, action) {
+  try { return JSON.parse(window.localStorage.getItem(draftStorageKey(student, chapter, action)) || '{}') || {}; }
+  catch { return {}; }
 }
 
 /* ---- mount ------------------------------------------------------------------- */
 
 /**
- * @param {object} options { getStudent }
+ * @param {object} options { getStudent, onAction }
  * @returns {{ paint: Function }}
  */
-export function initCourseHub({ getStudent }) {
+export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
   const root = document.querySelector('#courseHub');
   if (!root) return { paint: () => {} };
   let subjectId = '';
   let section = 'read';
   let search = '';
   let openChapter = '';
+  let activeChapterAction = null;
+  let examSnapshot = { exams: [], attempts: [] };
+  let studentQuestionRows = [];
+  let pastExamQuestionRows = [];
+  let examSnapshotStudentId = '';
+  let examSnapshotDirty = true;
+  let examSnapshotRequest = 0;
+  let examSnapshotError = '';
 
   const student = () => getStudent?.() || { id: '', name: '', className: '' };
 
@@ -101,8 +158,27 @@ export function initCourseHub({ getStudent }) {
     const academic = classByName(current.className);
     if (!subject || !academic) return [];
     return listCourseContent({
-      classId: academic.id, subjectId: subject.id, publishedOnly: true, search, includeInactive: false
+      classId: academic.id, subjectId: subject.id, group: current.group || '', groupScoped: true,
+      publishedOnly: true, search, includeInactive: false
     });
+  }
+  function currentChapters() {
+    return recordsFor(selectedSubject()).filter(record => typeOf(record) === 'chapter');
+  }
+
+  function chapterContextFor(current, subject, chapter) {
+    const academicChapter = subject
+      ? listAcademicChapters(current.className, subject.name, { includeInactive: true })
+        .find(item => normalizedChapter(item.name) === normalizedChapter(chapter.title))
+      : null;
+    return {
+      className: current.className || '',
+      subject: subject?.name || '',
+      chapterId: chapter.id || '',
+      academicChapterId: academicChapter?.id || '',
+      chapterName: chapter.title || '',
+      academicChapterName: academicChapter?.name || ''
+    };
   }
 
   /* ---- cards ---------------------------------------------------------------- */
@@ -128,22 +204,169 @@ export function initCourseHub({ getStudent }) {
       '</article>';
   }
 
-  function chapterBlock(chapter, items) {
+  function bankQuestionCard(row, index, { action = '', drafts = null } = {}) {
+    const marks = Number.isFinite(Number(row.marks)) ? row.marks : 1;
+    const question = '<p class="course-bank-question-text">' + esc(row.text) + '</p>';
+    const answer = row.answerText
+      ? '<details class="course-model-answer"><summary>নমুনা উত্তর দেখুন</summary><p>' + esc(row.answerText).replace(/\n/g, '<br>') + '</p></details>'
+      : '<p class="course-bank-answer-note">এই প্রশ্নের নমুনা উত্তর এখনো যোগ করা হয়নি।</p>';
+    if (action === 'short' || action === 'written') {
+      const value = drafts?.[row.id] || '';
+      const rows = action === 'written' ? 6 : 3;
+      return '<article class="course-bank-question" data-course-bank-question="' + esc(row.id) + '">' +
+          '<div class="course-bank-question-heading"><small>প্রশ্ন ' + bn(index + 1) + ' • ' + bn(marks) + ' নম্বর</small></div>' + question +
+          '<label class="course-practice-answer-label">তোমার উত্তর' +
+            '<textarea rows="' + rows + '" maxlength="8000" data-course-answer="' + esc(row.id) + '" placeholder="এখানে উত্তর লিখো">' + esc(value) + '</textarea></label>' +
+          answer +
+        '</article>';
+    }
+    return '<article class="course-bank-question" data-course-bank-question="' + esc(row.id) + '">' +
+        '<div class="course-bank-question-heading"><small>' + (action === 'important' ? 'গুরুত্বপূর্ণ প্রশ্ন' : 'প্রশ্ন ' + bn(index + 1)) + ' • ' + bn(marks) + ' নম্বর</small></div>' +
+        question + answer +
+      '</article>';
+  }
+
+  function chapterExamCard(exam) {
+    const when = exam.startAt ? new Date(exam.startAt) : null;
+    const label = when && Number.isFinite(when.getTime())
+      ? when.toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' })
+      : '';
+    return '<article class="course-item course-item-exam">' +
+        '<header class="course-item-head"><span class="course-item-icon" aria-hidden="true">' + iconMarkup('icon-exam') + '</span>' +
+        '<div><small class="course-item-type">' + esc(exam.type === 'mcq' ? 'MCQ Model Test' : 'Model Test') + '</small>' +
+        '<h4>' + esc(exam.title || exam.subject || 'মডেল টেস্ট') + '</h4></div></header>' +
+        (label ? '<p class="course-item-desc">' + esc(label) + '</p>' : '') +
+        '<button class="mini-btn primary" type="button" data-course-launch-exam="' + esc(exam.id) + '">পরীক্ষাটি খুলুন</button>' +
+      '</article>';
+  }
+
+  function resultCard(exam, attempt) {
+    return '<article class="course-item">' +
+        '<header class="course-item-head"><span class="course-item-icon" aria-hidden="true">' + iconMarkup('icon-result') + '</span>' +
+        '<div><small class="course-item-type">আনুষ্ঠানিক ফলাফল</small><h4>' + esc(exam.title || exam.subject || 'পরীক্ষা') + '</h4></div></header>' +
+        '<p class="course-result-marks">প্রাপ্ত নম্বর: <strong>' + bn(attempt.score ?? 0) + '</strong> / ' + bn(attempt.total ?? '') + '</p>' +
+      '</article>';
+  }
+
+  function actionPanel(action, chapter, items, current, subject, context) {
+    const definition = COURSE_CHAPTER_ACTIONS.find(item => item.key === action);
+    if (!definition) return '';
+    const headingId = `courseChapterAction-${esc(chapter.id)}-${action}`;
+    const shell = body => '<section class="course-chapter-action-panel" data-course-action-panel="' + action + '" aria-labelledby="' + headingId + '">' +
+      '<div class="course-chapter-action-heading"><div><p class="eyebrow">' + esc(context.className) + ' • ' + esc(context.subject) + '</p>' +
+        '<h3 id="' + headingId + '">' + esc(definition.label) + '</h3></div>' +
+        '<button class="course-action-back" type="button" data-course-action-close>← চ্যাপ্টারে ফিরুন</button></div>' + body +
+      '</section>';
+    const empty = text => '<p class="admin-empty course-action-empty">' + esc(text) + '</p>';
+
+    if (action === 'read') {
+      const intro = [chapter.description, chapter.content].filter(Boolean)
+        .map(value => '<p>' + esc(value).replace(/\n/g, '<br>') + '</p>').join('');
+      const resources = items.filter(item => typeOf(item) !== 'chapter');
+      const attachment = /^https?:\/\//i.test(chapter.attachmentUrl || '')
+        ? '<a class="course-item-link" href="' + esc(chapter.attachmentUrl) + '" target="_blank" rel="noopener noreferrer">অধ্যায়ের সংযুক্তি খুলুন</a>' : '';
+      return shell('<div class="course-reading-intro">' + (intro || '<p>এই অধ্যায়ের জন্য প্রকাশিত পাঠ ও উপকরণ নিচে দেওয়া আছে।</p>') + attachment + '</div>' +
+        (resources.length ? '<div class="course-action-items">' + resources.map(contentCard).join('') + '</div>' : empty('এই অধ্যায়ে এখনো কোনো পাঠ প্রকাশিত হয়নি।')));
+    }
+
+    if (action === 'notes' || action === 'materials') {
+      const records = action === 'notes'
+        ? items.filter(item => typeOf(item) === 'note')
+        : items.filter(item => ['video', 'pdf'].includes(typeOf(item)) || /^https?:\/\//i.test(item.attachmentUrl || ''));
+      return shell(records.length
+        ? '<div class="course-action-items">' + records.map(contentCard).join('') + '</div>'
+        : empty(action === 'notes' ? 'এই অধ্যায়ের কোনো Class Note এখনো প্রকাশিত হয়নি।' : 'এই অধ্যায়ের কোনো Teacher Material এখনো প্রকাশিত হয়নি।'));
+    }
+
+    if (action === 'important') {
+      const records = items.filter(item => typeOf(item) === 'important_question');
+      const questions = chapterQuestions(current, context, {}, pastExamQuestionRows, studentQuestionRows).filter(row => row.tags.some(tag => /important|গুরুত্বপূর্ণ/i.test(tag)));
+      return shell((records.length ? '<div class="course-action-items">' + records.map(contentCard).join('') + '</div>' : '') +
+        (questions.length ? '<div class="course-question-list">' + questions.map((row, index) => bankQuestionCard(row, index, { action })).join('') + '</div>' : '') +
+        (!records.length && !questions.length ? empty('এই অধ্যায়ের গুরুত্বপূর্ণ প্রশ্ন এখনো প্রকাশিত হয়নি।') : ''));
+    }
+
+    if (action === 'mcq') {
+      const records = items.filter(item => typeOf(item) === 'mcq');
+      const questions = chapterQuestions(current, context, { type: 'mcq' }, pastExamQuestionRows, studentQuestionRows);
+      return shell((records.length ? '<div class="course-action-items">' + records.map(contentCard).join('') + '</div>' : '') +
+        '<div class="course-mcq-start"><div><strong>অধ্যায়ভিত্তিক MCQ অনুশীলন</strong><p>' +
+          (questions.length
+            ? 'এই অধ্যায়ের ' + bn(questions.length) + 'টি অনুশীলনযোগ্য MCQ পাওয়া গেছে। প্রতিটি প্রশ্নে সময় থাকবে, শেষে সঠিক উত্তরসহ ফলাফল দেখাবে।'
+            : 'এই অধ্যায়ের কোনো অনুশীলনযোগ্য MCQ এখনো নেই। শিক্ষক প্রশ্ন যোগ করলে এখানে দেখা যাবে।') +
+        '</p></div><button class="mini-btn primary" type="button" data-course-practice-mcq' + (questions.length ? '' : ' disabled') + '>অনুশীলন শুরু করুন</button></div>' +
+        (!records.length && !questions.length ? '' : ''));
+    }
+
+    if (action === 'short' || action === 'written') {
+      const type = action === 'short' ? 'short_answer' : 'written';
+      const questions = chapterQuestions(current, context, { type }, pastExamQuestionRows, studentQuestionRows);
+      if (!questions.length) return shell(empty(action === 'short'
+        ? 'এই অধ্যায়ের কোনো Short Question এখনো প্রকাশিত হয়নি।'
+        : 'এই অধ্যায়ের কোনো Written Practice এখনো প্রকাশিত হয়নি।'));
+      const drafts = readDrafts(current, chapter, action);
+      return shell('<p class="course-practice-note">এখানে লেখা উত্তর এই ডিভাইসে সংরক্ষণ করা যায়। নমুনা উত্তর খুলে নিজে মিলিয়ে নাও; এটি আনুষ্ঠানিক জমা বা ফলাফল নয়।</p>' +
+        '<div class="course-question-list">' + questions.map((row, index) => bankQuestionCard(row, index, { action, drafts })).join('') + '</div>' +
+        '<div class="course-draft-actions"><button class="mini-btn primary" type="button" data-course-save-drafts>উত্তর সংরক্ষণ করুন</button><span data-course-draft-status role="status" aria-live="polite"></span></div>');
+    }
+
+    if (action === 'model-test') {
+      const records = items.filter(item => typeOf(item) === 'model_test');
+      const exams = examsFor(examSnapshot, current, subject?.name, context);
+      return shell((records.length ? '<div class="course-action-items">' + records.map(contentCard).join('') + '</div>' : '') +
+        (exams.length ? '<div class="course-action-items">' + exams.map(chapterExamCard).join('') + '</div>' : '') +
+        (!records.length && !exams.length ? empty('এই অধ্যায়ের কোনো Model Test বা প্রকাশিত পরীক্ষা এখনো যোগ হয়নি।') : ''));
+    }
+
+    if (action === 'results') {
+      const official = resultsFor(examSnapshot, current, subject?.name, context);
+      const practice = chapterPracticeResults(current, context);
+      const officialMarkup = official.length
+        ? '<h4 class="course-result-group-title">আনুষ্ঠানিক পরীক্ষা</h4><div class="course-action-items">' + official.map(row => resultCard(row.exam, row.attempt)).join('') + '</div>'
+        : '';
+      const practiceMarkup = practice.length
+        ? '<h4 class="course-result-group-title">MCQ অনুশীলনের ফলাফল</h4><div class="course-action-items">' + practice.map(session =>
+            '<article class="course-item"><small class="course-item-type">' + esc(whenText(session.at) || 'অনুশীলন') + '</small>' +
+            '<h4>' + esc(session.title || 'MCQ Practice') + '</h4><p class="course-result-marks">প্রাপ্ত নম্বর: <strong>' + bn(session.score ?? 0) + '</strong> / ' + bn(session.total ?? '') + '</p></article>'
+          ).join('') + '</div>'
+        : '';
+      return shell(officialMarkup + practiceMarkup + (!official.length && !practice.length
+        ? empty('এই অধ্যায়ের কোনো আনুষ্ঠানিক বা অনুশীলনের ফলাফল এখনো নেই।') : ''));
+    }
+
+    return shell(empty('এই অধ্যায়ের জন্য এখনো কোনো কনটেন্ট পাওয়া যায়নি।'));
+  }
+
+  function chapterBlock(chapter, items, visibleItems, index, current, subject) {
     const open = openChapter === chapter.id;
+    const context = chapterContextFor(current, subject, chapter);
+    const chapterNumber = String(index + 1).padStart(2, '0');
+    const shortTitle = String(chapter.title || '').replace(/^(?:chapter|অধ্যায়|অধ্যায়)\s*[0-9০-৯]+\s*[-–—:.)]\s*/i, '').trim() || chapter.title;
+    const selectedAction = activeChapterAction?.chapterId === chapter.id ? activeChapterAction.key : '';
+    const actionButtons = '<div class="course-chapter-actions" role="group" aria-label="' + esc(chapter.title) + ' অধ্যায়ের শেখার কাজ">' +
+      COURSE_CHAPTER_ACTIONS.map(item => '<button type="button" class="course-chapter-action' + (selectedAction === item.key ? ' is-active' : '') + '" data-course-chapter-action="' + item.key + '" data-chapter-id="' + esc(chapter.id) + '" aria-pressed="' + (selectedAction === item.key ? 'true' : 'false') + '">' + esc(item.label) + '</button>').join('') +
+      '</div>';
+    const intro = chapter.description && !selectedAction
+      ? '<p class="course-chapter-note">' + esc(chapter.description) + '</p>' : '';
+    const body = selectedAction
+      ? actionPanel(selectedAction, chapter, items, current, subject, context)
+      : (visibleItems.length
+        ? '<div class="course-chapter-content">' + visibleItems.map(contentCard).join('') + '</div>'
+        : '<p class="admin-empty course-chapter-content-empty">' + (section === 'read' ? 'এই চ্যাপ্টারে এখনো কিছু যোগ করা হয়নি।' : 'এই বিভাগে এই চ্যাপ্টারের কনটেন্ট নেই।') + '</p>');
     return '<section class="course-chapter' + (open ? ' is-open' : '') + '" data-course-chapter="' + esc(chapter.id) + '">' +
         '<button class="course-chapter-toggle" type="button" data-course-chapter-toggle="' + esc(chapter.id) + '" aria-expanded="' + (open ? 'true' : 'false') + '">' +
-          '<span class="course-chapter-copy"><strong>' + esc(chapter.title) + '</strong>' +
-          '<small>' + bn(items.length) + 'টি কনটেন্ট</small></span>' +
+          '<span class="course-chapter-copy"><strong>Chapter ' + chapterNumber + ' — ' + esc(shortTitle) + '</strong>' +
+          '<small>' + bn(items.length) + 'টি কনটেন্ট • ৯টি শেখার কাজ</small></span>' +
           '<span class="course-chapter-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>' +
         '</button>' +
-        (chapter.description ? '<p class="course-chapter-note">' + esc(chapter.description) + '</p>' : '') +
-        (open ? '<div class="course-chapter-body">' + (items.map(contentCard).join('') || '<p class="admin-empty">এই চ্যাপ্টারে এখনো কিছু যোগ করা হয়নি।</p>') + '</div>' : '') +
+        (open ? '<div class="course-chapter-body">' + actionButtons + intro + body + '</div>' : '') +
       '</section>';
   }
 
   function examSection(subject) {
+    if (examSnapshotError) return '<p class="admin-empty">' + esc(examSnapshotError) + '</p>';
     const current = student();
-    const exams = examsFor(current, subject?.name);
+    const exams = examsFor(examSnapshot, current, subject?.name);
     if (!exams.length) return '<p class="admin-empty">এই বিষয়ে এখন কোনো পরীক্ষা প্রকাশ হয়নি।</p>';
     return exams.map(exam => {
       const when = exam.startAt ? new Date(exam.startAt) : null;
@@ -160,40 +383,31 @@ export function initCourseHub({ getStudent }) {
   }
 
   function resultSection(subject) {
+    if (examSnapshotError) return '<p class="admin-empty">' + esc(examSnapshotError) + '</p>';
     const current = student();
-    const rows = resultsFor(current, subject?.name);
+    const rows = resultsFor(examSnapshot, current, subject?.name);
     if (!rows.length) return '<p class="admin-empty">এখনো কোনো ফলাফল প্রকাশ হয়নি।</p>';
-    return rows.map(({ exam, attempt }) => '<article class="course-item">' +
-        '<header class="course-item-head"><span class="course-item-icon" aria-hidden="true">' + iconMarkup('icon-result') + '</span>' +
-        '<div><small class="course-item-type">ফলাফল</small><h4>' + esc(exam.title || exam.subject || 'পরীক্ষা') + '</h4></div></header>' +
-        '<p class="course-result-marks">প্রাপ্ত নম্বর: <strong>' + bn(attempt.score ?? 0) + '</strong> / ' + bn(attempt.total ?? '') + '</p>' +
-      '</article>').join('');
-  }
-
-  function noticeStrip() {
-    const current = student();
-    let notices = [];
-    try { notices = loadNotices() || []; } catch { notices = []; }
-    const mine = notices
-      .filter(notice => (notice.status || 'published') === 'published')
-      .filter(notice => !notice.className || notice.className === current.className)
-      .slice(0, 2);
-    if (!mine.length) return '';
-    return '<div class="course-notices"><p class="eyebrow">নোটিশ</p>' +
-        mine.map(notice => '<button type="button" class="course-notice" data-course-notice>' +
-          '<strong>' + esc(notice.title) + '</strong><small>' + esc(whenText(notice.createdAt)) + '</small></button>').join('') +
-      '</div>';
+    return rows.map(({ exam, attempt }) => resultCard(exam, attempt)).join('');
   }
 
   /* ---- paint ---------------------------------------------------------------- */
 
-  function paint() {
+  function renderHub() {
+    pastExamQuestionRows = questionRowsFromPastExams(examSnapshot.exams);
     const current = student();
     const list = subjects();
     const subject = selectedSubject();
     subjectId = subject?.id || '';
     const records = recordsFor(subject);
-    const chapters = listChapters(classByName(current.className)?.id || '', subjectId, { publishedOnly: true, search });
+    const academic = classByName(current.className);
+    const allChapters = records.filter(record => typeOf(record) === 'chapter')
+      .sort((left, right) => String(left.createdAt || '').localeCompare(String(right.createdAt || '')) || String(left.id).localeCompare(String(right.id)));
+    /* Search hits may live on a lesson/note rather than the chapter record;
+       keep the parent chapter visible whenever one of its published children
+       matches the student's query. */
+    const chapters = search
+      ? allChapters.filter(chapter => records.some(record => record.id === chapter.id || record.chapterId === chapter.id))
+      : allChapters;
     const items = records.filter(record => typeOf(record) !== 'chapter');
     const byChapter = new Map(chapters.map(chapter => [chapter.id, []]));
     const loose = [];
@@ -201,7 +415,9 @@ export function initCourseHub({ getStudent }) {
       if (byChapter.has(item.chapterId)) byChapter.get(item.chapterId).push(item);
       else loose.push(item);
     }
-    const inSection = list => (section === 'read' ? list : list.filter(record => COURSE_TYPES[typeOf(record)].section === section));
+    const inSection = records => (section === 'read'
+      ? records
+      : records.filter(record => COURSE_TYPES[typeOf(record)].section === section));
     const counts = new Map(COURSE_SECTIONS.map(entry => [entry.key, 0]));
     for (const record of [...chapters, ...items]) {
       const key = typeOf(record) === 'chapter' ? 'read' : COURSE_TYPES[typeOf(record)].section;
@@ -211,8 +427,10 @@ export function initCourseHub({ getStudent }) {
     const body = () => {
       if (section === 'exam') return examSection(subject);
       if (section === 'results') return resultSection(subject);
-      const visibleChapters = chapters.filter(chapter => inSection(byChapter.get(chapter.id) || []).length || section === 'read');
-      const blocks = visibleChapters.map(chapter => chapterBlock(chapter, inSection(byChapter.get(chapter.id) || [])));
+      const visibleChapters = chapters;
+      const blocks = visibleChapters.map((chapter, index) => chapterBlock(
+        chapter, byChapter.get(chapter.id) || [], inSection(byChapter.get(chapter.id) || []), index, current, subject
+      ));
       const looseItems = inSection(loose);
       const empty = !blocks.length && !looseItems.length;
       if (empty) {
@@ -233,31 +451,116 @@ export function initCourseHub({ getStudent }) {
         ? '<div class="course-subjects chip-row" role="tablist" aria-label="বিষয়">' + list.map(item =>
             '<button class="chip' + (item.id === subjectId ? ' active' : '') + '" type="button" role="tab" aria-selected="' + (item.id === subjectId ? 'true' : 'false') + '" data-course-subject="' + esc(item.id) + '">' + esc(item.name) + '</button>').join('') + '</div>'
         : '<p class="admin-empty">Admin এখনো এই শ্রেণির কোনো বিষয় চালু করেননি।</p>') +
-      noticeStrip() +
-      '<div class="course-sections chip-row" role="tablist" aria-label="বিভাগ">' + COURSE_SECTIONS.map(entry =>
-        '<button class="chip' + (entry.key === section ? ' active' : '') + '" type="button" role="tab" aria-selected="' + (entry.key === section ? 'true' : 'false') + '" data-course-section="' + entry.key + '">' +
-          esc(entry.label) + (entry.key in Object.fromEntries(counts) && counts.get(entry.key) ? ' <span class="chip-count">' + bn(counts.get(entry.key)) + '</span>' : '') +
-        '</button>').join('') + '</div>' +
+      '<div class="course-section-filter"><p class="eyebrow">অধ্যায়ভিত্তিক শেখা</p>' +
+        '<details class="course-section-details"><summary>সব কনটেন্ট বিভাগ</summary>' +
+          '<div class="course-sections chip-row" role="tablist" aria-label="বিভাগ">' + COURSE_SECTIONS.map(entry =>
+            '<button class="chip' + (entry.key === section ? ' active' : '') + '" type="button" role="tab" aria-selected="' + (entry.key === section ? 'true' : 'false') + '" data-course-section="' + entry.key + '">' +
+              esc(entry.label) + (counts.get(entry.key) ? ' <span class="chip-count">' + bn(counts.get(entry.key)) + '</span>' : '') +
+            '</button>').join('') + '</div></details></div>' +
       '<div class="course-list" id="courseList">' + body() + '</div>';
   }
 
+  async function paint({ refreshExams = false } = {}) {
+    const current = student();
+    if (refreshExams || examSnapshotDirty || examSnapshotStudentId !== current.id) {
+      const request = ++examSnapshotRequest;
+      examSnapshotDirty = false;
+      try {
+        const [exams, questions] = await Promise.all([
+          examRepository.listForStudent(current.id), listQuestionsForStudent(current.id)
+        ]);
+        if (request !== examSnapshotRequest) return;
+        examSnapshot = exams;
+        studentQuestionRows = questions;
+        examSnapshotError = '';
+      } catch (error) {
+        if (request !== examSnapshotRequest) return;
+        examSnapshot = { exams: [], attempts: [] };
+        studentQuestionRows = [];
+        examSnapshotError = error?.message || 'শিক্ষার্থী ডেটা পড়া যায়নি। আবার লগইন করুন।';
+      }
+      examSnapshotStudentId = current.id;
+    }
+    if (student().id !== current.id) { examSnapshotDirty = true; return paint({ refreshExams: true }); }
+    renderHub();
+  }
+
   root.addEventListener('click', event => {
-    const subject = event.target.closest('[data-course-subject]');
-    if (subject) { subjectId = subject.dataset.courseSubject; openChapter = ''; paint(); return; }
-    const tab = event.target.closest('[data-course-section]');
-    if (tab) { section = tab.dataset.courseSection; openChapter = ''; paint(); return; }
-    const chapter = event.target.closest('[data-course-chapter-toggle]');
-    if (chapter) {
-      const id = chapter.dataset.courseChapterToggle;
-      openChapter = openChapter === id ? '' : id;
+    const subjectButton = event.target.closest('[data-course-subject]');
+    if (subjectButton) {
+      subjectId = subjectButton.dataset.courseSubject;
+      openChapter = '';
+      activeChapterAction = null;
       paint();
       return;
     }
-    const notice = event.target.closest('[data-course-notice]');
-    if (notice) {
-      document.getElementById('notificationButton')?.click();
+    const tab = event.target.closest('[data-course-section]');
+    if (tab) {
+      section = tab.dataset.courseSection;
+      openChapter = '';
+      activeChapterAction = null;
+      paint();
+      return;
+    }
+    const actionButton = event.target.closest('[data-course-chapter-action]');
+    if (actionButton) {
+      const id = actionButton.dataset.chapterId;
+      const key = actionButton.dataset.courseChapterAction;
+      openChapter = id;
+      activeChapterAction = activeChapterAction?.chapterId === id && activeChapterAction.key === key
+        ? null : { chapterId: id, key };
+      paint();
+      return;
+    }
+    const closeAction = event.target.closest('[data-course-action-close]');
+    if (closeAction) {
+      activeChapterAction = null;
+      paint();
+      return;
+    }
+    const saveDrafts = event.target.closest('[data-course-save-drafts]');
+    if (saveDrafts) {
+      const panel = saveDrafts.closest('[data-course-action-panel]');
+      const chapterNode = saveDrafts.closest('[data-course-chapter]');
+      const chapter = chapterNode && currentChapters().find(item => item.id === chapterNode.dataset.courseChapter);
+      if (!panel || !chapter) return;
+      const action = panel.dataset.courseActionPanel;
+      const values = Object.fromEntries([...panel.querySelectorAll('[data-course-answer]')]
+        .map(input => [input.dataset.courseAnswer, input.value]));
+      const status = panel.querySelector('[data-course-draft-status]');
+      try {
+        window.localStorage.setItem(draftStorageKey(student(), chapter, action), JSON.stringify(values));
+        if (status) status.textContent = 'উত্তর এই ডিভাইসে সংরক্ষিত হয়েছে।';
+      } catch {
+        if (status) status.textContent = 'সংরক্ষণ হয়নি। ফোনের স্টোরেজ পরীক্ষা করে আবার চেষ্টা করো।';
+      }
+      return;
+    }
+    const practice = event.target.closest('[data-course-practice-mcq]');
+    if (practice) {
+      const chapterNode = practice.closest('[data-course-chapter]');
+      const chapter = chapterNode && currentChapters().find(item => item.id === chapterNode.dataset.courseChapter);
+      const subject = selectedSubject();
+      if (chapter && subject) onAction({ kind: 'chapter-mcq-practice', ...chapterContextFor(student(), subject, chapter) });
+      return;
+    }
+    const launch = event.target.closest('[data-course-launch-exam]');
+    if (launch) {
+      const chapterNode = launch.closest('[data-course-chapter]');
+      const chapter = chapterNode && currentChapters().find(item => item.id === chapterNode.dataset.courseChapter);
+      const subject = selectedSubject();
+      if (chapter && subject) onAction({ kind: 'chapter-model-test', examId: launch.dataset.courseLaunchExam, ...chapterContextFor(student(), subject, chapter) });
+      return;
+    }
+    const chapterToggle = event.target.closest('[data-course-chapter-toggle]');
+    if (chapterToggle) {
+      const id = chapterToggle.dataset.courseChapterToggle;
+      openChapter = openChapter === id ? '' : id;
+      activeChapterAction = null;
+      paint();
     }
   });
+
   root.addEventListener('input', event => {
     if (event.target.id !== 'courseSearch') return;
     search = event.target.value.trim();
@@ -269,11 +572,16 @@ export function initCourseHub({ getStudent }) {
     }, 220);
     root.dataset.searchTimer = timer;
   });
-  window.addEventListener('apc-course-updated', paint);
+  window.addEventListener('apc-course-updated', () => void paint());
+  window.addEventListener('apc-academics-updated', () => void paint());
+  const refreshStudentRecords = () => { examSnapshotDirty = true; void paint({ refreshExams: true }); };
+  window.addEventListener('question-bank-updated', refreshStudentRecords);
+  watchExams(refreshStudentRecords);
   window.addEventListener('storage', event => {
-    if (!event.key || event.key === KEYS.courseContent || event.key === KEYS.notices || event.key === KEYS.exams) paint();
+    if (!event.key || event.key === KEYS.questionBank) refreshStudentRecords();
+    else if (event.key === KEYS.courseContent) void paint();
   });
 
-  paint();
-  return { paint };
+  void paint({ refreshExams: true });
+  return { paint: () => paint({ refreshExams: true }) };
 }

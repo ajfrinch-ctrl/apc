@@ -22,9 +22,19 @@ before(async () => {
 test('every hash route maps to a student view and junk hashes fall back to home', () => {
   assert.equal(viewRouteFromHash('#routine'), 'routine');
   assert.equal(viewRouteFromHash('#profile'), 'profile');
+  assert.equal(viewRouteFromHash('#notice-board'), 'notice-board');
   assert.equal(viewRouteFromHash(''), 'home');
   assert.equal(viewRouteFromHash('#unknown-page'), 'home');
   assert.equal(viewRouteFromHash('#home'), 'home');
+});
+
+test('the Notice Board has its own deep link while Home stays selected in the bottom bar', () => {
+  setView('notice-board', { history: 'replace' });
+  assert.equal(ctx.window.location.hash, '#notice-board');
+  assert.equal(ctx.$('#notice-boardView').classList.contains('active'), true);
+  assert.equal(ctx.$('.bottom-link[data-view="home"]').classList.contains('active'), true);
+  assert.equal(ctx.$('.bottom-link[data-view="routine"]').classList.contains('active'), false);
+  setView('home', { history: 'replace' });
 });
 
 test('setView syncs the hash route and pushes history so Back walks the views', () => {

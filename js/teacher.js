@@ -441,8 +441,8 @@ async function showTeacherShell() {
   // Settings → Notification Settings, inside the Teacher's profile page.
   initNotificationSettings({ mount: '#notificationSettings' });
   // পড়াশোনা পরিচালনা করুন — content for the Teacher's own class+subject only.
-  mountCourseEditor();
-  mountReports($('#teacherReports'), { panel: 'teacher' });
+  await mountCourseEditor();
+  await mountReports($('#teacherReports'), { panel: 'teacher' });
   watchOwnPanelSession('teacher');
   return loaded;
 }
@@ -450,7 +450,8 @@ async function showTeacherShell() {
 async function mountCourseEditor() {
   try {
     const { initCourseEditor } = await import('./course-editor.js');
-    initCourseEditor({ mount: '#teacherCourseEditor', role: 'teacher', actor: 'TEACHER', toast: message => toast(message) });
+    const editor = initCourseEditor({ mount: '#teacherCourseEditor', role: 'teacher', actor: 'TEACHER', toast: message => toast(message) });
+    await editor.ready;
   } catch (error) { console.warn('[Active Plus] course editor unavailable:', error?.name || 'unknown'); }
 }
 $('#teacherChangePassword')?.addEventListener('click', () => openStaffPasswordDialog({ role: 'teacher', mode: 'change' }));

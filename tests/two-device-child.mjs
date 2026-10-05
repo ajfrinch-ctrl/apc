@@ -149,9 +149,13 @@ const commands = {
       (count === 0 || ctx.$('#routineList').textContent.includes(text)));
     return { routine: loadRoutine(), rendered: ctx.$('#routineList').textContent };
   },
-  async 'teaching-readable'() {
+  async 'teaching-readable'({ studentId = 'STU-1', className = 'নবম শ্রেণি' } = {}) {
     const { teachingRepository } = await mod('teaching-data.js');
-    await teachingRepository.list();
+    ctx.window.localStorage.setItem(storageKeys.account, JSON.stringify({
+      status: 'active', student: { id: studentId, name: 'দোলন আক্তার', className, group: '' }
+    }));
+    ctx.window.sessionStorage.setItem(storageKeys.session, '1');
+    await teachingRepository.listForStudent(studentId);
     return { ok: true };
   },
   async 'network'({ online }) {
@@ -270,15 +274,16 @@ const commands = {
     Object.defineProperty(ctx.window.navigator, 'onLine', { value: online, configurable: true });
     return { ok: true };
   },
-  async 'write-student-account'({ username, pin, fullName, mobile, updatedAt, studentId, extra = {} }) {
+  async 'write-student-account'({ username, pin, fullName, mobile, updatedAt, studentId, className = '', group = '', extra = {} }) {
     const { hashPassword } = await mod('password-hash.js');
     const pinHash = await hashPassword(pin);
     const account = {
       username,
+      status: 'active',
       studentId: studentId || undefined,
       registrationMobile: mobile,
       mobile,
-      student: { username, fullName, ...(studentId ? { id: studentId } : {}) },
+      student: { username, fullName, ...(studentId ? { id: studentId } : {}), ...(className ? { className } : {}), ...(group ? { group } : {}) },
       pinHash,
       createdAt: new Date().toISOString(),
       updatedAt: updatedAt || new Date().toISOString(),
@@ -392,6 +397,13 @@ const commands = {
      syncStudent runs the full stored-document validation internally. */
   async 'validate-exam-db'() {
     const { examRepository } = await mod('exam-data.js');
+    /* This assertion exercises a Student repository read after the separate
+       login flow has already been verified; give the fixture its approved
+       roster identity rather than trusting a caller-supplied student object. */
+    ctx.window.localStorage.setItem(storageKeys.account, JSON.stringify({
+      status: 'active', student: { id: 'STU-1', name: 'দোলন আক্তার', className: 'নবম শ্রেণি', group: '' }
+    }));
+    ctx.window.sessionStorage.setItem(storageKeys.session, '1');
     try {
       await examRepository.syncStudent('STU-1');
       return { ok: true };

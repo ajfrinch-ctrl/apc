@@ -2,6 +2,7 @@
    Swap the database adapter for Firestore later; the payment UI awaits its save. */
 import { KEYS, listDocumentsStrict, replaceDocumentsStrict } from './database.js';
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
+import { authenticatedStudent } from './student-access.js';
 import { latinDigits as sharedLatinDigits, searchStudentsByQuery } from './student-search.js';
 export const TRANSACTIONS_KEY = KEYS.transactions;
 export const DEFAULT_MONTHLY_FEE = 1500;
@@ -66,6 +67,16 @@ function readTransactions() {
   return listDocumentsStrict('transactions', validTransaction);
 }
 
+function accessDenied(message = 'এই লেনদেনের ডেটা দেখার অনুমতি নেই।') {
+  return Object.assign(new Error(message), { code: 'ACCESS_DENIED' });
+}
+async function requireFinanceRole(role) {
+  if (!['admin', 'manager', 'payment'].includes(role) || !(await hasStaffSession(role))) throw accessDenied();
+  const account = await readStaffAccount(role);
+  if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') throw accessDenied();
+  return account;
+}
+
 // Display receipts are short and daily; transaction IDs remain collision-resistant.
 // Allocate inside the SAME ledger lock/write, using plain and historical
 // suffixed receipts as the floor. No previous receipt is renamed.
@@ -97,8 +108,41 @@ function publicTransactionNumber(records, now) {
 }
 
 export const financeRepository = {
-  async listTransactions() { return readTransactions(); },
-  async saveTransaction(transaction, { counterReceipt = false, serialTransaction = false, receiptDate = new Date() } = {}) {
+  async listTransactions(actor = null) {
+    let role = actor?.role || '';
+    if (!role) {
+      for (const candidate of ['manager', 'admin', 'payment']) {
+        if (await hasStaffSession(candidate)) { role = candidate; break; }
+      }
+      if (!role) {
+        try {
+          const student = await authenticatedStudent();
+          return readTransactions().filter(tx => tx.studentId === student.id);
+        } catch {
+          /* Empty unauthenticated installs stay empty; a non-empty ledger is
+             never returned merely because a panel forgot to pass its actor. */
+          const rows = readTransactions();
+          if (!rows.length) return [];
+          throw accessDenied();
+        }
+      }
+    }
+    if (role === 'student') {
+      const student = await authenticatedStudent(actor.studentId || actor.id);
+      return readTransactions().filter(tx => tx.studentId === student.id);
+    }
+    const account = await requireFinanceRole(role);
+    const rows = readTransactions();
+    if (role !== 'payment') return rows;
+    const username = String(account.username || '');
+    return rows.filter(tx => tx.counterUsername
+      ? tx.counterUsername === username
+      : tx.collectedBy === 'পেমেন্ট কাউন্টার');
+  },
+  async saveTransaction(transaction, { counterReceipt = false, serialTransaction = false, receiptDate = new Date(), actor = null } = {}) {
+    const role = actor?.role || 'payment';
+    if (role !== 'payment') throw accessDenied('শুধু পেমেন্ট কাউন্টার নতুন লেনদেন সংরক্ষণ করতে পারবে।');
+    await requireFinanceRole(role);
     const save = () => {
       // Re-read before writing so another tab's collections are not overwritten.
       const records = readTransactions();

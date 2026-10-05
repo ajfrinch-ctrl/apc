@@ -51,6 +51,21 @@ test('exam news goes only to that paper participants', () => {
   assert.deepEqual(examPushes(null, { ...exam, participants: [] }), [], 'nobody to tell');
 });
 
+test('a newly published running MCQ push carries the paper title and an immediate action', () => {
+  const now = 1_000_000;
+  const exam = {
+    id: 'E10', title: 'মডেল টেস্ট ৩', subject: 'গণিত', type: 'mcq', status: 'published',
+    startAt: now - 60_000, endAt: now + 600_000, lateMinutes: 5, publishedAt: 7,
+    participants: [{ id: 's1' }]
+  };
+  const [push] = examPushes(null, exam, now);
+  assert.equal(push.title, 'মডেল টেস্ট ৩');
+  assert.equal(push.actionLabel, 'এখনই পরীক্ষা দিন');
+  const message = messageFor('device-token', push);
+  assert.equal(message.notification.title, 'মডেল টেস্ট ৩');
+  assert.deepEqual(message.webpush.notification.actions, [{ action: 'open', title: 'এখনই পরীক্ষা দিন' }]);
+});
+
 /* Audit round 6: the sender must not announce a paper the app cannot list.
    The client shows papers that are not over yet and results that are out
    (js/notification-rules.js stillOpenExam), so the sender follows the same

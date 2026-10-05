@@ -59,6 +59,39 @@ export function audienceMatches(notice, viewer) {
   return AUDIENCES.includes(audience);
 }
 
+export const NOTICE_BOARD_READ_PREFIX = 'activePlus.noticeBoard.read.v1:';
+
+export const NOTICE_CATEGORIES = Object.freeze([
+  Object.freeze({ id: 'urgent', label: '🔴 জরুরি', shortLabel: 'জরুরি', icon: '🔴' }),
+  Object.freeze({ id: 'academic', label: '📚 Academic', shortLabel: 'Academic', icon: '📚' }),
+  Object.freeze({ id: 'class', label: '🏫 Class', shortLabel: 'Class', icon: '🏫' }),
+  Object.freeze({ id: 'fee', label: '💰 Fee', shortLabel: 'Fee', icon: '💰' }),
+  Object.freeze({ id: 'exam', label: '📝 Exam', shortLabel: 'Exam', icon: '📝' })
+]);
+const NOTICE_CATEGORY_IDS = new Set(NOTICE_CATEGORIES.map(category => category.id));
+const NOTICE_CATEGORY_ALIASES = Object.freeze({
+  urgent: 'urgent', emergency: 'urgent', priority: 'urgent', জরুরি: 'urgent', জরুরী: 'urgent',
+  academic: 'academic', academics: 'academic', study: 'academic', শিক্ষা: 'academic', একাডেমিক: 'academic',
+  class: 'class', classes: 'class', ক্লাস: 'class', শ্রেণি: 'class', শ্রেণী: 'class',
+  fee: 'fee', fees: 'fee', payment: 'fee', ফি: 'fee', পেমেন্ট: 'fee',
+  exam: 'exam', exams: 'exam', পরীক্ষা: 'exam', পরীক্ষার: 'exam'
+});
+
+/** A published notice always belongs to exactly one Notice Board category. */
+export function noticeCategory(notice) {
+  const raw = typeof notice === 'string' ? notice : notice?.category ?? notice?.noticeCategory ?? notice?.type ?? '';
+  const value = text(raw).toLowerCase().replace(/[🔴📚🏫💰📝]/gu, '').trim();
+  const aliased = NOTICE_CATEGORY_ALIASES[value];
+  if (NOTICE_CATEGORY_IDS.has(aliased)) return aliased;
+  if (typeof notice === 'object' && notice && (notice.urgent === true || notice.priority === 'urgent')) return 'urgent';
+  return 'academic';
+}
+
+export function noticeCategoryInfo(value) {
+  const id = NOTICE_CATEGORY_IDS.has(value) ? value : noticeCategory(value);
+  return NOTICE_CATEGORIES.find(category => category.id === id) || NOTICE_CATEGORIES[1];
+}
+
 /** Revision of a notice: editing the text makes it unread / newsworthy again. */
 export function noticeRevision(notice) {
   return text(notice?.updatedAt) || text(notice?.createdAt) ||
@@ -75,9 +108,13 @@ export function noticeItem(notice) {
     source: 'notices',
     sourceId: id,
     kind: 'notice',
+    category: noticeCategory(notice),
     title,
     body,
     at: Date.parse(text(notice?.createdAt) || text(notice?.updatedAt) || '') || 0,
+    target: 'notice-board',
+    action: 'open-notice',
+    actionLabel: 'নোটিশ খুলুন',
     audience: text(notice?.audience) || 'সকল শিক্ষার্থী'
   };
 }
@@ -91,9 +128,13 @@ export function broadcastItem(config) {
     source: 'settings',
     sourceId: 'broadcast',
     kind: 'broadcast',
+    category: 'urgent',
     title: 'জরুরি ঘোষণা',
     body: message,
     at: 0,
+    target: 'notice-board',
+    action: 'open-notice',
+    actionLabel: 'জরুরি ঘোষণা খুলুন',
     audience: 'সকল'
   };
 }
@@ -145,31 +186,123 @@ export function examItems(examDb, viewer, now = Date.now()) {
         sourceId: text(exam.id),
         kind: 'result',
         target: 'results',
+        action: 'open',
+        actionLabel: 'ফলাফল দেখুন',
         title: 'ফলাফল প্রকাশিত হয়েছে',
         body: `${name}${subject ? ` — ${subject}` : ''} পরীক্ষার ফলাফল এখন অ্যাপে দেখা যাচ্ছে।`,
         at: Number(exam.resultsPublishedAt) || Number(exam.updatedAt) || 0,
         audience: 'অংশগ্রহণকারী'
       });
     } else if ((exam.status === 'published' || exam.status === 'completed') && stillOpenExam(exam, now)) {
-      /* The sender pushes a paper the moment it is published. The app must be
-         able to show that same news, so the rule here is "not finished yet"
-         (a paper published after it started is still worth announcing), and a
-         finished paper without results stays quiet on both sides. */
-      const startsAt = Number(exam.startAt);
+      /* A published paper is an action card, not just a generic alert. The
+         title names the exact paper; the CTA goes straight to its exam card and
+         starts it when the paper is currently available. */
+      const startsAt = Number(exam.startAt) || 0;
+      const endsAt = Number(exam.endAt) || startsAt;
+      const attempts = (Array.isArray(examDb.attempts) ? examDb.attempts : [])
+        .filter(attempt => attempt?.examId === exam.id && text(attempt?.studentId) === studentId);
+      const active = attempts.some(attempt => attempt.status === 'active');
+      const canStart = exam.type === 'mcq' && !attempts.length && startsAt > 0 && now >= startsAt
+        && (!endsAt || now < endsAt)
+        && now <= startsAt + Math.max(0, Number(exam.lateMinutes) || 0) * 60000;
+      const action = active ? 'resume' : canStart ? 'start' : 'open';
+      const actionLabel = active ? 'পরীক্ষায় ফিরে যাও'
+        : canStart ? 'এখনই পরীক্ষা দিন'
+        : startsAt > now ? 'সময়সূচি দেখুন'
+        : exam.type === 'mcq' ? 'পরীক্ষা খুলুন' : 'প্রশ্নপত্র দেখুন';
+      const timing = startsAt > now ? `শুরু ${bnWhen(startsAt)}`
+        : endsAt > now ? 'এখন চলছে' : 'পরীক্ষা শেষ';
       items.push({
         key: `exam:${text(exam.id)}:${Number(exam.publishedAt) || Number(exam.updatedAt) || 0}`,
         source: 'exams',
         sourceId: text(exam.id),
         kind: 'exam',
         target: 'exams',
-        title: 'নতুন পরীক্ষা নির্ধারিত হয়েছে',
-        body: `${name}${subject ? ` — ${subject}` : ''} · ${startsAt > now ? `শুরু ${bnWhen(startsAt)}` : 'এখন চলছে'}`,
+        action,
+        actionLabel,
+        title: name,
+        body: `নতুন পরীক্ষা প্রকাশিত হয়েছে${subject ? ` · ${subject}` : ''} · ${timing}`,
         at: Number(exam.publishedAt) || Number(exam.updatedAt) || 0,
         audience: 'অংশগ্রহণকারী'
       });
     }
   }
   return items;
+}
+
+const activityGroupKey = value => String(value || '').normalize('NFC').trim().replace(/\s*বিভাগ$/, '').trim();
+const localDayKey = value => {
+  const date = value instanceof Date ? value : new Date(Number(value));
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+function homeworkActivities(teachingDb, viewer) {
+  if (viewer?.kind !== 'student' || !text(viewer.studentId)) return [];
+  const activities = Array.isArray(teachingDb) ? teachingDb : teachingDb?.activities;
+  if (!Array.isArray(activities)) return [];
+  return activities.filter(activity => {
+    if (!isObject(activity) || activity.type !== 'homework' || activity.status !== 'published' || !text(activity.id)) return false;
+    if (text(activity.className) !== text(viewer.className)) return false;
+    if (activityGroupKey(activity.group) && activityGroupKey(activity.group) !== activityGroupKey(viewer.group)) return false;
+    return !['done', 'reviewed'].includes(text(activity.progress?.[viewer.studentId]?.value));
+  });
+}
+
+/** Incomplete homework due today or tomorrow, scoped to the student's class. */
+export function homeworkItems(teachingDb, viewer, now = Date.now()) {
+  const timestamp = Number(now);
+  const current = new Date(Number.isFinite(timestamp) ? timestamp : Date.now());
+  const today = localDayKey(current);
+  const tomorrowDate = new Date(current);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrow = localDayKey(tomorrowDate);
+  if (!today || !tomorrow) return [];
+  const items = [];
+  for (const activity of homeworkActivities(teachingDb, viewer)) {
+    const due = text(activity.date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(due) || (due !== today && due !== tomorrow)) continue;
+    const parsed = new Date(`${due}T12:00:00`);
+    if (localDayKey(parsed) !== due) continue;
+    const revision = text(activity.updatedAt) || text(activity.createdAt) || due;
+    const deadline = due === today ? 'আজ জমা দিতে হবে' : 'আগামীকাল জমা দিতে হবে';
+    const time = text(activity.time);
+    items.push({
+      key: `homework:${text(activity.id)}:${revision}`,
+      source: 'teaching',
+      sourceId: text(activity.id),
+      kind: 'homework',
+      target: 'courses',
+      action: 'open-homework',
+      actionLabel: 'বাড়ির কাজ খুলুন',
+      title: text(activity.title) || 'বাড়ির কাজ',
+      body: `${text(activity.subject) ? `${text(activity.subject)} · ` : ''}${deadline}${time ? ` · জমা ${time}` : ''}`,
+      at: Number(now) || Date.now(),
+      audience: 'নিজের শ্রেণি'
+    });
+  }
+  return items;
+}
+
+/** Next local-day transition that changes a homework reminder. */
+export function nextHomeworkBoundary(teachingDb, viewer, now = Date.now()) {
+  const timestamp = Number(now);
+  if (viewer?.kind !== 'student' || !Number.isFinite(timestamp)) return 0;
+  let next = 0;
+  for (const activity of homeworkActivities(teachingDb, viewer)) {
+    const due = text(activity.date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) continue;
+    const date = new Date(`${due}T00:00:00`);
+    if (localDayKey(date) !== due) continue;
+    const transitions = [
+      new Date(date).setDate(date.getDate() - 1),
+      date.getTime(),
+      new Date(date).setDate(date.getDate() + 1)
+    ];
+    for (const boundary of transitions) {
+      if (boundary > timestamp && (!next || boundary < next)) next = boundary;
+    }
+  }
+  return next;
 }
 
 /* Staff roles that decide on a student registration (js/admin-permissions.js
@@ -272,6 +405,7 @@ export function examTimingItems(examDb, viewer, now = Date.now(), reminderMs = E
       items.push({
         key: `exam-soon:${text(exam.id)}:${startAt}`,
         source: 'exams', sourceId: text(exam.id), kind: 'exam-soon',
+        target: 'exams', action: 'open', actionLabel: 'সময়সূচি দেখুন',
         title: 'পরীক্ষা শীঘ্রই শুরু হবে',
         body: `${examName(exam)} · ${minutes} মিনিট পর শুরু (${bnWhen(startAt)})`,
         at: startAt - reminderMs, target: 'exams', audience: 'অংশগ্রহণকারী'
@@ -280,6 +414,7 @@ export function examTimingItems(examDb, viewer, now = Date.now(), reminderMs = E
       items.push({
         key: `exam-live:${text(exam.id)}:${startAt}`,
         source: 'exams', sourceId: text(exam.id), kind: 'exam-live',
+        target: 'exams', action: 'start', actionLabel: 'এখনই পরীক্ষা দিন',
         title: 'পরীক্ষা শুরু হয়েছে — এখনই অংশ নাও',
         body: `${examName(exam)}${endAt ? ` · শেষ ${bnWhen(endAt)}` : ''}`,
         at: startAt, target: 'exams', audience: 'অংশগ্রহণকারী'
@@ -397,7 +532,7 @@ export function sortNewestFirst(items) {
 }
 
 /** The complete notification list for one device, deduplicated by key. */
-export function notificationFeed({ notices = [], config = null, examDb = null, viewer = null, now = Date.now(), localWrites = null, students = null, transactions = null, cleared = null } = {}) {
+export function notificationFeed({ notices = [], config = null, examDb = null, teachingDb = null, viewer = null, now = Date.now(), localWrites = null, students = null, transactions = null, cleared = null } = {}) {
   const items = [];
   const broadcast = broadcastItem(config);
   if (broadcast) items.push(broadcast);
@@ -406,6 +541,7 @@ export function notificationFeed({ notices = [], config = null, examDb = null, v
     if (item && audienceMatches(notice, viewer)) items.push(item);
   }
   items.push(...examItems(examDb, viewer, now));
+  items.push(...homeworkItems(teachingDb, viewer, now));
   items.push(...registrationItems(students, viewer));
   items.push(...studentDecisionItems(students, viewer));
   items.push(...examTimingItems(examDb, viewer, now));
@@ -538,6 +674,7 @@ export function pushPayload(item) {
     title: text(item?.title) || 'Active Plus',
     body: body.length > 140 ? `${body.slice(0, 137)}…` : body,
     tag: text(item?.key) || 'active-plus',
+    actionLabel: text(item?.actionLabel),
     data: {
       collection: text(item?.source) || 'notices',
       id: text(item?.sourceId),

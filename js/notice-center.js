@@ -27,6 +27,7 @@ const KIND_ICON = Object.freeze({
   notice: 'icon-megaphone',
   broadcast: 'icon-bell',
   exam: 'icon-clipboard',
+  homework: 'icon-clipboard',
   result: 'icon-award',
   registration: 'icon-users',
   'exam-soon': 'icon-clipboard',
@@ -46,10 +47,19 @@ const ACTION_LABEL = Object.freeze({
   'payment-review': 'পেমেন্ট দেখুন',
   'exam-review': 'পরীক্ষা দেখুন',
   'exam-returned': 'সংশোধন করুন',
-  'exam-live': 'পরীক্ষায় যাও'
+  'exam-approved': 'পরীক্ষা দেখুন',
+  'payment-rejected': 'এন্ট্রি দেখুন',
+  exam: 'পরীক্ষা খুলুন',
+  'exam-soon': 'সময়সূচি দেখুন',
+  'exam-live': 'এখনই পরীক্ষা দিন',
+  homework: 'বাড়ির কাজ খুলুন',
+  result: 'ফলাফল দেখুন',
+  approved: 'অ্যাকাউন্ট দেখুন',
+  rejected: 'বিস্তারিত দেখুন'
 });
-const REFRESH_KEYS = Object.freeze(['activePlus.admin.notices.v1', 'activePlus.app.config.v1', 'active-plus-app-config-v1', 'activePlus.exams.v1', 'activePlus.admin.students.v1', 'activePlus.admin.transactions.v1']);
-const REFRESH_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'students', 'transactions']);
+const actionLabel = item => String(item?.actionLabel || ACTION_LABEL[item?.kind] || '');
+const REFRESH_KEYS = Object.freeze(['activePlus.admin.notices.v1', 'activePlus.app.config.v1', 'active-plus-app-config-v1', 'activePlus.exams.v1', 'activePlus.teaching.v1', 'activePlus.admin.students.v1', 'activePlus.admin.transactions.v1']);
+const REFRESH_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'teaching', 'students', 'transactions']);
 
 const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
 const bn = value => String(value).replace(/\d/g, digit => BN_DIGITS[Number(digit)]);
@@ -103,7 +113,7 @@ function buildModal() {
   backdrop.innerHTML =
     '<section class="modal" role="dialog" aria-modal="true" aria-labelledby="apcNoticeTitle">' +
       '<div class="modal-header"><div><p class="eyebrow">Active Plus আপডেট</p>' +
-      '<h2 id="apcNoticeTitle">নোটিফিকেশন</h2></div>' +
+      '<h2 id="apcNoticeTitle">অ্যাকশন সেন্টার</h2></div>' +
       '<button type="button" class="modal-close" data-apc-notice-close aria-label="বন্ধ করুন">×</button></div>' +
       '<p class="notice-read-status" data-apc-notice-status role="status"></p>' +
       '<div class="notice-filters" role="tablist" aria-label="নোটিফিকেশন দেখার ধরন">' +
@@ -181,18 +191,32 @@ export function mountNoticeCenter(api) {
     }
   }
 
-  /* Unread state: the record store is the source of truth; a page that hands us
-     an older engine (no `unread`) falls back to the read receipts. */
-  function unreadKeys() {
-    if (typeof api.unread === 'function') {
+  const separatesBoard = () => {
+    try { return api.viewer?.().kind === 'student'; } catch { return false; }
+  };
+  const centerFeed = items => separatesBoard()
+    ? items.filter(item => !['notice', 'broadcast'].includes(item.kind))
+    : items;
+
+  /* Unread state: the record store is authoritative. Student notices and
+     broadcasts are counted on their separate Notice Board, not under the bell. */
+  function unreadKeys(feed = []) {
+    if (typeof api.unreadKeys === 'function') {
+      try {
+        const keys = new Set(api.unreadKeys());
+        if (separatesBoard()) {
+          const visible = new Set(feed.map(item => item.key));
+          const filtered = new Set([...keys].filter(key => visible.has(key)));
+          return { count: filtered.size, keys: filtered };
+        }
+        const count = typeof api.unread === 'function' ? Number(api.unread()) : keys.size;
+        return { count: Number.isFinite(count) ? Math.max(0, count) : keys.size, keys };
+      } catch { /* fall through to the receipts */ }
+    }
+    if (!separatesBoard() && typeof api.unread === 'function') {
       try {
         const count = Number(api.unread());
-        if (Number.isFinite(count)) {
-          const keys = new Set();
-          // Which items are unread still comes from the records; with only a
-          // count available every unread card is painted by position.
-          return { count: Math.max(0, count), keys: typeof api.unreadKeys === 'function' ? new Set(api.unreadKeys()) : null };
-        }
+        if (Number.isFinite(count)) return { count: Math.max(0, count), keys: null };
       } catch { /* fall through to the receipts */ }
     }
     const seen = new Set(api.seen ? api.seen() : []);
@@ -226,12 +250,13 @@ export function mountNoticeCenter(api) {
 
   function paintCard(item, unread) {
     const opens = item.actionable || Boolean(item.target) || typeof api.openItem === 'function';
-    const label = ACTION_LABEL[item.kind] || (item.actionable ? 'দেখুন' : '');
+    const label = actionLabel(item) || (item.actionable || item.target ? 'খুলুন' : '');
+    const rowOpens = opens && !label;
     const action = label
-      ? '<button type="button" class="mini-btn approve" data-apc-notice-open="' + escapeHtml(item.key) + '">' + escapeHtml(label) + '</button>'
+      ? '<button type="button" class="mini-btn primary notice-action" data-apc-notice-open="' + escapeHtml(item.key) + '" aria-label="' + escapeHtml(`${label}: ${item.title}`) + '">' + escapeHtml(label) + '</button>'
       : '';
-    return '<article class="notice-detail' + (unread ? ' unread' : '') + (opens ? ' actionable' : '') + '"' +
-      (opens ? ' data-apc-notice-open="' + escapeHtml(item.key) + '" role="button" tabindex="0"' : '') + '>' +
+    return '<article class="notice-detail' + (unread ? ' unread' : '') + (rowOpens ? ' actionable' : '') + (label ? ' has-action' : '') + '"' +
+      (rowOpens ? ' data-apc-notice-open="' + escapeHtml(item.key) + '" role="button" tabindex="0"' : '') + '>' +
       '<span class="notice-detail-icon' + (item.kind === 'broadcast' ? ' light' : '') + '">' + iconMarkup(item.kind) + '</span>' +
       '<div class="notice-detail-copy"><span class="notice-time">' + escapeHtml(whenText(item)) + '</span>' +
       '<span class="notice-section-chip">' + escapeHtml(sectionOf(item)) + '</span>' +
@@ -242,8 +267,8 @@ export function mountNoticeCenter(api) {
 
   function paint() {
     let feed = [];
-    try { feed = api.feed() || []; } catch { feed = []; }
-    const state = unreadKeys();
+    try { feed = centerFeed(api.feed() || []); } catch { feed = []; }
+    const state = unreadKeys(feed);
     const unreadItems = feed.filter(item => isUnread(item, state));
     const unread = state.count === null ? unreadItems.length : state.count;
     shownFeed = feed;
@@ -269,7 +294,9 @@ export function mountNoticeCenter(api) {
     if (!listBox) return { unread, total: feed.length };
 
     if (!feed.length) {
-      listBox.innerHTML = emptyState('সব নোটিফিকেশন দেখা হয়েছে', 'নতুন কোনো নোটিফিকেশন নেই।');
+      listBox.innerHTML = separatesBoard()
+        ? emptyState('নতুন নোটিফিকেশন নেই', 'স্কুলের notice-গুলো আলাদা Notice Board-এ থাকে।')
+        : emptyState('সব নোটিফিকেশন দেখা হয়েছে', 'নতুন কোনো নোটিফিকেশন নেই।');
       return { unread, total: 0 };
     }
     const visible = filter === 'unread' ? unreadItems : feed;
@@ -487,11 +514,18 @@ export function mountNoticeCenter(api) {
   function paintAlerts() {
     if (!alertItems.length) { hideAlerts(); return; }
     ensureAlertShell();
-    const rows = alertItems.slice(0, 3).map(item =>
-      '<li><button type="button" class="apc-inapp-alert-item" data-apc-alert-open="' + escapeHtml(item.key) + '">' +
-        '<span class="apc-inapp-alert-icon">' + iconMarkup(item.kind) + '</span>' +
-        '<span><b>' + escapeHtml(item.title) + '</b>' + (item.body ? '<small>' + escapeHtml(item.body) + '</small>' : '') + '</span>' +
-      '</button></li>').join('');
+    const rows = alertItems.slice(0, 3).map(item => {
+      const label = actionLabel(item) || (item.actionable || item.target ? 'খুলুন' : '');
+      const key = escapeHtml(item.key);
+      return '<li class="apc-inapp-alert-row">' +
+        '<button type="button" class="apc-inapp-alert-item" data-apc-alert-open="' + key + '">' +
+          '<span class="apc-inapp-alert-icon">' + iconMarkup(item.kind) + '</span>' +
+          '<span><b>' + escapeHtml(item.title) + '</b>' + (item.body ? '<small>' + escapeHtml(item.body) + '</small>' : '') + '</span>' +
+        '</button>' + (label
+          ? '<button type="button" class="mini-btn primary apc-inapp-alert-action" data-apc-alert-open="' + key + '" aria-label="' + escapeHtml(`${label}: ${item.title}`) + '">' + escapeHtml(label) + '</button>'
+          : '') +
+      '</li>';
+    }).join('');
     const more = alertItems.length > 3 ? 'আরও ' + bn(alertItems.length - 3) + 'টি' : '';
     alertCard.innerHTML =
       alertHeader('Active Plus আপডেট', 'নতুন নোটিফিকেশন' + (alertItems.length > 1 ? ' · ' + bn(alertItems.length) + 'টি' : '')) +
@@ -524,6 +558,7 @@ export function mountNoticeCenter(api) {
     if (!document.body) return false;
     alertItems = [{
       key: `preview:${Date.now()}`,
+      preview: true,
       kind: item.kind || 'notice',
       title: item.title || 'এটি একটি প্রিভিউ',
       body: item.body || 'নতুন নোটিশ, পরীক্ষা ও ফলাফলের খবর ঠিক এভাবেই দেখতে পাবেন।'
@@ -551,7 +586,15 @@ export function mountNoticeCenter(api) {
   window.addEventListener('apc-inapp-alerts', () => { void pumpAlerts(); });
   void pumpAlerts();
 
-  const repaint = () => paint();
+  function repaint() {
+    paint();
+    if (alertMode !== 'items' || !alertItems.length || typeof api.unreadKeys !== 'function') return;
+    let unread = null;
+    try { unread = new Set(api.unreadKeys()); } catch { return; }
+    alertItems = alertItems.filter(item => item.preview || unread.has(item.key));
+    if (alertItems.length) paintAlerts();
+    else hideAlerts();
+  }
   window.addEventListener('apc-notifications-updated', repaint);
   window.addEventListener('apc-notification', repaint);
   window.addEventListener('apc-notification-settings', repaint);

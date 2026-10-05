@@ -20,7 +20,7 @@ function weekDates() {
   }));
 }
 
-export function renderRoutine(day = 'sat') {
+export function renderRoutine(day = 'sat', student = null) {
   const routine = loadRoutine();
   const dates = weekDates();
   $$('.day-tab').forEach(tab => {
@@ -28,7 +28,10 @@ export function renderRoutine(day = 'sat') {
     const strong = tab.querySelector('strong');
     if (info && strong) strong.textContent = toBanglaNumber(info.dayNumber);
   });
-  const dayData = routine[day] || { classes: [] };
+  const allDayData = routine[day] || { classes: [] };
+  const dayData = student?.className
+    ? { ...allDayData, classes: (allDayData.classes || []).filter(item => !item.className || item.className === student.className) }
+    : allDayData;
   const list = $('#routineList');
   if (!list) return;
 
@@ -48,18 +51,20 @@ export function renderRoutine(day = 'sat') {
   list.hidden = dayData.classes.length === 0;
 }
 
-export function initRoutine() {
+export function initRoutine({ getStudent } = {}) {
+  const renderCurrent = day => renderRoutine(day, getStudent?.() || null);
   $$('.day-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       $$('.day-tab').forEach(item => item.classList.remove('active'));
       tab.classList.add('active');
-      renderRoutine(tab.dataset.day);
+      renderCurrent(tab.dataset.day);
     });
   });
   window.addEventListener('storage', event => {
     if (!event.key || event.key === ROUTINE_KEY) {
-      renderRoutine(document.querySelector('.day-tab.active')?.dataset.day || 'sat');
+      renderCurrent(document.querySelector('.day-tab.active')?.dataset.day || 'sat');
     }
   });
-  renderRoutine();
+  renderCurrent('sat');
+  return () => renderCurrent(document.querySelector('.day-tab.active')?.dataset.day || 'sat');
 }

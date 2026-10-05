@@ -258,7 +258,6 @@ export function watchOwnPanelSession(role, { intervalMs = 60000 } = {}) {
     try {
       if (await hasStaffSession(role)) return;
     } catch { /* an unreadable store counts as signed out */ }
-    stopped = true;
     stop();
     showPanelLock({ role, reason: `${PANEL_LABELS[role] || 'এই প্যানেল'}র সেশন আর নেই — নিরাপত্তার জন্য কন্টেন্ট বন্ধ করা হয়েছে।` });
   };
@@ -266,9 +265,15 @@ export function watchOwnPanelSession(role, { intervalMs = 60000 } = {}) {
   const onVisible = () => { if (document.visibilityState === 'visible') void check(); };
   document.addEventListener('visibilitychange', onVisible);
   function stop() {
+    if (stopped) return;
+    stopped = true;
     clearInterval(timer);
-    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('pagehide', stop);
+    window.removeEventListener('beforeunload', stop);
+    window.document.removeEventListener('visibilitychange', onVisible);
   }
+  window.addEventListener('pagehide', stop, { once: true });
+  window.addEventListener('beforeunload', stop, { once: true });
   sessionWatch = { stop };
   return stop;
 }

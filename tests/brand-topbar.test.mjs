@@ -10,6 +10,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { JSDOM } from 'jsdom';
 import { loadPage } from './jsdom-harness.mjs';
 import { BRAND_NAME, BRAND_TAGLINE, BRAND_LOGO, brandLogoSrc } from '../js/brand.js';
 
@@ -18,16 +19,22 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const contexts = [];
 after(() => contexts.forEach(ctx => ctx.window.close()));
 
-test('every page carries the logo, the institute name and the slogan', () => {
+test('every page carries the logo, with the slogan on a separate line under the institute name', () => {
   for (const page of PAGES) {
-    const html = read(page);
-    const brand = html.match(/<div class="app-brand">[\s\S]*?<\/div>/)?.[0] || '';
+    const document = new JSDOM(read(page)).window.document;
+    const brand = document.querySelector('.app-brand');
     assert.ok(brand, `${page}: no brand block`);
-    assert.equal((brand.match(/app-brand-logo/g) || []).length, 1, `${page}: exactly one logo`);
-    assert.match(brand, new RegExp(`src="${BRAND_LOGO.replace(/[.]/g, '\\.')}"`), `${page}: the shared logo asset`);
-    assert.match(brand, /class="app-brand-institute"[^>]*>Active Plus Coaching</, `${page}: the institute name`);
-    assert.match(brand, /data-fixed-tagline/, `${page}: the slogan slot`);
-    assert.match(brand, /শিখতে থাকো, এগিয়ে যাও/, `${page}: the slogan`);
+    assert.equal(brand.querySelectorAll('img.app-brand-logo').length, 1, `${page}: exactly one logo`);
+    assert.equal(brand.querySelector('.app-brand-logo')?.getAttribute('src'), BRAND_LOGO, `${page}: the shared logo asset`);
+    const institute = brand.querySelector('.app-brand-institute');
+    const tagline = brand.querySelector('[data-fixed-tagline]');
+    assert.equal(institute?.textContent.trim(), BRAND_NAME, `${page}: the institute name`);
+    assert.ok(tagline, `${page}: the slogan slot`);
+    assert.equal(tagline.textContent.trim(), BRAND_TAGLINE, `${page}: the slogan`);
+    assert.equal(institute.parentElement, tagline.parentElement, `${page}: name and slogan share the brand text block`);
+    assert.ok(institute.compareDocumentPosition(tagline) & document.defaultView.Node.DOCUMENT_POSITION_FOLLOWING,
+      `${page}: the slogan must follow the institute name`);
+    assert.equal(brand.querySelector('.app-brand-sep'), null, `${page}: the separator must not put both on one line`);
   }
 });
 
@@ -44,12 +51,10 @@ test('the institute name and slogan survive the app rewriting the tagline', asyn
   const taglines = ctx.$$('[data-fixed-tagline]');
   assert.ok(taglines.length >= 1, 'the page has a tagline slot');
   for (const line of taglines) {
-    assert.match(line.textContent, new RegExp(BRAND_NAME), 'the institute name is still shown');
-    assert.match(line.textContent, new RegExp(BRAND_TAGLINE), 'the slogan is still shown');
-    /* The accessible name is written whenever the app applies a saved config;
-       the visible line is what must always carry the brand. */
-    const label = line.getAttribute('aria-label');
-    if (label) assert.match(label, new RegExp(BRAND_NAME));
+    assert.equal(line.textContent.trim(), BRAND_TAGLINE, 'the slogan stays on its own line');
+    assert.equal(line.parentElement.querySelector('.app-brand-institute')?.textContent.trim(), BRAND_NAME,
+      'rewriting the slogan does not remove the institute name above it');
+    assert.equal(line.getAttribute('aria-label'), null, 'the name is not redundantly announced as part of the slogan');
   }
   assert.equal(ctx.$$('.app-brand-logo').length >= 1, true, 'the branded top bar is on the page');
 });

@@ -81,7 +81,7 @@ export async function buildCounterPaymentReport(reportId,input={}) {
  const definition=COUNTER_PAYMENT_REPORTS.find(item=>item.id===reportId);if(!definition)throw new Error('শুধু পেমেন্ট-সংক্রান্ত রিপোর্ট দেখা যাবে।');
  const now=new Date(),filters=filtersFor(definition,input,now);
  const people=listDocumentsStrict('students',row=>Boolean(row && typeof row.id==='string' && row.id));
- const records=await financeRepository.listTransactions();
+ const records=await financeRepository.listTransactions({ role: 'payment' });
  const students=new Map(people.map(row=>[row.id,row]));
  if(filters.studentId && !students.has(filters.studentId) && !records.some(tx=>tx.studentId===filters.studentId)) throw new Error('নির্বাচিত শিক্ষার্থী পাওয়া যায়নি।');
  if(definition.mode==='student' && !filters.studentId)throw new Error('একজন শিক্ষার্থী সার্চ করে নির্বাচন করুন।');

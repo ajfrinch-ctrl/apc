@@ -11,7 +11,7 @@ import { enabledClasses } from './config.js';
 import { listClasses, listChapters, subjectsForClass, isSubjectEnabled } from './academics.js';
 import { questionBank, searchQuestions, listQuestions, questionById, ensureExamsInBank, QUESTION_TYPES, QUESTION_DIFFICULTIES, QUESTION_TYPE_ORDER, QUESTION_DIFFICULTY_ORDER, watchQuestionBank, questionForExam } from './question-bank.js';
 import { subjectsForTeacherClass } from './teacher-assignments.js';
-import { listTeacherAssignments } from './teacher-assignments.js';
+import { listTeacherAssignments, isTeacherAssignedSubject } from './teacher-assignments.js';
 import {
   EXAM_FILTERS, normalizeFilters, activeFilterCount, examPermissions, filterExams,
   groupExamsByDate, upcomingExams, examCounters, classOptions, subjectOptions,
@@ -21,6 +21,7 @@ import {
 export function initExamManager(container, role) {
   const root = document.querySelector(container); if (!root) return;
   const actor = role === 'admin' ? ADMIN_ACTOR : role === 'manager' ? MANAGER_ACTOR : TEACHER_ACTOR;
+  const canManageBank = role === 'manager' || role === 'teacher';
   const academicClasses = () => listClasses().map(item => item.name);
   const roleClasses = () => {
     if (role !== 'teacher') { const names = academicClasses(); return names.length ? names : [...enabledClasses]; }
@@ -158,10 +159,19 @@ export function initExamManager(container, role) {
 
   /* ---------- প্রশ্ন সংরক্ষণ করুন (Question Bank) --------------------------- */
 
+  /** Teacher shelf reads are assignment-scoped, not merely hidden by filters. */
+  function bankRowsForRole() {
+    const rows = listQuestions();
+    return role === 'teacher'
+      ? rows.filter(row => row.className && row.subject && isTeacherAssignedSubject('teacher.apc', row.className, row.subject, row.group))
+      : rows;
+  }
+
   /** One page of the shelf, with every filter the brief lists. */
   function bankMatches() {
     const value = key => (bankFilters[key] === 'all' ? '' : bankFilters[key]);
     return searchQuestions({
+      records: bankRowsForRole(),
       query: bankFilters.query,
       className: value('className'),
       subject: value('subject'),
@@ -172,9 +182,10 @@ export function initExamManager(container, role) {
     });
   }
   function bankFilterMarkup(result) {
-    const classes = [...new Set([...roleClasses(), ...listQuestions().map(row => row.className).filter(Boolean)])];
-    const subjects = [...new Set(listQuestions().map(row => row.subject).filter(Boolean))];
-    const chapters = [...new Set(listQuestions().map(row => row.chapterName).filter(Boolean))];
+    const rows = bankRowsForRole();
+    const classes = [...new Set([...roleClasses(), ...rows.map(row => row.className).filter(Boolean)])];
+    const subjects = [...new Set(rows.map(row => row.subject).filter(Boolean))];
+    const chapters = [...new Set(rows.map(row => row.chapterName).filter(Boolean))];
     const option = (name, label, values, all) => `<label>${label}<select name="${name}"><option value="all">${all}</option>${values.map(item => `<option value="${esc(item)}" ${bankFilters[name] === item ? 'selected' : ''}>${esc(item)}</option>`).join('')}</select></label>`;
     return `<form class="exam-filters exam-bank-filters" data-bank-filters>
       <label class="exam-filter-wide">প্রশ্ন খুঁজুন (কোড / লেখা / টপিক)<input type="search" name="query" value="${esc(bankFilters.query)}" placeholder="যেমন: QUESTION-0007, ঢাকা, বহুপদী"></label>
@@ -185,7 +196,7 @@ export function initExamManager(container, role) {
       <label>কঠিন্য<select name="difficulty"><option value="all">সব</option>${QUESTION_DIFFICULTY_ORDER.map(level => `<option value="${level}" ${bankFilters.difficulty === level ? 'selected' : ''}>${esc(QUESTION_DIFFICULTIES[level])}</option>`).join('')}</select></label>
       <div class="exam-actions">
         <button type="submit" class="primary">খুঁজুন</button>
-        <button type="button" data-exam-action="bank-new">+ নতুন প্রশ্ন সংরক্ষণ করুন</button>
+        ${canManageBank ? '<button type="button" data-exam-action="bank-new">+ নতুন প্রশ্ন সংরক্ষণ করুন</button>' : ''}
         <button type="button" data-exam-action="bank-reset">ফিল্টার মুছুন</button>
       </div>
       <p class="exam-note" data-bank-count>${num(result.total)}টি প্রশ্ন পাওয়া গেছে — এক পাতায় ${num(Math.min(BANK_PAGE, result.total) || 0)}টি দেখানো হয়।</p>
@@ -197,12 +208,11 @@ export function initExamManager(container, role) {
       <small>${esc(row.code)} • ${esc(QUESTION_TYPES[row.type])} • ${num(row.marks)} নম্বর • ${esc(QUESTION_DIFFICULTIES[row.difficulty])}${row.active ? '' : ' • নিষ্ক্রিয়'}</small>
       <p>${esc(row.text)}</p>
       <small class="exam-row-meta">${esc(row.className || 'শ্রেণি নেই')} • ${esc(row.subject || 'বিষয় নেই')}${row.chapterName ? ` • ${esc(row.chapterName)}` : ''}${row.topic ? ` • ${esc(row.topic)}` : ''}${row.source ? ` • ${esc(row.source.examTitle || '')}` : ''}</small>
-      <div class="exam-actions">
+      ${canManageBank ? `<div class="exam-actions">
         ${button('bank-edit', editing ? 'সম্পাদনা বন্ধ' : 'সম্পাদনা', row.id)}
         ${button('bank-toggle', row.active ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন', row.id)}
         ${button('bank-delete', 'মুছুন', row.id, 'danger')}
-      </div>
-      ${editing ? bankFormMarkup(row) : ''}
+      </div>${editing ? bankFormMarkup(row) : ''}` : ''}
     </article>`;
   }
   function bankFormMarkup(row = null, { exam = null } = {}) {
@@ -249,7 +259,7 @@ export function initExamManager(container, role) {
   function bankPickerMarkup(exam) {
     const { rows, total } = searchQuestions({
       className: exam.className || '', subject: exam.subject || '',
-      type: exam.type === 'mcq' ? 'mcq' : '', active: true, limit: 10
+      type: exam.type === 'mcq' ? 'mcq' : '', active: true, limit: 10, records: bankRowsForRole()
     });
     if (!rows.length) return '<p class="exam-note">এই শ্রেণি ও বিষয়ের জন্য সংরক্ষিত প্রশ্ন নেই — “প্রশ্ন সংরক্ষণ করুন” থেকে যোগ করুন।</p>';
     return `<p class="exam-note">সংরক্ষিত ${num(total)}টি প্রশ্নের মধ্যে প্রথম ${num(rows.length)}টি দেখানো হচ্ছে${exam.type === 'mcq' ? ' (শুধু MCQ)' : ''}।</p>

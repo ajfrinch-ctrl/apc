@@ -4,15 +4,18 @@ import { KEYS, SYNCABLE, LOCAL_ONLY, listDocuments, listDocumentsStrict, replace
 import { saveAccount, loadAccount, generateStudentId } from '../js/storage.js';
 import { financeRepository, TRANSACTIONS_KEY, stampTransaction } from '../js/finance-data.js';
 import { isPasswordRecord } from '../js/password-hash.js';
+import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
+import { buildSessionRecord } from '../js/session.js';
 
 function setup() {
   const store = new Map();
-  globalThis.window = {
-    localStorage: {
-      getItem: key => store.get(key) ?? null,
-      setItem: (key, value) => store.set(key, value)
-    }
-  };
+  const session = new Map();
+  const asStorage = map => ({
+    getItem: key => map.get(key) ?? null,
+    setItem: (key, value) => map.set(key, String(value)),
+    removeItem: key => map.delete(key)
+  });
+  globalThis.window = { localStorage: asStorage(store), sessionStorage: asStorage(session) };
   return store;
 }
 
@@ -22,6 +25,9 @@ test('collections keep the existing storage keys and leave secrets off the sync 
   assert.equal(KEYS.teaching, 'activePlus.teaching.v1');
   assert.equal(KEYS.exams, 'activePlus.exams.v1');
   assert.equal(SYNCABLE.includes('students'), true);
+  assert.equal(SYNCABLE.includes('academics'), true);
+  assert.equal(SYNCABLE.includes('courseContent'), true);
+  assert.equal(SYNCABLE.includes('questionBank'), false, 'answer-key bank data is not sent through the shared anonymous bridge');
   assert.equal(SYNCABLE.includes('account'), false);
   assert.equal(LOCAL_ONLY.includes('account'), true);
 });
@@ -93,6 +99,11 @@ test('stamped payments keep the exact saved fields plus a sortable time', () => 
   assert.equal(tx.createdAt, now.toISOString());
   assert.equal(tx.amount, 100);
   setup();
+  const payment = STAFF_ACCOUNTS.payment;
+  window.localStorage.setItem(payment.accountKey, JSON.stringify({
+    role: payment.role, username: payment.username, staffId: 'PAY-TEST-1', status: 'active'
+  }));
+  window.localStorage.setItem(payment.sessionKey, JSON.stringify(buildSessionRecord({ owner: payment.username, ttlDays: 1 })));
   return financeRepository.saveTransaction(tx).then(saved => {
     assert.deepEqual(saved[0], { ...tx, status: 'pending', reviewHistory: [] });
   });

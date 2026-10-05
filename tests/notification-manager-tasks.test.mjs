@@ -39,7 +39,7 @@ before(async () => {
 test('after the update, existing tasks are listed but do not buzz the phone', () => {
   assert.ok(controller.feed().some(item => item.key === 'payment-review:OLD1'), 'listed');
   assert.equal(shown.length, 0, 'not announced as new');
-  assert.equal(JSON.parse(ctx.window.localStorage.getItem(`activePlus.notifications.rules.v1:${VIEWER}`)).version, 2);
+  assert.equal(JSON.parse(ctx.window.localStorage.getItem(`activePlus.notifications.rules.v1:${VIEWER}`)).version, 3);
 });
 
 test('a new fee entry from the counter is announced', async () => {

@@ -6,6 +6,9 @@
      • source — the question bank, which every taken MCQ paper joins the
        moment it is published (js/exam-data.js) or is backfilled on load
        (questionBank.ensureExamsInBank), so past exams accumulate here;
+     • chapter entry — a scoped drill may also use active standalone teacher
+       questions from that exact class/subject/chapter, alongside ended-paper
+       rows; exam-sourced future questions remain unavailable;
      • when — any moment: no schedule, no late window, no roster. The sheet
        runs under a live timer like the real sitting — one minute per
        question on every sheet — and when the clock hits zero the paper
@@ -24,10 +27,10 @@
    Sessions live in `activePlus.mcqPractice.v1`, local to this device —
    self-study history is personal and offline, like the rest of the demo. */
 import { examRepository as repo, examMatchesStudent, watchExams } from './exam-data.js';
-import { ensureExamsInBank, listQuestions, watchQuestionBank } from './question-bank.js';
+import { listQuestionsForStudent, questionRowsFromPastExams, watchQuestionBank } from './question-bank.js';
 import { esc, num, when } from './exam-ui.js';
 
-const PRACTICE_KEY = 'activePlus.mcqPractice.v1';
+export const PRACTICE_KEY = 'activePlus.mcqPractice.v1';
 const MAX_SESSIONS = 20;
 const RANDOM_SIZE = 20;
 /* One practice minute per question — a uniform, predictable pace for every
@@ -49,8 +52,8 @@ const saveFor = (student, entry) => { const store = readStore(); store[student.i
 /** Papers a student may drill: bank questions grouped by the examination
     they came from, class/batch-matched, and only after the official window
     has ended. Every drill is paced at one minute per question. */
-function practicePapers(student, now = Date.now()) {
-  const rows = listQuestions().filter(row => row.type === 'mcq' && row.active && row.source?.examId && row.endAt > 0 && row.endAt < now);
+function practicePapers(student, now = Date.now(), extraRows = []) {
+  const rows = extraRows.filter(row => row.type === 'mcq' && row.active && row.source?.examId && row.endAt > 0 && row.endAt < now);
   const byExam = new Map();
   for (const row of rows) {
     const paper = byExam.get(row.source.examId) || {
@@ -72,21 +75,43 @@ function practicePapers(student, now = Date.now()) {
 }
 /** The pool the random drill draws from — the questions of every practicable
     paper, class/batch-matched. */
-function practicePool(student, now = Date.now()) {
+function practicePool(student, now = Date.now(), extraRows = []) {
   const ids = new Set();
-  for (const paper of practicePapers(student, now)) paper.questions.forEach(row => ids.add(row.id));
-  return listQuestions().filter(row => ids.has(row.id));
+  for (const paper of practicePapers(student, now, extraRows)) paper.questions.forEach(row => ids.add(row.id));
+  return extraRows.filter(row => ids.has(row.id));
+}
+const chapterNameKey = value => String(value ?? '').normalize('NFC').trim().toLocaleLowerCase()
+  .replace(/^(?:(?:chapter|অধ্যায়|অধ্যায়)\s*)?(?:no\.?\s*)?[0-9০-৯]+(?:\.[0-9০-৯]+)*\s*[-–—:.)]\s*/i, '')
+  .replace(/[‐‑–—:]/g, ' ').replace(/\s+/g, ' ').trim();
+function matchesChapter(row, context) {
+  const ids = [context?.chapterId, context?.academicChapterId].filter(Boolean);
+  if (row?.chapterId && ids.includes(String(row.chapterId))) return true;
+  const wanted = [context?.chapterName, context?.academicChapterName].map(chapterNameKey).filter(Boolean);
+  const name = chapterNameKey(row?.chapterName || row?.chapter || '');
+  return Boolean(name && wanted.includes(name));
+}
+/** A chapter drill reuses the Question Bank and observes the same no-leak
+    rule as the past-paper practice lane: exam-sourced rows stay hidden until
+    their official endAt; standalone teacher-bank questions are usable. */
+function chapterPracticePool(student, context, now = Date.now(), extraRows = []) {
+  return extraRows.filter(row => row.active)
+    .filter(row => row.type === 'mcq' && row.active)
+    .filter(row => String(row.className || '').normalize('NFC').trim() === String(student.className || '').normalize('NFC').trim())
+    .filter(row => String(row.subject || '').normalize('NFC').trim().toLocaleLowerCase() === String(context.subject || '').normalize('NFC').trim().toLocaleLowerCase())
+    .filter(row => examMatchesStudent(row, student))
+    .filter(row => matchesChapter(row, context))
+    .filter(row => !row.source?.examId || (row.endAt > 0 && row.endAt < now));
 }
 const bestScore = (sessions, examId) => {
   const own = sessions.filter(session => session.kind === 'paper' && session.examId === examId);
   return own.length ? own.reduce((best, session) => (session.score > best.score ? session : best)) : null;
 };
-function startSession(student, { kind, title, examId = '', examCode = '', questions, durationMinutes }) {
+function startSession(student, { kind, title, examId = '', examCode = '', subject = '', chapterId = '', chapterName = '', questions, durationMinutes }) {
   const minutes = Math.max(1, Math.round(durationMinutes) || questions.length * PRACTICE_MINUTES_PER_QUESTION);
   const startsAt = Date.now();
   const session = {
     id: sessionId(), at: startsAt, kind, title, examId, examCode,
-    className: student.className || '', subject: '',
+    className: student.className || '', subject, chapterId, chapterName,
     /* The deadline is absolute — it does not pause while the student leaves
        the screen, exactly like the official paper's shared end time. The
        low-time flag sounds at five minutes on a long sheet, or at half the
@@ -126,6 +151,8 @@ function finishSession(student, session, { auto = false } = {}) {
   }
   const record = {
     id: session.id, at: session.at, kind: session.kind, title: session.title, examId: session.examId,
+    className: session.className || student.className || '', subject: session.subject || '',
+    chapterId: session.chapterId || '', chapterName: session.chapterName || '',
     total: session.total, score: correct, correct, wrong, unanswered, auto,
     results, order: session.order, answers: session.answers, questions: session.questions
   };
@@ -139,6 +166,8 @@ function finishSession(student, session, { auto = false } = {}) {
 export function initStudentPractice({ getStudent, getAccount }) {
   const root = document.querySelector('#studentPracticeWorkspace'); if (!root) return () => {};
   let view = 'list', activeSession = null, lastRecord = null, busy = false;
+  let chapterContext = null;
+  let practiceQuestionRows = [];
   root.classList.add('exam-workspace', 'practice-workspace');
   root.innerHTML = '<p class="exam-error" data-practice-error role="alert" hidden></p><p class="exam-message" data-practice-message role="status" hidden></p><div data-practice-content></div>';
   const $ = selector => root.querySelector(selector), content = $('[data-practice-content]');
@@ -158,7 +187,14 @@ export function initStudentPractice({ getStudent, getAccount }) {
     view = 'list'; activeSession = null; lastRecord = null;
     if (!activeAccount()) { content.innerHTML = '<p class="exam-card">অনুমোদিত অ্যাকাউন্ট দিয়ে লগইন করতে হবে।</p>'; return; }
     const student = getStudent(), now = Date.now();
-    const papers = practicePapers(student, now), pool = practicePool(student, now);
+    if (chapterContext && chapterContext.className && chapterContext.className !== student.className) chapterContext = null;
+    const papers = practicePapers(student, now, practiceQuestionRows), pool = practicePool(student, now, practiceQuestionRows);
+    const chapterPool = chapterContext ? chapterPracticePool(student, chapterContext, now, practiceQuestionRows) : [];
+    const chapterCard = chapterContext ? `<section class="exam-card practice-card chapter-practice-card" aria-label="অধ্যায়ভিত্তিক MCQ অনুশীলন">
+      <div class="chapter-practice-heading"><div><small>${esc(chapterContext.className)} • ${esc(chapterContext.subject)}</small><h2 tabindex="-1" data-chapter-practice-heading>❓ ${esc(chapterContext.chapterName)} — MCQ Practice</h2></div>${button('clear-chapter', 'সব অনুশীলন দেখুন')}</div>
+      <p class="exam-note">শুধু এই অধ্যায়ের প্রকাশিত/অনুশীলনযোগ্য প্রশ্ন থেকে তৈরি হবে। এটি নিজস্ব অনুশীলন—আনুষ্ঠানিক ফলাফলে যুক্ত হবে না।</p>
+      <div class="exam-actions">${chapterPool.length ? button('start-chapter', `অনুশীলন শুরু করুন (${num(chapterPool.length)}টি প্রশ্ন)`, '', 'primary') : '<small>এই অধ্যায়ে এখনো অনুশীলনযোগ্য MCQ নেই।</small>'}</div>
+    </section>` : '';
     let entry = storeFor(student);
     if (entry.active) {
       const pickedUpTimer = !Number.isFinite(entry.active.endsAt) || entry.active.endsAt <= 0;
@@ -176,6 +212,7 @@ export function initStudentPractice({ getStudent, getAccount }) {
     }
     const poolSize = pool.length ? Math.min(RANDOM_SIZE, pool.length) : 0;
     content.innerHTML = `
+      ${chapterCard}
       <section class="exam-card practice-card" aria-label="ইনস্ট্যান্ট MCQ অনুশীলন">
         <h2>ইনস্ট্যান্ট MCQ অনুশীলন</h2>
         <p class="exam-note">যেকোনো মুহূর্তে শুরু করো — প্রতিটি প্রশ্নের জন্য ${num(PRACTICE_MINUTES_PER_QUESTION)} মিনিট করে সময়সীমা থাকে। সময় শেষ হলে উত্তরপত্র নিজে থেকেই জমা হয়ে পরীক্ষা শেষে ফলাফল দেখাবে। এটি নিজের অনুশীলন; আনুষ্ঠানিক পরীক্ষার ফলাফলে এর কোনো প্রভাব পড়ে না।</p>
@@ -257,7 +294,7 @@ export function initStudentPractice({ getStudent, getAccount }) {
     view = 'result'; activeSession = null; lastRecord = record;
     const percent = record.total ? Math.round(record.score / record.total * 100) : 0;
     content.innerHTML = `
-      <div class="exam-actions">${button('list', '← অনুশীলনের তালিকা')}${button('repeat', record.kind === 'paper' ? 'আবার অনুশীলন করো' : 'নতুন র‍্যান্ডম অনুশীলন', record.examId, 'primary')}</div>
+      <div class="exam-actions">${button('list', '← অনুশীলনের তালিকা')}${button('repeat', record.kind === 'paper' ? 'আবার অনুশীলন করো' : record.kind === 'chapter' ? 'এই অধ্যায়ে আবার অনুশীলন করো' : 'নতুন র‍্যান্ডম অনুশীলন', record.examId, 'primary')}</div>
       <div class="exam-summary"><h3>${esc(record.title)}${record.auto ? ' (সময় শেষে স্বয়ংক্রিয় জমা)' : ''}</h3>
         <strong>${num(record.score)} / ${num(record.total)} (${num(percent)}%)</strong>
         <p>সঠিক ${num(record.correct)} • ভুল ${num(record.wrong)} • অনুত্তরিত ${num(record.unanswered)}</p>
@@ -286,12 +323,33 @@ export function initStudentPractice({ getStudent, getAccount }) {
     try {
       /* The student's own device also fills the shelf from its papers, so
          practice works offline on a device that never saw the manager. */
-      const db = await repo.list();
-      await ensureExamsInBank(db.exams, 'Student');
+      const [db, bankRows] = await Promise.all([
+        repo.listForStudent(getStudent()?.id), listQuestionsForStudent(getStudent()?.id)
+      ]);
+      practiceQuestionRows = [...bankRows, ...questionRowsFromPastExams(db.exams)];
       repaint();
     } catch (e) { error(e.message || 'অনুশীলনের ডেটা লোড হয়নি। আবার চেষ্টা করো।'); }
     finally { busy = false; }
   }
+  function openChapter(context = {}) {
+    const student = getStudent() || {};
+    chapterContext = context && (context.chapterId || context.chapterName) ? {
+      className: String(context.className || student.className || ''),
+      subject: String(context.subject || ''),
+      chapterId: String(context.chapterId || ''),
+      academicChapterId: String(context.academicChapterId || ''),
+      chapterName: String(context.chapterName || ''),
+      academicChapterName: String(context.academicChapterName || '')
+    } : null;
+    view = 'list'; activeSession = null; lastRecord = null;
+    error(''); message('');
+    return refresh().then(() => {
+      if (!chapterContext) return;
+      root.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      $('[data-chapter-practice-heading]')?.focus?.({ preventScroll: true });
+    });
+  }
+  window.apcStudentPractice = { openChapter, refresh };
   root.addEventListener('change', event => {
     const input = event.target.closest('[data-practice-answer]');
     if (!input || !activeSession) return;
@@ -306,14 +364,26 @@ export function initStudentPractice({ getStudent, getAccount }) {
     error(''); message('');
     if (action === 'list') { view = 'list'; lastRecord = null; refresh(); return; }
     if (action === 'refresh') { refresh(); return; }
+    if (action === 'clear-chapter') { chapterContext = null; list(); return; }
     if (!activeAccount()) { error('অনুমোদিত অ্যাকাউন্ট দিয়ে লগইন করতে হবে।'); return; }
-    if (action === 'start-random') {
-      const pool = shuffle(practicePool(student)).slice(0, RANDOM_SIZE);
+    if (action === 'start-chapter') {
+      if (!chapterContext) { error('অধ্যায়ের অনুশীলন আর খোলা নেই। আবার চ্যাপ্টার থেকে শুরু করো।'); return; }
+      const pool = shuffle(chapterPracticePool(student, chapterContext, Date.now(), practiceQuestionRows)).slice(0, RANDOM_SIZE);
+      if (!pool.length) { error('এই অধ্যায়ে এখন অনুশীলনযোগ্য MCQ নেই।'); return; }
+      const title = `${chapterContext.chapterName} — MCQ Practice`;
+      const session = startSession(student, {
+        kind: 'chapter', title, subject: chapterContext.subject,
+        chapterId: chapterContext.chapterId, chapterName: chapterContext.chapterName,
+        questions: pool, durationMinutes: pool.length * PRACTICE_MINUTES_PER_QUESTION
+      });
+      active(session);
+    } else if (action === 'start-random') {
+      const pool = shuffle(practicePool(student, Date.now(), practiceQuestionRows)).slice(0, RANDOM_SIZE);
       if (!pool.length) { error('অনুশীলনের জন্য ব্যাংকে প্রশ্ন নেই।'); return; }
       const session = startSession(student, { kind: 'random', title: 'র‍্যান্ডম অনুশীলন (গত পরীক্ষার প্রশ্ন)', questions: pool, durationMinutes: pool.length * PRACTICE_MINUTES_PER_QUESTION });
       active(session);
     } else if (action === 'start-paper') {
-      const paper = practicePapers(student).find(p => p.examId === target.dataset.id);
+      const paper = practicePapers(student, Date.now(), practiceQuestionRows).find(p => p.examId === target.dataset.id);
       if (!paper) { error('এই পরীক্ষাটি এখন অনুশীলন করা যাচ্ছে না।'); return; }
       const session = startSession(student, { kind: 'paper', title: paper.title, examId: paper.examId, examCode: paper.examCode, questions: paper.questions, durationMinutes: paper.durationMinutes });
       active(session);
@@ -333,12 +403,25 @@ export function initStudentPractice({ getStudent, getAccount }) {
       const record = finishSession(student, activeSession);
       result(record);
     } else if (action === 'repeat') {
-      if (lastRecord?.kind === 'paper') {
-        const paper = practicePapers(student).find(p => p.examId === lastRecord.examId);
-        if (paper) active(startSession(student, { kind: 'paper', title: paper.title, examId: paper.examId, examCode: paper.examCode, questions: paper.questions, durationMinutes: paper.durationMinutes }));
+      if (lastRecord?.kind === 'chapter') {
+        chapterContext = {
+          className: lastRecord.className || student.className || '', subject: lastRecord.subject || '',
+          chapterId: lastRecord.chapterId || '', academicChapterId: '',
+          chapterName: lastRecord.chapterName || lastRecord.title || '', academicChapterName: ''
+        };
+        const pool = shuffle(chapterPracticePool(student, chapterContext, Date.now(), practiceQuestionRows)).slice(0, RANDOM_SIZE);
+        if (pool.length) active(startSession(student, {
+          kind: 'chapter', title: `${chapterContext.chapterName} — MCQ Practice`,
+          subject: chapterContext.subject, chapterId: chapterContext.chapterId, chapterName: chapterContext.chapterName,
+          questions: pool, durationMinutes: pool.length * PRACTICE_MINUTES_PER_QUESTION
+        }));
+        else message('এই অধ্যায়ে এখন অনুশীলনযোগ্য MCQ নেই।');
+      } else if (lastRecord?.kind === 'paper') {
+        const paper = practicePapers(student, Date.now(), practiceQuestionRows).find(p => p.examId === lastRecord.examId);
+        if (paper) active(startSession(student, { kind: 'paper', title: paper.title, examId: paper.examId, examCode: paper.examCode, subject: paper.subject, questions: paper.questions, durationMinutes: paper.durationMinutes }));
         else message('এই পরীক্ষাটি এখন আর অনুশীলন করা যাচ্ছে না।');
       } else {
-        const pool = shuffle(practicePool(student)).slice(0, RANDOM_SIZE);
+        const pool = shuffle(practicePool(student, Date.now(), practiceQuestionRows)).slice(0, RANDOM_SIZE);
         if (pool.length) active(startSession(student, { kind: 'random', title: 'র‍্যান্ডম অনুশীলন (গত পরীক্ষার প্রশ্ন)', questions: pool, durationMinutes: pool.length * PRACTICE_MINUTES_PER_QUESTION }));
         else message('অনুশীলনের জন্য ব্যাংকে প্রশ্ন নেই।');
       }

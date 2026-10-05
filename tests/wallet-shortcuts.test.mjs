@@ -37,12 +37,10 @@ test('every student service tile opens its original view or truthful existing ac
   click($('#coursesView .pay-back'));
   assert.equal($('#homeView').classList.contains('active'), true, 'inner-page back must be wired');
 
-  const { initNotifications } = await import('../js/notifications.js');
-  await initNotifications();
-  await ctx.waitFor(() => window.apcNoticeCenter, 3000);
-  click($('#studentServices [data-action="notices"]'));
-  assert.equal(window.apcNoticeCenter.isOpen(), true, 'notices shortcut must open the bell inbox');
-  window.apcNoticeCenter.close();
+  click($('#studentServices [data-view="notice-board"]'));
+  assert.equal($('#notice-boardView').classList.contains('active'), true, 'the shortcut opens the separate Notice Board');
+  assert.deepEqual(ctx.$$('#noticeBoardCategories [data-notice-board-category]').map(tab => tab.dataset.noticeBoardCategory), ['all', 'urgent', 'academic', 'class', 'fee', 'exam']);
+  click($('#notice-boardView .pay-back'));
 
   const before = window.localStorage.getItem(KEYS.transactions);
   $('#dashboardFeeCard').hidden = true; // an honest empty-data state, not a fabricated balance

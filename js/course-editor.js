@@ -13,11 +13,11 @@
    The student app reads the same records through js/course-hub.js. */
 
 import { iconMarkup } from './icons.js';
-import { classByName, subjectsForClass } from './academics.js';
-import { enabledClasses } from './config.js';
-import { assignedClasses, subjectsForTeacherClass } from './teacher-assignments.js';
+import { classByName, listClasses, subjectsForClass } from './academics.js';
+import { assignedClasses, subjectsForTeacherClass, listTeacherAssignments, isTeacherAssignedSubject } from './teacher-assignments.js';
+import { loadRoster } from './office-data.js';
 import {
-  COURSE_TYPES, archiveCourseRecord, contentById, listChapters, listCourseContent,
+  COURSE_TYPES, archiveCourseRecord, listCourseContentForStaff,
   saveCourseRecord, setContentPublished, typeLabel, typeOf
 } from './course-content.js';
 
@@ -45,24 +45,29 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
   let editing = null;
   let pickedClass = '';
   let pickedSubject = '';
+  let pickedGroup = '';
   let status = '';
+  let teacherName = '';
+  let staffRecords = [];
+  let paintSequence = 0;
 
   /* The Teacher's own username decides which classes they may write for. It is
      read from the same stored account every other teacher screen uses. */
   let teacherUser = '';
+  let teacherLoad = Promise.resolve();
   /* assignedClasses() already answers with class names. */
   const assignedClassNames = () => (role === 'teacher' ? assignedClasses(teacherUser) : null);
   if (role === 'teacher') {
-    import('./staff-auth.js')
+    teacherLoad = import('./staff-auth.js')
       .then(module => module.readStaffAccount('teacher'))
-      .then(account => { teacherUser = String(account?.username || ''); paint(); })
+      .then(account => { teacherUser = String(account?.username || ''); teacherName = String(account?.fullName || account?.username || ''); })
       .catch(error => console.warn('[Active Plus] course editor without a teacher account:', error?.name || 'unknown'));
   }
 
   /* Teacher: only the classes Manager assigned. Manager: the whole
      Admin-configured structure (Academic Setup), never a hard-coded list. */
   function classOptions() {
-    const names = role === 'teacher' ? (assignedClassNames() || []) : [...enabledClasses];
+    const names = role === 'teacher' ? (assignedClassNames() || []) : listClasses().map(item => item.name);
     return names.map(name => classByName(name)).filter(Boolean);
   }
 
@@ -77,6 +82,21 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
     return subjectsForClass(className).map(subject => subject.name);
   }
 
+  const groupKey = value => String(value || '').normalize('NFC').trim().replace(/\s*বিভাগ$/, '').trim().toLocaleLowerCase();
+  function groupOptions(className, subjectName) {
+    if (role === 'teacher') {
+      const subject = String(subjectName || '').normalize('NFC').trim().toLocaleLowerCase();
+      const assignments = listTeacherAssignments(teacherUser).filter(item => item.className === className
+        && item.subjects.some(name => String(name).normalize('NFC').trim().toLocaleLowerCase() === subject));
+      return [...new Set(assignments.map(item => item.group || ''))].map(value => ({ value, label: value || 'সব batch / পুরো শ্রেণি' }));
+    }
+    const groups = [...new Set(loadRoster().filter(item => item.className === className && item.status !== 'rejected').map(item => item.group).filter(Boolean))];
+    return [{ value: '', label: 'সব batch / পুরো শ্রেণি' }, ...groups.map(value => ({ value, label: value }))];
+  }
+  function teacherMaySee(record, className, subjectName) {
+    return role !== 'teacher' || isTeacherAssignedSubject(teacherUser, className, subjectName, record.group || '');
+  }
+
   function typeOptions(selected) {
     return WRITABLE_TYPES
       .map(({ type, label }) => `<option value="${esc(type)}"${type === selected ? ' selected' : ''}>${esc(label)}</option>`)
@@ -87,6 +107,7 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
     const type = typeOf(record);
     const published = record.published === true;
     const archived = record.active === false;
+    const canManage = role !== 'teacher' || record.createdBy === teacherName;
     return `<article class="course-manage-card${archived ? ' is-archived' : ''}" data-course-record="${esc(record.id)}">
       <header><span class="course-item-icon" aria-hidden="true">${iconMarkup(COURSE_TYPES[type].icon)}</span>
         <div><small>${esc(typeLabel(record))}</small><h4>${esc(record.title)}</h4>
@@ -94,32 +115,43 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
       </header>
       ${record.description ? `<p>${esc(record.description)}</p>` : ''}
       <div class="course-manage-actions">
-        <button class="mini-btn" type="button" data-course-edit="${esc(record.id)}">সম্পাদনা</button>
-        <button class="mini-btn ${published ? 'reject' : 'approve'}" type="button" data-course-publish="${esc(record.id)}" data-next="${published ? 'off' : 'on'}">${published ? 'প্রকাশ বাতিল' : 'প্রকাশ করুন'}</button>
-        ${archived ? '' : `<button class="mini-btn reject" type="button" data-course-archive="${esc(record.id)}">সংরক্ষণাগারে নিন</button>`}
+        ${canManage ? `<button class="mini-btn" type="button" data-course-edit="${esc(record.id)}">সম্পাদনা</button>
+          <button class="mini-btn ${published ? 'reject' : 'approve'}" type="button" data-course-publish="${esc(record.id)}" data-next="${published ? 'off' : 'on'}">${published ? 'প্রকাশ বাতিল' : 'প্রকাশ করুন'}</button>
+          ${archived ? '' : `<button class="mini-btn reject" type="button" data-course-archive="${esc(record.id)}">সংরক্ষণাগারে নিন</button>`}`
+          : '<span class="form-note">অন্য শিক্ষকের প্রকাশিত কনটেন্ট — শুধু Manager সম্পাদনা করতে পারবেন।</span>'}
       </div>
     </article>`;
   }
 
-  function paint() {
+  async function paint() {
+    const sequence = ++paintSequence;
     const classes = classOptions();
     if (!classes.some(item => item.id === pickedClass)) pickedClass = classes[0]?.id || '';
     const className = classByName(classes.find(item => item.id === pickedClass)?.name)?.name || classes[0]?.name || '';
     const subjects = subjectOptions(className);
     if (!subjects.includes(pickedSubject)) pickedSubject = subjects[0] || '';
-    const record = editing ? contentById(editing) : null;
-    if (record) {
-      pickedClass = record.classId;
-      const classRecord = classes.find(item => item.id === record.classId);
-      const subjectRecord = subjectsForClass(classRecord?.name || '').find(item => item.id === record.subjectId);
-      pickedSubject = subjectRecord?.name || pickedSubject;
-    }
+    const scopes = groupOptions(className, pickedSubject);
+    if (!scopes.some(item => item.value === pickedGroup)) pickedGroup = scopes[0]?.value || '';
     const academic = classByName(className);
     const subjectRecord = subjectsForClass(className).find(item => item.name === pickedSubject);
-    const chapters = academic && subjectRecord ? listChapters(academic.id, subjectRecord.id, { includeInactive: true }) : [];
-    const listed = academic && subjectRecord
-      ? listCourseContent({ classId: academic.id, subjectId: subjectRecord.id, includeInactive: true })
-      : [];
+    let listed = [];
+    if (academic && subjectRecord) {
+      try {
+        listed = await listCourseContentForStaff({
+          classId: academic.id, subjectId: subjectRecord.id, group: pickedGroup,
+          publishedOnly: false, includeInactive: true
+        }, { role, actor });
+      } catch (error) {
+        status = error?.message || 'কনটেন্ট পড়া যায়নি।';
+      }
+    }
+    if (sequence !== paintSequence) return;
+    const inTeacherScope = item => teacherMaySee(item, className, pickedSubject);
+    const inSelectedGroup = item => !pickedGroup || !item.group || groupKey(item.group) === groupKey(pickedGroup);
+    staffRecords = listed.filter(inTeacherScope).filter(inSelectedGroup);
+    const record = editing ? staffRecords.find(item => item.id === editing) || null : null;
+    if (editing && !record) editing = null;
+    const chapters = staffRecords.filter(item => typeOf(item) === 'chapter' && item.active !== false);
     const isChapter = record && typeOf(record) === 'chapter';
 
     root.innerHTML = `
@@ -131,6 +163,7 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
           ${classes.length ? '' : '<p class="admin-empty">আপনার জন্য এখনো কোনো ক্লাস বরাদ্দ হয়নি — Manager থেকে ক্লাস ও বিষয় নিন।</p>'}
           <label>ক্লাস<select name="className"${classes.length ? '' : ' disabled'}>${classes.map(item => `<option value="${esc(item.name)}"${item.name === className ? ' selected' : ''}>${esc(item.name)}</option>`).join('')}</select></label>
           <label>বিষয়<select name="subject"${subjects.length ? '' : ' disabled'}>${subjects.map(name => `<option value="${esc(name)}"${name === pickedSubject ? ' selected' : ''}>${esc(name)}</option>`).join('')}</select></label>
+          <label>Batch / Group<select name="group"${scopes.length ? '' : ' disabled'}>${scopes.map(item => `<option value="${esc(item.value)}"${item.value === pickedGroup ? ' selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label>
           <label>ধরন<select name="type">${typeOptions(record ? typeOf(record) : 'lesson')}</select></label>
           <label>চ্যাপ্টার<select name="chapterId"${isChapter ? ' disabled' : ''}>
             <option value="">চ্যাপ্টার ছাড়া</option>
@@ -159,12 +192,13 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
   }
 
   root.addEventListener('change', event => {
-    if (event.target.name === 'className') { pickedClass = classByName(event.target.value)?.id || ''; pickedSubject = ''; editing = null; paint(); return; }
-    if (event.target.name === 'subject') { pickedSubject = event.target.value; editing = null; paint(); return; }
+    if (event.target.name === 'className') { pickedClass = classByName(event.target.value)?.id || ''; pickedSubject = ''; pickedGroup = ''; editing = null; paint(); return; }
+    if (event.target.name === 'subject') { pickedSubject = event.target.value; pickedGroup = ''; editing = null; paint(); return; }
+    if (event.target.name === 'group') { pickedGroup = event.target.value; paint(); return; }
     if (event.target.name === 'type') { paint(); return; }
   });
 
-  root.addEventListener('submit', event => {
+  root.addEventListener('submit', async event => {
     const form = event.target.closest('[data-course-form]');
     if (!form) return;
     event.preventDefault();
@@ -179,10 +213,11 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
       return;
     }
     try {
-      const saved = saveCourseRecord({
+      const saved = await saveCourseRecord({
         id: editing || '',
         classId: academic.id,
         subjectId: subject.id,
+        group: String(data.get('group') || ''),
         chapterId: String(data.get('chapterId') || ''),
         type: String(data.get('type') || 'lesson'),
         title: String(data.get('title') || ''),
@@ -193,7 +228,7 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
         published: data.get('published') === 'on',
         createdBy: actor,
         active: true
-      }, { actor });
+      }, { actor, role });
       editing = null;
       say(`${saved.id} সংরক্ষিত হয়েছে।`);
       toast('কনটেন্ট সংরক্ষিত হয়েছে।');
@@ -204,26 +239,35 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
     }
   });
 
-  root.addEventListener('click', event => {
+  root.addEventListener('click', async event => {
     const edit = event.target.closest('[data-course-edit]');
-    if (edit) { editing = edit.dataset.courseEdit; paint(); return; }
+    if (edit) {
+      editing = edit.dataset.courseEdit;
+      pickedGroup = staffRecords.find(item => item.id === editing)?.group || '';
+      void paint();
+      return;
+    }
     const cancel = event.target.closest('[data-course-cancel]');
     if (cancel) { editing = null; paint(); return; }
     const publish = event.target.closest('[data-course-publish]');
     if (publish) {
       const next = publish.dataset.next === 'on';
-      const saved = setContentPublished(publish.dataset.coursePublish, next);
-      say(saved ? (next ? `${saved.id} প্রকাশিত হয়েছে।` : `${saved.id} প্রকাশ বাতিল হয়েছে।`) : 'পরিবর্তন হয়নি।', !saved);
-      paint();
-      announce();
+      try {
+        const saved = await setContentPublished(publish.dataset.coursePublish, next, { role, actor });
+        say(saved ? (next ? `${saved.id} প্রকাশিত হয়েছে।` : `${saved.id} প্রকাশ বাতিল হয়েছে।`) : 'পরিবর্তন হয়নি।', !saved);
+        if (saved) announce();
+      } catch (error) { say(error?.message || 'প্রকাশের অবস্থা বদলানো যায়নি।', true); }
+      await paint();
       return;
     }
     const archive = event.target.closest('[data-course-archive]');
     if (archive) {
-      const saved = archiveCourseRecord(archive.dataset.courseArchive);
-      say(saved ? `${saved.id} সংরক্ষণাগারে নেওয়া হয়েছে — মুছে ফেলা হয়নি।` : 'পরিবর্তন হয়নি।', !saved);
-      paint();
-      announce();
+      try {
+        const saved = await archiveCourseRecord(archive.dataset.courseArchive, { role, actor });
+        say(saved ? `${saved.id} সংরক্ষণাগারে নেওয়া হয়েছে — মুছে ফেলা হয়নি।` : 'পরিবর্তন হয়নি।', !saved);
+        if (saved) announce();
+      } catch (error) { say(error?.message || 'সংরক্ষণাগারে নেওয়া যায়নি।', true); }
+      await paint();
     }
   });
 
@@ -231,6 +275,6 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
     try { window.dispatchEvent(new CustomEvent('apc-course-updated', { detail: { role } })); } catch { /* headless */ }
   }
 
-  paint();
-  return { paint };
+  const ready = teacherLoad.then(() => paint());
+  return { paint, ready };
 }

@@ -90,6 +90,20 @@
             ".validate": "newData.hasChildren()"
           }
         },
+        "academics": {
+          ".read": "auth != null",
+          ".write": "auth != null",
+          "$recordId": {
+            ".validate": "newData.hasChildren()"
+          }
+        },
+        "courseContent": {
+          ".read": "auth != null",
+          ".write": "auth != null",
+          "$recordId": {
+            ".validate": "newData.hasChildren()"
+          }
+        },
         "teacherAssignments": {
           ".read": "auth != null",
           ".write": "auth != null",

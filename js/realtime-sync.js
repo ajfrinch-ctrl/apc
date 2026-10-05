@@ -766,6 +766,15 @@ async function syncCollection(collection) {
   const snapshot = await get(ref(getDatabase(firebaseApp), DB_ROOT + '/' + collection));
   if (!syncEnabled || generation !== syncGeneration) return;
   markSyncSuccess('read');
+  if (!snapshot.exists()) {
+    /* A never-created RTDB node is not a remote deletion. But a device whose
+       durable record view already exists must still accept a later empty
+       snapshot (for example, the synced deletion of the last row). */
+    bridge.capture();
+    if (bridge.hasView()) bridge.receive({});
+    await bridge.flush();
+    return;
+  }
   bridge.receive(normalizeCollectionSnapshot(collection, snapshot.val()));
   await bridge.flush();
 }
@@ -937,6 +946,12 @@ export async function hydrateUserIdentifiers({ identifier = '', password = '' } 
 function listenCollection(collection) {
   const bridge = recordBridge(collection);
   onValue(ref(getDatabase(firebaseApp), DB_ROOT + '/' + collection), snapshot => {
+    if (!snapshot.exists()) {
+      bridge.capture();
+      if (!bridge.hasView()) return;
+      bridge.receive({});
+      return;
+    }
     bridge.receive(normalizeCollectionSnapshot(collection, snapshot.val()));
   });
 }

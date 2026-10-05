@@ -80,6 +80,12 @@ function examPushes(before, after, now = Date.now()) {
   if (!studentIds.length) return [];
   const label = oneLine(after.title) || 'পরীক্ষা';
   const subject = oneLine(after.subject);
+  const startAt = Number(after.startAt) || 0;
+  const endAt = Number(after.endAt) || startAt;
+  const actionLabel = after.type === 'mcq' && startAt > 0 && now >= startAt && (!endAt || now < endAt)
+    && now <= startAt + Math.max(0, Number(after.lateMinutes) || 0) * 60000
+    ? 'এখনই পরীক্ষা দিন'
+    : startAt > now ? 'সময়সূচি দেখুন' : 'পরীক্ষা খুলুন';
   const pushed = [];
   // Re-publishing (a new publishedAt) is news again; an unrelated write on an
   // already published paper must stay quiet — hence the explicit numbers.
@@ -89,8 +95,9 @@ function examPushes(before, after, now = Date.now()) {
   if (justPublished) {
     pushed.push({
       kind: 'exam',
-      title: 'নতুন পরীক্ষা নির্ধারিত হয়েছে',
-      body: short(`${label}${subject ? ` — ${subject}` : ''} · সময়সূচি অ্যাপে দেখুন`),
+      title: label,
+      body: short(`নতুন পরীক্ষা প্রকাশিত হয়েছে${subject ? ` · ${subject}` : ''} · ${startAt > now ? 'সময়সূচি দেখুন' : 'পরীক্ষা চলছে'}`),
+      actionLabel,
       studentIds,
       data: { collection: 'exams', id: text(after.id), kind: 'exam' }
     });
@@ -140,7 +147,11 @@ function messageFor(token, payload) {
        device belongs to, and a hard-coded page would drop a staff phone into
        another portal. The device's own service worker picks its panel. */
     webpush: {
-      notification: { icon: './assets/icons/icon-192.png', tag: payload.data?.key || payload.kind || 'active-plus' }
+      notification: {
+        icon: './assets/icons/icon-192.png',
+        tag: payload.data?.key || payload.kind || 'active-plus',
+        ...(payload.actionLabel ? { actions: [{ action: 'open', title: short(payload.actionLabel, 32) }] } : {})
+      }
     }
   };
 }

@@ -12,6 +12,9 @@ export const COLLECTIONS = Object.freeze({
   teaching: 'teaching',
   exams: 'exams',
   settings: 'settings',
+  academics: 'academics',
+  courseContent: 'courseContent',
+  questionBank: 'questionBank',
   account: 'account',
   accounts: 'accounts',
   usernames: 'usernames',
@@ -37,7 +40,9 @@ export const SYNCABLE = Object.freeze([
   COLLECTIONS.routine,
   COLLECTIONS.teaching,
   COLLECTIONS.exams,
-  COLLECTIONS.settings
+  COLLECTIONS.settings,
+  COLLECTIONS.academics,
+  COLLECTIONS.courseContent
 ]);
 
 export const STAFF_KEYS = Object.freeze({

@@ -1,7 +1,7 @@
 /* Courses — the student's Learning Hub.
    Mobile-first: one column, 44px tap targets, and nothing wider than the
-   screen. Class → Subject → Chapter → Content, plus the section chips that
-   reuse the existing Examination and Result modules. */
+   screen. Class → Subject → Chapter → Content, with chapter-specific learning
+   actions that route back into the shared question, practice and exam modules. */
 .course-hub{display:grid;gap:var(--space-3);margin-bottom:var(--space-4)}
 .course-head{display:grid;gap:var(--space-2)}
 .course-class{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface)}
@@ -13,15 +13,50 @@
 .course-search input{width:100%;min-height:44px;padding-inline-start:36px}
 .course-subjects,.course-sections{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:0}
 .chip-count{margin-inline-start:4px;color:var(--color-text-secondary);font-size:var(--font-xs)}
+.course-section-filter{display:grid;gap:var(--space-1)}
+.course-section-filter>.eyebrow{margin:0;color:var(--color-text-secondary)}
+.course-section-details{padding:var(--space-2) var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface)}
+.course-section-details summary{min-height:28px;color:var(--color-text-secondary);font-size:var(--font-sm);font-weight:600;cursor:pointer}
+.course-section-details[open] summary{margin-bottom:var(--space-2)}
+.course-section-details .course-sections{padding-bottom:var(--space-1)}
 .course-list{display:grid;gap:var(--space-3)}
 .course-chapter{border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);overflow:hidden}
-.course-chapter-toggle{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);width:100%;min-height:56px;padding:var(--space-3);border:0;background:transparent;text-align:start;cursor:pointer}
-.course-chapter-copy{display:grid;gap:2px}
+.course-chapter-toggle{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);width:100%;min-height:64px;padding:var(--space-3);border:0;background:transparent;text-align:start;cursor:pointer}
+.course-chapter-copy{display:grid;gap:4px}
+.course-chapter-copy strong{font-size:var(--font-md)}
 .course-chapter-copy small{color:var(--color-text-secondary);font-size:var(--font-xs)}
 .course-chapter-chevron svg{width:20px;height:20px;transition:transform .18s ease}
 .course-chapter.is-open .course-chapter-chevron svg{transform:rotate(180deg)}
-.course-chapter-note{margin:0 var(--space-3) var(--space-2);color:var(--color-text-secondary);font-size:var(--font-sm)}
-.course-chapter-body{display:grid;gap:var(--space-2);padding:0 var(--space-3) var(--space-3)}
+.course-chapter-body{display:grid;gap:var(--space-3);padding:0 var(--space-3) var(--space-3)}
+.course-chapter-note{margin:0;color:var(--color-text-secondary);font-size:var(--font-sm)}
+.course-chapter-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2)}
+.course-chapter-action{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-width:0;min-height:48px;padding:8px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface-muted);color:var(--color-text);font:inherit;font-size:var(--font-sm);font-weight:650;text-align:start;cursor:pointer;overflow-wrap:anywhere}
+.course-chapter-action:hover,.course-chapter-action:focus-visible{border-color:var(--color-primary);outline-color:var(--color-primary)}
+.course-chapter-action.is-active{border-color:var(--color-primary);background:var(--color-primary-soft,var(--color-surface));color:var(--color-primary)}
+.course-chapter-content,.course-action-items,.course-question-list,.course-loose{display:grid;gap:var(--space-2)}
+.course-chapter-content-empty,.course-action-empty{margin:0}
+.course-chapter-action-panel{display:grid;gap:var(--space-3);min-width:0;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-muted)}
+.course-chapter-action-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-2)}
+.course-chapter-action-heading .eyebrow{margin:0 0 4px;color:var(--color-text-secondary)}
+.course-chapter-action-heading h3{margin:0;font-size:var(--font-md);overflow-wrap:anywhere}
+.course-action-back{flex:0 0 auto;min-height:40px;padding:6px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-text);font:inherit;font-size:var(--font-xs);cursor:pointer}
+.course-reading-intro{display:grid;gap:var(--space-2);color:var(--color-text-secondary);font-size:var(--font-sm);overflow-wrap:anywhere}
+.course-reading-intro p{margin:0}
+.course-mcq-start{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface)}
+.course-mcq-start strong{font-size:var(--font-sm)}
+.course-mcq-start p,.course-practice-note{margin:4px 0 0;color:var(--color-text-secondary);font-size:var(--font-sm)}
+.course-bank-question{display:grid;gap:var(--space-2);min-width:0;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface)}
+.course-bank-question-heading{color:var(--color-text-secondary);font-size:var(--font-xs)}
+.course-bank-question-text{margin:0;font-weight:600;overflow-wrap:anywhere}
+.course-practice-answer-label{display:grid;gap:6px;font-size:var(--font-sm);font-weight:600}
+.course-practice-answer-label textarea{width:100%;min-height:82px;resize:vertical;font:inherit;font-weight:400}
+.course-model-answer{padding-top:var(--space-1);color:var(--color-text-secondary);font-size:var(--font-sm)}
+.course-model-answer summary{min-height:36px;color:var(--color-primary);font-weight:650;cursor:pointer}
+.course-model-answer p{margin:4px 0 0;color:var(--color-text);overflow-wrap:anywhere}
+.course-bank-answer-note{margin:0;color:var(--color-text-secondary);font-size:var(--font-xs)}
+.course-draft-actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2)}
+.course-draft-actions [role=status]{color:var(--color-text-secondary);font-size:var(--font-xs)}
+.course-result-group-title{margin:var(--space-1) 0 0;font-size:var(--font-sm)}
 .course-loose{display:grid;gap:var(--space-2)}
 .course-item{display:grid;gap:var(--space-2);padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface)}
 .course-item-head{display:flex;align-items:flex-start;gap:var(--space-2)}
@@ -33,10 +68,24 @@
 .course-item-body{color:var(--color-text)}
 .course-item-link{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--color-primary);font-weight:600;text-decoration:none}
 .course-item-when{color:var(--color-text-secondary);font-size:var(--font-xs)}
+.course-result-marks{margin:0;color:var(--color-text-secondary);font-size:var(--font-sm)}
+.chapter-practice-card{display:grid;gap:var(--space-2);margin-bottom:var(--space-3)}
+.chapter-practice-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3)}
+.chapter-practice-heading small{color:var(--color-text-secondary);font-size:var(--font-xs)}
+.chapter-practice-heading h2{margin:4px 0 0;overflow-wrap:anywhere}
+.chapter-practice-heading h2:focus-visible{outline:2px solid var(--color-primary);outline-offset:4px;border-radius:2px}
+.course-result-marks strong{color:var(--color-text);font-size:var(--font-md)}
 .course-empty{margin:0}
-/* Pull the notice strip the hub adds inside its own list into the same rhythm. */
-.course-hub .notice-strip{margin:0}
+@media (min-width:560px){.course-chapter-actions{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (min-width:721px){
   .course-head{grid-template-columns:minmax(220px,320px) minmax(0,1fr);align-items:center}
   .course-list{gap:var(--space-4)}
+  .course-chapter-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .course-chapter-action-panel{padding:var(--space-4)}
+}
+@media (max-width:420px){
+  .course-mcq-start{align-items:flex-start;flex-direction:column}
+  .course-mcq-start button{width:100%}
+  .course-chapter-action-heading{flex-direction:column}
+  .course-action-back{align-self:flex-start}
 }

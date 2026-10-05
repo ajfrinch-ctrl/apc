@@ -40,14 +40,35 @@ test('publishing an operational notice from the Manager form really saves it', a
   ctx.type(form.querySelector('[name="title"]'), 'অভিভাবক সভা');
   ctx.type(form.querySelector('[name="body"]'), 'আগামী শুক্রবার সকাল ১০টায় অভিভাবক সভা।');
   form.querySelector('[name="audience"]').value = 'অভিভাবক';
+  form.querySelector('[name="category"]').value = 'class';
   ctx.submit(form);
   await ctx.waitFor(() => ctx.$('#managerNoticeList').textContent.includes('অভিভাবক সভা'));
   const stored = JSON.parse(ctx.window.localStorage.getItem('activePlus.admin.notices.v1') || '[]');
   const notice = stored.find(item => item.title === 'অভিভাবক সভা');
   assert.ok(notice, 'the notice reached local storage (and from there the cloud bridge)');
   assert.equal(notice.audience, 'অভিভাবক');
+  assert.equal(notice.category, 'class');
   assert.equal(notice.author, 'manager.apc');
   assert.equal(notice.status, 'published');
+});
+
+test('editing a notice from the Manager card persists its new category', async () => {
+  await openView('notices');
+  const storedBefore = JSON.parse(ctx.window.localStorage.getItem('activePlus.admin.notices.v1') || '[]');
+  const notice = storedBefore.find(item => item.title === 'অভিভাবক সভা');
+  assert.ok(notice, 'the published notice is available to edit');
+  const values = ['পরীক্ষার দিন বদল', 'নতুন সময়সূচি প্রকাশ করা হয়েছে।', 'exam'];
+  const originalPrompt = ctx.window.prompt;
+  const promptCalls = [];
+  ctx.window.prompt = (...args) => { promptCalls.push(args); return values.shift(); };
+  try {
+    ctx.click(ctx.$(`[data-manager-action="edit-notice"][data-id="${notice.id}"]`));
+    await ctx.waitFor(() => promptCalls.length === 3, 3000);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  } finally { ctx.window.prompt = originalPrompt; }
+  const updated = JSON.parse(ctx.window.localStorage.getItem('activePlus.admin.notices.v1')).find(item => item.id === notice.id);
+  assert.equal(updated.category, 'exam');
+  assert.equal(updated.body, 'নতুন সময়সূচি প্রকাশ করা হয়েছে।');
 });
 
 test('editing a student from the Manager card saves the operational fields', async () => {

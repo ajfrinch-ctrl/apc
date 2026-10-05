@@ -5,6 +5,7 @@ import { loadRoster } from './office-data.js';
 import { KEYS, readRaw, writeRaw, newId } from './database.js';
 import { isTeacherAssigned, assignedScopeForStudent } from './teacher-assignments.js';
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
+import { authenticatedStudent } from './student-access.js';
 import { searchStudentsByQuery } from './student-search.js';
 
 export const TEACHING_KEY = KEYS.teaching;
@@ -29,13 +30,21 @@ export function safeResourceURL(value) {
 }
 const groupKey = value => String(value || '').normalize('NFC').trim().replace(/\s*বিভাগ$/, '').trim();
 export function matchesStudent(activity, student) {
-  return activity.className === student.className && (!activity.group || groupKey(activity.group) === groupKey(student.group));
+  const classKey = value => String(value || '').normalize('NFC').trim();
+  return classKey(activity.className) === classKey(student.className) && (!activity.group || groupKey(activity.group) === groupKey(student.group));
 }
 export function publishedForStudent(activities, student) {
   return activities.filter(a => a.status === 'published' && matchesStudent(a, student));
 }
 export const searchTeachingStudents = searchStudentsByQuery;
 function fail(message) { throw new Error(message); }
+function academicClassNames() {
+  try {
+    const saved = JSON.parse(readRaw(KEYS.academics) || 'null');
+    if (Array.isArray(saved?.classes)) return saved.classes.map(item => item?.name).filter(Boolean);
+  } catch { /* retain the shipped class list when old Academic Setup is unreadable */ }
+  return enabledClasses;
+}
 function validDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
   const date = new Date(`${value}T12:00:00`);
@@ -46,14 +55,20 @@ export function validateActivity(input) {
   const type = text('type'), title = text('title'), subject = text('subject'), className = text('className');
   if (!Object.hasOwn(ACTIVITY_TYPES, type) || !['draft', 'published'].includes(input.status)) fail('কাজের ধরন ও অবস্থা সঠিকভাবে নির্বাচন করুন।');
   if (!title || title.length > 150 || !subject || subject.length > 80) fail('শিরোনাম ও বিষয় পূরণ করুন (সর্বোচ্চ ১৫০ ও ৮০ অক্ষর)।');
-  if (!enabledClasses.includes(className)) fail('সঠিক শ্রেণি নির্বাচন করুন।');
+  if (!academicClassNames().includes(className)) fail('সঠিক শ্রেণি নির্বাচন করুন।');
   const group = text('group'), details = text('details'), room = text('room'), resourceURL = text('resourceURL');
   if (group.length > 80 || details.length > 3000 || room.length > 120 || resourceURL.length > 1000) fail('লেখা নির্ধারিত সীমার মধ্যে রাখুন।');
   if (resourceURL && !safeResourceURL(resourceURL)) fail('সহায়ক লিংকটি https:// বা http:// দিয়ে দিন।');
   const date = type === 'suggestion' ? (text('date') || todayISO()) : text('date');
   const time = type === 'suggestion' ? '' : text('time');
-  if (!validDate(date)) fail('সঠিক তারিখ দিন।');
-  if (type !== 'suggestion' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) fail('সঠিক সময় দিন।');
+  const validTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
+  if (type === 'homework') {
+    if (Boolean(date) !== Boolean(time)) fail('জমার তারিখ দিলে সময়ও দিন, অথবা দুটোই ফাঁকা রাখুন।');
+    if (date && (!validDate(date) || !validTime)) fail('সঠিক জমার তারিখ ও সময় দিন।');
+  } else {
+    if (!validDate(date)) fail('সঠিক তারিখ দিন।');
+    if (type !== 'suggestion' && !validTime) fail('সঠিক সময় দিন।');
+  }
   const timed = ['exam', 'routine'].includes(type);
   const duration = timed ? Number(input.duration) : 0;
   if (timed && (!Number.isInteger(duration) || duration < 5 || duration > 300)) fail('সময়কাল ৫ থেকে ৩০০ মিনিটের মধ্যে দিন।');
@@ -89,7 +104,7 @@ function approvedRoster() {
   // Include the current approved student account without changing stored office records.
   try {
     const account = JSON.parse(window.localStorage.getItem(STORAGE_KEYS.account) || 'null');
-    if (account?.status === 'active' && typeof account.student?.id === 'string' && /^[A-Za-z0-9-]{1,80}$/.test(account.student.id) && typeof account.student.name === 'string' && account.student.name.trim() && enabledClasses.includes(account.student.className)) {
+    if (account?.status === 'active' && typeof account.student?.id === 'string' && /^[A-Za-z0-9-]{1,80}$/.test(account.student.id) && typeof account.student.name === 'string' && account.student.name.trim() && academicClassNames().includes(account.student.className)) {
       const current = { ...account.student, mobile: account.student.studentMobile || account.mobile, status: 'approved' };
       const index = students.findIndex(s => s.id === current.id);
       if (index < 0) students.push(current); else students[index] = { ...students[index], ...current };
@@ -102,7 +117,15 @@ function teacherSnapshot(db) {
   return { ...db, activities: db.activities.filter(activity => activity.teacherId === DEMO_TEACHER.id && isTeacherAssigned('teacher.apc', activity.className, activity.group)) };
 }
 function studentSnapshot(db, student) {
-  return { version: db.version, activities: db.activities.filter(activity => activity.status === 'published' && matchesStudent(activity, student)) };
+  return {
+    version: db.version,
+    activities: db.activities
+      .filter(activity => activity.status === 'published' && matchesStudent(activity, student))
+      .map(activity => {
+        const ownProgress = activity.progress?.[student.id];
+        return { ...activity, progress: ownProgress ? { [student.id]: { ...ownProgress } } : {} };
+      })
+  };
 }
 function assertAssigned(className, group = '') {
   if (!isTeacherAssigned('teacher.apc', className, group)) fail('এই class/batch-এ আপনার Manager assignment নেই।');
@@ -128,7 +151,19 @@ function ownedActivity(db, id) {
   return activity;
 }
 export const teachingRepository = {
-  async list() { return teacherSnapshot(readData()); },
+  async list(actor = null) {
+    if (actor?.role === 'student') return teachingRepository.listForStudent(actor.studentId || actor.id);
+    if (actor?.role === 'manager') { await requireRoleSession('manager'); return readData(); }
+    if (actor?.role === 'teacher') { await requireRoleSession('teacher'); return teacherSnapshot(readData()); }
+    if (await hasStaffSession('manager')) { await requireRoleSession('manager'); return readData(); }
+    if (await hasStaffSession('teacher')) { await requireRoleSession('teacher'); return teacherSnapshot(readData()); }
+    const student = await authenticatedStudent();
+    return studentSnapshot(readData(), student);
+  },
+  async listForStudent(studentId) {
+    const student = await authenticatedStudent(studentId);
+    return studentSnapshot(readData(), student);
+  },
   async listForManager() { await requireRoleSession('manager'); return readData(); },
   async listStudents() { await requireRoleSession('teacher'); return roster(); },
   async listApprovedStudents() { await requireRoleSession('manager'); return approvedRoster(); },
@@ -180,13 +215,18 @@ export const teachingRepository = {
     return teacherSnapshot(db);
   },
   async markHomeworkDone(id, student) {
+    const actual = await authenticatedStudent(student?.id);
     const db = await mutate(db => {
-      const a = db.activities.find(item => item.id === id);
-      if (!a || a.type !== 'homework' || a.status !== 'published' || !matchesStudent(a, student) || !roster().some(s => s.id === student.id && matchesStudent(a, s))) fail('এই বাড়ির কাজ সম্পন্ন জানানোর অনুমতি নেই।');
-      if (a.progress[student.id]?.value === 'reviewed') return;
-      a.progress[student.id] = { value: 'done', updatedAt: new Date().toISOString() };
+      const activity = db.activities.find(item => item.id === id);
+      if (!activity || activity.type !== 'homework' || activity.status !== 'published'
+        || !matchesStudent(activity, actual)
+        || !roster().some(row => row.id === actual.id && matchesStudent(activity, row))) {
+        fail('এই বাড়ির কাজ সম্পন্ন জানানোর অনুমতি নেই।');
+      }
+      if (activity.progress[actual.id]?.value === 'reviewed') return;
+      activity.progress[actual.id] = { value: 'done', updatedAt: new Date().toISOString() };
     });
-    return studentSnapshot(db, student);
+    return studentSnapshot(db, actual);
   }
 };
 export function watchTeachingData(callback) {

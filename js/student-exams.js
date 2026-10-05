@@ -4,10 +4,9 @@ import { downloadExamPDF } from './exam-pdf.js';
 
 export function initStudentExams({ getStudent, getAccount }) {
   const root = document.querySelector('#studentExamWorkspace'); if (!root) return () => {};
-  let db = { exams: [], attempts: [] }, view = 'list', examId = null, attemptId = null, busy = false, ready = false, pdfBusy = false;
-  const autoTried = new Set();
+  let db = { exams: [], attempts: [] }, view = 'list', examId = null, attemptId = null, busy = false, ready = false;
   root.classList.add('exam-workspace');
-  root.innerHTML = '<p class="exam-note">নিজের শ্রেণির অনলাইন পরীক্ষা • এটি একই ব্রাউজারে চলা লোকাল ডেমো।</p><p class="exam-error" data-exam-error role="alert" hidden></p><p class="exam-message" data-exam-message role="status" hidden></p><p class="exam-auto-notice" data-auto-download role="status"></p><div data-exam-content></div>';
+  root.innerHTML = '<p class="exam-note">নিজের শ্রেণির অনলাইন পরীক্ষা • এটি একই ব্রাউজারে চলা লোকাল ডেমো।</p><p class="exam-error" data-exam-error role="alert" hidden></p><p class="exam-message" data-exam-message role="status" hidden></p><div data-exam-content></div>';
   const $ = selector => root.querySelector(selector), content = $('[data-exam-content]');
   const activeAccount = () => getAccount()?.status === 'active';
   const button = (action, label, id = '', cls = '') => `<button type="button" class="${cls}" data-student-exam-action="${action}" data-id="${esc(id)}">${label}</button>`;
@@ -68,7 +67,7 @@ export function initStudentExams({ getStudent, getAccount }) {
     else list();
   }
   async function refresh() {
-    try { db = await repo.list(); ready = true; repaint(); }
+    try { db = await repo.listForStudent(getStudent()?.id); ready = true; repaint(); }
     catch (e) { ready = false; content.innerHTML = ''; error(e.message || 'পরীক্ষার ডেটা লোড হয়নি।'); }
   }
   async function run(operation, after = repaint) {
@@ -101,23 +100,6 @@ export function initStudentExams({ getStudent, getAccount }) {
     const pending = db.attempts.some(a => a.studentId === getStudent().id && (a.status === 'queued' && navigator.onLine !== false || a.status === 'active' && Date.now() >= db.exams.find(e => e.id === a.examId).endAt));
     if (pending) await run(() => repo.syncStudent(getStudent().id));
   }
-  async function automaticPDF() {
-    if (busy || pdfBusy || !ready || !activeAccount() || document.querySelector('#appShell').hidden || document.visibilityState !== 'visible') return;
-    for (const e of db.exams.filter(e => e.type === 'mcq' && isStudentVisibleExam(e) && examMatchesStudent(e, getStudent()) && Date.now() >= e.endAt && own(e).some(a => !a.demoFixture))) {
-      const key = `activePlus.examPDF.${e.id}.${getStudent().id}`;
-      let done = false; try { done = window.localStorage.getItem(key) === 'started'; } catch { /* Manual download remains available. */ }
-      if (done || autoTried.has(key)) continue;
-      autoTried.add(key); pdfBusy = true;
-      try {
-        const attempt = examResults(db, e).find(a => a.studentId === getStudent().id) || own(e).at(-1);
-        await downloadExamPDF(e, { solutions: true, attempt });
-        try { window.localStorage.setItem(key, 'started'); } catch { /* Do not retry repeatedly. */ }
-        $('[data-auto-download]').textContent = 'সঠিক উত্তরসহ PDF ডাউনলোডের অনুরোধ পাঠানো হয়েছে। না নামলে পরীক্ষার ফলাফল থেকে PDF বাটন চাপো।';
-      } catch { $('[data-auto-download]').textContent = 'স্বয়ংক্রিয় PDF নামেনি। পরীক্ষার ফলাফল থেকে PDF ডাউনলোড বাটন চাপো।'; }
-      finally { pdfBusy = false; }
-      break;
-    }
-  }
   root.addEventListener('change', event => {
     const input = event.target.closest('[data-answer-question]'); if (!input) return;
     run(() => repo.saveAnswer(attemptId, getStudent().id, input.dataset.answerQuestion, input.value), clock).then(() => repaint());
@@ -134,14 +116,38 @@ export function initStudentExams({ getStudent, getAccount }) {
     else if (action === 'confirm') { $('[data-submit-confirm]').hidden = false; $('[data-student-exam-action=finish]').focus(); }
     else if (action === 'cancel-confirm') $('[data-submit-confirm]').hidden = true;
     else if (action === 'finish') run(() => repo.finishAttempt(attemptId, getStudent().id), () => results(db.exams.find(item => item.id === e.id)));
-    else if (action === 'paper' || action === 'solutions') run(() => downloadExamPDF(e, { solutions: action === 'solutions', attempt: examResults(db, e).find(a => a.studentId === getStudent().id) || own(e).at(-1) }), () => message('PDF ডাউনলোড শুরু হয়েছে।'));
+    else if (action === 'paper') run(() => downloadExamPDF(e, { attempt: examResults(db, e).find(a => a.studentId === getStudent().id) || own(e).at(-1) }), () => message('PDF ডাউনলোড শুরু হয়েছে।'));
+    else if (action === 'solutions') run(async () => {
+      const refreshed = await repo.listForStudent(getStudent()?.id);
+      const current = refreshed.exams.find(item => item.id === target.dataset.id);
+      if (!current || Date.now() < current.endAt) throw new Error('পরীক্ষা শেষ হলে সঠিক উত্তরসহ PDF পাওয়া যাবে।');
+      await downloadExamPDF(current, { solutions: true, attempt: examResults(refreshed, current).find(item => item.studentId === getStudent().id) || own(current).at(-1) });
+      return refreshed;
+    }, () => message('PDF ডাউনলোড শুরু হয়েছে।'));
+  });
+  window.addEventListener('apc-notification-action', event => {
+    const detail = event.detail || {};
+    if (!['exam', 'exam-soon', 'exam-live'].includes(detail.kind) || !detail.id) return;
+    void refresh().then(() => {
+      const card = [...root.querySelectorAll('[data-student-exam]')]
+        .find(item => item.dataset.studentExam === String(detail.id));
+      if (!card) return;
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const action = ['start', 'resume'].includes(detail.action) ? detail.action : '';
+      const control = action ? card.querySelector(`[data-student-exam-action="${action}"]`) : null;
+      if (control && !control.disabled) control.click();
+      else card.querySelector('.exam-actions button')?.focus?.({ preventScroll: true });
+    });
   });
   watchExams(() => { if (!busy) refresh(); });
   window.addEventListener('online', () => refresh().then(sync));
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh().then(sync); });
+  /* The heartbeat only keeps exam state current. MCQ answer PDFs are never
+     generated in the background: only the student's explicit solutions
+     button can invoke downloadExamPDF. */
   let lastMinute = -1;
   setInterval(() => {
-    clock(); sync(); automaticPDF();
+    clock(); sync();
     const minute = Math.floor(Date.now() / 1000);
     if (ready && !busy && minute !== lastMinute && view !== 'active') {
       // Refresh time-based buttons without moving focus away from the current control.

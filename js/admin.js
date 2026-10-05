@@ -608,7 +608,7 @@ function setFinanceTab(tab) {
 
 async function loadFinanceTransactions() {
   try {
-    state.transactions = await financeRepository.listTransactions();
+    state.transactions = await financeRepository.listTransactions({ role: 'admin' });
     state.financeReady = true;
     if ($('#financeLoadError')) $('#financeLoadError').hidden = true;
     populateFinanceMonths();

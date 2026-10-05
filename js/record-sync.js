@@ -35,8 +35,11 @@ const own = (obj, key) => Object.hasOwn(obj, key);
 /* A record's own wall-clock. Records written by the app carry `updatedAt`; a
    student roster row is stamped with `registeredAt` the moment it is created,
    and the office adds `updatedAt` when it decides on it. */
-const recordTime = record =>
-  Date.parse(record?.updatedAt || record?.registeredAt || record?.createdAt || '') || 0;
+const recordTime = record => {
+  const value = record?.updatedAt ?? record?.record?.updatedAt ?? record?.registeredAt ?? record?.record?.registeredAt ?? record?.createdAt ?? record?.record?.createdAt;
+  if (Number.isFinite(value)) return value;
+  return Date.parse(value || '') || 0;
+};
 
 /**
  * True when the cloud already holds a strictly newer copy of this record.
@@ -120,5 +123,11 @@ export function createRecordSync({ loadState, saveState, readLocal, writeLocal, 
   }
 
   capture();
-  return { capture, receive, flush, hasPending: () => Object.keys(pending).length > 0 };
+  return {
+    capture,
+    receive,
+    flush,
+    hasPending: () => Object.keys(pending).length > 0,
+    hasView: () => view !== null
+  };
 }
