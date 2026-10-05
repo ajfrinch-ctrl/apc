@@ -1,3 +1,4 @@
+// v167: sync status is colour only — the topbar's own top border (green/amber/red/grey); the standing chip and retry banner are gone.
 // v166: treat an absent cloud collection as empty only after a device has a durable record view.
 // v165: keep the cohort retry average as a privacy-safe aggregate in the Student exam snapshot.
 // v164: cache the authenticated Student access gate so exam, finance and teaching reads still work offline.
@@ -19,7 +20,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 166;
+const CACHE_VERSION = 167;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

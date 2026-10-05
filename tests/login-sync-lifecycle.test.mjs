@@ -68,7 +68,10 @@ test('login waits for submit and credentials; sync starts with a session and sto
   assert.deepEqual(reads, [], 'opening/typing/retrying on login must not read Firebase');
   assert.deepEqual(writes, []);
   assert.equal(admitted, 0);
-  assert.equal(ctx.$('#cloudSyncStatus').hidden, true);
+  // No standing sync message: the topbar's own top border is the only
+  // indicator (js/topbar-connectivity.js), and the login screen has no topbar.
+  assert.equal(ctx.$('#cloudSyncStatus'), null, 'the login screen must not paint a sync banner');
+  assert.equal(ctx.$('.topbar-sync-chip'), null, 'the sync chip is gone');
 
   const remote = await storage.persistAccount({ username: 'cloud.student', mobile: '01712345678',
     pin: '123456', status: 'active', student: { id: 'SYNC-GATE', name: 'শিক্ষার্থী' } });

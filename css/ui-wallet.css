@@ -875,8 +875,6 @@ html[data-theme="dark"] .auth-brand img { background: transparent; padding: 0; b
   padding: 12px 16px; border-radius: 16px; border: 1px solid var(--color-border); background: var(--color-text); color: var(--color-surface);
   font-size: 13px; line-height: 1.65; box-shadow: var(--shadow-dialog); text-align: center; pointer-events: none; }
 #appStatusSurface { width: 100%; max-width: none; padding: 6px 12px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
-#cloudSyncStatus { min-height: 38px; padding: 5px 10px; font-size: 12px; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-warning); }
-.topbar-sync-chip { padding: 3px 8px; font-size: 10px; white-space: nowrap; }
 .pending-screen { padding-top: 32px; }
 .pending-logo { margin: 0 auto 16px; }
 .pending-id { display: grid; gap: 4px; padding: 16px; margin: 20px 0; border-radius: 18px; border: 1px solid var(--color-border); background: var(--color-surface); }
@@ -992,7 +990,6 @@ html[data-theme="dark"] .pay-toast { background: var(--color-surface-muted); col
   .fee-balance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fee-balance-grid > :last-child { grid-column: 1 / -1; }
   .bottom-link, .admin-bottom-item { font-size: 11px; }
-  .topbar-sync-chip { max-width: 22px; overflow: hidden; padding-inline: 3px; }
 }
 @media (min-width: 701px) {
   .app-topbar-inner { padding-inline: 28px; }

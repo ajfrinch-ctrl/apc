@@ -6,14 +6,16 @@ async function roster(page,count=1){await page.evaluate(async count=>{
  const {ROSTER_KEY}=await import('/js/office-data.js');
  localStorage.setItem(ROSTER_KEY,JSON.stringify(Array.from({length:count},(_,i)=>({id:`QA-${i}`,name:`শিক্ষার্থী ${i}`,mobile:`017${String(10000000+i)}`,className:'দশম শ্রেণি',status:'approved',monthlyFee:1000,enrolledAt:'2026-09-01'}))));
 },count);}
-test('SDK network failure is caught, retry notice readable and does not overlay login',async({page})=>{
+test('SDK network failure is caught with no standing sync notice on the login screen',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://www.gstatic.com/**',r=>r.abort('connectionfailed'));
- await page.goto('/index.html');await expect(page.locator('#cloudSyncStatus')).toBeVisible();
+ await page.goto('/index.html');
  expect(errors).toEqual([]);
- expect(await page.locator('#cloudSyncStatus').evaluate(e=>getComputedStyle(e).fontFamily)).toContain('Noto Sans Bengali');
- const notice=await page.locator('#appStatusSurface').boundingBox(),form=await page.locator('#loginForm').boundingBox();expect(notice.y).toBeGreaterThanOrEqual(form.y+form.height);
- await page.locator('#cloudSyncStatus').click();await expect(page.locator('#loginForm')).toBeVisible();
+ // Sync status is colour-only now: the login screen has no topbar, so it must
+ // show no chip, banner or sync label — only the html-level verdict may exist.
+ await expect(page.locator('#cloudSyncStatus, .topbar-sync-chip')).toHaveCount(0);
+ expect(['idle','syncing','error']).toContain(await page.evaluate(()=>document.documentElement.dataset.syncVisual));
+ await expect(page.locator('#loginForm')).toBeVisible();
 });
 test('report: 60 real rows paginate, download PDF, empty filter opens preview',async({page})=>{
  await enterPortal(page,'admin');await roster(page,60);await page.reload();

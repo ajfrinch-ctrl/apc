@@ -1,7 +1,6 @@
 /* Status and installation notices occupy space, never cover a form or navbar. */
 #appStatusSurface{max-width:1160px;margin:auto;background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:var(--space-2) var(--space-4);display:grid;gap:var(--space-2)}
 #appStatusSurface:not(:has(button:not([hidden]))){display:none}
-#cloudSyncStatus{width:100%;text-align:left;justify-content:flex-start;color:var(--color-warning);font-size:var(--font-sm);line-height:1.6}
 #apcNotifyBar{display:flex;align-items:center;gap:var(--space-2)}
 #apcNotifyBar:has(#apcNotifyToggle[hidden]){display:none}
 #apcNotifyToggle{flex:1;justify-content:flex-start;text-align:left;color:var(--color-primary)}
@@ -15,3 +14,24 @@ body:has(>.app-shell:not([hidden])),body:has(>.admin-shell:not([hidden])){height
 body>.app-shell,body>.admin-shell{flex:1;min-height:0}
 #appStatusSurface{flex:none;width:100%;max-height:24dvh;overflow-y:auto}
 .entry-error{width:min(100% - 32px,560px);margin:var(--space-5) auto;padding:var(--space-5);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);flex:none}.entry-error h1{font-size:var(--font-lg)}.entry-error a{display:inline-block;margin:var(--space-3);min-height:44px;padding-block:var(--space-2)}
+
+/* ── Sync indicator: the topbar's own top border ──────────────────────────────
+   The line IS the status — no chip, label, toast or standing message anywhere.
+   js/topbar-connectivity.js puts one verdict on <html data-sync-visual>, so a
+   single rule colours every panel's bar, including one rendered later:
+     synced → green, syncing → amber (a slow, subtle breath), error → red,
+     idle → neutral grey (sync not started, paused, or no verdict yet).
+   Colour only: the side, width and thickness never change, so no bar moves. */
+:is(.app-topbar, .auth-topbar, .admin-topbar, .topbar, .teacher-topbar, .manager-topbar, .pay-topbar),
+header[class*="topbar"]{border-top:3px solid var(--color-border);transition:border-top-color .3s ease}
+html[data-sync-visual="synced"] :is(.app-topbar, .auth-topbar, .admin-topbar, .topbar, .teacher-topbar, .manager-topbar, .pay-topbar),
+html[data-sync-visual="synced"] header[class*="topbar"]{border-top-color:var(--tone-mint)}
+html[data-sync-visual="syncing"] :is(.app-topbar, .auth-topbar, .admin-topbar, .topbar, .teacher-topbar, .manager-topbar, .pay-topbar),
+html[data-sync-visual="syncing"] header[class*="topbar"]{border-top-color:var(--tone-amber);animation:apc-sync-working 1.8s ease-in-out infinite}
+html[data-sync-visual="error"] :is(.app-topbar, .auth-topbar, .admin-topbar, .topbar, .teacher-topbar, .manager-topbar, .pay-topbar),
+html[data-sync-visual="error"] header[class*="topbar"]{border-top-color:var(--color-danger)}
+html[data-sync-visual="idle"] :is(.app-topbar, .auth-topbar, .admin-topbar, .topbar, .teacher-topbar, .manager-topbar, .pay-topbar),
+html[data-sync-visual="idle"] header[class*="topbar"]{border-top-color:var(--color-text-muted)}
+@keyframes apc-sync-working{0%,100%{border-top-color:var(--tone-amber)}50%{border-top-color:var(--tone-amber-soft)}}
+/* Screen-reader-only twin of the colour (never visible, never inside the bar). */
+.apc-sync-announce{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
