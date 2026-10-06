@@ -1,9 +1,19 @@
-import test from 'node:test';
+import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { runMigrations, migrateStudentRecord, CURRENT_DATA_VERSION, DATA_VERSION_KEY } from '../js/storage/migration.js';
 import { KEYS } from '../js/database.js';
 import { STAFF_ACCOUNTS, createInitialAdmin, readStaffAccount, authenticateStaff } from '../js/staff-auth.js';
 import { clearSession, loadAccount, saveAccount, loadAppConfig, saveAppConfig } from '../js/storage.js';
+import { createAdminCloud, installAdminCloud, removeAdminCloud, setOnline } from './admin-init-cloud.mjs';
+
+/* The institution's first Admin is claimed in the cloud, so this suite installs
+   a fake cloud boundary and reports an online device (tests/admin-init-cloud.mjs). */
+let adminHooks = null;
+before(() => {
+  setOnline(true);
+  adminHooks = installAdminCloud(createAdminCloud());
+});
+after(() => removeAdminCloud(adminHooks));
 
 function setupStorage(initial = {}) {
   const store = new Map(Object.entries(initial));

@@ -419,36 +419,50 @@ test('a fresh device cannot register a login ID another student already owns', a
   } finally { await intruder.stop(); }
 });
 
-test('a second Admin created on an unsynced device cannot replace the real Admin', async () => {
+test('a second Admin can never be created — a fresh device is sent to Login instead', async () => {
   const teacherPassword = SYNC_ROOT(cloud).staffAccounts.teacher.password;
   const intruder = new Device('intruder-admin', cloud.url);
   intruder.start();
   try {
-    // No access to the cloud at all: the device believes it is the first use.
+    /* 1) No cloud at all. A device with an empty localStorage has NO evidence
+       that the institution has no Admin — and "no local Admin + no verified
+       cloud status" must never become a new Admin. */
     await intruder.run('set-cloud', { blocked: true });
-    const created = await intruder.run('create-first-admin', { fullName: 'Fake Admin', password: 'Fake-1234' });
-    assert.ok(created.account, `the one-time form still works offline (${created.formError || created.message})`);
-    assert.match(created.account.username, /^fake\.admin\.apc$/, 'a second Admin really was created here');
+    const offline = await intruder.run('create-first-admin', { fullName: 'Fake Admin', password: 'Fake-1234' });
+    assert.equal(offline.account, null, 'nothing was created on the device');
+    assert.equal(offline.blocked, true, 'and the one-time workflow did not hand the device an Admin');
+    assert.match(String(offline.formError || offline.message || ''), /ইন্টারনেট|ক্লাউড/,
+      'the device says the cloud could not be verified instead of guessing');
 
+    /* 2) The cloud is reachable again and already holds the real Admin. */
     await intruder.run('set-cloud', { blocked: false });
-    await intruder.run('boot');
-    await intruder.run('wait-status', { state: 'conflict' });
-    const status = await intruder.run('sync-status');
-    assert.match(String(status.message || ''), /Admin/, 'the Admin conflict is spelled out');
-    assert.equal(SYNC_ROOT(cloud).staffAccounts.admin.username, adminUsername, 'the real Admin stays in the cloud');
-    const adopted = await intruder.run('snapshot', { keys: [Object.values((await import('../js/staff-auth.js')).STAFF_ACCOUNTS).find(a => a.role === 'admin').accountKey] });
-    const adminKey = Object.values((await import('../js/staff-auth.js')).STAFF_ACCOUNTS).find(a => a.role === 'admin').accountKey;
-    assert.equal(adopted.values[adminKey].username, adminUsername, 'and this device adopts it instead of its own');
+    const direct = await intruder.run('try-create-admin', { fullName: 'Fake Admin', password: 'Fake-1234' });
+    assert.equal(direct.ok, false, 'a direct data-layer call is refused too');
+    assert.equal(direct.code, 'ADMIN_EXISTS');
+    assert.match(direct.error, /PLEASE LOGIN WITH EXISTING ADMIN ACCOUNT/);
+    assert.equal(direct.account, null, 'still nothing is written on this device');
 
-    // The default role accounts it bootstrapped must not overwrite the real ones.
-    assert.deepEqual(SYNC_ROOT(cloud).staffAccounts.teacher.password, teacherPassword, 'a fresh default never replaces a real credential');
-    const teacherKey = Object.values((await import('../js/staff-auth.js')).STAFF_ACCOUNTS).find(a => a.role === 'teacher').accountKey;
-    const teacher = await intruder.run('snapshot', { keys: [teacherKey] });
-    assert.deepEqual(teacher.values[teacherKey].password, teacherPassword, 'the device pulled the real teacher account');
-    // The real teacher password (changed earlier through the forced dialog,
-    // never the fresh default this device bootstrapped) still signs in here.
-    const login = await intruder.run('form-login', { username: teacherUsername, pin: 'Own-Pass-2026' });
-    assert.equal(login.teacherSession, true, login.message);
+    const ui = await intruder.run('create-first-admin', { fullName: 'Fake Admin', password: 'Fake-1234' });
+    assert.equal(ui.blocked, true, 'the login page never offers the creation form');
+    assert.equal(ui.account, null);
+    assert.match(String(ui.message || ''), /PLEASE LOGIN WITH EXISTING ADMIN ACCOUNT/,
+      'the blocked attempt is answered with "please log in"');
+
+    /* The cloud keeps the real Admin and the real role credentials. */
+    assert.equal(SYNC_ROOT(cloud).staffAccounts.admin.username, adminUsername, 'the real Admin stays in the cloud');
+    assert.deepEqual(SYNC_ROOT(cloud).staffAccounts.teacher.password, teacherPassword, 'a fresh device never replaces a real credential');
+
+    /* 3) The right way in: the existing Admin ID and password sign in here, and
+       this device gets its own copy plus a session — nothing is overwritten. */
+    const login = await intruder.run('form-login', { username: adminUsername, pin: ADMIN_PASSWORD });
+    assert.equal(login.adminSession, true, `the Admin ID ${adminUsername} created on A signs in on this fresh device`);
+    assert.equal(login.dialog, false, 'the first Admin has no forced password change');
+    assert.equal(SYNC_ROOT(cloud).staffAccounts.admin.username, adminUsername, 'login did not rewrite the cloud Admin');
+    const adopted = await intruder.run('snapshot', { keys: [
+      Object.values((await import('../js/staff-auth.js')).STAFF_ACCOUNTS).find(a => a.role === 'admin').accountKey
+    ] });
+    const adminKey = Object.values((await import('../js/staff-auth.js')).STAFF_ACCOUNTS).find(a => a.role === 'admin').accountKey;
+    assert.equal(adopted.values[adminKey].username, adminUsername, 'the device pulled the real Admin account');
   } finally { await intruder.stop(); }
 });
 
@@ -546,6 +560,86 @@ test('a phone that was closed during the approval cannot undo the decision', asy
   await deviceB.run('wait-record-status', { key: KEYS.students, id, status: 'approved' });
   await waitForCloud(() => SYNC_ROOT(cloud).students?.[id]?.status === 'approved', 'the decision was not reverted');
   await deviceA.run('wait-record-status', { key: KEYS.students, id, status: 'approved' });
+});
+
+/* The acceptance lane the fix has to pass, stated in the owner's words:
+   a student created on A appears on B without a refresh, B's edit returns to A
+   without a refresh, a notice written on A reaches B, and a brand-new device
+   signs in as the existing Admin, adopts the cloud data and then receives a
+   live change. Nothing here reloads a page: every arrival is a listener. */
+test('A → B student create and B → A edit and notice round trip, then a brand-new device logs in and syncs live', async () => {
+  const { KEYS } = await import('../js/database.js');
+  await Promise.all([deviceA.run('boot'), deviceB.run('boot')]);
+
+  const row = extra => ({
+    id: 'STU-ACCEPT', fullName: 'গ্রহণ শিক্ষার্থী', roll: '07', className: 'নবম শ্রেণি',
+    status: 'pending', registeredAt: '2026-10-06T05:00:00.000Z', ...extra
+  });
+
+  /* 1) Device A registers a student. Device B is already signed in. */
+  const created = Date.now();
+  await deviceA.run('write-students', { students: [row()] });
+  await deviceB.run('wait-content', { key: KEYS.students, id: 'STU-ACCEPT' });
+  const aToB = Date.now() - created;
+  assert.ok(aToB < 5000, `A → B student create took ${aToB}ms`);
+  console.log(`# [latency] A student create → B visible: ${aToB}ms`);
+
+  /* 2) Device B decides on it (edit). Device A must see B's change by itself. */
+  const edited = Date.now();
+  await deviceB.run('write-students', {
+    students: [row({ status: 'approved', reviewedAt: '2026-10-06T06:00:00.000Z', updatedAt: '2026-10-06T06:00:00.000Z' })]
+  });
+  await deviceA.run('wait-record-status', { key: KEYS.students, id: 'STU-ACCEPT', status: 'approved' });
+  const bToA = Date.now() - edited;
+  assert.ok(bToA < 5000, `B → A student edit took ${bToA}ms`);
+  console.log(`# [latency] B student edit → A visible: ${bToA}ms`);
+  await waitForCloud(() => SYNC_ROOT(cloud).students?.['STU-ACCEPT']?.status === 'approved', 'the edit reached the cloud');
+
+  /* 3) A notice written on A arrives on B with no reload. */
+  await deviceA.run('write-notice', { id: 'NOTICE-ACCEPT', title: 'অভিভাবক সভা', body: 'আগামীকাল সকাল ১০টা' });
+  await deviceB.run('wait-content', { key: KEYS.notices, id: 'NOTICE-ACCEPT' });
+  assert.ok((await deviceB.run('snapshot', { keys: [KEYS.notices] })).eventCollections.includes('notices'),
+    'device B was told by the live update event');
+
+  /* 4) Device C: a phone with nothing stored. */
+  const deviceC = new Device('C-acceptance', cloud.url);
+  deviceC.start();
+  try {
+    const screen = await deviceC.run('admin-screen');
+    assert.equal(screen.offersCreation, false, 'device C is never offered the Admin creation screen');
+    assert.equal(screen.creationOpen, false, 'and that form never opens');
+    assert.equal(screen.loginOpen, true, 'device C opens on the Login screen');
+
+    const login = await deviceC.run('form-login', { username: adminUsername, pin: ADMIN_PASSWORD });
+    assert.equal(login.adminSession, true, 'the existing Admin account signs in on a device that has nothing');
+    assert.equal(login.dialog, false, 'no forced password change for the first Admin');
+
+    const { STAFF_ACCOUNTS } = await import('../js/staff-auth.js');
+    const adopted = await deviceC.run('snapshot', { keys: [STAFF_ACCOUNTS.admin.accountKey] });
+    assert.equal(adopted.values[STAFF_ACCOUNTS.admin.accountKey].username, adminUsername,
+      'device C adopted the cloud Admin profile (not a new account)');
+
+    /* The login hands the device to the Admin panel, and the panel page boots
+       the realtime bridge itself (js/realtime-sync-entry.js on `apc-session-ready`)
+       — this is that exact call. */
+    assert.equal(login.navigated, true, 'the login hands over to the Admin panel');
+    await deviceC.run('boot');
+    await deviceC.run('wait-status', { state: 'online' });
+
+    /* Cloud application data, then a live push while C sits open. */
+    await deviceC.run('wait-content', { key: KEYS.students, id: 'STU-ACCEPT' });
+    await deviceC.run('wait-content', { key: KEYS.notices, id: 'NOTICE-ACCEPT' });
+    const live = Date.now();
+    await deviceA.run('write-notice', { id: 'NOTICE-ACCEPT-2', title: 'লাইভ সিঙ্ক', body: 'রিফ্রেশ ছাড়াই' });
+    await deviceC.run('wait-content', { key: KEYS.notices, id: 'NOTICE-ACCEPT-2' });
+    const latency = Date.now() - live;
+    assert.ok(latency < 5000, `A → C live notice took ${latency}ms`);
+    console.log(`# [latency] A notice → freshly logged-in device C: ${latency}ms`);
+
+    /* And C's own edit returns to A, again with no reload anywhere. */
+    await deviceC.run('write-notice', { id: 'NOTICE-ACCEPT-3', title: 'ফিরতি', body: 'C থেকে A' });
+    await deviceA.run('wait-content', { key: KEYS.notices, id: 'NOTICE-ACCEPT-3' });
+  } finally { await deviceC.stop(); }
 });
 
 test('package still declares the realtime bridge', async () => {

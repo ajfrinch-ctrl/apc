@@ -65,7 +65,13 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 178;
+// v179: the Admin Account is a GLOBAL, one-time account — a new device asks the cloud
+//       before it offers anything. The startup gate now reads the cloud's Admin state
+//       (staffAccounts/admin plus the system/adminInitialized marker), so a phone with
+//       an empty localStorage sees the Login screen instead of "Create Admin Account";
+//       creation is a single atomic claim that a second device can only lose, and a
+//       device that cannot verify the cloud never creates an Admin at all.
+const CACHE_VERSION = 180;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -198,6 +204,7 @@ const APP_SHELL = [
   './js/profile.js',
   './js/login.js',
   './js/staff-auth.js',
+  './js/admin-initialization.js',
   './js/database.js',
   './js/register.js',
   './js/recovery.js',

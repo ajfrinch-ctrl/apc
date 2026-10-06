@@ -1,20 +1,35 @@
 /* Staff authentication rules for all three roles, in one place.
    Phase 1: no built-in default password, PBKDF2 hashes, first-use setup,
    forced change after migration, and device-bound session tokens. */
-import test from 'node:test';
+import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   STAFF_ACCOUNTS, STAFF_USERNAMES, normalizeStaffUsername,
   readStaffAccount, authenticateStaff, loadStaffAccount, verifyStaffCredentials,
   provisionStaffAccount, setStaffPassword, changeStaffPassword,
   saveStaffSession, hasStaffSession, clearStaffSession, staffNeedsSetup,
-  createInitialAdmin, resolveStaffRoleByUsername
+  createInitialAdmin, resolveStaffRoleByUsername, staffAccountRecordExists
 } from '../js/staff-auth.js';
 import { isPasswordRecord } from '../js/password-hash.js';
 import { decryptValue } from '../js/secure-store.js';
 import { getDeviceId } from '../js/session.js';
+import { createAdminCloud, installAdminCloud, removeAdminCloud, setAdminCloud, setOnline } from './admin-init-cloud.mjs';
 
 const PASSWORD = 'Apc-Test-2026';
+
+/* The one-time Admin Account is the INSTITUTION's, not the device's: creating
+   it means asking the cloud (js/admin-initialization.js → sync/sync-core.js)
+   and claiming it with one create-only transaction. These tests install a fake
+   cloud instead of Firebase — the real engine is covered by
+   tests/admin-new-device-login.test.mjs and the two-device harness. */
+let adminCloud = null;
+let adminHooks = null;
+before(() => {
+  setOnline(true);
+  adminCloud = createAdminCloud();
+  adminHooks = installAdminCloud(adminCloud);
+});
+after(() => { removeAdminCloud(adminHooks); });
 
 function memoryStorage() {
   const map = new Map();
@@ -104,6 +119,8 @@ test('first Admin creates one complete active owner profile with a unique case-i
    in a different case — is ignored. */
 test('a generated Login User ID never collides with a learner who claimed the same name', async () => {
   const browser = freshBrowser();
+  // A cloud with no Admin yet: this device is genuinely the first use.
+  const firstUse = setAdminCloud(createAdminCloud());
   browser.localStorage.setItem('active-plus-usernames-v1', JSON.stringify({ 'rahim.admin.apc': 'student:123' }));
   const result = await createInitialAdmin({ fullName: 'Rahim Ahmed', mobile: '01711223344', username: 'RAHIM.ADMIN.APC', password: PASSWORD, confirmPassword: PASSWORD });
   assert.equal(result.ok, true, result.error);
@@ -114,6 +131,10 @@ test('a generated Login User ID never collides with a learner who claimed the sa
   assert.equal(rawIndex['rahim.admin.apc'], 'student:123');
   assert.equal(rawIndex['rahim2.admin.apc'], 'staff:admin');
   assert.equal(await resolveStaffRoleByUsername('RAHIM2.ADMIN.APC'), 'admin');
+  // The cloud receives the very same generated id — the learner's claim and the
+  // Admin's claim never collide, in the cloud either.
+  assert.equal(firstUse.record.username, 'rahim2.admin.apc');
+  assert.equal(firstUse.claims, 1);
 });
 
 test('wrong usernames are rejected before any password is read', async () => {
@@ -273,6 +294,36 @@ test('plaintext upgrade preserves the existing Admin ID and all profile fields',
   assert.equal(isPasswordRecord(migrated.password),true);
   await setStaffPassword('admin', PASSWORD, PASSWORD);
   assert.equal(await verifyStaffCredentials('admin', profile.username, PASSWORD),true);
+});
+
+/* The Admin Account is global: once it exists in the cloud, no device may
+   create another — not even a device whose localStorage is completely empty. */
+test('a device that cannot create an Admin is never allowed to mint a second one', async () => {
+  freshBrowser();
+  // Another device already created the institution's Admin.
+  const taken = setAdminCloud(createAdminCloud({ record: { username: 'owner.admin.apc', password: { algo: 'PBKDF2' } } }));
+
+  const second = await createInitialAdmin({
+    fullName: 'Late Owner', mobile: '01711223344',
+    password: PASSWORD, confirmPassword: PASSWORD
+  });
+  assert.equal(second.ok, false);
+  assert.equal(second.code, 'ADMIN_EXISTS');
+  assert.match(second.error, /PLEASE LOGIN WITH EXISTING ADMIN ACCOUNT/);
+  assert.equal(await staffAccountRecordExists('admin'), false, 'nothing was written on this device');
+  assert.equal(taken.claims, 0, 'the cloud was never even asked to claim');
+
+  // No verified cloud answer: creation is refused, never guessed from local state.
+  setOnline(false);
+  const offline = await createInitialAdmin({
+    fullName: 'Offline Owner', mobile: '01711223344',
+    password: PASSWORD, confirmPassword: PASSWORD
+  });
+  assert.equal(offline.ok, false);
+  assert.equal(offline.code, 'CLOUD_UNVERIFIED');
+  assert.equal(await staffAccountRecordExists('admin'), false);
+  assert.equal(taken.claims, 0);
+  setOnline(true);
 });
 
 test('unreadable encrypted staff record cannot become a new setup account', async () => {

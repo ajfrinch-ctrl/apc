@@ -6,13 +6,23 @@
    Phase 1 security: no built-in default password exists. A role's first
    sign-in on a device opens the shared password dialog; the session is a
    device-bound token written only after a valid password is in place. */
-import test, { before } from 'node:test';
+import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
 import { hasStaffSession, createInitialAdmin, staffAccountRecordExists } from '../js/staff-auth.js';
 import { STORAGE_KEYS } from '../js/config.js';
 import { STAFF_TEST_PASSWORD, provisionStaff, seedStaffSession, signInOnLoginPage, completeStaffPasswordDialog } from './staff-harness.mjs';
+import { createAdminCloud, installAdminCloud, removeAdminCloud } from './admin-init-cloud.mjs';
+
+/* The first Admin is the institution's account and is claimed in the cloud, so
+   this suite installs a fake cloud boundary (tests/admin-init-cloud.mjs) — the
+   same shape js/admin-initialization.js talks to through sync/sync-core.js. */
+const adminCloud = createAdminCloud();
+let adminHooks = null;
+before(() => { adminHooks = installAdminCloud(adminCloud); });
+after(() => removeAdminCloud(adminHooks));
+
 
 const DEMO_OFF = { 'activePlus.demo.autofill.v1': 'off' };
 const ACCOUNT_KEY = 'active-plus-account-v1';

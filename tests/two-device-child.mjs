@@ -246,13 +246,30 @@ const commands = {
     };
   },
 
-  /* The one-time first-use Admin form, exactly as the login page runs it. */
-  async 'create-first-admin'({ fullName = 'Test Admin', mobile = '01711223344', password = 'Admin-1234' }) {
+  /* The one-time first-use Admin form, exactly as the login page runs it.
+     The institution's Admin Account lives in the cloud, so the option only
+     appears after the login page verified that NO Admin exists anywhere: when
+     the workflow is closed (an Admin exists, or the cloud could not be asked)
+     this reports `blocked` instead of hanging on a form that never opens. */
+  async 'create-first-admin'({ fullName = 'Test Admin', mobile = '01711223344', password = 'Admin-1234', timeout = 30000 }) {
     if (!loginBound) await bindLogin();
-    // The first-use panel is only wired once the background cloud lookups have
-    // finished; clicking before that would submit into nothing.
-    await waitUntil(() => ctx.$('#firstAdminFootnote')?.hidden === false, { timeout: 30000 });
+    const panelRemoved = () => !ctx.$('#firstAdminPanel');
+    const panelOpen = () => Boolean(ctx.$('#firstAdminPanel') && !ctx.$('#firstAdminPanel').hidden);
+    const blockedResult = extra => ({
+      blocked: true, offered: false, adminSession: false,
+      message: authMessage(), formError: ctx.$('#firstAdminError')?.textContent?.trim() || '',
+      account: null, ...extra
+    });
+    // Wait for the startup gate to settle: open, removed, or explained.
+    await waitUntil(() => panelRemoved() || panelOpen() || Boolean(authMessage()), { timeout });
+    if (panelRemoved()) return blockedResult({ panel: 'removed' });
+    if (!panelOpen()) return blockedResult({ panel: 'closed' });
+
     ctx.$('#openFirstAdmin').click();
+    // The click re-asks the cloud; an Admin found now removes the form.
+    await waitUntil(() => panelRemoved() || panelOpen(), { timeout: 15000 });
+    if (panelRemoved()) return blockedResult({ panel: 'removed-on-open' });
+
     ctx.type(ctx.$('#firstAdminName'), fullName);
     ctx.type(ctx.$('#firstAdminMobile'), mobile);
     ctx.type(ctx.$('#firstAdminPassword'), password);
@@ -261,10 +278,41 @@ const commands = {
     await waitUntil(() =>
       hasSession(staffAuth.STAFF_ACCOUNTS.admin.sessionKey) || Boolean(authMessage()) ||
       Boolean(ctx.$('#firstAdminError')?.textContent?.trim()), { timeout: 30000 });
+    const account = await readPlain(staffAuth.STAFF_ACCOUNTS.admin.accountKey);
     return {
+      blocked: !account,
+      offered: true,
       adminSession: hasSession(staffAuth.STAFF_ACCOUNTS.admin.sessionKey),
       message: authMessage(),
       formError: ctx.$('#firstAdminError')?.textContent?.trim() || '',
+      account
+    };
+  },
+
+  /* What a brand-new device shows after its startup gate settles: the Login
+     screen, or (only when the cloud truly has no Admin) the creation form.
+     Never attempts to create anything. */
+  async 'admin-screen'() {
+    await bindLogin();
+    const panel = () => ctx.$('#firstAdminPanel');
+    await waitUntil(() => !panel() || panel().hidden === false || Boolean(authMessage()), { timeout: 20000 });
+    return {
+      offersCreation: Boolean(panel()),
+      creationOpen: Boolean(panel() && panel().hidden === false),
+      loginOpen: ctx.$('#loginPanel') ? !ctx.$('#loginPanel').hidden : false,
+      message: authMessage(),
+      syncState: ctx.document.documentElement.dataset.realtimeSync || '',
+      syncMessage: ctx.document.documentElement.dataset.realtimeSyncMessage || ''
+    };
+  },
+
+  /* A direct data-layer call, exactly like a console call or a script: the gate
+     is in js/staff-auth.js, not only in the login page's form. */
+  async 'try-create-admin'({ fullName = 'Direct Admin', mobile = '01711223344', password = 'Admin-1234' }) {
+    const result = await staffAuth.createInitialAdmin({ fullName, mobile, password, confirmPassword: password });
+    return {
+      ok: result.ok, code: result.code || '', error: result.error || '',
+      username: result.account?.username || '',
       account: await readPlain(staffAuth.STAFF_ACCOUNTS.admin.accountKey)
     };
   },

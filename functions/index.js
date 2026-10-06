@@ -273,15 +273,15 @@ exports.adminSetAccountStatus = onCall(async request => {
    password hash and no session token.
 
    Deployment notes:
-     • the region must match the Realtime Database location (us-central1 for the
-       default database);
+     • the region must match the Realtime Database location (asia-southeast1
+       for the active-plus-coaching Singapore instance);
      • sending web push from Cloud Functions needs the Blaze plan;
      • nothing here is required for the in-app notification centre, which works
        with no Cloud Functions at all. */
 
 const BRIDGE_ROOT = 'activePlusSync/v1';
 const PUSH_TOKENS_PATH = `${BRIDGE_ROOT}/pushTokens`;
-const DB_REGION = 'us-central1';
+const DB_REGION = 'asia-southeast1';
 
 async function tokenEntries() {
   const snapshot = await getDatabase().ref(PUSH_TOKENS_PATH).get();

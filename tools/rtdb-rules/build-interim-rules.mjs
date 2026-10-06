@@ -72,6 +72,17 @@ export function buildInterimRules() {
         }
       }
     },
+    // Institution-wide markers. `system/adminInitialized` records that the
+    // one-time global Admin initialization happened, so a device with an empty
+    // localStorage can never mistake itself for a fresh installation. It is a
+    // marker, never the evidence: the Admin record above is what really decides.
+    system: {
+      '.read': AUTH,
+      adminInitialized: {
+        '.write': `${AUTH} && newData.isBoolean()`,
+        '.validate': 'newData.isBoolean()'
+      }
+    },
     // Settings document (scalar fields are normal here).
     settings: { '.read': AUTH, '.write': AUTH },
     // Device push registrations: write-only; Cloud Functions read them.

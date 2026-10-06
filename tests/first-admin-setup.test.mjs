@@ -1,53 +1,78 @@
 /* First-use Admin Account — the real index.html + js/login.js in jsdom.
 
-   Covers the acceptance list:
-     1. fresh install → the "Admin Account তৈরি করুন" option is on the login page
-     2. the first Admin is created there
+   The Admin Account is the INSTITUTION's one account: it is created once and
+   lives in the cloud, so this suite drives the login page with a fake cloud
+   boundary (tests/admin-init-cloud.mjs) and checks:
+
+     1. a verified fresh installation opens the one-time creation screen
+     2. creation stores the Admin LOCALLY and claims it in the cloud with one
+        create-only claim plus the global initialization marker
      3. the User ID is generated, never typed
      4. "Rasal Russell Chowdhury" → "rasal.admin.apc"
      5. duplicates walk rasal2 / rasal3 on the first name
      6. after creation the option disappears from the login page
      7. no other page offers it (admin.html included)
-     8. a direct function call cannot create a second first Admin
-     9. the bootstrap role accounts and the staff/student id systems are intact
+     8. a direct function call cannot create a second Admin
+     9. a NEW device (empty localStorage) sees Login, never "Create Admin",
+        and signs in with the existing Admin credentials
+    10. an unverifiable cloud never opens creation and never writes an Admin
 */
-import test, { before } from 'node:test';
+import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
+import { createAdminCloud, installAdminCloud, removeAdminCloud } from './admin-init-cloud.mjs';
 import { STAFF_ACCOUNTS, createInitialAdmin, readStaffAccount, staffAccountRecordExists } from '../js/staff-auth.js';
+import { KEYS, readJSON } from '../js/database.js';
 
 const DEMO_OFF = { 'activePlus.demo.autofill.v1': 'off' };
 const PASSWORD = 'Admin-2026';
 
 let ctx;
+let cloud;
+let hooks;
 
-async function openLoginPage() {
-  ctx = await loadPage('index.html', { seed: { ...DEMO_OFF } });
-  // Offline first-use is local-only; no Firebase request before an explicit action.
-  Object.defineProperty(ctx.window.navigator, 'onLine', { configurable: true, value: false });
-  const { initLogin } = await import('../js/login.js');
+/* One cloud for the whole file: the first device creates the Admin in it, and
+   every later device is a fresh phone against that same cloud. */
+before(() => {
+  cloud = createAdminCloud();
+  hooks = installAdminCloud(cloud);
+});
+after(() => { removeAdminCloud(hooks); });
+
+/** Open index.html and run the real login module, exactly like the app boot. */
+async function openLoginPage({ onLine = true, module = '../js/login.js' } = {}) {
+  const page = await loadPage('index.html', { seed: { ...DEMO_OFF } });
+  if (!onLine) Object.defineProperty(page.window.navigator, 'onLine', { configurable: true, value: false });
+  const { initLogin } = await import(module);
   initLogin({ state: { student: null, account: null }, onAuthenticated: () => {} });
-  // Startup uses only the local record. Cloud checks are reserved for an
-  // explicit setup action; wait for the initially hidden option to be exposed.
-  await ctx.waitFor(() => {
-    const footnote = ctx.$('#firstAdminFootnote');
-    if (!footnote) return true;
-    return footnote.hidden === false;
-  });
-  await ctx.flush();
-  return ctx;
+  return page;
 }
+
+/** Wait until the one-time gate has settled: opened, removed, or explained. */
+const gateSettled = page => page.waitFor(() => {
+  const footnote = page.$('#firstAdminFootnote');
+  if (!footnote) return true;                                  // workflow gone
+  if (footnote.hidden === false) return true;                   // workflow open
+  return (page.$('#authMessage')?.textContent || '').length > 0; // and explained
+});
 
 const type = (selector, value) => ctx.type(ctx.$(selector), value);
 const message = () => ctx.$('#authMessage')?.textContent || '';
 
-before(async () => { await openLoginPage(); });
+before(async () => {
+  ctx = await openLoginPage();
+  await gateSettled(ctx);
+  await ctx.flush();
+});
 
-test('a fresh install offers the first-use Admin option on the login page', () => {
+test('a verified fresh installation opens the one-time Admin creation screen', () => {
   assert.equal(ctx.$('#firstAdminPanel') !== null, true, 'the creation panel exists on the first run');
   assert.equal(ctx.$('#firstAdminFootnote').hidden, false, 'the login page shows the option');
   assert.match(ctx.$('#firstAdminFootnote').textContent, /প্রথমবার ব্যবহার করছেন/);
   assert.match(ctx.$('#openFirstAdmin').textContent, /Admin Account তৈরি করুন/);
+  // The cloud answered "no Admin anywhere", so creation is the screen to show.
+  assert.equal(ctx.$('#firstAdminPanel').hidden, false, 'the creation screen is the open panel');
+  assert.equal(ctx.$('#loginPanel').hidden, true);
 });
 
 test('the form has no username input — only a locked, generated preview', () => {
@@ -82,7 +107,7 @@ test('typing a full name previews the generated User ID live', () => {
   assert.equal(ctx.$('#firstAdminIdPreview').textContent, '—');
 });
 
-test('creating the first Admin stores the generated ID and hides the workflow', async () => {
+test('creating the first Admin stores it here and claims it in the cloud', async () => {
   type('#firstAdminName', 'Rasal Russell Chowdhury');
   type('#firstAdminMobile', '01711222333');
   type('#firstAdminEmail', 'rasal@example.com');
@@ -104,6 +129,13 @@ test('creating the first Admin stores the generated ID and hides the workflow', 
   // The password is a hash, never the plaintext.
   assert.equal(JSON.stringify(account).includes(PASSWORD), false);
   assert.equal(typeof account.password, 'object');
+
+  // The cloud holds the institution's Admin account and the global marker.
+  assert.equal(cloud.claims, 1, 'exactly one create-only claim');
+  assert.equal(cloud.record.username, 'rasal.admin.apc');
+  assert.equal(typeof cloud.record.password, 'object', 'only the PBKDF2 hash travels');
+  assert.equal(JSON.stringify(cloud.record).includes(PASSWORD), false);
+  assert.equal(cloud.flag, true, 'adminInitialized was set with the account');
 
   // 6 + 12: the option is gone for good, and the id is handed to the login form.
   assert.equal(ctx.$('#firstAdminPanel'), null, 'the panel is removed, not hidden');
@@ -135,7 +167,9 @@ test('a direct function call cannot create a second first Admin', async () => {
     confirmPassword: 'Another-2026'
   });
   assert.equal(second.ok, false, 'the data layer refuses while one Admin exists');
-  assert.match(second.error, /ইতিমধ্যে/);
+  assert.equal(second.code, 'ADMIN_EXISTS');
+  assert.match(second.error, /PLEASE LOGIN WITH EXISTING ADMIN ACCOUNT/);
+  assert.equal(cloud.claims, 1, 'no second claim was even attempted');
   // Even a username smuggled in is ignored: the id is always generated.
   const smuggled = await createInitialAdmin({
     fullName: 'Third Owner', mobile: '01899887755', username: 'hacker.admin.apc',
@@ -180,4 +214,55 @@ test('the Admin portal also refuses to offer the workflow', async () => {
   assert.equal(panel.$('#adminShell').hidden, true, 'the Admin panel must stay closed');
   assert.equal(panel.jsdomErrors.some(error => /navigation/i.test(error)), false, 'no automatic hand-off');
   panel.window.close();
+});
+
+/* ---- a NEW device: empty localStorage, the Admin already in the cloud ------ */
+
+test('a new device is shown the Login screen — never "Create Admin Account"', async () => {
+  const device = await openLoginPage({ module: '../js/login.js?device-b' });
+  await gateSettled(device);
+  await device.flush();
+
+  assert.equal(device.window.localStorage.getItem(STAFF_ACCOUNTS.admin.accountKey), null, 'nothing is stored on this device');
+  assert.equal(device.$('#firstAdminPanel'), null, 'the creation panel is removed');
+  assert.equal(device.$('#firstAdminFootnote'), null, 'and so is its trigger');
+  assert.equal(device.$('#openFirstAdmin'), null);
+  assert.equal(device.$('#loginPanel').hidden, false, 'the login screen is what remains');
+  assert.equal(device.$('#firstAdminIdPreview'), null);
+
+  // Acceptance 4: the existing Admin credentials sign in on this device, and
+  // the device ends up with its own copy plus a session — nothing is overwritten.
+  device.type(device.$('#loginMobile'), cloud.record.username);
+  device.type(device.$('#loginPin'), PASSWORD);
+  device.submit(device.$('#loginForm'));
+  await device.waitFor(() => device.window.localStorage.getItem(STAFF_ACCOUNTS.admin.sessionKey) !== null
+    || (device.$('#authMessage')?.textContent || '').length > 0, 20000);
+  await device.flush();
+  assert.equal(device.window.localStorage.getItem(STAFF_ACCOUNTS.admin.sessionKey) !== null, true, 'device B signs in');
+  assert.equal(cloud.record.username, 'rasal.admin.apc', 'the cloud Admin is untouched');
+  assert.equal(cloud.claims, 1, 'and no new Admin was created');
+  device.window.close();
+});
+
+/* ---- no verified answer: creation stays closed ----------------------------- */
+
+test('an unverifiable cloud never opens creation and never writes an Admin', async () => {
+  const device = await openLoginPage({ onLine: false, module: '../js/login.js?offline' });
+  await gateSettled(device);
+  await device.flush();
+
+  assert.equal(device.$('#firstAdminFootnote').hidden, true, 'the option stays closed');
+  assert.match(device.$('#authMessage').textContent, /ইন্টারনেট/);
+  assert.equal(device.$('#loginMobile').value, '', 'nothing is prefilled');
+  assert.equal(device.window.localStorage.getItem(STAFF_ACCOUNTS.admin.accountKey), null);
+
+  const refused = await createInitialAdmin({
+    fullName: 'Offline Owner', mobile: '01711222333', email: '',
+    password: PASSWORD, confirmPassword: PASSWORD
+  });
+  assert.equal(refused.ok, false, 'offline creation is refused');
+  assert.equal(refused.code, 'CLOUD_UNVERIFIED');
+  assert.equal(await staffAccountRecordExists('admin'), false, 'nothing was stored on this device');
+  assert.equal(readJSON(KEYS.usernames, null), null, 'and no Login User ID was claimed');
+  device.window.close();
 });

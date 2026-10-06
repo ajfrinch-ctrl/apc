@@ -11,13 +11,14 @@ importScripts('https://www.gstatic.com/firebasejs/12.2.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/12.2.1/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: 'AIzaSyAW9t4luwORjyu6T926qhL4mhOguxuTstI',
-  authDomain: 'active-plus.firebaseapp.com',
-  databaseURL: 'https://active-plus.firebaseio.com',
-  projectId: 'active-plus',
-  storageBucket: 'active-plus.firebasestorage.app',
-  messagingSenderId: '267388759271',
-  appId: '1:267388759271:web:a2ed1103cae476be784642'
+  apiKey: 'AIzaSyAD1OsM47YTu8Z6itpUkvDFdPXaCh1Bmrw',
+  authDomain: 'active-plus-coaching.firebaseapp.com',
+  databaseURL: 'https://active-plus-coaching-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'active-plus-coaching',
+  storageBucket: 'active-plus-coaching.firebasestorage.app',
+  messagingSenderId: '876005018709',
+  appId: '1:876005018709:web:26de8a656e96ac631d58dc',
+  measurementId: 'G-R4TYJ6ECDJ'
 });
 
 const messaging = firebase.messaging();

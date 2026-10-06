@@ -45,6 +45,13 @@
             }
           }
         },
+        "system": {
+          ".read": "auth != null",
+          "adminInitialized": {
+            ".write": "auth != null && newData.isBoolean()",
+            ".validate": "newData.isBoolean()"
+          }
+        },
         "settings": {
           ".read": "auth != null",
           ".write": "auth != null"

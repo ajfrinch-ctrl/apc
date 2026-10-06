@@ -7,6 +7,16 @@ import { encodeUsernameKey } from '../js/username-sync-codec.js';
 
 // Real login, session storage, sync entry and implementation; only Firebase's
 // network boundary is mocked. No production module is copied or rewritten.
+/* The login page's startup workflow asks the CLOUD whether the institution has
+   an Admin (APP START → cloud Admin check → Login or first-use form). Those two
+   nodes are the only Firebase reads allowed before a submit; no staff, student
+   or application collection may be touched. */
+const ADMIN_GATE_PATHS = new Set([
+  'activePlusSync/v1/staffAccounts/admin',
+  'activePlusSync/v1/system/adminInitialized'
+]);
+const isAdminGatePath = path => ADMIN_GATE_PATHS.has(path);
+
 test('login waits for submit and credentials; sync starts with a session and stops on logout', async t => {
   const ctx = await loadPage('index.html', { seed: { 'activePlus.demo.autofill.v1': 'off' } });
   globalThis.Storage = ctx.window.Storage;
@@ -64,9 +74,14 @@ test('login waits for submit and credentials; sync starts with a session and sto
   ctx.window.dispatchEvent(new ctx.window.Event('online'));
   ctx.window.dispatchEvent(new ctx.window.Event('apc-sync-retry'));
   await new Promise(resolve => setTimeout(resolve, 350));
-  assert.equal(authentications, 0);
-  assert.deepEqual(reads, [], 'opening/typing/retrying on login must not read Firebase');
-  assert.deepEqual(writes, []);
+  // The Admin-initialization gate is the ONE cloud step the required startup
+  // workflow needs (APP START → cloud Admin check → Login / first-use form):
+  // one anonymous transport identity plus the gate's read-only lookups.
+  assert.equal(authentications, 1, 'only the Admin gate authenticated the transport');
+  const nonGateReads = reads.filter(path => !isAdminGatePath(path));
+  assert.deepEqual(nonGateReads, [], 'opening/typing/retrying on login must only read the Admin gate');
+  assert.ok(reads.length > 0, 'the Admin gate really asked the cloud — never localStorage alone');
+  assert.deepEqual(writes, [], 'the startup gate never writes');
   assert.equal(admitted, 0);
   // No standing sync message: the topbar's own top border is the only
   // indicator (js/topbar-connectivity.js), and the login screen has no topbar.
@@ -87,7 +102,7 @@ test('login waits for submit and credentials; sync starts with a session and sto
   assert.equal(await storage.hasSession(), false);
   assert.equal(storage.loadAccount(), null, 'wrong password must not adopt the cloud account');
   assert.equal(authentications, 1, 'cloud transport authenticates only after submit');
-  assert.equal(reads.length, 1, 'wrong cloud password does not hydrate unrelated staff records');
+  assert.equal(reads.filter(path => !isAdminGatePath(path)).length, 1, 'wrong cloud password does not hydrate unrelated staff records');
   assert.deepEqual(writes, []);
 
   const sync = await import('../js/realtime-sync.js');

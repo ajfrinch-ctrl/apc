@@ -22,14 +22,25 @@ const ROLE_USERNAMES = Object.freeze({
 async function seed(page, role, password = E2E_PASSWORD) {
   await page.evaluate(async ({ role, password }) => {
     const auth = await import('/js/staff-auth.js');
+    let provisioned = false;
     if (role === 'admin') {
+      /* The first Admin is created once for the institution, in the cloud
+         (js/admin-initialization.js). On a machine that can reach it — and that
+         has never initialized this project — the real workflow runs. In the
+         offline E2E sandbox there is no Firebase, so the fixture falls back to
+         provisioning the reserved role account straight through the storage
+         layer, exactly like tests/legacy-login.spec.cjs does. Nothing here can
+         weaken the app: creation stays closed for an unverified device. */
       const created = await auth.createInitialAdmin({
         fullName: 'E2E Owner', mobile: '01700000000', email: '',
         password, confirmPassword: password
       });
-      if (!created.ok) throw new Error(`first admin: ${created.error}`);
+      if (!created.ok && created.code !== 'CLOUD_UNVERIFIED' && created.code !== 'ADMIN_EXISTS') {
+        throw new Error(`first admin: ${created.error}`);
+      }
+      provisioned = created.ok;
     }
-    await auth.provisionStaffAccount(role, password, password);
+    if (!provisioned) await auth.provisionStaffAccount(role, password, password);
     const session = await auth.saveStaffSession(role, true);
     if (!session) throw new Error(`no session for ${role}`);
   }, { role, password });

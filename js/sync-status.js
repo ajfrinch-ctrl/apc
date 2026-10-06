@@ -77,5 +77,8 @@ export function reportSyncConflict(code) {
 
 export function reportSyncError(error) {
   setSyncStatus(navigator.onLine ? 'error' : 'offline', error);
-  console.warn('[Active Plus] Sync failed:', error?.code || error?.name || 'unknown');
+  /* Never hide the cause: the exact Firebase code AND its message stay in the
+     console (permission-denied, invalid-api-key, database-not-found, app-check,
+     network-request-failed, unavailable …). */
+  console.warn('[Active Plus] Sync failed:', error?.code || error?.name || 'unknown', error?.message || error || '');
 }
