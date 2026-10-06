@@ -78,4 +78,42 @@ async function enterStudentApp(page, { id = 'AP-1024', name = 'রাইসা',
 
 const ACCOUNT_KEY = 'active-plus-account-v1';
 
-module.exports = { enterPortal, enterStudentApp, seed, E2E_PASSWORD, ROLE_USERNAMES };
+/* ---------- two devices ----------
+
+   The app keeps one panel per device: whichever staff session was written last
+   owns that browser profile, and index.html sends the device to that panel. Two
+   roles therefore cannot share one browser context in a spec — each role needs
+   its own device (context), exactly like two people with two phones. Data moves
+   between devices the way it does in production: the shared collections are
+   copied over, which is what the synced collections carry. */
+
+/** A second device: its own storage, same viewport/timezone as the spec. */
+async function newDevice(context, { viewport, timezoneId } = {}) {
+  const browser = context.browser();
+  const fresh = await browser.newContext({
+    viewport: viewport || context._options?.viewport || { width: 390, height: 844 },
+    timezoneId: timezoneId || context._options?.timezoneId || 'UTC',
+    baseURL: context._options?.baseURL || 'http://127.0.0.1:8000'
+  });
+  fresh.__apcDevice = true;
+  return fresh;
+}
+
+/** Copy the shared collections from one device to another (a sync). */
+async function syncStorage(fromPage, toPage, keys) {
+  if (!Array.isArray(keys) || !keys.length) throw new Error('syncStorage needs the storage keys to move');
+  const payload = await fromPage.evaluate(keys => {
+    const out = {};
+    for (const key of keys) {
+      const value = localStorage.getItem(key);
+      if (value !== null) out[key] = value;
+    }
+    return out;
+  }, keys);
+  await toPage.evaluate(payload => {
+    for (const [key, value] of Object.entries(payload)) localStorage.setItem(key, value);
+  }, payload);
+  return Object.keys(payload).length;
+}
+
+module.exports = { enterPortal, enterStudentApp, seed, newDevice, syncStorage, E2E_PASSWORD, ROLE_USERNAMES };

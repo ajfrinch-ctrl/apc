@@ -45,19 +45,31 @@ async function publishUI(page) {
 }
 async function releaseResults(office, pupil) {
   await office.clock.setFixedTime(new Date(end.getTime() + 60_000));
-  await office.locator('.manager-bottom [data-manager-view=more]').click();
-  await office.locator('#managerMoreMenu [data-manager-view=results]').click();
+  await office.locator('.manager-bottom [data-manager-view=academic]').click();
+  await office.locator('#managerAcademicMenu [data-academic-section=results]').click();
   await office.locator('[data-manager-action=publish-results]').click();
   await expect(office.locator('#managerResultList')).toContainText('ফলাফল প্রকাশিত');
   await pupil.clock.setFixedTime(new Date(end.getTime() + 60_000));
   await pupil.locator('[data-student-exam-action=refresh]').click();
 }
 async function seed(page, extra = {}) {
-  return page.evaluate(async extra => {
-    const { examRepository: repo, examTemplate, MANAGER_ACTOR } = await import('/js/exam-data.js');
-    let db = await repo.saveDraft({ title: 'ডেমো পরীক্ষা', type: 'mcq', subject: 'গণিত', className: 'দশম শ্রেণি', template: examTemplate('mcq'), startAt: new Date('2026-10-01T10:00:00Z').getTime(), endAt: new Date('2026-10-01T11:00:00Z').getTime(), lateMinutes: 10, negative: .5, passPercent: 33, ...extra });
-    const id = db.exams[0].id; await repo.requestApproval(id); await repo.review(id, 'publish', {}, MANAGER_ACTOR); return id;
+  /* One session per role, exactly like the app: the Teacher writes and submits
+     the paper on their own page, then the Manager publishes it from a manager
+     page (every repository write checks the actor's live session). */
+  const id = await page.evaluate(async extra => {
+    const { examRepository: repo, examTemplate } = await import('/js/exam-data.js');
+    const db = await repo.saveDraft({ title: 'ডেমো পরীক্ষা', type: 'mcq', subject: 'গণিত', className: 'দশম শ্রেণি', template: examTemplate('mcq'), startAt: new Date('2026-10-01T10:00:00Z').getTime(), endAt: new Date('2026-10-01T11:00:00Z').getTime(), lateMinutes: 10, negative: .5, passPercent: 33, ...extra });
+    const paper = db.exams[0].id;
+    await repo.requestApproval(paper);
+    return paper;
   }, extra);
+  const office = await manager(page.context());
+  await office.evaluate(async paper => {
+    const { examRepository: repo, MANAGER_ACTOR } = await import('/js/exam-data.js');
+    await repo.review(paper, 'publish', {}, MANAGER_ACTOR);
+  }, id);
+  await office.close();
+  return id;
 }
 async function finish(page) {
   await page.locator('[data-student-exam-action=confirm]').click(); await page.locator('[data-student-exam-action=finish]').click();

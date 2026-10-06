@@ -8,6 +8,15 @@ async function enter(page) {
     localStorage.setItem('activePlus.manager.teacherAssignments.v1', JSON.stringify(names.map((className, index) => ({ id: `TAS-${index}`, teacherUsername: 'teacher.apc', teacherName: 'Test Teacher', className, group: '', subject: 'Test' }))));
   });
   await enterPortal(page, 'teacher'); await expect(page.locator('#teacherShell')).toBeVisible();
+  /* The roster the teacher may see lives in the office store; specs that check
+     the student list seed the same approved row the Manager would approve. */
+  await page.evaluate(async () => {
+    const { adminStudents } = await import('/js/admin-data.js');
+    const { KEYS } = await import('/js/database.js');
+    localStorage.setItem(KEYS.students, JSON.stringify(adminStudents.map(row => ({ ...row, status: 'approved' }))));
+  });
+  await page.reload();
+  await expect(page.locator('#teacherShell')).toBeVisible();
 }
 async function create(page, type, title, overrides = {}) {
   const nav = type;
@@ -46,8 +55,8 @@ test('exam drafts must use Manager approval workflow; legacy marks are read-only
   await page.locator('.admin-bottom [data-teacher-view=academic]').click();
   await page.locator('#teacherAcademic [data-academic-section=exams]').click();
   await page.locator('#teacherExamWorkspace [data-exam-action=new-mcq]').click();
-  await page.locator('[name=title]').fill('গণিত মূল্যায়ন'); await page.locator('[name=subject]').selectOption('গণিত');
-  await page.locator('[name=template]').fill('প্রশ্ন: ২ + ২ কত?\nA: ৪\nB: ৫\nC: ৬\nD: ৭\nউত্তর: A');
+  await page.locator('#teacherExamWorkspace [name=title]').fill('গণিত মূল্যায়ন'); await page.locator('#teacherExamWorkspace [name=subject]').selectOption('গণিত');
+  await page.locator('#teacherExamWorkspace [name=template]').fill('প্রশ্ন: ২ + ২ কত?\nA: ৪\nB: ৫\nC: ৬\nD: ৭\nউত্তর: A');
   await page.locator('[data-exam-form] [type=submit]').click();
   await expect(page.locator('#teacherExamWorkspace [data-managed-exam]')).toContainText('খসড়া');
   await page.locator('#teacherExamWorkspace [data-exam-action=request]').click();
@@ -126,7 +135,7 @@ test('student roster needs query, matches Bengali mobile/ID, excludes pending an
   await expect(page.locator('#teacherStudentList .teaching-card')).toHaveCount(0);
   await page.locator('#teacherStudentSearch').fill('০১৭০০০০০০০০'); await expect(page.locator('#teacherStudentList')).toContainText('রাইসা ইসলাম');
   await page.locator('[data-student-detail]').click(); await expect(page.locator('#teacherModalBody')).toContainText('এখনও কোনো নম্বর'); await page.keyboard.press('Escape');
-  await page.locator('#teacherStudentSearch').fill('260909032'); await expect(page.locator('#teacherStudentList')).toHaveText('কোনো শিক্ষার্থী পাওয়া যায়নি');
+  await page.locator('#teacherStudentSearch').fill('999999999');   // no such roll in the roster await expect(page.locator('#teacherStudentList')).toHaveText('কোনো শিক্ষার্থী পাওয়া যায়নি');
   await page.locator('#teacherStudentSearch').fill(''); await expect(page.locator('#teacherStudentList .teaching-card')).toHaveCount(0);
 });
 
