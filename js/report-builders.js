@@ -14,13 +14,11 @@
 
    This module is free of DOM work so it can be unit-tested directly. */
 import { toBanglaNumber as bn } from './ui.js';
-import {
-  number as toNumber, parseDate, formatDate, isoDay, monthLabelOf, inRange,
-  txTime, studentEnrolledAt, activityTime, monthlyFeeOf, dueSummary, studentStatusLabel,
-  examTime, examEndTime, examDuration, isPublishedExam, isTakenExam, isUpcomingExam,
-  bestAttempts, submittedAttempts, resultFor, questionBreakdown, attemptCounters,
-  attendanceStats, ACTIVITY_LABELS, PROGRESS_TEXT, totalMarks, gradeFor, EXAM_TYPES, EXAM_STATUSES
-} from './report-sources.js';
+import { number as toNumber, parseDate, formatDate, monthLabelOf, inRange, txTime,
+  studentEnrolledAt, activityTime, monthlyFeeOf, dueSummary, studentStatusLabel, examTime,
+  examDuration, isPublishedExam, isTakenExam, isUpcomingExam, bestAttempts, submittedAttempts,
+  resultFor, questionBreakdown, attemptCounters, attendanceStats, ACTIVITY_LABELS,
+  PROGRESS_TEXT, totalMarks, gradeFor, EXAM_TYPES, EXAM_STATUSES} from './report-sources.js';
 import { scopeStudents, scopeActivities, scopeExams, ownStudent } from './report-access.js';
 
 /* ---------- formatting ---------- */

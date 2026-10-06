@@ -4,7 +4,7 @@
    mobile it is immutable, so it can be used safely instead of the phone number.
    Passwords and recovery answers are carried as PBKDF2 hash records
    (pinHash / securityAnswerHash); plaintext never reaches storage. */
-import { DEFAULT_PIN } from './config.js';
+
 import { STAFF_USERNAMES } from './staff-auth.js';
 
 export function contactNumber(value) {

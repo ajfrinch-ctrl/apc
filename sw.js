@@ -1,4 +1,6 @@
-// v176: the last two dead calls the static scanner found in the Admin panel (the retired
+// v177: the dead-reference cleanup finished — the unused named imports the redesign left behind
+//       (retired finance tiles, the old manager/teacher helpers) are gone too, so no module holds
+//       a reference to something it never used. v176: the last two dead calls the static scanner found in the Admin panel (the retired
 //       finance renderer on the student-edit path and the transaction reload after a data
 //       wipe) are gone, and `tools/undefined-call-check.mjs` now guards every module in
 //       js/ against calling a name it never imported or declared.
@@ -58,7 +60,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 176;
+const CACHE_VERSION = 177;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

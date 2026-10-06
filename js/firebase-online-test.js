@@ -1,9 +1,8 @@
-import { LEGACY_CLOUD_ENABLED, CLOUD_PAUSED_MESSAGE, cloudPausedResult } from '../sync/cloud-access.js';
+import { LEGACY_CLOUD_ENABLED, cloudPausedResult } from '../sync/cloud-access.js';
 // Active Plus — real Firebase connection smoke test.
 // This is diagnostic only; it never changes local app data.
 
 import { firebaseConfig } from '../firebase/firebase-config.js';
-
 
 export async function testFirebaseOnlineConnection(timeout = 8000) {
   if (!LEGACY_CLOUD_ENABLED) return cloudPausedResult();

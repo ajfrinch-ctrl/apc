@@ -1,7 +1,7 @@
 import { iconMarkup } from './icons.js';
 /* Data-driven student home dashboard. The UI only shows records already stored
    for this student; absent classes, results or fees are never filled with demo values. */
-import { loadRoutine, WEEK_DAYS, ROUTINE_KEY } from './office-data.js';
+import { loadRoutine, ROUTINE_KEY } from './office-data.js';
 import { teachingRepository, publishedForStudent } from './teaching-data.js';
 import { examRepository, examMatchesStudent, watchExams, isStudentVisibleExam } from './exam-data.js';
 import { financeRepository, studentFeeSummary } from './finance-data.js';

@@ -11,7 +11,7 @@ import { STORAGE_KEYS, defaultStudent, DEFAULT_APP_SETTINGS, DEFAULT_PIN } from 
 import { rememberAccount, KEYS, nextSequence, recordNonce } from './database.js';
 import { hashPassword, verifyPassword, isPasswordRecord } from './password-hash.js';
 import { encryptValue, decryptValue, isEncryptedEnvelope } from './secure-store.js';
-import { buildSessionRecord, isSessionRecordValid, DAY_MS } from './session.js';
+import { buildSessionRecord, isSessionRecordValid } from './session.js';
 import { LOCAL_WRITE_KEY, markLocalSource } from './notification-rules.js';
 
 const SESSION_DAYS_REMEMBER = 90;
