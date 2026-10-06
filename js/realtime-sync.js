@@ -41,6 +41,8 @@ const lastRemote = new Map();
 const STAFF_ROOT = DB_ROOT + '/staffAccounts';
 const DIRECTORY_ROOT = DB_ROOT + '/staffDirectory';
 const USERNAMES_ROOT = DB_ROOT + '/usernames';
+/* Institution-wide markers (is the one-time Admin initialization complete?). */
+const SYSTEM_ROOT = DB_ROOT + '/system';
 const STUDENT_ROOT = DB_ROOT + '/studentAccount'; // read-only legacy migration
 const STUDENTS_ROOT = DB_ROOT + '/studentAccounts';
 const EXAMDB_ROOT = DB_ROOT + '/examDb';
@@ -264,6 +266,9 @@ function syncStaffRole(role) {
       // personalised here) must not be replaced by this device's copy.
       await writeStaffLocal(role, remote);
       lastRemote.set('staff:' + role, JSON.stringify(remote));
+      // The Admin account reached the cloud from some other device: make sure
+      // the global initialization marker says so too.
+      if (role === 'admin' && isPasswordRecord(remote?.password)) void ensureAdminInitializedFlag();
       return;
     }
     // Only a complete credential record is uploaded (the rules require a
@@ -275,7 +280,10 @@ function syncStaffRole(role) {
     if (unsafe) { reportConflict('unsafe-record'); return; }
     await set(node, local);
     lastRemote.set('staff:' + role, JSON.stringify(local));
-    if (role === 'admin') clearConflict('admin-conflict');
+    if (role === 'admin') {
+      clearConflict('admin-conflict');
+      void ensureAdminInitializedFlag();
+    }
   })().finally(() => staffFlights.delete(role));
   staffFlights.set(role, flight);
   return flight;
@@ -890,16 +898,102 @@ function listenStudentAccount() {
   });
 }
 
-// Read only the first-use Admin node. Do not hydrate other accounts or start
+/* ---- Global Admin initialization -------------------------------------------
+   The institution has exactly ONE Admin Account and it is not per device, so
+   "does an Admin exist?" is a cloud question. The answer combines the global
+   marker (`system/adminInitialized`) with the Admin record itself: a database
+   written before the marker existed is NEVER read as "no Admin". Nothing here
+   reads or writes localStorage — the caller only learns what the cloud holds. */
+
+const isAdminRecord = value =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value) &&
+  (typeof value.username === 'string' || Boolean(value.password));
+
+// Read only the first-use Admin state. Do not hydrate other accounts or start
 // syncing application records merely because the login page was opened.
-export async function firstAdminExistsOnline() {
+export async function adminInitializationState() {
   if (!navigator.onLine) return { ok: false, reason: 'offline' };
   try {
     await ensureCloudAuth();
-    const snapshot = await get(ref(getDatabase(firebaseApp), STAFF_ROOT + '/admin'));
-    return { ok: true, exists: snapshot.exists() };
+    const db = getDatabase(firebaseApp);
+    /* The Admin RECORD is the source of truth, so it is read first: a deployed
+       database whose rules do not allow the `system` marker yet must not turn
+       an existing Admin into an unanswerable question. */
+    const adminSnapshot = await get(ref(db, STAFF_ROOT + '/admin'));
+    const record = adminSnapshot.exists() ? adminSnapshot.val() : null;
+    const recordExists = isAdminRecord(record);
+    let flag = false;
+    try {
+      const flagSnapshot = await get(ref(db, SYSTEM_ROOT + '/adminInitialized'));
+      flag = flagSnapshot.exists() && flagSnapshot.val() === true;
+    } catch (error) {
+      // Only when no record exists does the marker matter, and an unreadable
+      // marker is never "not initialized": the caller stays fail-closed and
+      // says the cloud could not be verified. Log the exact reason.
+      if (!recordExists) throw error;
+      console.warn('[Active Plus] adminInitialized marker unreadable:', error?.code || error?.message || error);
+    }
+    return { ok: true, initialized: flag || recordExists, flag, recordExists };
   } catch (error) {
     return { ok: false, reason: 'admin-check-failed', error };
+  }
+}
+
+/** Compatibility answer for the login page's first-use gate. */
+export async function firstAdminExistsOnline() {
+  const state = await adminInitializationState();
+  return state.ok ? { ok: true, exists: state.initialized } : state;
+}
+
+/* The flag is written only AFTER the Admin record exists, and it is a marker,
+   not the source of truth: a device that holds the record keeps the system
+   initialised even if this one write never lands. */
+async function writeAdminInitializedFlag() {
+  const snapshot = await get(ref(getDatabase(firebaseApp), SYSTEM_ROOT + '/adminInitialized'));
+  if (snapshot.exists() && snapshot.val() === true) return { ok: true, already: true };
+  await set(ref(getDatabase(firebaseApp), SYSTEM_ROOT + '/adminInitialized'), true);
+  return { ok: true };
+}
+
+/* Best-effort marker for a record that already reached the cloud (a legacy
+   install, or a device that carried the Admin account from an older release).
+   A failure here never fails the sync it was called from. */
+let adminFlagFlight = null;
+function ensureAdminInitializedFlag() {
+  if (adminFlagFlight) return adminFlagFlight;
+  adminFlagFlight = writeAdminInitializedFlag()
+    .catch(error => console.warn('[Active Plus] Admin initialization flag not stored:', error?.message || error))
+    .finally(() => { adminFlagFlight = null; });
+  return adminFlagFlight;
+}
+
+/**
+ * Atomically create the institution's Admin Account.
+ *
+ * The transaction runs on the server, so of two fresh devices submitting at
+ * the same moment only one commits; the loser is told the Admin already exists
+ * and is left with nothing written — no duplicate, and no half-created Admin
+ * that a later sync would have to discard.
+ */
+export async function claimFirstAdminAccount(record) {
+  if (!navigator.onLine) return { ok: false, reason: 'offline' };
+  if (!isAdminRecord(record) || !isPasswordRecord(record?.password)) {
+    return { ok: false, reason: 'invalid-record' };
+  }
+  try {
+    await ensureCloudAuth();
+    const result = await runTransaction(ref(getDatabase(firebaseApp), STAFF_ROOT + '/admin'), current => {
+      // Anything already stored here — even a record written by an older
+      // release — means the one Admin Account exists and creation is closed.
+      if (isAdminRecord(current)) return;
+      return record;
+    }, { applyLocally: false });
+    if (!result.committed) return { ok: false, reason: 'admin-exists' };
+    await ensureAdminInitializedFlag();
+    return { ok: true };
+  } catch (error) {
+    syncError(error);
+    return { ok: false, reason: 'claim-failed', error };
   }
 }
 
@@ -965,8 +1059,19 @@ function schedulePendingFlush() {
   clearInterval(pendingTimer);
   pendingTimer = setInterval(() => {
     if (!ready || !navigator.onLine || !connected) return;
-    if (![...recordBridges.values()].some(bridge => bridge.hasPending())) return;
-    flushPending().then(paintSyncStatus).catch(recordSyncError);
+    const bridges = [...recordBridges.values()];
+    if (!bridges.some(bridge => bridge.hasPending())) return;
+    flushPending().then(async () => {
+      /* A queued write that finally landed proves the transport works again.
+         Repair the collections whose boot read failed now, so the app can say
+         "synced" again within seconds — the 20s watchdog would re-boot every
+         listener instead of retrying the one collection that failed. */
+      if (!bridges.some(bridge => bridge.hasPending()) && partialFailures.length && !partialRetry) {
+        lastPartialRetry = Date.now();
+        await retryPartialSync();
+      }
+      paintSyncStatus();
+    }).catch(recordSyncError);
   }, 3000);
 }
 

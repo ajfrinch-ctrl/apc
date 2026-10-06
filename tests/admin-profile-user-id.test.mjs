@@ -20,6 +20,7 @@ import {
   verifyStaffCredentials
 } from '../js/staff-auth.js';
 import { listStaff } from '../js/staff-directory.js';
+import { createAdminCloud, installAdminCloud, removeAdminCloud } from './admin-init-cloud.mjs';
 
 const DEMO_OFF = { 'activePlus.demo.autofill.v1': 'off' };
 const PASSWORD = 'Admin-2026';
@@ -28,6 +29,13 @@ const NEW_PASSWORD = 'Admin-2027!';
 let ctx;
 
 const set = (id, value) => { ctx.$(id).value = value; return ctx.$(id); };
+
+/* The first Admin is created for the institution through the cloud gate; a fake
+   cloud boundary (tests/admin-init-cloud.mjs) stands in for Firebase. */
+const adminCloud = createAdminCloud();
+let adminHooks = null;
+before(() => { adminHooks = installAdminCloud(adminCloud); });
+after(() => removeAdminCloud(adminHooks));
 
 before(async () => {
   ctx = await loadPage('admin.html', { seed: { ...DEMO_OFF } });

@@ -177,10 +177,10 @@ test('the deployment assets the audit found are still in place', () => {
   /* Without .firebaserc every `firebase deploy --only database` targets the
      wrong (or no) project, so the documented setup step cannot succeed. */
   const rc = JSON.parse(readFileSync(new URL('../.firebaserc', import.meta.url), 'utf8'));
-  assert.equal(rc.projects.default, 'active-plus', 'the CLI target matches js/firebase-config.js');
+  assert.equal(rc.projects.default, 'active-plus-coaching', 'the CLI target matches js/firebase-config.js');
   // js/firebase-config.js only re-exports; the values live in firebase/.
   const config = readFileSync(new URL('../firebase/firebase-config.js', import.meta.url), 'utf8');
-  assert.match(config, /projectId:\s*'active-plus'/);
+  assert.match(config, /projectId:\s*'active-plus-coaching'/);
 
   /* App Check with a reCAPTCHA v3 key cannot run under a policy that blocks
      the reCAPTCHA scripts — the sync then fails with Permission denied. */

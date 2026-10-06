@@ -14,6 +14,10 @@
      otherwise it lives in sessionStorage and dies with the tab. */
 
 import { STAFF_KEYS, KEYS, readJSON, writeJSON } from './database.js';
+import {
+  adminInitializationStatus, claimFirstAdmin,
+  ADMIN_EXISTS_MESSAGE, ADMIN_VERIFY_REQUIRED_MESSAGE, ADMIN_CLAIM_FAILED_MESSAGE
+} from './admin-initialization.js';
 import { hashPassword, verifyPassword, isPasswordRecord } from './password-hash.js';
 import { encryptValue, decryptValue, isEncryptedEnvelope } from './secure-store.js';
 import { buildSessionRecord, isSessionRecordValid, DAY_MS } from './session.js';
@@ -86,16 +90,26 @@ function normalizeBdMobile(value) {
   return mobile;
 }
 
+/** The Admin Account already exists — this device may only log in with it. */
+const adminExistsResult = () => ({ ok: false, code: 'ADMIN_EXISTS', error: ADMIN_EXISTS_MESSAGE });
+
 /**
  * Create the one and only first-admin profile. Never leaves an incomplete record.
  *
- * The Login User ID is ALWAYS generated here — "firstname.admin.apc"
- * (js/user-id.js). A username passed by a caller is ignored on purpose: no
- * screen, console call or modified request may pick the owner's login id, and
- * the first-use workflow stays impossible once one Admin exists.
+ * The Admin Account belongs to the institution, not to the device that happens
+ * to create it: the cloud is the source of truth and `claimFirstAdmin()` is the
+ * single atomic step that may create it. A device whose localStorage is empty
+ * therefore never concludes "no Admin" — it asks the cloud, and when the cloud
+ * cannot be asked, NOTHING is created here. The Login User ID is ALWAYS
+ * generated here — "firstname.admin.apc" (js/user-id.js). A username passed by
+ * a caller is ignored on purpose: no screen, console call or modified request
+ * may pick the owner's login id, and the first-use workflow stays impossible
+ * once one Admin exists.
+ *
+ * Result codes: ok, ADMIN_EXISTS, CLOUD_UNVERIFIED, LOCAL_WRITE_FAILED.
  */
 export async function createInitialAdmin({ fullName, mobile, email = '', password, confirmPassword } = {}) {
-  if (await readStaffAccount('admin')) return { ok: false, error: 'প্রথম Admin Account ইতিমধ্যে তৈরি হয়েছে।' };
+  if (await readStaffAccount('admin')) return adminExistsResult();
   const name = String(fullName ?? '').trim().replace(/\s+/g, ' ');
   const phone = normalizeBdMobile(mobile);
   const mail = String(email ?? '').trim().toLowerCase();
@@ -122,31 +136,54 @@ export async function createInitialAdmin({ fullName, mobile, email = '', passwor
     username: handle, password: await hashPassword(password),
     createdAt, accountStatus: 'active'
   };
-  // Claim username first, then write the encrypted staff profile; roll back the
-  // claim if storage fails so a half-created Admin cannot block future setup.
-  // Hashing is slow, so the registry is re-read here: writing a snapshot that
-  // was taken before an `await` could silently drop a claim made meanwhile.
+
+  /* 1) Ask the cloud. Only a verified "no Admin account exists anywhere" may
+     continue: an unverifiable device (offline, blocked CDN, cloud error) must
+     never mint a second Admin account for the institution. */
+  const status = await adminInitializationStatus();
+  if (!status.ok) return { ok: false, code: 'CLOUD_UNVERIFIED', error: ADMIN_VERIFY_REQUIRED_MESSAGE };
+  if (status.initialized) return adminExistsResult();
+
+  /* 2) The one atomic write. Realtime Database runs this on the server, so of
+     two fresh devices creating at the same moment exactly one commits; the
+     other is told to log in with the Admin account that now exists. */
+  const claim = await claimFirstAdmin(account);
+  if (!claim.ok) {
+    return claim.reason === 'admin-exists'
+      ? adminExistsResult()
+      : { ok: false, code: 'CLOUD_UNVERIFIED', error: ADMIN_CLAIM_FAILED_MESSAGE };
+  }
+
+  /* 3) The institution's Admin Account now exists in the cloud. Make it this
+     device's working copy — the SAME record, so local and cloud never drift. */
   const claimed = { ...(readJSON(KEYS.usernames, {}) || {}), [handle]: 'staff:admin' };
-  if (!writeJSON(KEYS.usernames, claimed)) return { ok: false, error: PASSWORD_STORE_FAILED };
-  if (!(await writeStaffAccount('admin', account))) {
-    const rollback = readJSON(KEYS.usernames, {}) || {};
-    if (rollback[handle] === 'staff:admin') { delete rollback[handle]; writeJSON(KEYS.usernames, rollback); }
-    return { ok: false, error: PASSWORD_STORE_FAILED };
-  }
-  if (!writeJSON(INITIAL_ADMIN_USERNAME_KEY, handle)) {
-    try { window.localStorage.removeItem(staffSpec('admin').accountKey); } catch {}
-    const rollback = readJSON(KEYS.usernames, {}) || {};
-    if (rollback[handle] === 'staff:admin') { delete rollback[handle]; writeJSON(KEYS.usernames, rollback); }
-    return { ok: false, error: PASSWORD_STORE_FAILED };
-  }
+  if (!writeJSON(KEYS.usernames, claimed)) return adminCreatedLocallyFailed(handle);
+  if (!(await writeStaffAccount('admin', account))) return adminCreatedLocallyFailed(handle);
+  if (!writeJSON(INITIAL_ADMIN_USERNAME_KEY, handle)) return adminCreatedLocallyFailed(handle);
+  /* The bootstrap role accounts are a convenience; the Admin account itself is
+     already safe, so a failure here must never undo it. */
   const bootstrap = await ensureBootstrapStaffAccounts(handle);
-  if (!bootstrap.ok) {
-    try { window.localStorage.removeItem(staffSpec('admin').accountKey); window.localStorage.removeItem(INITIAL_ADMIN_USERNAME_KEY); } catch {}
-    const rollback = readJSON(KEYS.usernames, {}) || {};
-    if (rollback[handle] === 'staff:admin') { delete rollback[handle]; writeJSON(KEYS.usernames, rollback); }
-    return { ok: false, error: bootstrap.error || PASSWORD_STORE_FAILED };
-  }
-  return { ok: true, account: { ...account, password: undefined }, bootstrapAccounts: bootstrap.accounts };
+  return {
+    ok: true,
+    account: { ...account, password: undefined },
+    bootstrapAccounts: bootstrap.ok ? bootstrap.accounts : []
+  };
+}
+
+/**
+ * The atomic claim succeeded, so the Admin Account exists globally and must not
+ * be taken back (the rules forbid deleting a staff account, and other devices
+ * may already be using it). Report the local problem honestly: the same User ID
+ * and password still sign in here, because login pulls the account back from
+ * the cloud on this device.
+ */
+function adminCreatedLocallyFailed(username) {
+  return {
+    ok: false,
+    code: 'LOCAL_WRITE_FAILED',
+    username,
+    error: `Admin Account ক্লাউডে তৈরি হয়েছে, কিন্তু এই ডিভাইসে সংরক্ষণ করা যায়নি — ${username} দিয়ে লগইন করুন।`
+  };
 }
 
 /** Ensure one temporary bootstrap identity exists for each operational staff role. */

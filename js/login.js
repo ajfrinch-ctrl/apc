@@ -24,6 +24,10 @@ import { KEYS, readJSON } from './database.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
 import { authenticateDirectoryStaff, changeDirectoryStaffPassword } from './staff-directory.js';
 import { generateLoginId } from './user-id.js';
+import {
+  adminInitializationStatus,
+  ADMIN_EXISTS_MESSAGE, ADMIN_VERIFY_REQUIRED_MESSAGE
+} from './admin-initialization.js';
 import { isPasswordRecord } from './password-hash.js';
 
 const STAFF_PANEL = Object.freeze({ admin: 'admin.html', manager: 'manager.html', teacher: 'teacher.html', payment: 'payment.html' });
@@ -433,17 +437,30 @@ export function initLogin({ state, onAuthenticated }) {
     const submit = form.querySelector('[type=submit]');
     if (submit) submit.disabled = false;
   }
-  initFirstAdminSetup();
+  // The one-time Admin gate is checked in the background: the login form is
+  // usable immediately, and only a verified cloud answer opens creation.
+  void initFirstAdminSetup().catch(() => {});
 }
 
 /* ---------------------------------------------------------------------------
-   First use only — "Admin Count = 0" opens the one-time Admin Account form.
+   First use only — the one-time, INSTITUTION-WIDE Admin Account form.
 
-   The gate is the stored Admin record itself, not a flag: while no Admin
-   account exists the option is on the login page, and the moment one is
-   created the panel and its trigger are REMOVED from the DOM. Even a direct
-   console call to createInitialAdmin() is refused by js/staff-auth.js, which
-   re-checks the same record before writing anything.
+   The Admin Account is created once for the coaching centre, not once per
+   device, so this gate never decides from localStorage alone:
+
+     APP START → this device already has an Admin record (or a live session
+                 was restored by js/main.js)                     → Login
+               → the cloud holds an Admin record / the global
+                 initialization marker is set                     → Login
+               → the cloud verified there is no Admin at all     → creation form
+               → the cloud could not be asked (offline, blocked
+                 CDN, cloud error)                               → Login + why
+
+   The gate is fail-closed on purpose: a fresh device can only ever reach the
+   creation form after the cloud has confirmed that the institution has no
+   Admin account. Once one exists, the panel and its trigger are REMOVED from
+   the DOM, and even a direct console call to createInitialAdmin() is refused by
+   js/staff-auth.js, which re-verifies the cloud before writing anything.
    ------------------------------------------------------------------------- */
 
 let firstAdminState = { available: false, preview: '' };
@@ -480,48 +497,97 @@ async function lockFirstAdminSetup(reason = '') {
   if (reason) setAuthMessage(reason, 'success');
 }
 
-async function cloudFirstAdminExists() {
-  // First setup remains possible offline; the account is kept locally and
-  // published by the normal bridge on the next authenticated connection.
-  if (!navigator.onLine) return { ok: true, exists: false, offline: true };
-  try {
-    const bridge = await withinBudget(import('../sync/sync-core.js?v=20260929-protected'), 'admin check import', LOGIN_IDENTITY_BUDGET_MS);
-    return await withinBudget(bridge.firstAdminExistsOnline(), 'admin check', LOGIN_IDENTITY_BUDGET_MS);
-  } catch (error) {
-    console.warn('[Active Plus] first Admin check unavailable:', error?.message || error);
-    return { ok: false };
-  }
+/** The workflow is closed for now, but the panel stays in the DOM: the reason
+    belongs in the live message area, and the panel must not look "completed". */
+function closeFirstAdminOption() {
+  firstAdminState.available = false;
+  const footnote = $('#firstAdminFootnote');
+  if (footnote) footnote.hidden = true;
 }
 
-async function initFirstAdminSetup() {
+/** Close the one-time workflow for good and hand the screen back to Login. */
+async function closeFirstAdminSetup(message = '') {
+  await lockFirstAdminSetup();
+  switchAuthTab('login');
+  // switchAuthTab clears the message area, so the reason is set after it.
+  if (message) setAuthMessage(message, 'success');
+}
+
+/**
+ * The startup decision: Login, or the one-time Admin creation form?
+ *
+ * localStorage is never the sole evidence: a device with an empty store asks
+ * the cloud, and an unverifiable cloud keeps creation closed.
+ */
+async function refreshFirstAdminSetup({ openWhenUninitialized = false } = {}) {
   const panel = $('#firstAdminPanel');
-  if (!panel) return;
-  // First-use is an explicit action; no account or credential hydration on the
-  // login screen. Check the cloud only when someone opens this setup form.
+  if (!panel) return { available: false, reason: 'no-workflow' };
+  // 1) This device's own record — present means the institution's Admin exists.
   if (staffAccountRecordExists('admin')) {
     await lockFirstAdminSetup();
-    return;
+    return { available: false, reason: 'local-admin' };
   }
+  // 2) The cloud (global) truth — the only thing that may open creation.
+  const status = await adminInitializationStatus();
+  if (!status.ok) {
+    closeFirstAdminOption();
+    /* A device that has never stored any account is the one that would have
+       seen the creation option, so it is the one told why it is missing. */
+    if (isFreshDevice()) setAuthMessage(ADMIN_VERIFY_REQUIRED_MESSAGE);
+    return { available: false, reason: status.reason };
+  }
+  if (status.initialized) {
+    /* The Admin Account exists and simply keeps its usual place: the login
+       screen. No first-use wording is pushed at a device that never asked for
+       it — the message appears if someone tries the creation workflow. */
+    await lockFirstAdminSetup();
+    return { available: false, reason: 'cloud-admin' };
+  }
+  // 3) Verified: the institution has no Admin account yet — first use is open.
+  firstAdminState.available = true;
   const footnote = $('#firstAdminFootnote');
   if (footnote) footnote.hidden = false;
+  if (openWhenUninitialized && !$('#authScreen')?.hidden) switchAuthTab('first-admin');
+  return { available: true, reason: 'uninitialized' };
+}
+
+/** Nothing of our own is stored here yet: no student account, no staff role. */
+function isFreshDevice() {
+  try {
+    if (loadAccount()) return false;
+    return !Object.keys(STAFF_ACCOUNTS).some(role => staffAccountRecordExists(role));
+  } catch { return false; }
+}
+
+function initFirstAdminSetup() {
+  const panel = $('#firstAdminPanel');
+  if (!panel) return Promise.resolve(false);
+  // Wire the form before the cloud answer arrives: a slow network must not be
+  // able to swallow a click on the option that is already on screen.
   $('#firstAdminName')?.addEventListener('input', renderFirstAdminPreview);
   renderFirstAdminPreview();
   $('#firstAdminForm')?.addEventListener('submit', handleFirstAdminSubmit);
+  return refreshFirstAdminSetup({ openWhenUninitialized: true })
+    .then(result => result.available)
+    .catch(() => false);
 }
 
 async function openFirstAdminSetup() {
   if (!$('#firstAdminPanel')) return;
   if (staffAccountRecordExists('admin')) {
-    await lockFirstAdminSetup('প্রথম Admin Account ইতিমধ্যে তৈরি হয়েছে — এখন লগইন করুন।');
+    await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
     return;
   }
-  const status = await cloudFirstAdminExists();
+  const status = await adminInitializationStatus();
   if (!status.ok) {
-    setAuthMessage('প্রথম Admin Account তৈরির আগে ইন্টারনেট ও Firebase সংযোগ যাচাই করা দরকার। আবার চেষ্টা করুন।');
+    // No verified answer: the form must not open. The panel is left where it is
+    // (still hidden) so a later attempt can still find it.
+    closeFirstAdminOption();
+    setAuthMessage(ADMIN_VERIFY_REQUIRED_MESSAGE);
     return;
   }
-  if (status.exists) {
-    await lockFirstAdminSetup('প্রথম Admin Account ইতিমধ্যে তৈরি হয়েছে — এখন লগইন করুন।');
+  if (status.initialized) {
+    await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
     return;
   }
   firstAdminState.available = true;
@@ -540,15 +606,16 @@ async function handleFirstAdminSubmit(event) {
     error.hidden = !message;
   };
   showError('');
-  // Re-check at submit time too: another device may have created the Admin.
-  const status = await cloudFirstAdminExists();
+  /* Re-check at submit time: another device may have created the Admin while
+     this form was open, and the network may have gone — either way, nothing
+     is created here from an unverified answer. */
+  const status = await adminInitializationStatus();
   if (!status.ok) {
-    showError('Firebase সংযোগ যাচাই করা যায়নি। ডেটা নিরাপদ আছে — আবার চেষ্টা করুন।');
+    showError(ADMIN_VERIFY_REQUIRED_MESSAGE);
     return;
   }
-  if (status.exists || staffAccountRecordExists('admin')) {
-    await lockFirstAdminSetup('প্রথম Admin Account ইতিমধ্যে তৈরি হয়েছে — এখন লগইন করুন।');
-    switchAuthTab('login');
+  if (status.initialized || staffAccountRecordExists('admin')) {
+    await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
     return;
   }
   if (submit) { submit.disabled = true; submit.setAttribute('aria-busy', 'true'); }
@@ -561,6 +628,24 @@ async function handleFirstAdminSubmit(event) {
       confirmPassword: data.get('confirmPassword')
     });
     if (!result.ok) {
+      // The Admin account exists — here or on another device — so the one-time
+      // workflow is over for good.
+      if (result.code === 'ADMIN_EXISTS') {
+        await closeFirstAdminSetup(result.error || ADMIN_EXISTS_MESSAGE);
+        return;
+      }
+      /* The institution's Admin Account was created in the cloud, but this
+         device could not keep its own copy. The workflow is still over (an
+         Admin Account now exists) and the same ID and password sign in here. */
+      if (result.code === 'LOCAL_WRITE_FAILED') {
+        form.reset();
+        await lockFirstAdminSetup();
+        switchAuthTab('login');
+        const idField = $('#loginMobile');
+        if (idField && result.username) idField.value = result.username;
+        setAuthMessage(result.error || ADMIN_EXISTS_MESSAGE, 'success');
+        return;
+      }
       showError(result.error || 'Admin Account তৈরি করা যায়নি।');
       return;
     }
