@@ -31,7 +31,7 @@ async function student(context) {
 }
 async function createUI(page, type = 'mcq', title = 'সমন্বিত অনলাইন পরীক্ষা') {
   const root = page.locator('#teacherExamWorkspace'); await root.locator(`[data-exam-action=new-${type}]`).click();
-  await root.locator('[name=title]').fill(title); await root.locator('[name=subject]').fill('গণিত');
+  await root.locator('[name=title]').fill(title); await root.locator('[name=subject]').selectOption('গণিত');
   await root.locator('[name=className]').selectOption('দশম শ্রেণি'); // the demo student's class
   await root.locator('[name=startAt]').fill('2026-10-01T10:00'); await root.locator('[name=endAt]').fill('2026-10-01T11:00');
   await root.locator('[name=template]').fill(type === 'mcq' ? template : 'প্রশ্ন: পরিবেশ রক্ষায় গাছের গুরুত্ব লেখো।\nনম্বর: ৫\n---\nপ্রশ্ন: পানি দূষণ রোধের তিনটি উপায় লেখো।\nনম্বর: ৩');

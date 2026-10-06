@@ -41,8 +41,10 @@ async function teacherWorkspace(page) {
   ])), { key: ASSIGNMENTS_KEY, className: CLASS });
   await page.clock.setFixedTime(T0);
   await enterPortal(page, 'teacher');
-  await page.locator('.admin-bottom [data-teacher-view=more]').click();
-  await page.locator('#teacherMore [data-teacher-view=online-exams]').click();
+  /* One door per screen: the exam workspace opens from the academic hub, the
+     same place the teacher's "+ পরীক্ষা" quick action points to. */
+  await page.locator('.admin-bottom [data-teacher-view=academic]').click();
+  await page.locator('#teacherAcademic [data-academic-section=exams]').click();
   return page.locator('#teacherExamWorkspace');
 }
 
@@ -54,15 +56,15 @@ async function managerWorkspace(page) {
   await page.evaluate(({ key, className }) => localStorage.setItem(key, JSON.stringify([
     { id: 'AP-1024', name: 'রাইসা', className, group: '', mobile: '01700000000', guardianMobile: '01800000000', status: 'approved', monthlyFee: 1500 }
   ])), { key: ROSTER_KEY, className: CLASS });
-  await page.locator('.manager-bottom [data-manager-view=more]').click();
-  await page.locator('#managerMoreMenu [data-manager-view=exams]').click();
+  await page.locator('.manager-bottom [data-manager-view=academic]').click();
+  await page.locator('#managerAcademicMenu [data-academic-section=exams]').click();
   return page.locator('#managerExamWorkspace');
 }
 
 async function author(root, title) {
   await root.locator('[data-exam-action=new-mcq]').click();
   await root.locator('[name=title]').fill(title);
-  await root.locator('[name=subject]').fill('গণিত');
+  await root.locator('[name=subject]').selectOption('গণিত');   // বিষয় is a select of the class's enabled subjects
   await root.locator('[name=className]').selectOption(CLASS);
   await root.locator('[name=startAt]').fill('2026-10-01T10:00');
   await root.locator('[name=endAt]').fill('2026-10-01T11:00');
