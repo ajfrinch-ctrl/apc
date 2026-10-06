@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test": "node --experimental-default-type=module --test --test-force-exit tests/*.test.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:local": "node tools/e2e-run.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

@@ -1,4 +1,4 @@
-# APC App Architecture — একক স্থায়ী সোর্স (v177)
+# APC App Architecture — একক স্থায়ী সোর্স (v178)
 
 > এই নথিটিই APC-এর **একক architecture রেফারেন্স**। এখানে যা লেখা আছে তার বাইরে
 > কোনো section-এর ঘর নির্ধারিত নয়। নতুন feature যোগ করার আগে এখানে তার ঘর ঠিক
@@ -88,7 +88,7 @@
 
 ---
 
-## ২। চূড়ান্ত Navigation Map (v177 লক্ষ্য)
+## ২। চূড়ান্ত Navigation Map (v178 লক্ষ্য)
 
 ### Student
 `🏠 হোম` · `📚 পড়াশোনা` · `🗓 রুটিন` · `📝 পরীক্ষা` · `👤 আরও`
@@ -380,6 +380,7 @@ Preview → PDF**, আর Generate-এর আগে preview খোলে না:
 | 6b | Report Center চূড়ান্ত sweep (empty state এক ভাষায়, সাজেশন রিপোর্ট, সব report × সব role) | ✅ এই রিলিজে |
 | 7 | প্রতিটি Role-এ E2E QA (Teacher→Student ৯টি workflow) | ✅ এই রিলিজে — `tests/workflows-e2e.test.mjs` ৭টি + `tests/registration-approval-login.test.mjs` (Manager approval workflow) |
 | 8 | Dead-reference cleanup — নতুন কাঠামোর পর যে module-গুলো এমন control-এ লিখত যা আর কোনো পেজে নেই, সেগুলো সরানো (Admin-এর পুরোনো finance/ledger/receipt stack, student topbar clock, staff stat tile, manager short name, teacher records back bar, text-based connection pill + `js/connectivity.js`) | ✅ এই রিলিজে — `tools/spec-selector-audit.mjs` এখন **০ unresolved**; `tools/undefined-call-check.mjs` প্রতিটি module যাচাই করে (js/ — ১২০টি ফাইল OK), রেন্ডারে কিছু বদলায়নি; সাথে পূর্বের ধাপে পড়ে থাকা অব্যবহৃত named import-ও সরানো (১০টি module) |
+| **9** | Browser-suite চালু (এই sandbox-এ Chromium + libnss3 এক্সট্রাক্ট করে) এবং স্যুটে ধরা পড়া প্রথম আসল রিগ্রেশন সারানো: teacher-এর **ফলাফল seat**-এর view কখনো register হয়নি, তাই seat ও হোমের “নম্বর” tile — দুটোই ব্রাউজারে নিষ্ক্রিয় ছিল | ✅ এই রিলিজে — `tools/e2e-run.mjs`, `js/teacher.js` (v178)। ⚠️ বাকি: ২৯০টি browser test-এর ১৫৭টি এখনো fail — শ্রেণিবদ্ধ কাজ চলছে (নিচে দেখুন) |
 
 প্রতিটি phase-এ নিয়ম এক: **আগে feature-এর নতুন বাড়ি নিশ্চিত, তারপর পুরোনো menu সরানো** — এবং
 `tests/app-architecture.test.mjs` প্রমাণ করে কোনো view/feature হারায়নি।

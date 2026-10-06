@@ -10,7 +10,10 @@ async function teacher(page) {
   await page.clock.setFixedTime(t0);
   // One login card for everyone: the session the fixture writes is the door.
   await enterPortal(page, 'teacher');
-  await page.locator('.admin-bottom [data-teacher-view=exam]').click();
+  /* The exam workspace is one screen; the hub card is the documented door
+     (ফলাফল seat keeps the marks records of the class tests). */
+  await page.locator('.admin-bottom [data-teacher-view=academic]').click();
+  await page.locator('#teacherAcademic [data-academic-section=exams]').click();
 }
 async function manager(context) {
   const page = await context.newPage(); await page.clock.setFixedTime(t0);

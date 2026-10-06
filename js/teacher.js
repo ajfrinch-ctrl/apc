@@ -247,7 +247,7 @@ function renderTeacherProfile() {
   host.innerHTML = `<div class="manager-profile-list"><div><small>নাম</small><strong>${esc(account.fullName || '—')}</strong></div><div><small>Username</small><strong>${esc(account.username || '—')}</strong></div><div><small>যোগাযোগ</small><strong>${esc(account.mobile || '—')}</strong></div><div><small>Role</small><strong>Teacher — Academic</strong></div><div><small>Assigned class/batch</small><strong>${bn(state.assignments.length)}</strong></div></div>`;
 }
 function render() { renderHome(); renderRecords(); renderStudents(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports(); renderTeacherProfile(); renderAcademic(); renderNotices(); }
-const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'students', 'online-exams', 'courses', 'classes', 'routine-view', 'reports', 'profile', ...Object.keys(ACTIVITY_TYPES)]);
+const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'students', 'online-exams', 'courses', 'classes', 'routine-view', 'reports', 'profile', ...Object.keys(ACTIVITY_TYPES)]);
 function setView(view) {
   if (!TEACHER_VIEWS.includes(view)) return;
   const previous = state.view;
@@ -258,7 +258,7 @@ function setView(view) {
     state.recordLimit = 15;
   }
   state.view = view;
-  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', more: 'teacherMore', students: 'teacherStudents', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
+  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', students: 'teacherStudents', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
   $$('.teacher-view').forEach(el => { el.hidden = el.id !== panel; });
   $$('.teacher-type-tabs [data-type-tab]').forEach(el => {
     const active = el.dataset.typeTab === view;

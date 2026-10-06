@@ -43,7 +43,8 @@ async function seed(page, activities) {
 
 test('exam drafts must use Manager approval workflow; legacy marks are read-only', async ({ page, context }) => {
   await enter(page);
-  await page.locator('.admin-bottom [data-teacher-view=exam]').click();
+  await page.locator('.admin-bottom [data-teacher-view=academic]').click();
+  await page.locator('#teacherAcademic [data-academic-section=exams]').click();
   await page.locator('#teacherExamWorkspace [data-exam-action=new-mcq]').click();
   await page.locator('[name=title]').fill('গণিত মূল্যায়ন'); await page.locator('[name=subject]').fill('গণিত');
   await page.locator('[name=template]').fill('প্রশ্ন: ২ + ২ কত?\nA: ৪\nB: ৫\nC: ৬\nD: ৭\nউত্তর: A');

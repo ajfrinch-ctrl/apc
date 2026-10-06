@@ -1,3 +1,8 @@
+// v178: the teacher's ফলাফল seat is alive again — Phase 2 added the seat with the value
+//       'exam' but never registered that view, so both the seat and the home "নম্বর" tile did
+//       nothing in a real browser. The seat now opens the documented marks screen (with its
+//       online-exam hint), the academic hub card remains the door to the exam workspace, and
+//       the browser suite can run in this offline sandbox via `npm run test:e2e:local`.
 // v177: the dead-reference cleanup finished — the unused named imports the redesign left behind
 //       (retired finance tiles, the old manager/teacher helpers) are gone too, so no module holds
 //       a reference to something it never used. v176: the last two dead calls the static scanner found in the Admin panel (the retired
@@ -60,7 +65,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 177;
+const CACHE_VERSION = 178;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
