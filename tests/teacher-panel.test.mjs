@@ -190,3 +190,21 @@ test('the home screen can be scoped to one class', async () => {
   assert.equal(digits($('#teacherPendingCount').textContent), pendingAll + 2, 'সব শ্রেণি brings everything back');
   assert.equal(/শ্রেণি|বর্ষ/.test($('#teacherAttentionHint').textContent), false, 'and the hint stops naming a class');
 });
+
+test('Teacher Settings is the shared five-group hub, with no duplicated control', () => {
+  /* §29 — one Settings structure for every role. The Teacher's profile card,
+     password row and theme switch stay; the hub fills the rest, including the
+     notification group the Teacher page already had. */
+  const hub = $('[data-settings-hub="teacher"]');
+  assert.ok(hub, 'teacher settings hub missing');
+  assert.deepEqual([...hub.querySelectorAll('[data-settings-group]')].map(section => section.dataset.settingsGroup),
+    ['account', 'notification', 'app', 'security', 'data']);
+  assert.equal($$('#darkModeToggle').length, 1, 'one theme switch (the page\'s own)');
+  assert.equal($$('[data-settings-toggle="theme"]').length, 0, 'the hub must not add a second theme switch');
+  assert.equal(hub.querySelectorAll('[data-settings-row="profile"]').length, 1, 'profile');
+  assert.equal(hub.querySelectorAll('[data-settings-row="password"]').length, 1, 'password');
+  for (const key of ['install', 'device', 'session', 'offline', 'storage']) {
+    assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
+  }
+  assert.equal(hub.querySelector('[data-settings-group="notification"]').dataset.settingsOwner, 'notification');
+});

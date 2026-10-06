@@ -115,7 +115,7 @@ test('something arriving while the app is open appears at once; tapping a result
   assert.match(card().textContent, /ফলাফল প্রকাশিত হয়েছে/);
   clicks.length = 0;
   ctx.click(ctx.$('#apcInAppAlert [data-apc-alert-open^="result:E-R"]'));
-  await ctx.waitFor(() => clicks.includes('results'), 3000);
+  await ctx.waitFor(() => clicks.includes('exams'), 3000);
   assert.equal(cardVisible(), false);
 });
 

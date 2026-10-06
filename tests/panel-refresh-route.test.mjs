@@ -24,7 +24,7 @@ test('the admin panel reopens the page named in the URL', async () => {
   await ctx.waitFor(() => ctx.$('.admin-view.active')?.dataset.viewPanel === 'staff');
   assert.equal(ctx.$('.admin-view.active').dataset.viewPanel, 'staff', 'the hash decides the first page');
   // Opening another page updates the URL, so the next refresh stays there.
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="students"]'));
+  ctx.click(ctx.$('#adminFeatureGrid [data-admin-view="students"]'));
   await ctx.waitFor(() => ctx.$('.admin-view.active')?.dataset.viewPanel === 'students');
   assert.equal(ctx.window.location.hash, '#students');
   ctx.window.close();

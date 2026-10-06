@@ -2,11 +2,13 @@
    simple input/select form and durable pending receipt with no suffix. */
 import test, { before } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadPage } from './jsdom-harness.mjs';
+import { loadPage, stubPdfPrimitives } from './jsdom-harness.mjs';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
 import { adminStudents, paymentMethods } from '../js/admin-data.js';
 import { KEYS } from '../js/database.js';
 import { dateLabel } from '../js/finance-data.js';
+import { readFileSync } from 'node:fs';
+const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 let ctx;
 const person={...adminStudents.find(row=>row.id==='AP-1024'),uniqueRoll:'261001001',address:'PRIVATE-ADDRESS',fatherName:'PRIVATE-GUARDIAN'};
 const now=new Date();
@@ -17,17 +19,46 @@ before(async()=>{
  await import('../js/payment.js');
  await ctx.waitFor(()=>ctx.$('#paymentMain').dataset.counterReady==='true');
 });
-test('the counter opens from a genuine session and defaults to today, not a directory/dashboard',()=>{
+test('the counter opens on হোম from a genuine session, never a directory/dashboard',()=>{
  const {$,$$}=ctx;
  assert.equal($('#payShell').hidden,false);
+ /* Five seats, one per step of the counter's own job. */
+ assert.deepEqual($$('.admin-bottom [data-pay-section]').map(seat=>seat.dataset.paySection),['home','students','payment','reports','more']);
+ assert.equal($('.admin-bottom [aria-current="page"]').dataset.paySection,'home');
+ assert.equal($('[data-pay-panel="home"]').hidden,false);
+ for(const view of ['students','payment','reports','more']) assert.equal($(`[data-pay-panel="${view}"]`).hidden,true,view);
  assert.equal($('#payProfileCard').hidden,true);assert.equal($('#payCollectionForm').hidden,true);
  assert.equal($$('#paySearchResults .fee-search-result').length,0);
  assert.equal($$('#payTodayList .pay-activity-row').length,1);
  assert.match($('#payTodayList').textContent,/TODAY/);assert.doesNotMatch($('#payTodayList').textContent,/YESTERDAY|ADMIN/);
- for(const selector of ['#payPulse','#payTodayAmount','#payMonthAmount','#payDueStudents','#payQuickPicks','#payKeypad','#payStickyBar','#payDeskTools','.admin-bottom','#payReceiptWhatsApp']) assert.equal($(selector),null,selector);
+ /* The narrowed counter still has no wallet dashboard, no academic surface. */
+ for(const selector of ['#payPulse','#payTodayAmount','#payMonthAmount','#payDueStudents','#payQuickPicks','#payKeypad','#payStickyBar','#payDeskTools','#payReceiptWhatsApp','[data-academic-section]','[data-view-panel]']) assert.equal($(selector),null,selector);
  assert.equal($('#payLoginForm'),null);
  assert.equal($('#payReportsCard').hidden,true);
+ assert.equal($('#paymentReports').closest('[data-pay-panel]').dataset.payPanel,'reports');
  assert.ok($('#paymentReports'));
+});
+
+test('each seat opens its own step and the counter can walk the whole job',async()=>{
+ const {$,$$,click,waitFor}=ctx;
+ for(const [seat,title] of [['students','শিক্ষার্থী'],['payment','পেমেন্ট এন্ট্রি'],['reports','পেমেন্ট রিপোর্ট'],['more','আরও'],['home','আজকের লেনদেন']]) {
+  click($(`.admin-bottom [data-pay-section="${seat}"]`));
+  assert.equal($(`[data-pay-panel="${seat}"]`).hidden,false,seat);
+  assert.equal($(`.admin-bottom [aria-current="page"]`).dataset.paySection,seat);
+  assert.equal($('#counterViewTitle').textContent,title);
+ }
+ /* হোম → আজকের ক্লোজিং preselects the day's own closing report. */
+ click($('#payClosingShortcut'));
+ assert.equal($('[data-pay-panel="reports"]').hidden,false);
+ assert.equal($('#paymentReports select[name="report"]').value,'cash.closing');
+ assert.equal($('#paymentReports .counter-report-preview').textContent,'','no preview before Generate');
+ /* আরও carries the session, not a student directory. */
+ click($('.admin-bottom [data-pay-section="more"]'));
+ assert.ok($('#payMoreUser').textContent.trim());
+ assert.equal($$('#payMoreCard [data-pay-section]:not(#payEntrySearch)').length,0,'আরও is not a second menu');
+ assert.equal($('[data-pay-panel="more"] .fee-search-result'),null);
+ click($('.admin-bottom [data-pay-section="home"]'));
+ await waitFor(()=>$('#payTodayList .pay-activity-row'));
 });
 test('name, ID and unique roll search render only identity; phones/guardian/classes are not search keys',async()=>{
  const {$,$$,type,click,waitFor}=ctx;
@@ -67,7 +98,11 @@ test('simple payment starts with an empty amount and one method select, never a 
  assert.deepEqual([...$('#payFeeMethod').options].map(option=>option.value),[...paymentMethods]);
  assert.equal($('#payFeeMethod').value,'নগদ (Cash)');
  assert.doesNotMatch($('#payQuickProfile').textContent,/বকেয়া|মোবাইল|দশম/);
- assert.equal($('#paySearchCard').hidden,true);
+ /* The entry panel takes the screen; the verify step keeps its own seat. */
+ assert.equal($('[data-pay-panel="payment"]').hidden,false);
+ assert.equal($('[data-pay-panel="students"]').hidden,true);
+ assert.equal($('.admin-bottom [aria-current="page"]').dataset.paySection,'payment');
+ assert.equal($('#payEntryStudent').textContent,`${person.name} · Student ID: ${person.id}`);
  assert.equal($('#payProfileCollect').hidden,true);
 });
 test('invalid amounts/forged methods do not write a payment',async()=>{
@@ -97,6 +132,9 @@ test('a double click produces one durable pending entry and one exact-format rec
 test('today rows can reopen only their stored, sanitised receipt',async()=>{
  ctx.click(ctx.$('#payReceiptClose'));
  assert.equal(ctx.$('#payReceiptBackdrop').hidden,true);
+ /* entry → receipt → daily collection. */
+ assert.equal(ctx.$('[data-pay-panel="home"]').hidden,false);
+ assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.paySection,'home');
  ctx.click(ctx.$('#payTodayList .pay-activity-row'));
  await ctx.waitFor(()=>!ctx.$('#payReceiptBackdrop').hidden);
  assert.match(ctx.$('#payReceiptSub').textContent,/R\d{9}/);
@@ -110,6 +148,45 @@ test('storage failure keeps the draft and never opens a receipt',async()=>{
  const proto=Object.getPrototypeOf(window.localStorage), native=proto.setItem;
  proto.setItem=function(key,value){if(key===KEYS.transactions)throw new Error('QuotaExceededError');return native.call(this,key,value)};
  try {submit($('#payCollectionForm'));await waitFor(()=>!$('#paySaveError').hidden);assert.equal($('#payReceiptBackdrop').hidden,true);assert.equal($('#payFeeAmount').value,'900');assert.equal($('#paySaveButton').disabled,false);} finally {proto.setItem=native;}
+});
+test('a rejected-entry notification opens that entry’s own slip, not a bare list',async()=>{
+ const {$,$$,window}=ctx;
+ const rows=JSON.parse(window.localStorage.getItem(KEYS.transactions));
+ const target=rows.find(row=>row.amount===800);
+ window.dispatchEvent(new window.CustomEvent('apc-notification-action',{detail:{kind:'payment-rejected',id:target.id}}));
+ await ctx.waitFor(()=>!$('#payReceiptBackdrop').hidden);
+ assert.match($('#payReceiptBody').textContent,/৳৮০০/);
+ ctx.click($('#payReceiptClose'));
+ assert.equal($('#payReceiptBackdrop').hidden,true);
+ /* An id the counter cannot see opens nothing — no forged slip. */
+ window.dispatchEvent(new window.CustomEvent('apc-notification-action',{detail:{kind:'payment-rejected',id:'NO-SUCH-ENTRY'}}));
+ await ctx.flush(4);
+ assert.equal($('#payReceiptBackdrop').hidden,true);
+ /* The mapping lives in the notification module, the seat in the counter page. */
+ const source=read('js/notifications.js');
+ assert.match(source,/payment: 'data-pay-section'/);
+ assert.match(source,/'payment-rejected': 'home'/);
+ assert.equal($$('.admin-bottom [data-pay-section="home"]').length,1);
+});
+
+test('the counter Report Center previews only after Generate and says so when nothing matched',async()=>{
+ const {$,click,waitFor}=ctx;
+ /* Only the browser primitives jsdom lacks (canvas/font/image), never app logic. */
+ stubPdfPrimitives(ctx.window);
+ click($('.admin-bottom [data-pay-section="reports"]'));
+ const preview=$('#paymentReports .counter-report-preview');
+ assert.equal(preview.textContent,'','no preview before Generate');
+ /* A daily report for a day with no ledger rows: still Generate-then-preview,
+    and the honest empty state — never a blank sheet, never an invented row. */
+ const choices=$('#paymentReports select[name="report"]');
+ choices.value='fee.daily';choices.dispatchEvent(new window.Event('change',{bubbles:true}));
+ const date=$('#paymentReports input[name="date"]');
+ date.value='2019-01-01';date.dispatchEvent(new window.Event('change',{bubbles:true}));
+ $('#paymentReports .counter-report-form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+ await waitFor(()=>$('#paymentReports [data-report-empty]'),30000);
+ assert.equal($('#paymentReports [data-report-empty]').textContent.trim(),'কোনো তথ্য পাওয়া যায়নি।');
+ assert.equal(preview.textContent.includes(person.name),false,'an empty report carries no student row');
+ assert.ok($('#paymentReports [data-counter-download="pdf"]'),'the PDF stays available for the empty report too');
 });
 test('corrupt ledger disables payment instead of overwriting financial history',async()=>{
  const {$,window,waitFor}=ctx;

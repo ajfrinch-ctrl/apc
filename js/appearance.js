@@ -42,8 +42,11 @@ function syncControls(theme) {
     control.setAttribute('aria-pressed', String(theme === 'dark'));
     control.setAttribute('aria-label', theme === 'dark' ? 'লাইট থিম চালু করুন' : 'AMOLED থিম চালু করুন');
   }
-  const checkbox = document.getElementById('darkModeToggle');
-  if (checkbox) checkbox.checked = theme === 'dark';
+  /* One switch per page: the panel's own #darkModeToggle where it exists, and the
+     Settings hub's row (data-settings-toggle="theme") where the page has none. */
+  for (const checkbox of document.querySelectorAll('#darkModeToggle, [data-settings-toggle="theme"]')) {
+    checkbox.checked = theme === 'dark';
+  }
 }
 
 export function applyTheme(theme) {
@@ -84,4 +87,11 @@ export function initAppearance() {
       setTheme(checkbox.checked ? 'dark' : 'light');
     });
   }
+
+  /* Delegated so a toggle that Settings adds later is wired too. */
+  document.addEventListener('change', event => {
+    const input = event.target.closest('[data-settings-toggle="theme"]');
+    if (!input || input === checkbox) return;
+    setTheme(input.checked ? 'dark' : 'light');
+  });
 }

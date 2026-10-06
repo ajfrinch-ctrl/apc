@@ -38,12 +38,27 @@ test('all portals retain the same uncluttered two-action brand bar', () => {
   }
 });
 
-test('student, manager and teacher have eight real, named service shortcuts', () => {
+test('student, manager and teacher have real, named service shortcuts', () => {
+  /* The student grid is the five quick academic cards of the app architecture
+     plus the Notice Board entrance; the staff panels keep their eight tiles. */
   const allowed = {
-    index: ['routine', 'courses', 'exams', 'results', 'profile', 'notice-board'],
-    manager: ['approvals', 'classes', 'teachers', 'finance', 'routine', 'exams', 'notices', 'reports'],
+    manager: ['students', 'classes', 'teachers', 'finance', 'routine', 'exams', 'notices', 'reports'],
     teacher: ['classes', 'students', 'routine-view', 'routine', 'homework', 'online-exams', 'exam', 'reports']
   };
+  const studentCards = [
+    ['homework', 'বাড়ির কাজ'], ['suggestion', 'সাজেশন'], ['question-bank', 'প্রশ্নব্যাংক'],
+    ['exams', 'পরীক্ষা'], ['exams', 'ফলাফল'], ['notice-board', 'Notice Board']
+  ];
+  const studentTiles = [...doc('index').querySelectorAll('#studentServices .pay-tile')];
+  assert.equal(studentTiles.length, studentCards.length);
+  studentTiles.forEach((tile, index) => {
+    const [route, label] = studentCards[index];
+    assert.equal(tile.getAttribute('type'), 'button');
+    assert.ok(tile.querySelector('.pay-tile-icon svg[aria-hidden="true"]'), 'student blank icon');
+    assert.equal(tile.querySelector('.pay-tile-label').textContent.trim(), label);
+    assert.ok(tile.dataset.view === route || tile.dataset.action === route, 'student card ' + label + ' points nowhere');
+  });
+  assert.equal(studentTiles[4].dataset.examTab, 'results', 'ফলাফল opens the results tab of পরীক্ষা');
   for (const [name, views] of Object.entries(allowed)) {
     const document = doc(name);
     const tiles = [...document.querySelectorAll('.pay-grid > .pay-tile')];
@@ -60,25 +75,32 @@ test('student, manager and teacher have eight real, named service shortcuts', ()
   assert.ok(read('js/admin-panel-ui.js').includes('admin-feature-tile'), 'admin must retain its capability-generated service grid');
 });
 
-test('secondary screens have accessible home/back controls and staff More has round icons', () => {
+test('secondary screens have accessible home/back controls and staff hub rows have round icons', () => {
+  const MORE_SUBPAGES = '#reportsView, #notificationSettingsView, #myProfileView, #settingsView, #studentFeeView';
   for (const [name, attribute, target, count] of [
-    ['index', 'data-view', 'home', 7], ['admin', 'data-admin-view', 'dashboard', 11],
-    ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 9]
+    ['index', 'data-view', 'home', 10],
+    ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 11]
   ]) {
     const document = doc(name);
     const backs = [...document.querySelectorAll('.pay-back')];
     assert.equal(backs.length, count, name);
     for (const button of backs) {
-      // The More sub-pages (Reports, Notification Settings) go back to More.
-      const parent = name === 'index' && button.closest('#reportsView, #notificationSettingsView') ? 'profile' : target;
+      // Every আরও sub-page goes back to More — the student's (প্রোফাইল, রিপোর্ট,
+      // নোটিফিকেশন, ফি, সেটিংস) and the staff profile/Settings page too.
+      const staffHubPage = name !== 'index' && button.closest('[data-view-panel="profile"], #teacherProfile');
+      const parent = name === 'index' && button.closest(MORE_SUBPAGES) ? 'profile'
+        : staffHubPage ? 'more' : target;
       assert.equal(button.getAttribute(attribute), parent);
       assert.ok(button.getAttribute('aria-label'));
       assert.ok(button.querySelector('svg'));
     }
   }
-  for (const name of ['manager', 'teacher']) {
+  /* Admin: a screen inside a hub returns to that hub; the rest go home. */
+  const adminBacks = [...doc('admin').querySelectorAll('.pay-back')].map(button => button.getAttribute('data-admin-view'));
+  assert.deepEqual(adminBacks, ['dashboard', 'dashboard', 'system', 'dashboard', 'dashboard', 'dashboard', 'data', 'system', 'system', 'system', 'dashboard']);
+  for (const name of ['admin', 'manager', 'teacher']) {
     for (const row of doc(name).querySelectorAll('.admin-more-item')) {
-      assert.ok(row.querySelector('.admin-more-icon svg'), name + ' menu row has no icon');
+      assert.ok(row.querySelector('.admin-more-icon, .admin-more-copy'), name + ' hub row has no icon slot');
     }
   }
 });
@@ -123,15 +145,23 @@ test('notification settings live inside a hidden view, never floating outside th
     assert.ok(view, name + ' settings mount is outside every view panel');
     if (name === 'teacher') assert.equal(view.hidden, true, name + ' settings view is not hidden by default');
     else assert.equal(view.classList.contains('active'), false, name + ' settings view is active by default');
-    // A view panel hides its whole subtree; the mount must not escape it.
-    assert.equal(mount.parentElement, view, name + ' settings mount is not a direct view child subtree');
+    // A view panel hides its whole subtree; the mount must not escape it. Inside
+    // the view it now sits in the Settings hub's নোটিফিকেশন group (§29).
+    assert.ok(view.contains(mount), name + ' settings mount is outside its view panel');
+    assert.ok(mount.closest('[data-settings-group="notification"], #notificationSettingsView'),
+      name + ' notification settings are not inside the নোটিফিকেশন group');
   }
   assert.equal(doc('payment').getElementById('notificationSettings'), null, 'counter has no staff settings mount');
 });
 
-test('counter keeps only the requested today/search/payment surfaces, not wallet dashboard extras', () => {
+test('counter keeps only its five job surfaces, not wallet dashboard extras', () => {
   const document = doc('payment');
-  for (const selector of ['.admin-bottom','#payStickyBar','#payKeypad','#payDeskTools','#payQuickPicks','#payTodayAmount','#payMonthAmount','#payDueStudents']) assert.equal(document.querySelector(selector),null,selector);
+  const seats = [...document.querySelectorAll('.admin-bottom [data-pay-section]')].map(seat => seat.dataset.paySection);
+  assert.deepEqual(seats, ['home', 'students', 'payment', 'reports', 'more'], 'one seat per step of the counter job');
+  assert.deepEqual([...document.querySelectorAll('[data-pay-panel]')].map(panel => panel.dataset.payPanel),
+    ['home', 'students', 'payment', 'reports', 'more'], 'every seat owns exactly one panel');
+  assert.equal(document.querySelectorAll('[data-academic-section]').length, 0, 'no academic management at the counter');
+  for (const selector of ['#payStickyBar','#payKeypad','#payDeskTools','#payQuickPicks','#payTodayAmount','#payMonthAmount','#payDueStudents']) assert.equal(document.querySelector(selector),null,selector);
   for (const id of ['paySearchCard','payProfileCard','payActivityCard','payCollectionForm','payStudentSearch']) assert.equal(document.querySelectorAll('#'+id).length,1,id);
   assert.equal(document.querySelector('#payProfileCard').hidden,true);
   assert.equal(document.querySelector('#payFeeMethod').tagName,'SELECT');

@@ -196,5 +196,7 @@ test('the real counter saves a pending payment and downloads its simple statemen
   await expect(page.locator('#payReceiptDownload')).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem('activePlus.admin.transactions.v1'))).toBe(before);
   await expect(page.locator('#payTodayList')).toContainText('অনুমোদন বাকি');
-  await expect(page.locator('#payTodayAmount')).toHaveCount(0);
+  // The day list shows the entry; nothing in the counter claims it as collected
+  // money yet, and the counter owns no approved-total tile at all.
+  await expect(page.locator('#payTodayAmount, #payTodayCount, [data-pay-total]')).toHaveCount(0);
 });

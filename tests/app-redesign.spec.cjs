@@ -38,7 +38,7 @@ for (const role of ['admin','manager','teacher']) test(`${role} secondary screen
  await enterPortal(page,role);
  await page.evaluate(()=>document.documentElement.dataset.theme='dark');
  const views = role==='admin' ? ['staff','students','reports','roles','data','backup','security','settings','profile']
-   : role==='manager' ? ['students','approvals','classes','teachers','finance','cash-counter','notices','routine','exams','results','reports','profile']
+   : role==='manager' ? ['students','academic','classes','teachers','finance','cash-counter','notices','routine','exams','results','reports','profile']
    : ['students','classes','routine-view','homework','online-exams','suggestion','reports','profile'];
  for(const view of views) {
   if(role==='teacher'||role==='manager') await page.evaluate(({view,role})=>document.querySelector(`[data-${role}-view="${view}"]`).click(),{view,role});

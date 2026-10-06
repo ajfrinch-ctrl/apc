@@ -24,7 +24,7 @@ before(async () => {
 test('Manager boots on the operational dashboard with only its allow-listed sections', () => {
   assert.deepEqual(ctx.jsdomErrors, []);
   const views = ctx.$$('.manager-view').map(view => view.dataset.viewPanel);
-  assert.deepEqual(views, ['dashboard', 'students', 'approvals', 'classes', 'teachers', 'finance', 'cash-counter', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
+  assert.deepEqual(views, ['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
   const routes = ctx.$$('[data-manager-view]').map(button => button.dataset.managerView);
   for (const forbidden of ['staff', 'roles', 'permissions', 'security', 'backup', 'restore', 'settings', 'admin']) assert.equal(routes.includes(forbidden), false);
   assert.equal(ctx.$('#managerMain a[href*="admin"]'), null);
@@ -33,7 +33,10 @@ test('Manager boots on the operational dashboard with only its allow-listed sect
 });
 
 test('Manager student approval updates only the pending registration through the Manager flow', async () => {
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="approvals"]'));
+  /* অনুমোদন has no separate seat any more: the pending queue lives inside
+     শিক্ষার্থী, and the old name still opens that screen with the filter set. */
+  ctx.click(ctx.$('.manager-bottom [data-manager-view="students"]'));
+  ctx.click(ctx.$('[data-student-scope="pending"]'));
   await ctx.flush();
   assert.equal(ctx.$$('#managerStudentQueue [data-manager-action="approve-student"]').length, 1);
   ctx.click(ctx.$('#managerStudentQueue [data-manager-action="approve-student"]'));
@@ -55,8 +58,8 @@ test('Manager navigation refuses unknown or admin-only route identifiers', () =>
 });
 
 test('Manager alone assigns Teacher class/batch scope through the Teachers workflow', async () => {
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]'));
-  ctx.click(ctx.$('#managerMoreMenu [data-manager-view="teachers"]'));
+  ctx.click(ctx.$('.manager-bottom [data-manager-view="academic"]'));
+  ctx.click(ctx.$('#managerAcademicTeachers [data-manager-view="teachers"]'));
   await ctx.waitFor(() => ctx.$('#managerTeacherAssignmentForm [name=className]')?.options.length > 1);
   const form = ctx.$('#managerTeacherAssignmentForm');
   // The subject picker is a checkbox list fed by Admin's Academic setup: it only
@@ -92,6 +95,10 @@ test('the Manager student search finds a student by Student ID, including Bangla
   const rows = () => ctx.$$('#managerStudentList [data-manager-student]');
   ctx.click(ctx.$('[data-manager-view="students"]'));
   await ctx.waitFor(() => ctx.$('.manager-view[data-view-panel="students"]').classList.contains('active'));
+  /* The status filter stays where the user left it (the previous test left it on
+     the pending queue), so search starts from "সব". */
+  ctx.click(ctx.$('[data-student-scope="all"]'));
+  await ctx.waitFor(() => rows().length === 2);
 
   ctx.type(box, 's-app');                        // a real Student ID prefix
   await ctx.waitFor(() => rows().length === 1);
@@ -124,8 +131,10 @@ test('the আরও page lists every module as a real page, not a floating drawe
   assert.equal(ctx.$('#managerMoreTitle').textContent.trim(), 'আরও');
   assert.equal(ctx.window.location.hash, '#more', 'the open page lives in the URL');
 
+  /* Academic work lives in একাডেমিক and money in হিসাব, so আরও keeps only the
+     structural modules: ক্লাস ও ব্যাচ and the Manager's own profile. */
   const rows = ctx.$$('#managerMoreMenu .admin-more-item');
-  const expected = ['classes', 'teachers', 'finance', 'cash-counter', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile'];
+  const expected = ['classes', 'profile'];
   assert.deepEqual(rows.slice(0, expected.length).map(row => row.dataset.managerView), expected);
   assert.equal(rows.length, expected.length + 1, 'the log-out row is the last one');
   assert.ok(rows[rows.length - 1].classList.contains('is-logout'));
@@ -154,4 +163,24 @@ test('every আরও row opens its own page without an error', async () => {
     if (view !== 'more') { ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]')); await ctx.flush(); }
   }
   assert.deepEqual(ctx.jsdomErrors, [], 'no page raised an error while opening');
+});
+
+test('Manager Settings is the shared five-group hub, with no duplicated control', () => {
+  /* §29 — one Settings structure for every role. The Manager's own profile card,
+     password row and theme switch stay where they were; the hub fills the rest. */
+  const hub = ctx.$('[data-settings-hub="manager"]');
+  assert.ok(hub, 'manager settings hub missing');
+  assert.deepEqual([...hub.querySelectorAll('[data-settings-group]')].map(section => section.dataset.settingsGroup),
+    ['account', 'notification', 'app', 'security', 'data']);
+  assert.equal(ctx.$$('#darkModeToggle').length, 1, 'one theme switch (the page\'s own)');
+  assert.equal(ctx.$$('[data-settings-toggle="theme"]').length, 0, 'the hub must not add a second theme switch');
+  assert.equal(hub.querySelectorAll('[data-settings-row="profile"]').length, 1, 'the profile card is the profile row');
+  assert.equal(hub.querySelectorAll('[data-settings-row="password"]').length, 1, 'one password row');
+  assert.equal(hub.querySelectorAll('[data-settings-row="logout"]').length, 1, 'one logout row');
+  assert.equal(hub.querySelectorAll('[data-settings-row="install"]').length, 1, 'app install comes from the hub');
+  for (const key of ['device', 'session', 'storage']) {
+    assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
+  }
+  assert.equal(hub.querySelector('[data-settings-group="notification"]').dataset.settingsOwner, 'notification',
+    'the notification group stays owned by js/notification-settings.js');
 });

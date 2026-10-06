@@ -1,3 +1,49 @@
+// v178: the teacher's ফলাফল seat is alive again — Phase 2 added the seat with the value
+//       'exam' but never registered that view, so both the seat and the home "নম্বর" tile did
+//       nothing in a real browser. The seat now opens the documented marks screen (with its
+//       online-exam hint), the academic hub card remains the door to the exam workspace, and
+//       the browser suite can run in this offline sandbox via `npm run test:e2e:local`.
+// v177: the dead-reference cleanup finished — the unused named imports the redesign left behind
+//       (retired finance tiles, the old manager/teacher helpers) are gone too, so no module holds
+//       a reference to something it never used. v176: the last two dead calls the static scanner found in the Admin panel (the retired
+//       finance renderer on the student-edit path and the transaction reload after a data
+//       wipe) are gone, and `tools/undefined-call-check.mjs` now guards every module in
+//       js/ against calling a name it never imported or declared.
+// v175: retired-markup cleanup — every module that still wrote to a control the redesign
+//       had removed (Admin's old finance tiles, ledger and receipt viewer; the student topbar
+//       clock/date strip and daily-advice line; the dead staff stat tiles, manager short name,
+//       teacher records back bar and the text-based connection pill with its own module) is
+//       pruned. Nothing that renders changed: the app shell just stopped shipping code that
+//       could never find its element, so no page can grow a second interface again.
+// v174: Report Center final sweep — one empty-state wording for every role ("কোনো তথ্য পাওয়া যায়নি।",
+//       defined once in js/report-catalog.js and used by the preview, the PDF and the counter), the
+//       empty message now stands above the page instead of leaving a blank sheet, and the Academic
+//       family gained the Suggestion Report (সাজেশন — learning, status, chapter, class) beside the
+//       assignment/attendance reports.
+// v173: one Settings structure for every role — অ্যাকাউন্ট · নোটিফিকেশন · অ্যাপ · নিরাপত্তা · ডেটা.
+//       The Student আরও→সেটিংস, the Teacher/Manager profile page, the Admin অ্যাকাউন্ট seat and the
+//       Cash Counter's আরও all render the same five groups (js/settings-hub.js); a group's internals
+//       stay with the module that owns that work, an existing control is never duplicated, and the
+//       counter's theme switch is the same one switch the other panels already had.
+// v172: Admin app architecture — the bottom bar is হোম/স্টাফ/রিপোর্ট/সিস্টেম/ডেটা/অ্যাকাউন্ট and the old More
+//       menu became two hubs (সিস্টেম → roles/security/settings/academics; ডেটা → data management +
+//       backup). Student registration review moved to a হোম tile: Admin decides on a registration,
+//       never creates a student account.
+// v171: Cash Counter app architecture — the bottom bar is হোম/শিক্ষার্থী/পেমেন্ট/রিপোর্ট/আরও and each seat owns
+//       one step of the counter's job (search → entry → verify → receipt → daily collection → history).
+//       The narrowed counter stays narrow: identity-only search, no roster/dues/profile, no dashboard
+//       tiles; every figure still comes from the one ledger.
+// v170: Manager app architecture — the bottom bar is হোম/শিক্ষার্থী/একাডেমিক/হিসাব/রিপোর্ট/আরও; শিক্ষার্থী owns the
+//       whole lifecycle (নিবন্ধন অপেক্ষমাণ · সক্রিয় · নিষ্ক্রিয় + approve/reject/edit/activate/deactivate/password
+//       reset), একাডেমিক is one hub over the eight academic sections + teacher management, হিসাব owns
+//       collection/approval/due/history over the same ledger, and a Manager notice is class/batch-scoped.
+// v169: Teacher app architecture — the bottom bar is হোম/একাডেমিক/রুটিন/ফলাফল/আরও; একাডেমিক is one hub
+//       (বাড়ির কাজ / সাজেশন / প্রশ্নব্যাংক / উপকরণ / পরীক্ষা / নোটিশ) over the existing screens, Home carries
+//       the four create actions, and a Teacher notice is class/batch-scoped while Notice stays a notice.
+// v168: Student app architecture — the bottom bar is হোম/পড়াশোনা/রুটিন/পরীক্ষা/আরও, পড়াশোনা owns five
+//       sections (আমার কোর্স / বাড়ির কাজ / সাজেশন / প্রশ্নব্যাংক / উপকরণ), ফলাফল is a tab of পরীক্ষা,
+//       আরও owns প্রোফাইল/রিপোর্ট/নোটিফিকেশন/ফি(read-only)/সেটিংস/সহায়তা, and Home previews the latest notices.
+// v167: sync status is colour only — the topbar's own top border (green/amber/red/grey); the standing chip and retry banner are gone.
 // v166: treat an absent cloud collection as empty only after a device has a durable record view.
 // v165: keep the cohort retry average as a privacy-safe aggregate in the Student exam snapshot.
 // v164: cache the authenticated Student access gate so exam, finance and teaching reads still work offline.
@@ -19,7 +65,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 166;
+const CACHE_VERSION = 178;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -122,6 +168,7 @@ const APP_SHELL = [
   './js/staff-password-dialog.js',
   './js/notification-store.js',
   './js/notification-settings.js',
+  './js/settings-hub.js',
   './js/academics.js',
   './js/brand.js',
   './js/admin-academics.js',
@@ -131,6 +178,8 @@ const APP_SHELL = [
   './js/question-bank.js',
   './js/course-content.js',
   './js/course-hub.js',
+  './js/student-study-sections.js',
+  './js/student-more.js',
   './js/course-editor.js',
   './js/daily-quote.js',
   './assets/daily-quotes.json',
@@ -156,7 +205,6 @@ const APP_SHELL = [
   './js/navigation.js',
   './js/notice-center.js',
   './js/install.js',
-  './js/connectivity.js',
   './js/service-worker.js',
   './js/theme.js',
   './js/fixed-shell.js',

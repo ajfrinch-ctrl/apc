@@ -14,10 +14,7 @@ import { defaultStudent } from './config.js';
 import { $, $$, setAuthMessage, scrollToTop, toBanglaNumber } from './ui.js';
 import { contactNumber, normalizeUsername } from './account-policy.js';
 import { matchesLoginIdentifier, studentIdOf } from './sync-merge.js';
-import {
-  loadAccount, saveAccount, saveStudent, persistSession, setTrustedDevice,
-  loadAppConfig, verifyAccountPassword, upgradeAccountSecrets
-} from './storage.js';
+import { loadAccount, saveStudent, persistSession, setTrustedDevice, loadAppConfig, verifyAccountPassword, upgradeAccountSecrets } from './storage.js';
 import {
   STAFF_ACCOUNTS, STAFF_USERNAMES, normalizeStaffUsername, authenticateStaff,
   saveStaffSession, resolveStaffRoleByUsername, createInitialAdmin, staffAccountRecordExists,

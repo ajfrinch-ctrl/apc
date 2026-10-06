@@ -95,11 +95,12 @@ test('hash routes resolve only to known views', () => {
   assert.equal(routeFromHash('#approvals'), null);
   assert.equal(routeFromHash('#/students'), 'students');
   for (const view of Object.keys(VIEW_CAPABILITIES)) assert.equal(routeFromHash(`#${view}`), view);
+  assert.equal(routeFromHash('#more'), null, 'the More container is gone — six seats say where work lives');
 });
 
 test('the bottom bar renders one icon + label per permitted tab', () => {
   const items = ctx.$$('.admin-bottom button');
-  assert.deepEqual(items.map(button => button.dataset.adminView), ['dashboard', 'staff', 'students', 'reports', 'more']);
+  assert.deepEqual(items.map(button => button.dataset.adminView), ['dashboard', 'staff', 'reports', 'system', 'data', 'profile']);
   for (const button of items) {
     // Exactly one icon, drawn inside a fixed container: the chip.
     const chip = button.querySelector('.nav-chip');
@@ -205,7 +206,7 @@ test('nothing outside the Admin role survives in the DOM', () => {
   assert.equal(ctx.$('#studentLedgerList'), null);
   assert.equal(ctx.$('.reports-group-title'), null);
   // System sections are untouched.
-  for (const view of ['dashboard', 'staff', 'roles', 'students', 'reports', 'data', 'backup', 'security', 'settings', 'profile', 'more']) {
+  for (const view of ['dashboard', 'staff', 'system', 'roles', 'students', 'reports', 'data', 'backup', 'security', 'settings', 'profile']) {
     assert.equal(ctx.$$(`[data-admin-view="${view}"]`).length > 0, true, `${view} should still be reachable`);
   }
 });
@@ -226,12 +227,23 @@ test('a hash route opens a permitted view and moves the active tab', async () =>
 
   ctx.window.location.hash = '#settings';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="settings"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'system',
+    'a screen inside the সিস্টেম hub keeps its own seat lit');
+
+  ctx.window.location.hash = '#backup';
+  await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="backup"]').classList.contains('active'));
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'data');
+
+  ctx.window.location.hash = '#students';
+  await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'));
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'dashboard',
+    'the registration review reached from হোম keeps হোম lit');
 
   // A route that belongs to another panel never moves the panel.
   ctx.window.location.hash = '#finance';
   await ctx.flush();
-  assert.equal(ctx.$('.admin-view[data-view-panel="settings"]').classList.contains('active'), true);
+  assert.equal(ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'), true);
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'dashboard');
   ctx.window.location.hash = '';
 });
 
@@ -241,12 +253,12 @@ test('a role with no capability leaves the panel empty — menus, cards and rout
   const fresh = await loadPage('admin.html', { seed: { 'activePlus.demo.autofill.v1': 'off' } });
   const empty = createAccess('student');
   const removed = enforceCapabilities({ root: fresh.document, access: empty });
-  // Every capability-gated section is gone; only the "More" container (which has
-  // no capability of its own) is left for the shell to decide about.
-  assert.deepEqual(fresh.$$('.admin-view').map(view => view.dataset.viewPanel), ['more']);
-  // The logout row is not capability-gated: a signed-in user may always leave.
-  assert.equal(fresh.$$('.admin-more-item').length, 1);
-  assert.equal(fresh.$('.admin-more-item')?.id, 'adminMoreLogout');
+  // Every capability-gated section is gone; the two hubs hold only gated cards,
+  // so nothing is left for a role with no capability at all.
+  assert.deepEqual(fresh.$$('.admin-view').map(view => view.dataset.viewPanel), []);
+  // Leaving never depends on a capability: the topbar sign-out is always there.
+  assert.equal(fresh.$$('.admin-more-item').length, 0, 'no hub card survives an empty role');
+  assert.ok(fresh.$('#adminExitButton'), 'the topbar logout stays for every signed-in role');
   assert.equal(fresh.$$('#adminFeatureGrid .admin-feature-tile').length, 0);
   assert.equal(fresh.$$('[data-admin-cap]').length, 0);
   assert.ok(removed.views.length > 0);
@@ -259,8 +271,28 @@ test('a role with no capability leaves the panel empty — menus, cards and rout
   assert.equal(built.bottomButtons.length, 0);
   assert.deepEqual(built.bottomEntries, []);
   assert.equal(built.tiles.length, 0);
-  assert.equal(built.moreItems.length, 0);
+  assert.equal(built.systemItems.length, 0);
+  assert.equal(built.dataItems.length, 0);
   assert.equal(fresh.$$('.admin-bottom button').length, 0);
   assert.equal(fresh.$('.admin-bottom').hidden, true);
   assert.equal(fresh.$$('.admin-view').length, 0);
+});
+
+test('Admin Settings is the shared five-group hub, with no duplicated control', () => {
+  /* §29 — one Settings structure for every role: অ্যাকাউন্ট · নোটিফিকেশন · অ্যাপ ·
+     নিরাপত্তা · ডেটা. The Admin's own profile/session/password cards stay; the hub
+     adds the notification group and the rows the seat did not have. */
+  const hub = ctx.$('[data-settings-hub="admin"]');
+  assert.ok(hub, 'admin settings hub missing');
+  assert.deepEqual([...hub.querySelectorAll('[data-settings-group]')].map(section => section.dataset.settingsGroup),
+    ['account', 'notification', 'app', 'security', 'data']);
+  assert.equal(ctx.$$('#darkModeToggle').length, 1, 'one theme switch (the page\'s own)');
+  assert.equal(ctx.$$('[data-settings-toggle="theme"]').length, 0, 'the hub must not add a second theme switch');
+  for (const key of ['profile', 'password', 'logout']) {
+    assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
+  }
+  for (const key of ['install', 'device', 'session', 'offline', 'storage']) {
+    assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
+  }
+  assert.equal(hub.querySelector('[data-settings-group="notification"]').dataset.settingsOwner, 'notification');
 });

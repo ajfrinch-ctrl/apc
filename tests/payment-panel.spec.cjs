@@ -1,190 +1,204 @@
 /* Payment Receive panel: guarded search (name/mobile/ID/guardian), short profile,
    payment save through the shared financeRepository, receipt PDF and the
-   one-click WhatsApp hand-off straight to the student's own number. */
+   one-click WhatsApp hand-off straight to the student's own number.
+
+   The counter carries no login form of its own any more: it opens on the shared
+   card in index.html and the device-bound session that card writes, and it gets
+   the same five-group Settings hub as every other role — including the one
+   password row, served by the shared staff dialog. */
 const { test, expect } = require('./fixtures.cjs');
 const { enterPortal } = require('./portal-session.cjs');
 
 test.use({ viewport: { width: 390, height: 844 } });
+
+const STUDENTS = 'activePlus.admin.students.v1';
+
+/* A real device starts with an empty roster; the counter is evaluated on the
+   roster a manager's import would have left behind. */
+async function seedRoster(page) {
+  const { adminStudents } = await import('../js/admin-data.js');
+  const roster = adminStudents.filter(student => student.status === 'approved');
+  await page.addInitScript(({ key, rows }) => {
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(rows));
+  }, { key: STUDENTS, rows: roster });
+  return roster;
+}
 
 async function enter(page) {
   await enterPortal(page, 'payment');
   await expect(page.locator('#payShell')).toBeVisible();
 }
 
-test('payment portal opens only with the unique user ID and password', async ({ page }) => {
+test('the counter opens on a session only, and locks itself out without one', async ({ page }) => {
+  // No credential form lives on the panel: one shared login card is the only door.
   await page.goto('/payment.html');
-  await expect(page.locator('#payEntry')).toBeVisible();
-  // Demo credentials are prefilled for the one-tap demo flow.
-  await expect(page.locator('#payLoginUser')).toHaveValue('APC-PAY-001');
-  await expect(page.locator('#payLoginPin')).toHaveValue('123123');
-
-  // Wrong password is rejected with a Bengali message.
-  await page.locator('#payLoginPin').fill('999999');
-  await page.locator('#payLoginForm button[type=submit]').click();
-  await expect(page.locator('#payLoginError')).toContainText('ইউসার আইডি বা পাসওয়ার্ড সঠিক নয়');
   await expect(page.locator('#payShell')).toBeHidden();
+  await expect(page.locator('#payEntry, #payLoginForm, #payLoginUser, #payLoginPin')).toHaveCount(0);
+  await expect(page.locator('#apcPanelLock')).toBeVisible();
 
-  // Wrong user ID is rejected too.
-  await page.locator('#payLoginUser').fill('APC-PAY-002');
-  await page.locator('#payLoginPin').fill('123123');
-  await page.locator('#payLoginForm button[type=submit]').click();
-  await expect(page.locator('#payLoginError')).toBeVisible();
-  await expect(page.locator('#payShell')).toBeHidden();
+  // The lock card's one exit is the shared login page.
+  await page.locator('#apcPanelLockLogin').click();
+  await page.waitForURL('**/index.html');
+  await expect(page.locator('#authScreen')).toBeVisible();
 
-  // Correct credentials open the bare desk: no navigation, no admin views.
-  await page.locator('#payLoginUser').fill('APC-PAY-001');
-  await page.locator('#payLoginPin').fill('123123');
-  await page.locator('#payLoginForm button[type=submit]').click();
-  await expect(page.locator('#payShell')).toBeVisible();
-  await expect(page.locator('.admin-bottom, .nav-item, [data-admin-view]')).toHaveCount(0);
-
-  // Remembered session survives a reload without the form.
+  // A real session opens the desk, and a reload keeps it open.
+  await enter(page);
   await page.reload();
   await expect(page.locator('#payShell')).toBeVisible();
 
-  // Logout clears the session and lands on the shared login page.
+  // Logout clears the session and hands the device back to the login page.
   await page.locator('#payExitButton').click();
   await page.waitForURL('**/index.html');
   await expect(page.locator('#authScreen')).toBeVisible();
   await page.goto('/payment.html');
-  await expect(page.locator('#payEntry')).toBeVisible();
+  await expect(page.locator('#payShell')).toBeHidden();
+  await expect(page.locator('#apcPanelLock')).toBeVisible();
 });
 
-test('the password can be changed from the panel; the new one logs in, the old one is rejected', async ({ page }) => {
+test('the counter changes its own password from Settings; only that password signs in', async ({ page }) => {
   await enter(page);
-  await page.locator('#payPinButton').click();
-  await expect(page.locator('#payPinBackdrop')).toBeVisible();
 
-  // Wrong current password is rejected.
-  await page.locator('#payPinCurrent').fill('111111');
-  await page.locator('#payPinNew').fill('456789');
-  await page.locator('#payPinConfirm').fill('456789');
-  await page.locator('#payPinForm button[type=submit]').click();
-  await expect(page.locator('#payPinError')).toContainText('বর্তমান পাসওয়ার্ড সঠিক নয়');
+  // Settings → অ্যাকাউন্ট carries the same one password row every staff panel has.
+  await page.locator('[data-pay-section="more"]').click();
+  const row = page.locator('#payMorePanel [data-settings-row="password"]');
+  await expect(row).toHaveCount(1);
+  await row.click();
+  await expect(page.locator('.staff-pw-backdrop')).toBeVisible();
+  await expect(page.locator('.staff-pw-backdrop')).toHaveAttribute('data-staff-pw', 'payment');
 
-  // Mismatched confirmation is rejected.
-  await page.locator('#payPinCurrent').fill('123123');
-  await page.locator('#payPinNew').fill('456789');
-  await page.locator('#payPinConfirm').fill('456780');
-  await page.locator('#payPinForm button[type=submit]').click();
-  await expect(page.locator('#payPinError')).toContainText('মিলছে না');
+  // A short or mismatched pair is refused before anything is stored.
+  await page.locator('#staffPwNew').fill('123');
+  await page.locator('#staffPwConfirm').fill('123');
+  await page.locator('.staff-pw-form button[type=submit]').click();
+  await expect(page.locator('.staff-pw-error')).toBeVisible();
+  await page.locator('#staffPwNew').fill('Apc-Counter-2026');
+  await page.locator('#staffPwConfirm').fill('Apc-Counter-2027');
+  await page.locator('.staff-pw-form button[type=submit]').click();
+  await expect(page.locator('.staff-pw-error')).toBeVisible();
 
-  // Valid change saves and closes the modal (Bangla digits accepted too).
-  await page.locator('#payPinConfirm').fill('৪৫৬৭৮৯');
-  await page.locator('#payPinForm button[type=submit]').click();
-  await expect(page.locator('#payPinBackdrop')).toBeHidden();
-  await expect(page.locator('#payToast')).toContainText('পাসওয়ার্ড পরিবর্তন হয়েছে');
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('activePlus.paymentAccount.v1')));
-  expect(stored).toEqual({ userId: 'APC-PAY-001', pin: '456789' });
+  await page.locator('#staffPwNew').fill('Apc-Counter-2026');
+  await page.locator('#staffPwConfirm').fill('Apc-Counter-2026');
+  await page.locator('.staff-pw-form button[type=submit]').click();
+  await expect(page.locator('.staff-pw-backdrop')).toBeHidden();
 
-  // Old password no longer works; the new one does.
+  // The record holds a PBKDF2 hash; the typed password is nowhere in storage.
+  const stored = await page.evaluate(() => localStorage.getItem('activePlus.paymentAccount.v1'));
+  expect(stored).toBeTruthy();
+  expect(stored).not.toContain('Apc-Counter-2026');
+  const record = JSON.parse(stored);
+  expect(record.password.algo).toBe('PBKDF2');
+  expect(record.password.digest).toMatch(/^[0-9a-f]{64}$/);
+
+  // The old password no longer signs in on the shared card; the new one does.
   await page.locator('#payExitButton').click();
   await page.waitForURL('**/index.html');
-  await page.goto('/payment.html');
-  await expect(page.locator('#payEntry')).toBeVisible();
-  await page.locator('#payLoginPin').fill('123123');
-  await page.locator('#payLoginForm button[type=submit]').click();
-  await expect(page.locator('#payLoginError')).toBeVisible();
-  await page.locator('#payLoginPin').fill('456789');
-  await page.locator('#payLoginForm button[type=submit]').click();
+  await page.fill('#loginMobile', 'payment.apc');
+  await page.fill('#loginPin', 'Apc-E2E-2026');
+  await page.click('#loginForm button[type=submit]');
+  await expect(page.locator('#authMessage')).toBeVisible();
+  await expect(page.locator('#authMessage')).toContainText('সঠিক নয়');
+
+  await page.fill('#loginPin', 'Apc-Counter-2026');
+  await page.click('#loginForm button[type=submit]');
+  await page.waitForURL('**/payment.html');
   await expect(page.locator('#payShell')).toBeVisible();
 });
 
-test('payment panel is a bare search desk: entry, empty state, no match', async ({ page }) => {
+test('the counter desk opens on হোম with the five counter tabs and nothing else', async ({ page }) => {
+  await seedRoster(page);
   await enter(page);
-  // Nothing else: no bottom navigation, no admin views.
-  await expect(page.locator('.admin-bottom, .nav-item, [data-admin-view]')).toHaveCount(0);
-  await expect(page.locator('#payQuickProfile')).toContainText('উপরে সার্চ করে শিক্ষার্থী নির্বাচন করুন');
-  await page.locator('#payStudentSearch').fill('কেউ না');
-  await expect(page.locator('#paySearchStatus')).toHaveText('কোনো শিক্ষার্থী পাওয়া যায়নি');
-  await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(0);
+  // The counter's own five seats, one per step of its job.
+  const seats = page.locator('nav.admin-bottom [data-pay-section]');
+  await expect(seats).toHaveText(['হোম', 'শিক্ষার্থী', 'পেমেন্ট', 'রিপোর্ট', 'আরও']);
+  await expect(page.locator('nav.admin-bottom [aria-current="page"]')).toHaveAttribute('data-pay-section', 'home');
+  await expect(page.locator('[data-pay-panel="home"]')).toBeVisible();
+
+  // No other role's views live anywhere on this page.
+  await expect(page.locator('[data-admin-view], [data-manager-view], [data-teacher-view], [data-student-view]')).toHaveCount(0);
+
+  // An empty day says so instead of inventing rows.
+  await expect(page.locator('#payTodayList')).toContainText('আজ এখনও কোনো লেনদেন নেই।');
 });
 
-test('search works by name, mobile, ID and guardian mobile (Bangla digits too)', async ({ page }) => {
+test('search resolves identity only: name, Student ID and roll — never phone, class or guardian', async ({ page }) => {
+  const [student] = await seedRoster(page);
   await enter(page);
-  const names = async () => page.locator('#paySearchResults .fee-search-result strong').allTextContents();
-  await page.locator('#payStudentSearch').fill('রাইসা');
-  expect(await names()).toEqual(['রাইসা ইসলাম']);
-  await page.locator('#payStudentSearch').fill('01700');
-  expect(await names()).toEqual(['রাইসা ইসলাম']);
-  await page.locator('#payStudentSearch').fill('০১৮১১'); // Bangla digits, student mobile
-  expect(await names()).toEqual(['তহমিদ হাসান']);
-  await page.locator('#payStudentSearch').fill('AP-1024');
-  expect(await names()).toEqual(['রাইসা ইসলাম']);
-  await page.locator('#payStudentSearch').fill('01911223344'); // guardian mobile only
-  expect(await names()).toEqual(['তহমিদ হাসান']);
-  await page.locator('#payStudentSearch').fill('০১৭৭৭৮৮৯৯০০'); // guardian, Bangla digits
-  expect(await names()).toEqual(['সাদিয়া আফরিন']);
+  await page.locator('nav.admin-bottom [data-pay-section="students"]').click();
+
+  for (const query of [student.name, student.id, student.uniqueRoll]) {
+    await page.locator('#payStudentSearch').fill(String(query));
+    await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(1);
+    await expect(page.locator('#paySearchResults .fee-search-result')).toContainText(student.name);
+    await expect(page.locator('#paySearchResults .fee-search-result')).toContainText(student.id);
+  }
+
+  // Nothing but identity is rendered — no dues, class, phone or guardian.
+  const card = await page.locator('#paySearchResults').textContent();
+  expect(card).not.toContain('বকেয়া');
+  expect(card).not.toContain(String(student.mobile || '01700000000'));
+
+  // A phone number, the class and the guardian name are not search keys.
+  for (const query of [String(student.mobile || '01700000000'), String(student.className), String(student.guardianMobile || '01800000000')]) {
+    await page.locator('#payStudentSearch').fill(query);
+    await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(0);
+  }
 });
 
-test('profile shows brief info, payment saves, receipt PDF downloads', async ({ page }) => {
+test('verify → entry → receipt: a pending slip, a stored entry and a receipt PDF', async ({ page }) => {
+  const [student] = await seedRoster(page);
   await enter(page);
-  await page.locator('#payStudentSearch').fill('রাইসা');
-  await page.locator('#paySearchResults .fee-search-result').click();
-  const profile = page.locator('#payQuickProfile');
-  await expect(profile).toContainText('রাইসা ইসলাম');
-  await expect(profile).toContainText('AP-1024');
-  await expect(profile).toContainText('দশম শ্রেণি • বিজ্ঞান বিভাগ');
-  await expect(profile).toContainText('০১৭০০০০০০০০');
-  await expect(profile).toContainText('০১৮০০০০০০০০');
-  await expect(profile).toContainText('বর্তমান মাসের বকেয়া');
-  await expect(profile).toContainText('পেমেন্ট নিন');
+  await page.locator('nav.admin-bottom [data-pay-section="students"]').click();
+  await page.locator('#payStudentSearch').fill(student.id);
+  await page.locator('#paySearchResults .fee-search-result').first().click();
+
+  const verify = page.locator('#payProfileCard');
+  await expect(verify).toContainText(student.name);
+  await expect(verify).toContainText(student.id);
+  await expect(verify).toContainText('পেমেন্ট নিন');
 
   await page.locator('#payProfileCollect').click();
   await expect(page.locator('#payCollectionForm')).toBeVisible();
-  await expect(page.locator('#payPaymentFor')).toContainText('রাইসা ইসলাম');
+  await expect(page.locator('#payEntryStudent')).toContainText(student.id);
   await page.locator('#payFeeAmount').fill('800');
-  await page.locator('#payFeeNote').fill('পেমেন্ট কাউন্টার টেস্ট');
+  await page.locator('#payFeeMethod').selectOption('নগদ (Cash)');
+  await page.locator('#payFeeTrxId').fill('COUNTER-800');
   await page.locator('#paySaveButton').click();
 
-  // Receipt modal appears after durable save; transaction is in storage.
+  // Durable save first, then the slip — and it is provisional, not final.
   await expect(page.locator('#payReceiptBackdrop')).toBeVisible();
-  await expect(page.locator('#payReceiptSub')).toContainText('রসিদ নং: REC-');
+  await expect(page.locator('#payReceiptSub')).toContainText('রসিদ নং: R');
   await expect(page.locator('#payReceiptBody')).toContainText('৳৮০০');
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('activePlus.admin.transactions.v1')));
-  const added = stored.find(tx => tx.studentId === 'AP-1024' && tx.amount === 800);
+  await expect(page.locator('#payReceiptTitle')).toContainText('অস্থায়ী পেমেন্ট স্লিপ');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('activePlus.admin.transactions.v1') || '[]'));
+  const added = stored.find(tx => tx.amount === 800 && tx.trxRef === 'COUNTER-800');
   expect(added).toBeTruthy();
+  expect(added.status).toBe('pending');
   expect(added.collectedBy).toBe('পেমেন্ট কাউন্টার');
-  expect(added.note).toBe('পেমেন্ট কাউন্টার টেস্ট');
 
   const pdf = page.waitForEvent('download');
   await page.locator('#payReceiptDownload').click();
-  expect((await pdf).suggestedFilename()).toMatch(/^REC-.*\.pdf$/);
+  expect((await pdf).suggestedFilename()).toMatch(/^R\d{9}\.pdf$/);
 
-  // Counter entry stays provisional until Manager approval; it cannot reduce dues yet.
-  expect(added.status).toBe('pending');
-  await expect(page.locator('#payReceiptBody')).toContainText('Manager অনুমোদনাধীন');
+  // The entry is on the counter's own day list; closing lands on হোম.
   await page.locator('#payReceiptClose').click();
-  await expect(page.locator('#payReceiptBackdrop')).toBeHidden();
-  await expect(page.locator('#payQuickProfile .fee-balance-grid')).toContainText('৳১,৫০০');
+  await expect(page.locator('[data-pay-panel="home"]')).toBeVisible();
+  await expect(page.locator('#payTodayList [data-pay-tx]').first()).toContainText(student.name);
 });
 
-test('WhatsApp share goes straight to the student number, even when Web Share exists', async ({ page }) => {
+test('হোম → আজকের ক্লোজিং opens the Report Center with the closing report preselected', async ({ page }) => {
+  await seedRoster(page);
   await enter(page);
-  await page.locator('#payStudentSearch').fill('তহমিদ');
-  await page.locator('#paySearchResults .fee-search-result').click();
-  await page.locator('#payProfileCollect').click();
-  await page.locator('#payFeeAmount').fill('1500');
-  await page.locator('#paySaveButton').click();
-  await expect(page.locator('#payReceiptBackdrop')).toBeVisible();
+  await page.locator('#payClosingShortcut').click();
 
-  // The share API being available must not change the target: the button opens
-  // the student's own chat and saves the receipt image next to it.
-  await page.evaluate(() => {
-    window.__shared = null;
-    window.__openUrl = null;
-    navigator.canShare = data => Boolean(data.files);
-    navigator.share = async data => { window.__shared = data; };
-    window.open = url => { window.__openUrl = url; };
-  });
-  const pngDownload = page.waitForEvent('download');
-  await page.locator('#payReceiptWhatsApp').click();
-  await expect(page.locator('#payToast')).toContainText('হোয়াটসঅ্যাপ চ্যাট', { timeout: 10000 });
-  expect(await page.evaluate(() => window.__shared)).toBeNull();
+  // The Report Center contract: generate first, then preview — never before.
+  await expect(page.locator('[data-pay-panel="reports"]')).toBeVisible();
+  const choices = page.locator('#paymentReports select[name="report"]');
+  await expect(choices).toHaveValue('cash.closing');
+  await expect(page.locator('[data-counter-download]')).toHaveCount(0);
 
-  const url = await page.evaluate(() => window.__openUrl);
-  expect(url).toMatch(/^https:\/\/wa\.me\/8801811223344\?text=/);
-  expect(decodeURIComponent(url)).toContain('তহমিদ হাসান');
-  expect(decodeURIComponent(url)).toContain('রসিদ নং');
-  expect((await pngDownload).suggestedFilename()).toMatch(/^REC-.*\.png$/);
+  await page.locator('#paymentReports form.counter-report-form button[type=submit]').click();
+
+  // No matching data still previews — with the one shared empty message.
+  await expect(page.locator('.rc-preview-notice')).toHaveText('কোনো তথ্য পাওয়া যায়নি।');
+  await expect(page.locator('[data-counter-download="pdf"], [data-counter-download="csv"]')).toHaveCount(2);
 });

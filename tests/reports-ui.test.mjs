@@ -208,7 +208,9 @@ test('a report with no matching records says so instead of printing blanks', asy
   select.dispatchEvent(new ctx.window.Event('change', { bubbles: true }));
   generate();
   await ctx.waitFor(() => Boolean($('.rc-pdf-preview')), 20000);
-  // The honest empty state travels inside the document, so the PDF says it too.
-  assert.match($('.rc-pdf-preview').textContent, /এই filter অনুযায়ী কোনো data পাওয়া যায়নি/);
-  assert.equal(catalog.EMPTY_MESSAGE.length > 0, true);
+  // The honest empty state travels inside the document, so the PDF says it too —
+  // and the preview says it above the page as well (§Report Center).
+  assert.match($('.rc-pdf-preview').textContent, /কোনো তথ্য পাওয়া যায়নি/);
+  assert.equal($('.rc-preview-notice').textContent, catalog.EMPTY_MESSAGE, 'the preview announces the empty result');
+  assert.equal(catalog.EMPTY_MESSAGE, 'কোনো তথ্য পাওয়া যায়নি।', 'the required wording is pinned');
 });

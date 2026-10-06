@@ -1,7 +1,10 @@
 const { test, expect } = require('./fixtures.cjs');
+const { enterStudentApp, enterPortal } = require('./portal-session.cjs');
 const KEY = 'active-plus-account-v1';
 test.use({ viewport: { width: 390, height: 844 } });
-async function demo(page) { await page.goto('/index.html'); await page.locator('#demoLoginButton').click(); }
+/* Every role signs in on the one shared card in index.html; a student session
+   is set up by the fixture the same way a real sign-in writes it. */
+async function demo(page) { await enterStudentApp(page); }
 async function edit(page) { await page.locator('.bottom-nav [data-view=profile]').click(); await page.locator('#profileView [data-action=edit-profile]').first().click(); }
 async function logout(page) { await page.locator('[data-action=logout]').click(); await page.locator('#logoutConfirmButton').click(); }
 const saved = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY);
@@ -46,12 +49,17 @@ test('failed profile contact save keeps input and account unchanged', async ({ p
   await expect(page.locator('#editModal')).toBeVisible(); await expect(page.locator('#editAdditionalMobile')).toHaveValue('01811223344'); await expect(page.locator('.feedback-toast')).toContainText('সংরক্ষণ হয়নি'); expect(await saved(page)).toEqual(before);
 });
 
-test('admin default reset persists only after confirmation and keeps original phone', async ({ page }) => {
+test('manager password reset persists only after confirmation and keeps original phone', async ({ page }) => {
+  // শিক্ষার্থী management — including a password reset — is the Manager's work,
+  // never the Admin panel's.
   await demo(page); await page.evaluate(key=>{const a=JSON.parse(localStorage.getItem(key));a.pin='789789';localStorage.setItem(key,JSON.stringify(a));},KEY);
-  await page.goto('/admin.html'); await expect(page.locator('#adminLoginPin')).toHaveValue('123123'); await page.locator('#adminLoginForm [type=submit]').click();
-  await page.locator('.admin-bottom [data-admin-view=students]').click(); await page.locator('[data-action=reset-pin][data-id="AP-1024"]').click();
-  await expect(page.locator('.pin-box')).toHaveText('১২৩১২৩'); expect((await saved(page)).pin).toBe('789789');
-  await page.locator('[data-modal-action=done]').click(); expect((await saved(page)).pin).toBe('123123'); expect((await saved(page)).mobile).toBe('01700000000');
+  await enterPortal(page, 'manager');
+  await page.locator('.admin-bottom [data-manager-view=students]').click();
+  await page.locator('[data-manager-action=reset-password][data-id="AP-1024"]').click();
+  await expect(page.locator('#managerModalBody .pin-box')).toHaveText('১২৩১২৩');
+  expect((await saved(page)).pin).toBe('789789');
+  await page.locator('#managerModalBody [data-modal-action=confirm-reset]').click();
+  expect((await saved(page)).pin).toBe('123123'); expect((await saved(page)).mobile).toBe('01700000000');
 });
 
 test('recovery defaults to 123123, requires original number and persists only after verification', async ({ page }) => {

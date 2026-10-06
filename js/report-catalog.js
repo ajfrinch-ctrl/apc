@@ -223,7 +223,9 @@ export function blocksHaveData(blocks = []) {
   ));
 }
 
-export const EMPTY_MESSAGE = 'এই filter অনুযায়ী কোনো data পাওয়া যায়নি।';
+/* §Report Center: when the chosen filters match nothing, the preview still opens
+   and says exactly this — never a page of zeroes, never an invented row. */
+export const EMPTY_MESSAGE = 'কোনো তথ্য পাওয়া যায়নি।';
 
 /**
  * Build one report.

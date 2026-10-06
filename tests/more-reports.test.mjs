@@ -55,9 +55,12 @@ test('student report page, parent More highlight, Back and deep links use the ex
   assert.equal(ctx.window.localStorage.getItem(TRANSACTIONS_KEY), before);
 });
 
-test('the narrowed counter has no More/report/history/student-profile directory', async () => {
+test('the narrowed counter keeps a private আরও seat and no student-profile directory', async () => {
   const ctx = await loadPage('payment.html');
-  for (const selector of ['#payDeskTools','.admin-bottom','#payQuickPicks','.fee-profile-details','.fee-balance-grid']) assert.equal(ctx.$(selector), null, selector);
+  for (const selector of ['#payDeskTools','#payQuickPicks','.fee-profile-details','.fee-balance-grid','.student-search-results-table']) assert.equal(ctx.$(selector), null, selector);
+  /* আরও holds the counter's own session, not a menu of other roles' work. */
+  assert.equal(ctx.$('#payMorePanel').hidden, true);
+  for (const id of ['payMoreUser','payMoreLogout']) assert.equal(ctx.$$('#'+id).length, 1, id);
   assert.ok(ctx.$('#paymentReports'));
   assert.equal(ctx.$('#payReportsCard').hidden,true);
   assert.equal(ctx.$('#payProfileCard').hidden, true);

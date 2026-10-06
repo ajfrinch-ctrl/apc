@@ -17,6 +17,35 @@ const GLOBAL_KEYS = [
   'Option', 'Text', 'Comment', 'DocumentFragment'
 ];
 
+/* The PDF engine needs four browser primitives jsdom does not implement: a 2D
+   canvas context, canvas.toBlob(), Blob.arrayBuffer() and an image/font decode.
+   Stubbing them is cosmetic only — no app logic is replaced — and every test
+   that renders a real PDF opts in with this helper. */
+export function stubPdfPrimitives(window) {
+  const charWidth = 7;
+  const context = {
+    font: '', fillStyle: '', strokeStyle: '', textAlign: 'left', textBaseline: 'alphabetic', lineWidth: 1,
+    measureText: text => ({ width: String(text).length * charWidth }),
+    fillText() {}, fillRect() {}, strokeRect() {}, clearRect() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
+    drawImage() {}, scale() {}, setTransform() {}, save() {}, restore() {}
+  };
+  window.HTMLCanvasElement.prototype.getContext = function getContext() { return context; };
+  window.HTMLCanvasElement.prototype.toBlob = function toBlob(callback) {
+    callback(new window.Blob([new Uint8Array([1, 2, 3, 4])], { type: 'image/jpeg' }));
+  };
+  window.HTMLCanvasElement.prototype.toDataURL = () => 'data:image/jpeg;base64,';
+  if (!window.Blob.prototype.arrayBuffer) {
+    window.Blob.prototype.arrayBuffer = function arrayBuffer() { return Promise.resolve(new Uint8Array([1, 2, 3, 4]).buffer); };
+  }
+  window.Image.prototype.decode = function decode() { return Promise.resolve(); };
+  /* The PDF engine reaches for these as bare globals, exactly like a browser. */
+  window.FontFace = class FontFace { load() { return Promise.resolve(this); } };
+  globalThis.FontFace = window.FontFace;
+  Object.defineProperty(window.document, 'fonts', { value: { add() {}, ready: Promise.resolve() }, configurable: true });
+  return window;
+}
+
 export async function loadPage(file, { seed = {}, hash = '' } = {}) {
   const html = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
   const virtualConsole = new VirtualConsole();

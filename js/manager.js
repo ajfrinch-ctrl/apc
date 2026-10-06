@@ -1,15 +1,19 @@
-import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage } from './staff-auth.js';
+import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
+import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
+import { mountSettingsHub } from './settings-hub.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
 import { decideRegistration, DECISION_MESSAGES, DECIDED_EVENT } from './registration-review.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
-import { loadRoster, saveRoster, updateStudentOperationalInfo, syncAccountStatus, loadNotices, saveNotices, loadRoutine, saveRoutine, WEEK_DAYS } from './office-data.js';
+import { loadRoster, updateStudentOperationalInfo, setStudentStatus, loadNotices, saveNotices, loadRoutine, saveRoutine, WEEK_DAYS } from './office-data.js';
+import { loadAccount, saveAccount } from './storage.js';
+import { DEFAULT_PIN } from './config.js';
 import { financeRepository, monthLabel, dateLabel, studentFeeSummary, newestTransactions, isFinalizedTransaction, DEFAULT_MONTHLY_FEE } from './finance-data.js';
-import { examRepository, examResults, isLiveExam, MANAGER_ACTOR } from './exam-data.js';
+import { examRepository, isLiveExam, MANAGER_ACTOR } from './exam-data.js';
 import { examMeta, resultMarkup, downloadResults } from './exam-ui.js';
 import { teachingRepository, todayISO, TEACHING_KEY } from './teaching-data.js';
 import { enabledClasses } from './config.js';
-import { classCodes, dayNames } from './admin-data.js';
+import { classCodes } from './admin-data.js';
 import { newId } from './database.js';
 import { escapeHtml } from './sanitize.js';
 import { matchesStudentQuery } from './student-search.js';
@@ -18,7 +22,6 @@ import { initFixedShell } from './fixed-shell.js';
 import { initExamManager } from './exam-manager.js';
 import { listTeacherAssignments, saveTeacherAssignment, deleteTeacherAssignment, deleteAssignmentSubject, selectableSubjects, TEACHER_ASSIGNMENTS_KEY } from './teacher-assignments.js';
 import { listClasses } from './academics.js';
-import { initNotificationSettings } from './notification-settings.js';
 import { noticeCategory, noticeCategoryInfo } from './notification-rules.js';
 import { mountReports, refreshReports } from './reports.js';
 import { iconElement } from './icons.js';
@@ -29,28 +32,46 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const bn = value => String(value ?? 0).replace(/\d/g, digit => '০১২৩৪৫৬৭৮৯'[digit]);
 const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
-const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'approvals', 'classes', 'teachers', 'finance', 'cash-counter', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
+/* The Manager architecture (docs/APP-ARCHITECTURE.md §2): the bottom bar is
+   হোম · শিক্ষার্থী · একাডেমিক · হিসাব · রিপোর্ট · আরও. Every screen that used to
+   have its own seat keeps exactly one home; the two old names still resolve so
+   a bookmark or a saved refresh never lands nowhere. */
+const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
+const LEGACY_VIEWS = Object.freeze({
+  approvals: { view: 'students', scope: 'pending' },
+  'cash-counter': { view: 'finance', segment: 'approval' }
+});
+/* একাডেমিক hub cards. Each one opens the screen that already owns that work —
+   প্রশ্নব্যাংক / পরীক্ষা land in the single examination workspace. */
+const ACADEMIC_SECTIONS = Object.freeze({
+  homework: { view: 'academic-records', scope: 'homework' },
+  suggestion: { view: 'academic-records', scope: 'suggestion' },
+  bank: { view: 'exams', screen: 'bank' },
+  exams: { view: 'exams' },
+  results: { view: 'results' },
+  routine: { view: 'routine' },
+  notice: { view: 'notices' },
+  materials: { view: 'courses' }
+});
+/* হিসাব owns four segments; the Cash Counter panel keeps its own daily flow. */
+const FINANCE_SEGMENTS = Object.freeze(['collection', 'approval', 'due', 'history']);
 /* The "আরও" page. One row per Manager module, in the same icon + title + hint
    language as the Admin panel's More menu, so a module looks the same wherever
    it is reached from. Labels stay Bangla like the bottom bar; the hint names
-   what actually happens inside. */
+   what actually happens inside. Academic work lives in একাডেমিক, money in হিসাব. */
 const MORE_MODULES = Object.freeze([
   { view: 'classes', icon: 'book', label: 'ক্লাস পরিচালনা করুন', hint: 'শ্রেণি, ব্যাচ ও বিষয় তালিকা' },
-  { view: 'teachers', icon: 'users', label: 'শিক্ষককে ক্লাস ও বিষয় দিন', hint: 'কোন শিক্ষক কোন ক্লাসে কোন বিষয় পড়াবেন' },
-  { view: 'finance', icon: 'wallet', label: 'ফি ও পেমেন্ট', hint: 'পেমেন্ট যাচাই, বকেয়া ও কালেকশন' },
-  { view: 'cash-counter', icon: 'receipt', label: 'ক্যাশ কাউন্টার', hint: 'কাউন্টার এন্ট্রি ও আদায়ের অবস্থা' },
-  { view: 'notices', icon: 'notice', label: 'নোটিশ দিন', hint: 'নোটিশ তৈরি, সম্পাদনা ও মুছে ফেলা' },
-  { view: 'routine', icon: 'calendar', label: 'ক্লাস রুটিন তৈরি করুন', hint: 'দিনভিত্তিক ক্লাস ও শিক্ষক সাজানো' },
-  { view: 'exams', icon: 'exam', label: 'পরীক্ষা পরিচালনা করুন', hint: 'পরীক্ষা তৈরি, প্রশ্ন, অনুমোদন ও প্রকাশ' },
-  { view: 'courses', icon: 'book', label: 'পড়াশোনা পরিচালনা করুন', hint: 'কোর্স উপকরণ, নোট ও সাজেশন' },
-  { view: 'results', icon: 'result', label: 'ফলাফল দেখুন', hint: 'নম্বর যাচাই ও ফলাফল প্রকাশ' },
-  { view: 'reports', icon: 'reports', label: 'রিপোর্ট', hint: 'রিপোর্ট তৈরি, প্রিভিউ ও ডাউনলোড' },
-  { view: 'profile', icon: 'user', label: 'ম্যানেজার প্রোফাইল', hint: 'নিজের পরিচয় ও পাসওয়ার্ড' }
+  { view: 'profile', icon: 'user', label: 'ম্যানেজার প্রোফাইল', hint: 'নিজের পরিচয়, থিম, নোটিফিকেশন ও পাসওয়ার্ড' }
 ]);
 const dayLabel = Object.freeze({ sat: 'শনিবার', sun: 'রবিবার', mon: 'সোমবার', tue: 'মঙ্গলবার', wed: 'বুধবার', thu: 'বৃহস্পতিবার' });
-const statusLabel = Object.freeze({ approved: 'সক্রিয়', pending: 'অপেক্ষমাণ', rejected: 'বাতিল' });
+const statusLabel = Object.freeze({ approved: 'সক্রিয়', pending: 'অপেক্ষমাণ', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });
 let students = loadRoster(), notices = loadNotices(), routine = loadRoutine(), transactions = [], exams = { exams: [], attempts: [] }, teaching = { activities: [] }, managerAccount = null;
 let activeView = 'dashboard', studentScope = 'all', cashScope = 'pending', routineDay = 'sat', examStarted = false, managerBusy = false;
+let financeSegment = 'collection', academicScope = 'all', academicClass = 'all';
+/* One examination workspace for the panel; একাডেমিক → প্রশ্নব্যাংক / পরীক্ষা
+   deep-link into its own screens instead of rendering a second copy. */
+let examWorkspaceOpen = null;
+const scopeLabel = Object.freeze({ all: 'সব', pending: 'নিবন্ধন অপেক্ষমাণ', approved: 'সক্রিয়', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });
 
 function toast(message, error = false) {
   const node = $('#managerToast'); if (!node) return;
@@ -58,12 +79,26 @@ function toast(message, error = false) {
   clearTimeout(toast.timer); toast.timer = setTimeout(() => { node.hidden = true; }, 3000);
 }
 function safeSetText(selector, value) { const node = $(selector); if (node) node.textContent = String(value ?? '—'); }
+function normalizeView(view) {
+  const legacy = LEGACY_VIEWS[view];
+  if (!legacy) return MANAGER_VIEWS.includes(view) ? { view } : null;
+  if (legacy.scope) studentScope = legacy.scope;
+  if (legacy.segment) financeSegment = legacy.segment;
+  return { view: legacy.view };
+}
 function renderView(view) {
-  if (!MANAGER_VIEWS.includes(view)) return false;
+  const target = normalizeView(view);
+  if (!target) return false;
+  view = target.view;
   activeView = view;
   $$('.manager-view').forEach(panel => { const active = panel.dataset.viewPanel === view; panel.classList.toggle('active', active); panel.hidden = !active; });
+  const seat = view === 'dashboard' ? 'dashboard'
+    : view === 'students' ? 'students'
+      : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'teachers'].includes(view) ? 'academic'
+        : view === 'finance' ? 'finance'
+          : view === 'reports' ? 'reports' : 'more';
   $$('.manager-bottom [data-manager-view]').forEach(button => {
-    const active = button.dataset.managerView === view || (view === 'more' && button.dataset.managerView === 'more');
+    const active = button.dataset.managerView === seat;
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   });
@@ -73,11 +108,11 @@ function renderView(view) {
   rememberRoute(view);
   if (view === 'dashboard') renderDashboard();
   if (view === 'students') renderStudents();
-  if (view === 'approvals') renderApprovals();
+  if (view === 'academic') renderAcademic();
+  if (view === 'academic-records') renderAcademicRecords();
   if (view === 'classes') renderClasses();
   if (view === 'teachers') renderTeachers();
   if (view === 'finance') renderFinance();
-  if (view === 'cash-counter') renderCashCounter();
   if (view === 'notices') renderNotices();
   if (view === 'courses') mountCourseEditor();
   if (view === 'routine') renderRoutine();
@@ -131,19 +166,38 @@ function searchValue() { return String($('#managerStudentSearch')?.value || '').
 /* The shared rule: the Student ID (full, short, Bangla digits or with dashes
    removed) always finds the student; name, guardian and mobiles match too. */
 function studentMatches(student, query) { return !query || matchesStudentQuery(student, query); }
+/** শিক্ষার্থী: one screen for the whole student lifecycle. Every row is the same
+    roster record the student app reads; the pending queue is the same list,
+    filtered — never a second copy of a student. */
 function renderStudents() {
   const query = searchValue();
+  const pending = students.filter(student => student.status === 'pending');
+  safeSetText('#managerPendingBadge', `${bn(pending.length)} অপেক্ষমাণ`);
+  /* The chips always show the filter actually in force — including one set by a
+     shortcut or by an old link (dashboard → অনুমোদন, #approvals). */
+  $$('[data-student-scope]').forEach(chip => {
+    const active = chip.dataset.studentScope === studentScope;
+    chip.classList.toggle('active', active);
+    chip.setAttribute('aria-pressed', String(active));
+  });
+  const queue = $('#managerStudentQueue');
+  if (queue) {
+    queue.innerHTML = pending.length ? pending.map(student => `<article class="manager-record is-pending-registration"><div class="manager-record-head"><div><p class="eyebrow">${escapeHtml(student.id || 'Application')}</p><h2>${escapeHtml(student.name || 'নাম নেই')}</h2></div><span class="badge badge-pending">অপেক্ষমাণ</span></div><p>শ্রেণি ${escapeHtml(student.className || '—')} • ${escapeHtml(student.group || 'Batch নেই')}</p><p>মোবাইল ${escapeHtml(student.mobile || '—')} • অভিভাবক ${escapeHtml(student.guardianMobile || '—')}</p><p class="manager-meta">আবেদন: ${escapeHtml(student.enrolledAt || 'তারিখ নেই')}</p><div class="manager-actions"><button class="mini-btn approve" type="button" data-manager-action="approve-student" data-id="${escapeHtml(student.id)}">Approve</button><button class="mini-btn reject" type="button" data-manager-action="reject-student" data-id="${escapeHtml(student.id)}">Reject</button><button class="mini-btn" type="button" data-manager-action="view-student" data-id="${escapeHtml(student.id)}">প্রোফাইল</button></div><div class="manager-student-extra" hidden></div></article>`).join('') : '';
+  }
   const list = students.filter(student => (studentScope === 'all' || student.status === studentScope) && studentMatches(student, query));
   $('#managerStudentList').innerHTML = list.length ? list.map(student => {
     const fee = studentFeeSummary(student, transactions);
-    return `<article class="manager-record" data-manager-student="${escapeHtml(student.id)}"><div class="manager-record-head"><div><h2>${escapeHtml(student.name || 'নাম নেই')}</h2><p class="manager-meta">${escapeHtml(student.id)} • ${escapeHtml(student.className || 'ক্লাস নেই')} ${student.group ? `• ${escapeHtml(student.group)}` : ''}</p></div><span class="badge ${student.status === 'approved' ? 'badge-approved' : student.status === 'pending' ? 'badge-pending' : 'badge-rejected'}">${escapeHtml(statusLabel[student.status] || student.status || 'অজানা')}</span></div><p>মোবাইল ${escapeHtml(student.mobile || '—')} • বকেয়া ${money(fee.due)} • উপস্থিতি ${student.attendance == null ? '—' : `${escapeHtml(student.attendance)}%`} • গড় ফল ${student.average == null ? '—' : escapeHtml(student.average)}</p><div class="manager-actions"><button class="mini-btn" type="button" data-manager-action="view-student" data-id="${escapeHtml(student.id)}">প্রোফাইল</button><button class="mini-btn" type="button" data-manager-action="edit-student" data-id="${escapeHtml(student.id)}">তথ্য সম্পাদনা</button></div><div class="manager-student-extra" hidden></div></article>`;
+    const tone = student.status === 'approved' ? 'badge-approved' : student.status === 'pending' ? 'badge-pending' : student.status === 'inactive' ? 'badge-inactive' : 'badge-rejected';
+    /* Register, approve, edit, activate/deactivate, reset — the same roster row
+       through one set of actions. A rejection is a decision, deactivation is a
+       pause: they stay different statuses. */
+    const lifecycle = student.status === 'approved'
+      ? `<button class="mini-btn reject" type="button" data-manager-action="deactivate-student" data-id="${escapeHtml(student.id)}">Deactivate</button>`
+      : student.status === 'inactive'
+        ? `<button class="mini-btn approve" type="button" data-manager-action="activate-student" data-id="${escapeHtml(student.id)}">Activate</button>`
+        : '';
+    return `<article class="manager-record" data-manager-student="${escapeHtml(student.id)}"><div class="manager-record-head"><div><h2>${escapeHtml(student.name || 'নাম নেই')}</h2><p class="manager-meta">${escapeHtml(student.id)} • ${escapeHtml(student.className || 'ক্লাস নেই')} ${student.group ? `• ${escapeHtml(student.group)}` : ''}</p></div><span class="badge ${tone}">${escapeHtml(statusLabel[student.status] || student.status || 'অজানা')}</span></div><p>মোবাইল ${escapeHtml(student.mobile || '—')} • বকেয়া ${money(fee.due)} • উপস্থিতি ${student.attendance == null ? '—' : `${escapeHtml(student.attendance)}%`} • গড় ফল ${student.average == null ? '—' : escapeHtml(student.average)}</p><div class="manager-actions"><button class="mini-btn" type="button" data-manager-action="view-student" data-id="${escapeHtml(student.id)}">প্রোফাইল</button><button class="mini-btn" type="button" data-manager-action="edit-student" data-id="${escapeHtml(student.id)}">তথ্য সম্পাদনা</button>${lifecycle}<button class="mini-btn" type="button" data-manager-action="reset-password" data-id="${escapeHtml(student.id)}">পাসওয়ার্ড রিসেট</button></div><div class="manager-student-extra" hidden></div></article>`;
   }).join('') : '<p class="admin-empty">কোনো শিক্ষার্থী মেলেনি।</p>';
-}
-function renderApprovals() {
-  const pending = students.filter(student => student.status === 'pending');
-  safeSetText('#managerPendingBadge', `${bn(pending.length)} অপেক্ষমাণ`);
-  $('#managerPendingCount') && ( $('#managerPendingCount').textContent = bn(pending.length) );
-  $('#managerStudentQueue').innerHTML = pending.length ? pending.map(student => `<article class="manager-record"><div class="manager-record-head"><div><p class="eyebrow">${escapeHtml(student.id || 'Application')}</p><h2>${escapeHtml(student.name || 'নাম নেই')}</h2></div><span class="badge badge-pending">অপেক্ষমাণ</span></div><p>শ্রেণি ${escapeHtml(student.className || '—')} • ${escapeHtml(student.group || 'Batch নেই')}</p><p>মোবাইল ${escapeHtml(student.mobile || '—')} • অভিভাবক ${escapeHtml(student.guardianMobile || '—')}</p><p class="manager-meta">আবেদন: ${escapeHtml(student.enrolledAt || 'তারিখ নেই')}</p><div class="manager-actions"><button class="mini-btn approve" type="button" data-manager-action="approve-student" data-id="${escapeHtml(student.id)}">Approve</button><button class="mini-btn reject" type="button" data-manager-action="reject-student" data-id="${escapeHtml(student.id)}">Reject</button></div></article>`).join('') : '<p class="admin-empty">এখন কোনো নিবন্ধন অনুমোদনের অপেক্ষায় নেই।</p>';
 }
 function renderRoutineClassOptions() {
   const select = $('#managerRoutineClass'), selected = select.value;
@@ -209,34 +263,169 @@ async function renderTeachers() {
   const routineRows = [...schedule.entries()].flatMap(([name, items]) => items.map(item => `<li>${escapeHtml(name)} — ${escapeHtml(item)}</li>`));
   $('#managerTeacherList').innerHTML = `${cards.join('') || '<p class="admin-empty">এখনো কোনো Teacher class/batch assignment নেই। Teacher panel-এ assignment না থাকলে academic data access বন্ধ থাকবে।</p>'}<article class="manager-record"><h2>Routine schedule</h2><p>নিচের routine entries আলাদা schedule data; এগুলো নিজেরা Teacher access grant করে না।</p><ul>${routineRows.join('') || '<li>কোনো routine assignment নেই।</li>'}</ul><p class="manager-meta">সংরক্ষিত teaching activities: ${bn(activityCount)}</p></article>`;
 }
+/* ---- একাডেমিক hub ---------------------------------------------------------- */
+
+/** The hub's counts come from the same stores the sections show; nothing here
+    writes, and a failed read can never break the panel. */
+function renderAcademic() {
+  const records = teaching.activities || [];
+  const counts = {
+    homework: records.filter(a => a.type === 'homework').length,
+    suggestion: records.filter(a => a.type === 'suggestion').length,
+    exams: exams.exams.filter(exam => isLiveExam(exam)).length,
+    results: exams.exams.filter(exam => isLiveExam(exam) && exam.resultsPublished).length,
+    routine: Object.values(routine).reduce((sum, day) => sum + (day?.classes?.length || 0), 0),
+    notice: notices.length
+  };
+  Object.entries(counts).forEach(([key, value]) => {
+    const node = $(`[data-academic-count="${key}"]`);
+    if (node) node.textContent = value ? bn(value) : '';
+  });
+  const bank = $('[data-academic-count="bank"]');
+  if (bank) bank.textContent = '';
+  const materials = $('[data-academic-count="materials"]');
+  if (materials) materials.textContent = '';
+  const teacherBadge = $('[data-academic-teacher-count]');
+  if (teacherBadge) {
+    const assignments = listTeacherAssignments(managerAccount?.username || 'teacher.apc');
+    teacherBadge.textContent = assignments.length ? `${bn(assignments.length)} বরাদ্দ` : 'বরাদ্দ নেই';
+  }
+}
+
+/** বাড়ির কাজ / সাজেশন / উপস্থিতি ক্লাস: the Teacher's own records, read here. */
+function renderAcademicRecords() {
+  const host = $('#managerAcademicList');
+  if (!host) return;
+  const classSelect = $('#managerAcademicClass');
+  if (classSelect) {
+    const classes = [...new Set([...listClasses().map(item => item.name), ...(teaching.activities || []).map(a => a.className).filter(Boolean)])];
+    const chosen = classSelect.value || 'all';
+    classSelect.innerHTML = `<option value="all">সব শ্রেণি</option>${classes.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+    classSelect.value = classes.includes(chosen) || chosen === 'all' ? chosen : 'all';
+    academicClass = classSelect.value;
+  }
+  const query = String($('#managerAcademicSearch')?.value || '').trim().toLocaleLowerCase();
+  const rows = (teaching.activities || [])
+    .filter(activity => academicScope === 'all' || activity.type === academicScope)
+    .filter(activity => academicClass === 'all' || activity.className === academicClass)
+    .filter(activity => !query || `${activity.title} ${activity.subject} ${activity.teacherName || ''}`.toLocaleLowerCase().includes(query))
+    .sort((a, b) => String(b.updatedAt || b.date || '').localeCompare(String(a.updatedAt || a.date || '')));
+  const label = { homework: 'বাড়ির কাজ', suggestion: 'সাজেশন', routine: 'উপস্থিতি ক্লাস', exam: 'নম্বর ও ফলাফল' };
+  host.innerHTML = rows.length ? rows.map(activity => `<article class="manager-record" data-academic-record="${escapeHtml(activity.id || '')}">
+    <div class="manager-record-head"><div><h2>${escapeHtml(activity.title || 'শিরোনাম নেই')}</h2>
+    <p class="manager-meta">${escapeHtml(label[activity.type] || activity.type || '')} • ${escapeHtml(activity.className || '')}${activity.group ? ` • ${escapeHtml(activity.group)}` : ''} • ${escapeHtml(activity.subject || '')}</p></div>
+    <span class="badge ${activity.status === 'published' ? 'badge-approved' : 'badge-pending'}">${activity.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}</span></div>
+    <p>${escapeHtml(activity.details || 'অতিরিক্ত বিবরণ নেই।')}</p>
+    <p class="manager-meta">${escapeHtml(activity.teacherName || 'শিক্ষক')} • ${escapeHtml(activity.date || '')} ${escapeHtml(activity.time || '')}${activity.progress ? ` • ${bn(Object.keys(activity.progress).length)} শিক্ষার্থীর অবস্থা` : ''}</p></article>`).join('')
+    : '<p class="admin-empty">এই ফিল্টারে কোনো কাজ পাওয়া যায়নি। কোনো শিক্ষক কিছু প্রকাশ করলে এখানে দেখা যাবে।</p>';
+}
+
 function renderFinance() {
   const approved = transactions.filter(isFinalizedTransaction);
   const month = monthLabel();
+  const today = dateLabel(new Date());
   const monthTotal = approved.filter(tx => tx.month === month).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
   const total = approved.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
   const due = students.filter(s => s.status === 'approved').reduce((sum, s) => sum + studentFeeSummary(s, transactions).due, 0);
-  const pending = transactions.filter(tx => tx.status === 'pending').length;
-  safeSetText('#mgrFinanceTotal', money(total)); safeSetText('#mgrFinanceMonth', money(monthTotal)); safeSetText('#mgrFinanceDue', money(due)); safeSetText('#mgrFinancePending', bn(pending));
-  const search = ($('#managerPaymentSearch')?.value || '').trim().toLocaleLowerCase();
-  const status = $('#managerPaymentStatus')?.value || 'all';
-  const list = newestTransactions(transactions).filter(tx => (status === 'all' || (tx.status || 'approved') === status) && (!search || `${tx.studentName} ${tx.studentId} ${tx.id} ${tx.receiptNo}`.toLocaleLowerCase().includes(search)));
-  $('#managerPaymentList').innerHTML = list.length ? list.map(tx => transactionCard(tx, false)).join('') : '<p class="admin-empty">কোনো payment record নেই।</p>';
+  const pending = transactions.filter(tx => tx.status === 'pending');
+  safeSetText('#mgrFinanceTotal', money(total)); safeSetText('#mgrFinanceMonth', money(monthTotal));
+  safeSetText('#mgrFinanceDue', money(due)); safeSetText('#mgrFinancePending', bn(pending.length));
+  const badge = $('#managerFinancePendingBadge');
+  if (badge) { badge.hidden = !pending.length; badge.textContent = `${bn(pending.length)} অনুমোদন বাকি`; }
+
+  /* Four segments, one ledger. Nothing is copied: each panel reads the same
+     transaction records the Cash Counter wrote and the student ফি screen shows. */
+  $$('[data-finance-segment]').forEach(button => {
+    const active = button.dataset.financeSegment === financeSegment;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+  $$('[data-finance-panel]').forEach(panel => { panel.hidden = panel.dataset.financePanel !== financeSegment; });
+
+  if (financeSegment === 'collection') {
+    const todayRows = approved.filter(tx => tx.date === today);
+    const monthRows = approved.filter(tx => tx.month === month);
+    safeSetText('#mgrFinanceToday', money(todayRows.reduce((sum, tx) => sum + Number(tx.amount || 0), 0)));
+    safeSetText('#mgrFinanceTodayCount', bn(todayRows.length));
+    safeSetText('#mgrFinanceCounterMonth', money(monthRows.reduce((sum, tx) => sum + Number(tx.amount || 0), 0)));
+    safeSetText('#mgrFinanceMonthCount', bn(monthRows.length));
+    safeSetText('#mgrFinanceCollectionNote', pending.length
+      ? `${bn(pending.length)}টি কাউন্টার এন্ট্রি অনুমোদনের অপেক্ষায় — “পেমেন্ট অনুমোদন” বিভাগে যান।`
+      : 'সব কাউন্টার এন্ট্রি নিষ্পত্তি হয়েছে।');
+  }
+
+  if (financeSegment === 'approval') {
+    const selected = transactions.filter(tx => cashScope === 'all' || (cashScope === 'approved' ? (tx.status || 'approved') === 'approved' : tx.status === cashScope));
+    $('#managerCashList').innerHTML = newestTransactions(selected).length
+      ? newestTransactions(selected).map(tx => transactionCard(tx, true)).join('')
+      : '<p class="admin-empty">এই filter-এ কোনো Cash Counter entry নেই।</p>';
+    $$('[data-cash-scope]').forEach(button => button.classList.toggle('active', button.dataset.cashScope === cashScope));
+  }
+
+  if (financeSegment === 'due') {
+    const classSelect = $('#managerDueClass');
+    if (classSelect) {
+      const classes = [...new Set(students.map(s => s.className).filter(Boolean))].sort();
+      const chosen = classSelect.value || 'all';
+      classSelect.innerHTML = `<option value="all">সব শ্রেণি</option>${classes.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+      classSelect.value = classes.includes(chosen) || chosen === 'all' ? chosen : 'all';
+    }
+    const query = String($('#managerDueSearch')?.value || '').trim().toLocaleLowerCase();
+    const className = classSelect?.value || 'all';
+    const rows = students
+      .filter(student => student.status === 'approved')
+      .filter(student => className === 'all' || student.className === className)
+      .filter(student => !query || `${student.name} ${student.id}`.toLocaleLowerCase().includes(query))
+      .map(student => ({ student, fee: studentFeeSummary(student, transactions) }))
+      .sort((a, b) => b.fee.due - a.fee.due);
+    $('#managerFinanceDueList').innerHTML = rows.length ? rows.map(({ student, fee }) => `<article class="manager-record" data-due-student="${escapeHtml(student.id)}">
+      <div class="manager-record-head"><div><h2>${escapeHtml(student.name || 'নাম নেই')}</h2>
+      <p class="manager-meta">${escapeHtml(student.id)} • ${escapeHtml(student.className || '')}${student.group ? ` • ${escapeHtml(student.group)}` : ''}</p></div>
+      <span class="badge ${fee.due > 0 ? 'badge-pending' : 'badge-approved'}">${fee.due > 0 ? `বাকি ${money(fee.due)}` : 'পরিশোধিত'}</span></div>
+      <p>${escapeHtml(fee.month || '')} মাসিক ফি ${money(fee.monthlyFee)} • পরিশোধ ${money(fee.paid || 0)} • বাকি ${money(fee.due)}</p></article>`).join('')
+      : '<p class="admin-empty">এই ফিল্টারে কোনো বকেয়া নেই।</p>';
+  }
+
+  if (financeSegment === 'history') {
+    const search = ($('#managerPaymentSearch')?.value || '').trim().toLocaleLowerCase();
+    const status = $('#managerPaymentStatus')?.value || 'all';
+    const list = newestTransactions(transactions).filter(tx => (status === 'all' || (tx.status || 'approved') === status) && (!search || `${tx.studentName} ${tx.studentId} ${tx.id} ${tx.receiptNo}`.toLocaleLowerCase().includes(search)));
+    $('#managerPaymentList').innerHTML = list.length ? list.map(tx => transactionCard(tx, false)).join('') : '<p class="admin-empty">কোনো payment record নেই।</p>';
+  }
 }
 function transactionCard(tx, allowReview) {
   const status = tx.status || 'approved';
   const text = status === 'pending' ? 'অনুমোদন বাকি' : status === 'rejected' ? 'বাতিল' : 'অনুমোদিত';
   return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(tx.studentName || 'শিক্ষার্থী তথ্য নেই')}</h2><p class="manager-meta">${escapeHtml(tx.studentId || '')} • ${escapeHtml(tx.className || '')} • ${escapeHtml(tx.receiptNo || tx.id)}</p></div><span class="badge ${status === 'approved' ? 'badge-approved' : status === 'pending' ? 'badge-pending' : 'badge-rejected'}">${text}</span></div><p><strong>${money(tx.amount)}</strong> • ${escapeHtml(tx.date || 'তারিখ নেই')} • ${escapeHtml(tx.method || 'মাধ্যম নেই')}</p><p>${escapeHtml(tx.feeType || '')} • ${escapeHtml(tx.month || '')} • Counter: ${escapeHtml(tx.collectedBy || 'পুরোনো রেকর্ড')}</p>${tx.trxRef ? `<p>Reference: ${escapeHtml(tx.trxRef)}</p>` : ''}${tx.note ? `<p>Note: ${escapeHtml(tx.note)}</p>` : ''}${tx.reviewNote ? `<p class="manager-status-warning">Review: ${escapeHtml(tx.reviewNote)}</p>` : ''}<p class="manager-meta">Review history: ${bn((tx.reviewHistory || []).length)} • ${escapeHtml(tx.reviewedBy || '—')}</p>${allowReview && status === 'pending' ? `<div class="manager-actions"><button class="mini-btn approve" type="button" data-manager-action="approve-payment" data-id="${escapeHtml(tx.id)}">Approve</button><button class="mini-btn reject" type="button" data-manager-action="reject-payment" data-id="${escapeHtml(tx.id)}">Reject</button></div>` : ''}</article>`;
 }
-function renderCashCounter() {
-  const selected = transactions.filter(tx => cashScope === 'all' || (cashScope === 'approved' ? (tx.status || 'approved') === 'approved' : tx.status === cashScope));
-  const list = newestTransactions(selected);
-  $('#managerCashList').innerHTML = list.length ? list.map(tx => transactionCard(tx, true)).join('') : '<p class="admin-empty">এই filter-এ কোনো Cash Counter entry নেই।</p>';
-  $$('[data-cash-scope]').forEach(button => button.classList.toggle('active', button.dataset.cashScope === cashScope));
+/** The Cash Counter review queue is a segment of হিসাব, not a second screen. */
+function renderCashCounter() { financeSegment = 'approval'; renderFinance(); }
+/** Class/batch choices for the notice composer, written the way the student
+    board reads them (js/notification-rules.js). */
+function renderNoticeScopes() {
+  const select = $('#managerNoticeClass');
+  if (!select) return;
+  const classes = listClasses().filter(item => item.active !== false).map(item => item.name);
+  const chosen = select.value;
+  select.innerHTML = `<option value="">সব শ্রেণি</option>${classes.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+  select.value = classes.includes(chosen) ? chosen : '';
+  const list = $('#managerNoticeGroups');
+  if (list) {
+    const groups = [...new Set(students.map(student => student.group).filter(Boolean))];
+    list.innerHTML = groups.map(group => `<option value="${escapeHtml(group)}"></option>`).join('');
+  }
+}
+function noticeScopeText(notice) {
+  const className = String(notice.className || notice.targetClass || '');
+  const group = String(notice.group || notice.batch || '');
+  if (!className && !group) return 'সব শ্রেণি';
+  return [className || 'সব শ্রেণি', group].filter(Boolean).join(' • ');
 }
 function renderNotices() {
+  renderNoticeScopes();
   $('#managerNoticeList').innerHTML = notices.length ? notices.map(item => {
     const category = noticeCategoryInfo(noticeCategory(item));
-    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.title)}</h2><p class="manager-meta"><span class="notice-category-admin" data-notice-category="${category.id}">${category.label}</span> • ${escapeHtml(item.id)} • ${escapeHtml(item.audience || 'সকল শিক্ষার্থী')} • ${escapeHtml(item.date || '')}</p></div><div class="manager-actions"><button class="mini-btn" data-manager-action="edit-notice" data-id="${escapeHtml(item.id)}" type="button">Edit</button><button class="mini-btn reject" data-manager-action="delete-notice" data-id="${escapeHtml(item.id)}" type="button">Delete</button></div></div><p>${escapeHtml(item.body)}</p></article>`;
+    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.title)}</h2><p class="manager-meta"><span class="notice-category-admin" data-notice-category="${category.id}">${category.label}</span> • ${escapeHtml(noticeScopeText(item))} • ${escapeHtml(item.audience || 'সকল শিক্ষার্থী')} • ${escapeHtml(item.date || '')}</p></div><div class="manager-actions"><button class="mini-btn" data-manager-action="edit-notice" data-id="${escapeHtml(item.id)}" type="button">Edit</button><button class="mini-btn reject" data-manager-action="delete-notice" data-id="${escapeHtml(item.id)}" type="button">Delete</button></div></div><p>${escapeHtml(item.body)}</p></article>`;
   }).join('') : '<p class="admin-empty">কোনো operational notice নেই।</p>';
 }
 function renderRoutine() {
@@ -267,16 +456,20 @@ async function loadOperationalData() {
   teaching = teachingData.status === 'fulfilled' ? teachingData.value : { activities: [] };
   if (activeView === 'dashboard') renderDashboard();
   if (activeView === 'students') renderStudents();
-  if (activeView === 'approvals') renderApprovals();
+  if (activeView === 'academic') renderAcademic();
+  if (activeView === 'academic-records') renderAcademicRecords();
   if (activeView === 'classes') renderClasses();
   if (activeView === 'teachers') renderTeachers();
   if (activeView === 'finance') renderFinance();
-  if (activeView === 'cash-counter') renderCashCounter();
   if (activeView === 'notices') renderNotices();
   if (activeView === 'routine') renderRoutine();
   if (activeView === 'results') renderResults();
 }
-async function managerGuard() { return !managerBusy && await hasStaffSession('manager'); }
+/* Session check only. The old guard also refused while any *other* action was
+   still saving (managerBusy), which made an unrelated routine entry look like a
+   session failure and silently drop the Manager's work; a per-action lock is
+   not needed for these single-write handlers, whose values are idempotent. */
+async function managerGuard() { return hasStaffSession('manager'); }
 async function approveStudent(studentId, decision) {
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি। আবার প্রবেশ করুন।', true);
   const student = students.find(row => row.id === studentId);
@@ -294,6 +487,54 @@ async function approveStudent(studentId, decision) {
 }
 // A decision from the notification dialog (or another tab) refreshes the queue.
 window.addEventListener(DECIDED_EVENT, () => { if (!managerBusy) void loadOperationalData(); });
+/** Deactivate (pause) or activate a student through the shared roster record.
+    Nothing is deleted: fees, results, attendance and the account history stay. */
+async function toggleStudentStatus(studentId, status) {
+  if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
+  const student = students.find(row => row.id === studentId);
+  if (!student) return toast('শিক্ষার্থী পাওয়া যায়নি।', true);
+  if (status === 'inactive' && !window.confirm(`${student.name} কে নিষ্ক্রিয় করবেন? অ্যাকাউন্ট, ফি ও ফলাফলের ইতিহাস মুছে যাবে না।`)) return;
+  managerBusy = true;
+  try {
+    await setStudentStatus(studentId, status);
+    students = loadRoster();
+    await loadOperationalData();
+    toast(status === 'inactive' ? 'শিক্ষার্থী নিষ্ক্রিয় করা হয়েছে।' : 'শিক্ষার্থী আবার সক্রিয় করা হয়েছে।');
+  } catch (error) {
+    toast(error.message || 'অবস্থা বদলানো যায়নি।', true);
+  } finally { managerBusy = false; }
+}
+
+/** Password reset uses the device's own account record, exactly like the Admin
+    panel's reset: the student's mobile number and Student ID never change. */
+function openStudentPasswordReset(student) {
+  const account = loadAccount();
+  const isLocal = account?.student?.id === student.id || account?.studentId === student.id;
+  $('#managerModalKicker').textContent = 'অ্যাকাউন্ট নিরাপত্তা';
+  $('#managerModalTitle').textContent = `${student.name} — পাসওয়ার্ড রিসেট`;
+  $('#managerModalBody').innerHTML = `<p class="modal-copy">${isLocal
+    ? 'নিশ্চিত করলে এই ডিভাইসের অ্যাকাউন্টের পাসওয়ার্ড নিচের ডিফল্ট পাসওয়ার্ড হবে। Student ID ও মোবাইল নম্বর অপরিবর্তিত থাকবে।'
+    : 'ডিফল্ট পাসওয়ার্ড নিচে দেওয়া আছে। এই শিক্ষার্থীর অ্যাকাউন্ট এই ব্রাউজারে নেই — সেটি নিজের ডিভাইস থেকে পাসওয়ার্ড বদলাবে।'}</p>
+    <div class="pin-box" aria-label="ডিফল্ট পাসওয়ার্ড">${bn(DEFAULT_PIN)}</div>
+    <p id="managerPinError" class="finance-error" role="alert" hidden></p>
+    <div class="modal-actions"><button class="admin-btn primary" type="button" data-modal-action="confirm-reset">${isLocal ? 'রিসেট নিশ্চিত করুন' : 'বুঝেছি'}</button>
+    <button class="admin-btn ghost" type="button" data-close-manager>বাতিল</button></div>`;
+  $('#managerModalBackdrop').hidden = false;
+  $('#managerModalBody [data-modal-action="confirm-reset"]').addEventListener('click', async () => {
+    if (isLocal) {
+      const latest = loadAccount();
+      if ((latest?.student?.id !== student.id && latest?.studentId !== student.id) || !(await saveAccount({ ...latest, pin: DEFAULT_PIN }))) {
+        $('#managerPinError').textContent = 'পাসওয়ার্ড সংরক্ষণ হয়নি। আবার চেষ্টা করুন।';
+        $('#managerPinError').hidden = false;
+        return;
+      }
+    }
+    closeManagerModal();
+    toast(isLocal ? `${student.name} এর পাসওয়ার্ড রিসেট হয়েছে` : 'ডিফল্ট পাসওয়ার্ড দেখানো হয়েছে');
+  });
+}
+function closeManagerModal() { const node = $('#managerModalBackdrop'); if (node) node.hidden = true; }
+
 async function reviewPayment(id, decision) {
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
   const note = decision === 'rejected' ? window.prompt('Payment reject করার কারণ লিখুন (আবশ্যক):', '')?.trim() : '';
@@ -337,6 +578,7 @@ async function editNotice(notice) {
   if (categoryInput == null) return;
   if (!(await managerGuard())) return;
   notices = notices.map(item => item.id === notice.id ? { ...item, title: title.trim().slice(0, 120), body: body.trim().slice(0, 1000), category: noticeCategory(categoryInput), updatedAt: new Date().toISOString() } : item);
+  /* title/body/category only: the class/batch scope and the author stay. */
   if (!saveNotices(notices)) return toast('নোটিশ সংরক্ষণ হয়নি।', true);
   void loadOperationalData(); toast('নোটিশ আপডেট হয়েছে।');
 }
@@ -385,8 +627,14 @@ moreLogout.addEventListener('click', () => { clearStaffSession('manager'); goToL
 moreMenu.append(moreLogout);
 $$('[data-manager-view]').forEach(button => button.addEventListener('click', () => {
   const view = button.dataset.managerView;
-  if (!MANAGER_VIEWS.includes(view)) return;
+  if (!normalizeView(view)) return;
+  /* A shortcut may carry its own filter (dashboard → অনুমোদন opens শিক্ষার্থী
+     already filtered to the pending queue). */
+  if (button.dataset.studentScope) studentScope = button.dataset.studentScope;
+  if (button.dataset.financeSegment) financeSegment = button.dataset.financeSegment;
   renderView(view);
+  $$('[data-student-scope]').forEach(item => item.classList.toggle('active', item.dataset.studentScope === studentScope));
+  $$('[data-finance-segment]').forEach(item => item.classList.toggle('active', item.dataset.financeSegment === financeSegment));
 }));
 $('#managerStudentSearch').addEventListener('input', renderStudents);
 $('#managerStudentSearch').addEventListener('search', renderStudents);
@@ -394,18 +642,27 @@ $$('[data-student-scope]').forEach(button => button.addEventListener('click', ()
   studentScope = button.dataset.studentScope;
   $$('[data-student-scope]').forEach(item => item.classList.toggle('active', item === button)); renderStudents();
 }));
-$('#managerStudentList').addEventListener('click', event => {
-  const button = event.target.closest('[data-manager-action]'); if (!button) return;
+function handleStudentAction(button) {
   const student = students.find(row => row.id === button.dataset.id); if (!student) return;
   const card = button.closest('.manager-record');
-  const extra = card.querySelector('.manager-student-extra');
-  if (button.dataset.managerAction === 'view-student') { extra.hidden = !extra.hidden; extra.innerHTML = extra.hidden ? '' : studentProfile(student); }
-  if (button.dataset.managerAction === 'edit-student') showStudentEditor(card, student);
+  const extra = card?.querySelector('.manager-student-extra');
+  const action = button.dataset.managerAction;
+  if (action === 'view-student' && extra) { extra.hidden = !extra.hidden; extra.innerHTML = extra.hidden ? '' : studentProfile(student); }
+  if (action === 'edit-student' && card) showStudentEditor(card, student);
+  if (action === 'deactivate-student') void toggleStudentStatus(student.id, 'inactive');
+  if (action === 'activate-student') void toggleStudentStatus(student.id, 'approved');
+  if (action === 'reset-password') openStudentPasswordReset(student);
+}
+$('#managerStudentList').addEventListener('click', event => {
+  const button = event.target.closest('[data-manager-action]'); if (!button) return;
+  handleStudentAction(button);
 });
 $('#managerStudentQueue').addEventListener('click', event => {
   const button = event.target.closest('[data-manager-action]'); if (!button) return;
   if (button.dataset.managerAction === 'approve-student') void approveStudent(button.dataset.id, 'approved');
-  if (button.dataset.managerAction === 'reject-student') void approveStudent(button.dataset.id, 'rejected');
+  else if (button.dataset.managerAction === 'reject-student') void approveStudent(button.dataset.id, 'rejected');
+  /* The queue is the same student record: its profile and edit live here too. */
+  else handleStudentAction(button);
 });
 $('#managerPaymentList').addEventListener('click', event => {
   const button = event.target.closest('[data-manager-action]'); if (button) void reviewPayment(button.dataset.id, button.dataset.managerAction === 'approve-payment' ? 'approved' : 'rejected');
@@ -433,7 +690,20 @@ $('#managerNoticeForm').addEventListener('submit', async event => {
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
   const data = new FormData(form); const title = String(data.get('title') || '').trim(), body = String(data.get('body') || '').trim();
   if (!title || !body) return;
-  notices.unshift({ id: newId('NOT'), title: title.slice(0, 120), body: body.slice(0, 1000), category: noticeCategory(String(data.get('category') || 'academic')), audience: String(data.get('audience')), date: dateLabel(new Date()), createdAt: new Date().toISOString(), status: 'published', author: managerAccount?.username || 'manager' });
+  notices.unshift({
+    id: newId('NOT'), title: title.slice(0, 120), body: body.slice(0, 1000),
+    category: noticeCategory(String(data.get('category') || 'academic')),
+    audience: String(data.get('audience') || 'সকল শিক্ষার্থী'),
+    /* Class/batch scope: empty means every class, exactly like the Teacher's
+       composer — one record shape, one reader (js/notification-rules.js). */
+    className: String(data.get('className') || '').trim().slice(0, 80),
+    group: String(data.get('group') || '').trim().slice(0, 80),
+    date: dateLabel(new Date()), createdAt: new Date().toISOString(), status: 'published',
+    createdBy: managerAccount?.username || 'manager', createdByRole: 'manager',
+    /* `author` is the field older reports and records already carry; keeping it
+       means a Manager notice reads the same wherever it is opened. */
+    author: managerAccount?.username || 'manager'
+  });
   if (!saveNotices(notices)) return toast('নোটিশ সংরক্ষণ হয়নি।', true);
   form.reset(); await loadOperationalData(); renderNotices(); toast('নোটিশ প্রকাশিত হয়েছে।');
 });
@@ -448,6 +718,31 @@ $('#managerNoticeList').addEventListener('click', async event => {
     if (saveNotices(notices)) { renderNotices(); toast('নোটিশ মুছে ফেলা হয়েছে।'); }
   }
 });
+/* একাডেমিক hub: a card opens the one screen that owns that work. */
+document.addEventListener('click', event => {
+  const card = event.target.closest('[data-academic-section]');
+  if (card) {
+    const target = ACADEMIC_SECTIONS[card.dataset.academicSection];
+    if (target) {
+      if (target.scope) academicScope = target.scope;
+      renderView(target.view);
+      if (target.screen) examWorkspaceOpen?.(target.screen);
+      $$('[data-academic-scope]').forEach(item => item.classList.toggle('active', item.dataset.academicScope === academicScope));
+    }
+    return;
+  }
+  if (event.target.closest('[data-close-manager]')) closeManagerModal();
+});
+$('#managerAcademicFilters').addEventListener('click', event => {
+  const chip = event.target.closest('[data-academic-scope]'); if (!chip) return;
+  academicScope = chip.dataset.academicScope;
+  $$('[data-academic-scope]').forEach(item => item.classList.toggle('active', item === chip));
+  renderAcademicRecords();
+});
+['managerAcademicSearch', 'managerAcademicClass'].forEach(id => $('#' + id).addEventListener(id.includes('Search') ? 'input' : 'change', renderAcademicRecords));
+$$('[data-finance-segment]').forEach(button => button.addEventListener('click', () => { financeSegment = button.dataset.financeSegment; renderFinance(); }));
+$('#managerDueSearch')?.addEventListener('input', renderFinance);
+$('#managerDueClass')?.addEventListener('change', renderFinance);
 $('#managerRoutineDays').addEventListener('click', event => { const button = event.target.closest('[data-routine-day]'); if (!button) return; routineDay = button.dataset.routineDay; renderRoutine(); });
 $('#managerRoutineList').addEventListener('click', async event => {
   const button = event.target.closest('[data-manager-action]'); if (!button) return;
@@ -519,17 +814,25 @@ async function enterManager() {
     return;
   }
   $('#managerShell').hidden = false;
-  const shortName = $('#managerNameShort');
-  if (shortName) shortName.textContent = managerAccount.fullName || 'Manager Profile';
-  if (!examStarted) { initExamManager('#managerExamWorkspace', 'manager'); examStarted = true; }
+  if (!examStarted) { const workspace = initExamManager('#managerExamWorkspace', 'manager'); examWorkspaceOpen = screen => workspace?.open?.(screen); examStarted = true; }
   // A refresh (or a shared link) reopens the page that was open, when it is a
   // page this panel knows.
   const wanted = routeName();
-  renderView(MANAGER_VIEWS.includes(wanted) ? wanted : 'dashboard');
-  onRouteChange(name => { if (MANAGER_VIEWS.includes(name) && name !== activeView) renderView(name); });
+  renderView(normalizeView(wanted) ? wanted : 'dashboard');
+  onRouteChange(name => { const next = normalizeView(name); if (next && next.view !== activeView) renderView(name); });
   await loadOperationalData();
-  // Settings → Notification Settings, inside the Manager's own profile page.
-  initNotificationSettings({ mount: '#notificationSettings' });
+  /* One Settings structure for every role (§29). The hub fills নিরাপত্তা ও ডেটা
+     and mounts the notification rows — the Manager's profile card, password row
+     and theme switch stay exactly where they were. */
+  mountSettingsHub({
+    mount: '[data-settings-hub="manager"]',
+    role: 'manager',
+    actions: {
+      password: () => openStaffPasswordDialog({ role: 'manager', mode: 'change' }),
+      logout: () => { clearStaffSession('manager'); goToLoginPage(); }
+    },
+    session: { value: `${bn(STAFF_SESSION_RULES.rememberDays)} দিন`, hint: 'ডিভাইস-বাউন্ড সেশন', password: `${bn(STAFF_DIRECTORY_RULES.passwordMin)}–${bn(STAFF_DIRECTORY_RULES.passwordMax)} অক্ষর · PBKDF2 হ্যাশ` }
+  });
   // পড়াশোনা পরিচালনা করুন: the same content library the Teacher writes into.
   await mountCourseEditor();
   await mountReports($('#managerReports'), { panel: 'manager' });

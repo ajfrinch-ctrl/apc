@@ -2,7 +2,7 @@
    catalog is NOT mounted here. Roster/ledger remain private to this adapter;
    returned tables are explicit financial/identity allowlists, contacts masked. */
 import { listDocumentsStrict } from './database.js';
-import { financeRepository, monthLabel, isFinalizedTransaction, latinDigits } from './finance-data.js';
+import { financeRepository, monthLabel, isFinalizedTransaction } from './finance-data.js';
 import { periodRange, txTime, inRange, isoDay, formatDate } from './report-sources.js';
 import { assertCounterActor } from './counter-data.js';
 import { counterContacts } from './counter-privacy.js';

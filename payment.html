@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
   <script src="js/app-entry.js?v=158" data-entry="payment"></script>
-  <script src="js/topbar-connectivity.js?v=20260929-topbar"></script>
+  <script src="js/topbar-connectivity.js?v=20261005-syncborder"></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
   <script src="js/theme-logos.js?v=158"></script>
@@ -22,7 +22,7 @@
   <!-- Shared Active Plus design system; no separate dashboard skin. -->
   <link rel="preload" href="assets/fonts/NotoSansBengali-Variable.ttf" as="font" type="font/ttf" crossorigin>
 
-  <link rel="stylesheet" href="css/design-system.css?v=166">
+  <link rel="stylesheet" href="css/design-system.css?v=178">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -31,45 +31,93 @@
     <header class="app-topbar"><div class="app-topbar-inner"><div class="app-brand"><img class="app-brand-logo" src="assets/icons/logo-128.png" alt="Active Plus Coaching" width="38" height="38"><span class="app-brand-text"><strong class="app-brand-institute">Active Plus Coaching</strong><small class="app-brand-slogan" data-fixed-tagline>শিখতে থাকো, এগিয়ে যাও</small></span></div><div class="app-topbar-actions"><button class="app-topbar-icon notification-button" id="notificationButton" type="button" aria-label="নোটিফিকেশন দেখুন" aria-haspopup="dialog"><svg class="apc-glyph-icon" data-icon="bell" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.5 16V9a6.5 6.5 0 0 1 13 0v7l2 2h-17Zm4 5a3 3 0 0 0 5 0"/></svg><span class="notification-dot" hidden aria-hidden="true"></span></button><button class="app-topbar-icon app-topbar-exit" id="payExitButton" type="button" title="লগআউট" aria-label="লগআউট"><svg class="apc-glyph-icon" data-icon="logout" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5M8 12h13m-5-5 5 5-5 5"/></svg></button></div></div></header>
     <main class="pay-main pay-counter-minimal" id="paymentMain">
       <div class="counter-page-title"><div><p class="eyebrow">পেমেন্ট কাউন্টার</p><h1 id="counterViewTitle">আজকের লেনদেন</h1></div><p id="payCurrentDate" class="finance-hint"></p></div>
-      <nav class="counter-view-switch" aria-label="কাউন্টার ভিউ"><button type="button" class="admin-btn" data-counter-view="today" aria-current="page">আজকের লেনদেন</button><button type="button" class="admin-btn ghost" data-counter-view="reports">পেমেন্ট রিপোর্ট</button></nav>
       <p id="payLoadError" class="finance-error" role="alert" hidden></p>
-      <div id="payCounterHome">
-      <section class="admin-card pay-search-card" id="paySearchCard" aria-labelledby="paySearchTitle">
-        <h2 id="paySearchTitle">ইউনিভার্সাল সার্চ</h2>
-        <label for="payStudentSearch">নাম, ID, রোল অথবা শিক্ষার্থী/অভিভাবকের মোবাইল</label>
-        <div class="finance-search-input pay-search-input"><svg class="apc-glyph-icon" data-icon="search" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg><input id="payStudentSearch" type="search" placeholder="নাম / ID / রোল / মোবাইল" autocomplete="off" aria-controls="paySearchResults" aria-describedby="paySearchHint"><button class="student-search-clear" type="button" id="paySearchClear" aria-label="সার্চ মুছুন" hidden>✕</button></div>
-        <p id="paySearchHint" class="finance-hint">সার্চ করে শিক্ষার্থী নির্বাচন করুন, তারপর পেমেন্ট নিন।</p>
-        <p id="paySearchStatus" class="finance-hint" role="status" aria-live="polite"></p>
-        <div id="paySearchResults" class="fee-search-results"></div>
-      </section>
-      <section class="admin-card" id="payProfileCard" aria-labelledby="paySelectedTitle" hidden>
-        <h2 id="paySelectedTitle">পেমেন্ট গ্রহণ</h2>
-        <div id="payQuickProfile" class="counter-student-brief"></div>
-        <form id="payCollectionForm" class="fee-form pay-form" hidden>
-          <input id="payStudent" type="hidden">
-          <label for="payFeeAmount">টাকার পরিমাণ *</label>
-          <input id="payFeeAmount" type="text" inputmode="numeric" autocomplete="off" required maxlength="8" placeholder="টাকার পরিমাণ লিখুন">
-          <div class="form-grid-2">
-            <div><label for="payFeeType">ফি এর ধরন *</label><select id="payFeeType" required></select></div>
-            <div><label for="payFeeMonth">মাস *</label><select id="payFeeMonth" required></select></div>
+
+      <!-- হোম — the counter&rsquo;s own day: today&rsquo;s entries and the closing shortcut. -->
+      <section class="pay-panel" data-pay-panel="home" id="payCounterHome" aria-labelledby="payHomeTitle">
+        <section class="admin-card pay-home-card" id="payHomeCard">
+          <h2 id="payHomeTitle">আজকের কাউন্টার</h2>
+          <p class="finance-hint">আজকের নিজের আদায় ও রসিদ। পেমেন্ট নিতে শিক্ষার্থী সার্চ করে যাচাই করুন।</p>
+          <div class="pay-home-actions">
+            <button class="admin-btn primary" type="button" data-pay-section="students">নতুন পেমেন্ট নিন</button>
+            <button class="admin-btn ghost" type="button" id="payClosingShortcut">আজকের ক্লোজিং</button>
           </div>
-          <label for="payFeeMethod">পেমেন্ট মাধ্যম *</label><select id="payFeeMethod" required></select>
-          <label for="payFeeTrxId">পেমেন্ট মাধ্যমের রেফারেন্স (ঐচ্ছিক)</label><input id="payFeeTrxId" type="text" maxlength="120" autocomplete="off">
-          <p id="paySaveError" class="finance-error" role="alert" hidden></p>
-          <div class="pay-form-actions"><button id="payCancelButton" class="admin-btn ghost" type="button">বাতিল</button><button id="paySaveButton" class="admin-btn primary" type="submit"><span id="paySaveLabel">পেমেন্ট সংরক্ষণ করুন</span></button></div>
-        </form>
+        </section>
+        <section class="admin-card pay-activity-card" id="payActivityCard" aria-labelledby="payTodayTitle">
+                        <header class="admin-card-head"><h2 id="payTodayTitle">আজকের লেনদেন</h2><button class="pay-activity-refresh" type="button" id="payActivityRefresh" aria-label="আজকের তালিকা হালনাগাদ করুন"><svg class="apc-glyph-icon" data-icon="refresh" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.5 8.5a8.5 8.5 0 0 0-14.7-3L3 8.5M3 3v5.5h5.5M3.5 15.5a8.5 8.5 0 0 0 14.7 3l2.8-3M21 21v-5.5h-5.5"/></svg></button></header>
+                        <div id="payTodayList" class="pay-activity-list"><p class="admin-empty">আজকের লেনদেন লোড হচ্ছে…</p></div>
+                      </section>
       </section>
-      <section class="admin-card pay-activity-card" id="payActivityCard" aria-labelledby="payTodayTitle">
-        <header class="admin-card-head"><h2 id="payTodayTitle">আজকের লেনদেন</h2><button class="pay-activity-refresh" type="button" id="payActivityRefresh" aria-label="আজকের তালিকা হালনাগাদ করুন"><svg class="apc-glyph-icon" data-icon="refresh" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.5 8.5a8.5 8.5 0 0 0-14.7-3L3 8.5M3 3v5.5h5.5M3.5 15.5a8.5 8.5 0 0 0 14.7 3l2.8-3M21 21v-5.5h-5.5"/></svg></button></header>
-        <div id="payTodayList" class="pay-activity-list"><p class="admin-empty">আজকের লেনদেন লোড হচ্ছে…</p></div>
+
+      <!-- শিক্ষার্থী — identity-only search and verification. -->
+      <section class="pay-panel" data-pay-panel="students" id="payStudentsPanel" aria-label="শিক্ষার্থী যাচাই" hidden>
+        <section class="admin-card pay-search-card" id="paySearchCard" aria-labelledby="paySearchTitle">
+                        <h2 id="paySearchTitle">ইউনিভার্সাল সার্চ</h2>
+                        <label for="payStudentSearch">নাম, ID, রোল অথবা শিক্ষার্থী/অভিভাবকের মোবাইল</label>
+                        <div class="finance-search-input pay-search-input"><svg class="apc-glyph-icon" data-icon="search" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg><input id="payStudentSearch" type="search" placeholder="নাম / ID / রোল / মোবাইল" autocomplete="off" aria-controls="paySearchResults" aria-describedby="paySearchHint"><button class="student-search-clear" type="button" id="paySearchClear" aria-label="সার্চ মুছুন" hidden>✕</button></div>
+                        <p id="paySearchHint" class="finance-hint">সার্চ করে শিক্ষার্থী নির্বাচন করুন, তারপর পেমেন্ট নিন।</p>
+                        <p id="paySearchStatus" class="finance-hint" role="status" aria-live="polite"></p>
+                        <div id="paySearchResults" class="fee-search-results"></div>
+                      </section>
+        <section class="admin-card" id="payProfileCard" aria-labelledby="paySelectedTitle" hidden>
+                        <h2 id="paySelectedTitle">নির্বাচিত শিক্ষার্থী</h2>
+                        <p class="finance-hint">পরিচয় মিলিয়ে দেখে পেমেন্ট এন্ট্রিতে যান — এই সার্চে বকেয়া, ক্লাস বা মোবাইল দেখানো হয় না।</p>
+                        <div id="payQuickProfile" class="counter-student-brief"></div>
+                              </section>
       </section>
-      </div>
-      <section class="admin-card counter-reports-card" id="payReportsCard" aria-labelledby="counterReportsTitle" hidden>
-        <h2 id="counterReportsTitle">পেমেন্ট-সংক্রান্ত রিপোর্ট</h2>
-        <p class="finance-hint">ব্যক্তিগত তথ্য সীমিত থাকে। প্রয়োজনীয় মোবাইলের মাঝের তিন অঙ্ক *** দিয়ে ঢাকা হবে।</p>
-        <div id="paymentReports"></div>
+
+      <!-- পেমেন্ট — one entry form; the receipt opens over whatever is on screen. -->
+      <section class="pay-panel" data-pay-panel="payment" id="payEntryPanel" aria-label="পেমেন্ট এন্ট্রি" hidden>
+        <section class="admin-card" id="payEntryCard" aria-labelledby="payEntryTitle">
+                        <h2 id="payEntryTitle">পেমেন্ট এন্ট্রি</h2>
+                        <p id="payEntryStudent" class="finance-hint">কোনো শিক্ষার্থী নির্বাচিত নেই — শিক্ষার্থী বিভাগে সার্চ করে যাচাই করুন।</p>
+                        <button class="admin-btn ghost" type="button" id="payEntrySearch" data-pay-section="students">শিক্ষার্থী নির্বাচন করুন</button>
+                        <form id="payCollectionForm" class="fee-form pay-form" hidden>
+                                          <input id="payStudent" type="hidden">
+                                          <label for="payFeeAmount">টাকার পরিমাণ *</label>
+                                          <input id="payFeeAmount" type="text" inputmode="numeric" autocomplete="off" required maxlength="8" placeholder="টাকার পরিমাণ লিখুন">
+                                          <div class="form-grid-2">
+                                            <div><label for="payFeeType">ফি এর ধরন *</label><select id="payFeeType" required></select></div>
+                                            <div><label for="payFeeMonth">মাস *</label><select id="payFeeMonth" required></select></div>
+                                          </div>
+                                          <label for="payFeeMethod">পেমেন্ট মাধ্যম *</label><select id="payFeeMethod" required></select>
+                                          <label for="payFeeTrxId">পেমেন্ট মাধ্যমের রেফারেন্স (ঐচ্ছিক)</label><input id="payFeeTrxId" type="text" maxlength="120" autocomplete="off">
+                                          <p id="paySaveError" class="finance-error" role="alert" hidden></p>
+                                          <div class="pay-form-actions"><button id="payCancelButton" class="admin-btn ghost" type="button">বাতিল</button><button id="paySaveButton" class="admin-btn primary" type="submit"><span id="paySaveLabel">পেমেন্ট সংরক্ষণ করুন</span></button></div>
+                                        </form>
+                      </section>
       </section>
+
+      <!-- রিপোর্ট — the existing counter report centre lives on. -->
+      <section class="pay-panel" data-pay-panel="reports" id="payReportsPanel" aria-label="পেমেন্ট রিপোর্ট" hidden>
+        <section class="admin-card counter-reports-card" id="payReportsCard" aria-labelledby="counterReportsTitle" hidden>
+                        <h2 id="counterReportsTitle">পেমেন্ট-সংক্রান্ত রিপোর্ট</h2>
+                        <p class="finance-hint">ব্যক্তিগত তথ্য সীমিত থাকে। প্রয়োজনীয় মোবাইলের মাঝের তিন অঙ্ক *** দিয়ে ঢাকা হবে।</p>
+                        <div id="paymentReports"></div>
+                      </section>
+      </section>
+
+      <section class="pay-panel" data-pay-panel="more" id="payMorePanel" aria-labelledby="payMoreTitle" hidden>
+                    <section class="admin-card" id="payMoreCard">
+                      <h2 id="payMoreTitle">আরও</h2>
+                      <p class="finance-hint">কাউন্টারের নিজের Settings — অ্যাকাউন্ট, নোটিফিকেশন, অ্যাপ, নিরাপত্তা ও ডেটা। কাউন্টার শুধু নিজের আদায় ও ফি রিপোর্ট দেখে — শিক্ষার্থীর বকেয়া, ফলাফল বা ক্লাস তালিকা এখানে নেই।</p>
+                    </section>
+                    <div class="settings-hub" data-settings-hub="payment">
+                      <div class="profile-section" data-settings-group="account">
+                        <p class="eyebrow">অ্যাকাউন্ট</p>
+                        <div class="settings-list">
+                          <div class="settings-info" data-settings-row="profile"><span class="settings-copy"><strong>কাউন্টার</strong><small id="payMoreUser">—</small></span></div>
+                          <button type="button" class="settings-row-link" data-settings-row="logout" id="payMoreLogout"><span class="settings-icon danger" aria-hidden="true"></span><span class="settings-copy"><strong>লগআউট</strong><small>এই ডিভাইস থেকে সেশন শেষ করুন</small></span></button>
+                        </div>
+                      </div>
+                      <div class="profile-section" data-settings-group="notification"></div>
+                      <div class="profile-section" data-settings-group="app"></div>
+                      <div class="profile-section" data-settings-group="security"></div>
+                      <div class="profile-section" data-settings-group="data"></div>
+                    </div>
+                  </section>
     </main>
+    <nav class="admin-bottom" aria-label="পেমেন্ট কাউন্টার navigation"><button class="admin-bottom-item active" type="button" data-pay-section="home" aria-current="page"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="home" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10.5 9-7.7 9 7.7M5.2 9.3v10a1.7 1.7 0 0 0 1.7 1.7h10.2a1.7 1.7 0 0 0 1.7-1.7v-10M9.5 21v-6.5h5V21"/></svg></span><span>হোম</span></button><button class="admin-bottom-item" type="button" data-pay-section="students"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="students" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 6.2 9-3.5 9 3.5-9 3.5ZM6 7.5v3q6 3.5 12 0v-3M21 6.2v6"/><circle cx="12" cy="13.5" r="2.4"/><path d="M6.5 21v-.5a5.5 5.5 0 0 1 11 0v.5"/></svg></span><span>শিক্ষার্থী</span></button><button class="admin-bottom-item" type="button" data-pay-section="payment"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="wallet" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="14" rx="2.5"/><path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H18v4M21 12.5h-5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5"/><circle cx="17.7" cy="15" r=".6" fill="currentColor" stroke="none"/></svg></span><span>পেমেন্ট</span></button><button class="admin-bottom-item" type="button" data-pay-section="reports"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="reports" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2.2"/><path d="M7.5 16.5v-4M12 16.5v-9M16.5 16.5V10"/></svg></span><span>রিপোর্ট</span></button><button class="admin-bottom-item" type="button" data-pay-section="more"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="more" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></span><span>আরও</span></button></nav>
   </div>
   <div class="admin-modal-backdrop" id="payReceiptBackdrop" hidden>
     <div class="admin-modal pay-receipt-modal" role="dialog" aria-modal="true" aria-labelledby="payReceiptTitle">

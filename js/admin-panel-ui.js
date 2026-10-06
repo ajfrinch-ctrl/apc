@@ -5,7 +5,7 @@
    signed-in role:
 
      • the bottom bar      (icon + label, clear active state)
-     • the "More" menu     (icon + label + hint)
+     • the সিস্টেম / ডেটা hub rows (icon + label + hint)
      • the dashboard grid  (large icon + clear label)
      • the top bar         (student-app link + logout)
 
@@ -16,7 +16,7 @@
 
    Presentation only — no storage, no routing rules and no business logic. */
 
-import { ADMIN_BOTTOM_NAV, ADMIN_MORE_NAV, ADMIN_FEATURE_TILES, enforceCapabilities } from './admin-permissions.js';
+import { ADMIN_BOTTOM_NAV, ADMIN_SYSTEM_NAV, ADMIN_DATA_NAV, ADMIN_FEATURE_TILES, enforceCapabilities } from './admin-permissions.js';
 import { iconElement, paintIcon } from './icons.js';
 
 /* The bottom bar and the "More" menu use the same icon language, so a section
@@ -72,13 +72,18 @@ function renderBottomBar(bar, entries, onNavigate) {
   return buttons;
 }
 
-/* ---------- "More" menu ---------- */
+/* ---------- সিস্টেম / ডেটা hub rows ---------- */
 
-function renderMoreMenu(root, access, onNavigate) {
+/** One hub (a `<nav class="admin-more-menu">` of rows). A row is removed, not
+ *  hidden, when its capability is not granted; the hub itself goes if empty. */
+function renderHub(root, menuSelector, panelView, catalogue, access, onNavigate) {
+  const menu = root.querySelector(menuSelector);
+  if (!menu) return [];
   const items = [];
-  root.querySelectorAll('.admin-more-item').forEach(item => {
-    const entry = ADMIN_MORE_NAV.find(candidate => candidate.view === item.dataset.adminView);
-    if (!entry) return;
+  menu.querySelectorAll('.admin-more-item').forEach(item => {
+    const entry = catalogue.find(candidate => candidate.view === item.dataset.adminView);
+    if (!entry) { item.remove(); return; }
+    if (entry.capability && !access.has(entry.capability)) { item.remove(); return; }
     paintIcon(item.querySelector('.admin-more-icon'), ADMIN_BOTTOM_ICONS[entry.icon] || entry.icon, 'admin-more-icon-svg apc-icon-svg');
     const label = item.querySelector('.admin-more-copy strong');
     const hint = item.querySelector('.admin-more-copy small');
@@ -87,10 +92,9 @@ function renderMoreMenu(root, access, onNavigate) {
     item.addEventListener('click', () => onNavigate(entry.view, item));
     items.push(item);
   });
-  // The container is pointless when the role may open nothing inside it.
-  if (!access.allowEntries(ADMIN_MORE_NAV).length) {
-    root.querySelector('.admin-more-menu')?.remove();
-    root.querySelector('.admin-view[data-view-panel="more"]')?.remove();
+  if (!items.length && !menu.querySelector('.admin-more-item')) {
+    menu.remove();
+    root.querySelector(`.admin-view[data-view-panel="${panelView}"]`)?.remove();
   }
   return items;
 }
@@ -143,15 +147,12 @@ export function initAdminPanelShell({ access, onNavigate } = {}) {
   const navigate = typeof onNavigate === 'function' ? onNavigate : () => {};
   const removed = enforceCapabilities({ access });
 
-  const moreEntries = access.allowEntries(ADMIN_MORE_NAV);
-  // The "More" tab is a container: it exists only while something inside it is
-  // granted, so a role without sub-views never sees an empty menu.
-  const bottomEntries = access.allowEntries(ADMIN_BOTTOM_NAV)
-    .filter(entry => entry.view !== 'more' || moreEntries.length > 0);
+  const bottomEntries = access.allowEntries(ADMIN_BOTTOM_NAV);
   const tileEntries = access.allowEntries(ADMIN_FEATURE_TILES);
 
   const bottomButtons = renderBottomBar(document.querySelector('.admin-bottom'), bottomEntries, navigate);
-  const moreItems = renderMoreMenu(document, access, navigate);
+  const systemItems = renderHub(document, '#adminSystemMenu', 'system', ADMIN_SYSTEM_NAV, access, navigate);
+  const dataItems = renderHub(document, '#adminDataMenu', 'data', ADMIN_DATA_NAV, access, navigate);
   const tiles = renderFeatureGrid(document.querySelector('#adminFeatureGrid'), tileEntries, navigate);
 
   // System overview title uses the same icon language as the navigation.
@@ -171,7 +172,7 @@ export function initAdminPanelShell({ access, onNavigate } = {}) {
 
   renderTopBar();
 
-  return { access, removed, bottomEntries, moreEntries, tileEntries, bottomButtons, moreItems, tiles };
+  return { access, removed, bottomEntries, tileEntries, bottomButtons, systemItems, dataItems, tiles };
 }
 
 export { iconElement, paintIcon };

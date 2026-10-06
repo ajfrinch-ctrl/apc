@@ -1,7 +1,7 @@
 import { iconMarkup } from './icons.js';
 /* Data-driven student home dashboard. The UI only shows records already stored
    for this student; absent classes, results or fees are never filled with demo values. */
-import { loadRoutine, WEEK_DAYS, ROUTINE_KEY } from './office-data.js';
+import { loadRoutine, ROUTINE_KEY } from './office-data.js';
 import { teachingRepository, publishedForStudent } from './teaching-data.js';
 import { examRepository, examMatchesStudent, watchExams, isStudentVisibleExam } from './exam-data.js';
 import { financeRepository, studentFeeSummary } from './finance-data.js';
@@ -67,8 +67,10 @@ function renderProgress(activities, exams, studentId) {
   if ($('#dashboardDoneCount')) $('#dashboardDoneCount').textContent = `${bn(done)}টি কাজ`;
   if ($('#dashboardPendingCount')) $('#dashboardPendingCount').textContent = `${bn(pending)}টি কাজ`;
   if ($('#dashboardExamCount')) $('#dashboardExamCount').textContent = `${bn(exams.length)}টি পরীক্ষা`;
+  /* মোট is the headline number of the same calculation; সম্পন্ন / বাকি /
+     প্রকাশিত পরীক্ষা sit beside it in the stat grid. */
   if ($('#studyProgressNote')) $('#studyProgressNote').textContent = homework.length
-    ? `${bn(homework.length)}টি প্রকাশিত বাড়ির কাজের অগ্রগতির ভিত্তিতে।`
+    ? `মোট ${bn(homework.length)}টি প্রকাশিত বাড়ির কাজের অগ্রগতির ভিত্তিতে।`
     : 'এখনও কোনো বাড়ির কাজের অগ্রগতি পাওয়া যায়নি।';
   return { homework, done, pending, percent };
 }

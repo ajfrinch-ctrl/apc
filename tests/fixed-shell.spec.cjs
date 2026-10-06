@@ -1,4 +1,5 @@
 const { test, expect } = require('./fixtures.cjs');
+const { enterStudentApp, enterPortal } = require('./portal-session.cjs');
 
 async function barsStayInPlace(page, { header, footer, main }) {
   await expect.poll(() => page.evaluate(({ header, footer, main }) => {
@@ -17,7 +18,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
   test(`student header/footer stay fixed while middle scrolls (${viewport.width}px)`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto('/index.html');
-    await page.locator('#demoLoginButton').click();
+    await enterStudentApp(page);
     const selectors = { header: '#studentHeader', footer: '.bottom-nav', main: '#appMain' };
     await barsStayInPlace(page, selectors);
     await page.locator('#appMain').evaluate(el => { el.scrollTop = el.scrollHeight; });
@@ -39,27 +40,35 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
     await barsStayInPlace(page, selectors);
   });
 
-  test(`admin header/footer stay fixed on long forms and reports (${viewport.width}px)`, async ({ page }) => {
+  test(`admin header/footer stay fixed on a long report (${viewport.width}px)`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await page.goto('/admin.html');
-    await page.locator('#adminLoginForm button[type=submit]').click();
+    // A real roster, so the report is long enough to scroll in the middle pane.
+    await page.addInitScript(() => {
+      const key = 'activePlus.admin.students.v1';
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, JSON.stringify(Array.from({ length: 60 }, (_, index) => ({
+        id: `FIX-${index}`, name: `শিক্ষার্থী ${index}`, mobile: `017${String(10000000 + index)}`,
+        className: 'দশম শ্রেণি', status: 'approved', monthlyFee: 1000, enrolledAt: '2026-09-01'
+      }))));
+    });
+    await enterPortal(page, 'admin');
     await page.locator('.admin-bottom [data-admin-view=reports]').click();
     await expect(page.locator('.admin-view[data-view-panel=reports]')).toBeVisible();
-    await page.locator('#reportMonth').selectOption('all');
     const selectors = { header: '.app-topbar', footer: '.admin-bottom', main: '#adminMain' };
     await barsStayInPlace(page, selectors);
+    await page.locator('#adminReports select[name=report]').selectOption('student.class-wise');
+    await page.locator('#adminReports .rc-generate').click();
+    await expect(page.locator('#adminReports .rc-preview')).toBeVisible();
     await page.locator('#adminMain').evaluate(el => { el.scrollTop = el.scrollHeight; });
-    await expect.poll(() => page.locator('#adminMain').evaluate(el => el.scrollTop)).toBeGreaterThan(300);
+    await expect.poll(() => page.locator('#adminMain').evaluate(el => el.scrollTop)).toBeGreaterThan(50);
     await barsStayInPlace(page, selectors);
-    const last = page.locator('#reportCollectionList .report-payment').last();
-    expect((await last.boundingBox()).y + (await last.boundingBox()).height).toBeLessThanOrEqual((await page.locator('.admin-bottom').boundingBox()).y);
-    await last.locator('[data-action=view-receipt]').click();
-    await expect(page.locator('#adminMain')).toHaveCSS('overflow-y', 'hidden');
-    const scrollBefore = await page.locator('#adminMain').evaluate(el => el.scrollTop);
-    await page.locator('[data-modal-action=close]').click();
-    await expect(page.locator('#adminMain')).toHaveCSS('overflow-y', 'auto');
-    expect(await page.locator('#adminMain').evaluate(el => el.scrollTop)).toBe(scrollBefore);
-    await page.locator('.admin-bottom [data-admin-view=more]').click();
+    // The preview's own last page never hides under the fixed footer.
+    const last = page.locator('#adminReports .rc-pdf-preview .rp-page').last();
+    const box = await last.boundingBox();
+    expect(box.y + box.height).toBeLessThanOrEqual((await page.locator('.admin-bottom').boundingBox()).y + 1);
+    // Going back to the report form and changing seat resets the middle pane.
+    await page.locator('#adminReports .rc-back').click();
+    await page.locator('.admin-bottom [data-admin-view=dashboard]').click();
     await expect.poll(() => page.locator('#adminMain').evaluate(el => el.scrollTop)).toBe(0);
     await barsStayInPlace(page, selectors);
     await page.setViewportSize({ width: 390, height: 520 });
@@ -105,7 +114,7 @@ for (const width of [320, 390, 480]) {
     // same logo, the same slogan and the same height.
     await expect(page.locator('#authScreen .app-brand [data-fixed-tagline]')).toBeVisible();
     const loginHeight = (await page.locator('#authScreen .app-topbar').boundingBox()).height;
-    await page.locator('#demoLoginButton').click();
+    await enterStudentApp(page);
     await expect(page.locator('#studentHeader')).toBeVisible();
     expect((await page.locator('#studentHeader').boundingBox()).height).toBe(loginHeight);
     await expect(page.locator('#studentHeader .app-brand [data-fixed-tagline]')).toBeVisible();

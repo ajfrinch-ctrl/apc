@@ -24,6 +24,10 @@ async function privateFieldsAbsent(page) {
  expect(text).not.toMatch(/PRIVATE-|01700000000|01800000000|০১৭০০০০০০০০|০১৮০০০০০০০০|বকেয়া|বকেয়া|8888|৮৮৮৮/);
 }
 async function openPayment(page,query=person.id) {
+ /* The counter's five seats are home/students/payment/reports/more: the
+    identity-only search sits in the শিক্ষার্থী seat, not on the home screen. */
+ await page.locator('.admin-bottom [data-pay-section=students]').click();
+ await expect(page.locator('#payStudentsPanel')).toBeVisible();
  await page.locator('#payStudentSearch').fill(query);
  await page.locator('#paySearchResults .fee-search-result').click();
  await expect(page.locator('#payProfileCollect')).toBeEnabled();
@@ -35,12 +39,13 @@ for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:12
   await expect(page.locator('#payTodayList .pay-activity-row')).toHaveCount(1);
   await expect(page.locator('#payTodayList')).not.toContainText(/OLD-HISTORY|FUTURE-HISTORY|OTHER-COLLECTOR/);
   await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(0);await expect(page.locator('#payProfileCard')).toBeHidden();
-  for(const selector of ['#payQuickPicks','#payDueStudents','#payMonthAmount','#payDeskTools','.admin-bottom','#payKeypad','#payStickyBar','#payReceiptWhatsApp']) await expect(page.locator(selector)).toHaveCount(0);
+  for(const selector of ['#payQuickPicks','#payDueStudents','#payMonthAmount','#payDeskTools','#payKeypad','#payStickyBar','#payReceiptWhatsApp']) await expect(page.locator(selector)).toHaveCount(0);
   await privateFieldsAbsent(page);
   await expect(page.locator('#payReportsCard')).toBeHidden();
   await expect(page.locator('#paymentReports')).toHaveCount(1);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   for(const query of ['নমুনা রাইসা','s261001001','২৬১০০১০০১']) {
+   await page.locator('.admin-bottom [data-pay-section=students]').click();
    await page.locator('#payStudentSearch').fill(query);
    await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(1);
    await expect(page.locator('#paySearchResults')).toContainText(person.id);await privateFieldsAbsent(page);

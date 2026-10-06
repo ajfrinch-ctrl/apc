@@ -6,7 +6,15 @@ import { activitySheetPDF, materialFileName } from './material-pdf.js';
 import { teachingRepository, publishedForStudent, ACTIVITY_TYPES, PROGRESS_LABELS, escapeText as esc, displayDate, safeResourceURL, watchTeachingData } from './teaching-data.js';
 
 export function initStudentTeaching({ getStudent }) {
-  let db = { activities: [] }, filter = 'all', request = 0;
+  let db = { activities: [] }, filter = 'all', request = 0, counts = { all: 0, homework: 0, suggestion: 0, exam: 0, routine: 0 };
+  /* Which পড়াশোনা section owns the board right now. The section tabs push the
+     scope in (data-learning-scope on #learningBoard); 'all' keeps the old
+     behaviour for the single-module tests and for any direct mount. */
+  const SECTION_TITLES = Object.freeze({ homework: 'বাড়ির কাজ', suggestion: 'সাজেশন', exam: 'নম্বর ও ফলাফল', routine: 'উপস্থিতি ক্লাস' });
+  /* Section-level subject filter: the পড়াশোনা sections own the control, the
+     board only answers the filtered list (সাজেশন: subject-wise সাজেশন). */
+  let subjectFilter = '';
+  const text = value => String(value ?? '').trim();
   const pending = new Set();
   const $ = selector => document.querySelector(selector);
   const num = value => esc(bn(value));
@@ -44,15 +52,31 @@ export function initStudentTeaching({ getStudent }) {
       </div>
     </article>`;
   }
+  const board = () => $('#learningBoard');
+  const scope = () => board()?.dataset.learningScope || filter;
+  function setScope(next) {
+    const value = next === 'all' || ACTIVITY_TYPES[next] ? next : 'all';
+    filter = value;
+    const el = board();
+    if (el) el.dataset.learningScope = value;
+    const bar = $('#learningFilters');
+    if (bar) bar.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.learningFilter === value)));
+    render();
+  }
   function render() {
     const student = getStudent();
     const activities = publishedForStudent(db.activities, student).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    const visible = activities.filter(a => filter === 'all' || a.type === filter);
+    const current = scope();
+    const visible = activities.filter(a => (current === 'all' || a.type === current)
+      && (!subjectFilter || text(a.subject) === subjectFilter));
     $('#learningList').innerHTML = visible.map(a => card(a, student)).join('') || '<p class="teacher-empty">এই বিভাগে তোমার জন্য এখনও কোনো কাজ প্রকাশ হয়নি।</p>';
-    $('#learningCount').textContent = `${bn(activities.length)}টি প্রকাশিত কাজ • ${student.className}`;
+    if ($('#learningTitle')) $('#learningTitle').textContent = SECTION_TITLES[current] || 'শিক্ষকের দেওয়া কাজ';
+    $('#learningCount').textContent = `${bn(visible.length)}টি প্রকাশিত কাজ • ${student.className}`;
     const homework = activities.filter(a => a.type === 'homework');
     const done = homework.filter(a => ['done', 'reviewed'].includes(a.progress[student.id]?.value)).length;
     const remaining = homework.length - done;
+    counts = { all: activities.length };
+    Object.keys(ACTIVITY_TYPES).forEach(type => { counts[type] = activities.filter(a => a.type === type).length; });
     $('#learningSummary').innerHTML = `<div><strong>${bn(activities.length)}</strong><span>মোট কাজ</span></div><div class="learning-summary-pending"><strong>${bn(remaining)}</strong><span>বাড়ির কাজ বাকি</span></div><div><strong>${bn(done)}</strong><span>বাড়ির কাজ সম্পন্ন</span></div>`;
     $('#learningFilters').querySelectorAll('button').forEach(button => {
       const type = button.dataset.learningFilter;
@@ -80,15 +104,17 @@ export function initStudentTeaching({ getStudent }) {
       $('#learningError').textContent = 'শিক্ষকের কাজ লোড হয়নি। পেজ রিফ্রেশ করে আবার চেষ্টা করো।';
     }
   }
-  $('#learningFilters').addEventListener('click', event => {
+  $('#learningFilters')?.addEventListener('click', event => {
     const button = event.target.closest('[data-learning-filter]'); if (!button) return;
-    filter = button.dataset.learningFilter;
-    $('#learningFilters').querySelectorAll('button').forEach(el => el.setAttribute('aria-pressed', String(el === button))); render();
+    setScope(button.dataset.learningFilter);
   });
   window.addEventListener('apc-notification-action', event => {
     const detail = event.detail || {};
     if (detail.kind !== 'homework' || !detail.id) return;
-    $('#learningFilters').querySelector('[data-learning-filter="homework"]')?.click();
+    // A notification about homework must land on the বাড়ির কাজ section, not on
+    // whatever section happened to be open.
+    window.dispatchEvent(new CustomEvent('apc-open-study-section', { detail: { section: 'homework' } }));
+    setScope('homework');
     void refresh().then(() => {
       const card = [...$('#learningList').querySelectorAll('[data-learning-id]')]
         .find(item => item.dataset.learningId === String(detail.id));
@@ -179,5 +205,9 @@ export function initStudentTeaching({ getStudent }) {
 
   watchTeachingData(refresh);
   refresh();
+  refresh.setScope = setScope;
+  refresh.currentScope = scope;
+  refresh.setSubject = next => { subjectFilter = text(next); render(); };
+  refresh.activityCounts = () => ({ ...counts });
   return refresh;
 }

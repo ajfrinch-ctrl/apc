@@ -1,5 +1,4 @@
 import { LEGACY_CLOUD_ENABLED } from '../sync/cloud-access.js';
-import { mountStatusNotice } from './status-surface.js';
 /* Deferred, retryable sync. No page reload and no deletion of local data. */
 import { reportSyncError, setSyncStatus } from '../sync/sync-status.js';
 import { assertSyncGuard } from '../sync/sync-guard.js';
@@ -62,24 +61,11 @@ async function bootRealtimeSync() {
   }
 }
 
-function mountStatus() {
-  const banner = document.createElement('button');
-  banner.type = 'button';
-  banner.id = 'cloudSyncStatus';
-  banner.setAttribute('aria-label', 'ক্লাউড সিঙ্কের অবস্থা — আবার চেষ্টা করতে চাপুন');
-  banner.hidden = true;
-  mountStatusNotice(banner);
-  const paint = () => {
-    const { realtimeSync: state, realtimeSyncMessage: message } = document.documentElement.dataset;
-    banner.hidden = !maySync() || !['error', 'offline', 'pending', 'conflict', 'paused'].includes(state);
-    banner.disabled = state === 'paused';
-    banner.textContent = `${message || 'সিঙ্কের অপেক্ষায়'}${state === 'error' ? ' · আবার চেষ্টা' : ''}`;
-  };
-  banner.addEventListener('click', () => { if (LEGACY_CLOUD_ENABLED && maySync()) schedule(0); });
-  window.addEventListener('apc-sync-status', paint);
-  paint();
-  // The login page must not fetch/sync account or application collections
-  // before a user has signed in. A valid restored session emits the same event.
+/* No on-screen sync message: the topbar's top border
+   (js/topbar-connectivity.js) is the only standing sync status, and sync still
+   retries on its own backoff. The login page must not fetch/sync account or
+   application collections before a user has signed in. */
+function mountSync() {
   if (maySync()) schedule();
   if (maySync()) mountNotifications();
 }
@@ -93,15 +79,13 @@ function mountNotifications() {
     .then(module => module.initNotifications())
     .catch(error => console.warn('[Active Plus] notifications unavailable:', error?.name || 'unknown'));
 }
-if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', mountStatus, { once: true });
-else mountStatus();
+if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', mountSync, { once: true });
+else mountSync();
 
 window.addEventListener('apc-session-ready', () => { if (!maySync()) return; mountNotifications(); schedule(0); });
 window.addEventListener('apc-session-ended', () => {
   cancelScheduled();
   attempt = 0;
-  const banner = document.getElementById('cloudSyncStatus');
-  if (banner) banner.hidden = true;
 });
 window.addEventListener('online', () => { if (maySync()) schedule(250); });
 window.addEventListener('offline', () => { cancelScheduled(); setSyncStatus(LEGACY_CLOUD_ENABLED ? 'offline' : 'paused'); });

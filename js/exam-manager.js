@@ -4,11 +4,11 @@
    open on the screen, and no two dates ever mix in one list.
    Permissions are decided by js/exam-archive.js and enforced again in
    js/exam-data.js; this module only paints the buttons that are allowed. */
-import { examRepository as repo, EXAM_TYPES, EXAM_STATUSES, TEACHER_ACTOR, ADMIN_ACTOR, MANAGER_ACTOR, examTemplate, EXAM_SAMPLE_TEMPLATES, MCQ_30_SAMPLE, parseQuestions, totalMarks, watchExams, isLiveExam, examDateOf, examDurationMinutes, examDateFor, examCodeOf, examStageLabel, ensureChapter } from './exam-data.js';
+import { examRepository as repo, EXAM_TYPES, EXAM_STATUSES, TEACHER_ACTOR, ADMIN_ACTOR, MANAGER_ACTOR, examTemplate, EXAM_SAMPLE_TEMPLATES, MCQ_30_SAMPLE, parseQuestions, totalMarks, watchExams, isLiveExam, examDateOf, examDurationMinutes, examDateFor, ensureChapter } from './exam-data.js';
 import { examRecord, questionPreview, resultMarkup, downloadResults, statusTag, typeTag, stageTag, codeTag, esc, num, when, shortExamId } from './exam-ui.js';
 import { downloadExamPDF } from './exam-pdf.js';
 import { enabledClasses } from './config.js';
-import { listClasses, listChapters, subjectsForClass, isSubjectEnabled } from './academics.js';
+import { listClasses, listChapters, subjectsForClass } from './academics.js';
 import { questionBank, searchQuestions, listQuestions, questionById, ensureExamsInBank, QUESTION_TYPES, QUESTION_DIFFICULTIES, QUESTION_TYPE_ORDER, QUESTION_DIFFICULTY_ORDER, watchQuestionBank, questionForExam } from './question-bank.js';
 import { subjectsForTeacherClass } from './teacher-assignments.js';
 import { listTeacherAssignments, isTeacherAssignedSubject } from './teacher-assignments.js';
@@ -715,4 +715,18 @@ export function initExamManager(container, role) {
      rendering the whole question list. */
   try { repo.ensureCodes(); } catch { /* codes are stamped on the next write */ }
   reload();
+  /* The panel shell may deep-link into the workspace (the Teacher academic hub
+     opens প্রশ্নব্যাংক / পরীক্ষা here). No second copy of any screen is made:
+     this only switches the section the workspace is already rendering. */
+  return {
+    open(screen = '') {
+      /* Only screens this workspace already renders can be opened; anything
+         else lands on its own home, never on a new copy of a screen. */
+      const target = String(screen || '').trim();
+      view = { bank: 'bank', exams: 'home', archive: 'archive', upcoming: 'upcoming' }[target] || 'home';
+      selected = null; openQuestion = null;
+      paint();
+      scrollTop();
+    }
+  };
 }

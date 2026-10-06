@@ -71,13 +71,13 @@ const NEEDS = Object.freeze({
 });
 /* Where a tapped item goes when the payload does not name a view. */
 const KIND_TARGET = Object.freeze({
-  exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'results', homework: 'courses',
+  exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'exams', homework: 'courses',
   notice: 'notice-board', broadcast: 'notice-board',
   approved: 'home', rejected: 'home',
-  'payment-review': 'cash-counter', 'payment-rejected': 'cash-counter', 'exam-review': 'exams',
+  'payment-review': 'cash-counter', 'payment-rejected': 'home', 'exam-review': 'exams',
   'exam-returned': 'online-exams', 'exam-approved': 'online-exams'
 });
-const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework']);
+const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework', 'payment-rejected']);
 const NOTICE_BOARD_KINDS = new Set(['notice', 'broadcast']);
 const generalNotificationItems = items => viewer?.kind === 'student'
   ? items.filter(item => !NOTICE_BOARD_KINDS.has(item.kind))
@@ -86,7 +86,9 @@ const generalNotificationRecords = records => viewer?.kind === 'student'
   ? records.filter(record => !NOTICE_BOARD_KINDS.has(record.type))
   : records;
 const NAV_ATTRIBUTE = Object.freeze({
-  student: 'data-view', manager: 'data-manager-view', teacher: 'data-teacher-view', admin: 'data-admin-view'
+  student: 'data-view', manager: 'data-manager-view', teacher: 'data-teacher-view', admin: 'data-admin-view',
+  /* The counter has its own five seats, so its notifications land on them. */
+  payment: 'data-pay-section'
 });
 const MAX_TIMER_MS = 60 * 60 * 1000;
 /* The part of each panel that appears only once its login is verified. A panel
@@ -438,6 +440,9 @@ export function openNotificationTarget(data) {
   }
   const openTarget = () => {
     const opened = navigateTo(target);
+    /* ফলাফল is a tab of the পরীক্ষা section (docs/APP-ARCHITECTURE.md §3), so a
+       result notification lands on that tab instead of a view of its own. */
+    if (opened && kind === 'result') document.querySelector('#examTabs [data-exam-tab="results"]')?.click();
     if (opened && isBoardItem && viewer?.kind === 'student') {
       window.dispatchEvent(new CustomEvent('apc-notice-open', {
         detail: { kind, id: sourceId, key }

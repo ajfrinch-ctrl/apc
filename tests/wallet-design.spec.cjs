@@ -84,21 +84,33 @@ for (const role of ['manager', 'teacher']) test(`${role} service shortcuts and b
 
 test('student home tiles open homework, notices and a truthful fee state', async ({ page }) => {
   await prepare(page, { role: 'student', width: 320 });
-  for (const route of ['routine', 'courses', 'exams', 'results', 'profile']) {
-    await page.locator(`#studentServices [data-view="${route}"]`).click();
-    await expect(page.locator(`[data-view-panel="${route}"]`)).toBeVisible();
+  /* The home tiles are the Quick Academic Cards (Phase 1b): each one opens the
+     পড়াশোনা seat on its own section (section bar shows aria-pressed), while
+     পরীক্ষা opens the পরীক্ষা seat and ফলাফল opens that seat's ফলাফল tab. */
+  for (const [action, section] of [['homework', 'homework'], ['suggestion', 'suggestion'], ['question-bank', 'bank']]) {
+    await page.locator(`#studentServices [data-action="${action}"]`).click();
+    await expect(page.locator('#coursesView')).toBeVisible();
+    await expect(page.locator(`#studySections [data-study-section="${section}"]`)).toHaveAttribute('aria-pressed', 'true');
     await page.locator('.bottom-nav [data-view="home"]').click();
   }
-  await page.locator('#studentServices [data-action="homework"]').click();
-  await expect(page.locator('#coursesView')).toBeVisible();
-  await expect(page.locator('#learningFilters [data-learning-filter="homework"]')).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('#coursesView .pay-back').click();
+  await page.locator('#studentServices [data-view="exams"]:not([data-exam-tab])').click();
+  await expect(page.locator('[data-view-panel="exams"]')).toBeVisible();
+  await page.locator('.bottom-nav [data-view="home"]').click();
+  await page.locator('#studentServices [data-view="exams"][data-exam-tab="results"]').click();
+  await expect(page.locator('[data-view-panel="exams"]')).toBeVisible();
+  await expect(page.locator('#examTabs [data-exam-tab="results"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.bottom-nav [data-view="home"]').click();
   await page.locator('#studentServices [data-view="notice-board"]').click();
   await expect(page.locator('#notice-boardView')).toBeVisible();
   await expect(page.locator('#noticeBoardCategories [data-notice-board-category="urgent"]')).toContainText('জরুরি');
   await page.locator('#notice-boardView .pay-back').click();
-  await page.locator('#studentServices [data-action="fees"]').click();
-  await expect(page.locator('.feedback-toast')).toContainText('তথ্য এখনও যোগ হয়নি');
+  /* ফি is read-only for a student: the fee screen shows the account's own state. */
+  await page.locator('#studentServices [data-action="homework"]').click();
+  await expect(page.locator('#coursesView')).toBeVisible();
+  await page.locator('#coursesView .pay-back').click();
+  await page.locator('.bottom-nav [data-view="profile"]').click();
+  await page.locator('#profileView [data-view="student-fee"]').click();
+  await expect(page.locator('#studentFeeView')).toBeVisible();
   expect(await page.locator('.feedback-toast').evaluate(el => { const r=el.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth; })).toBe(true);
 });
 
@@ -109,7 +121,7 @@ for (const scene of [{ width:320, theme:'dark' },{ width:390, theme:'light' }]) 
     await page.goto('/offline-roles.html');await seed(page,'payment');
     await page.evaluate(async()=>{const {adminStudents}=await import('/js/admin-data.js');const {KEYS}=await import('/js/database.js');localStorage.setItem(KEYS.students,JSON.stringify(adminStudents));localStorage.setItem(KEYS.transactions,'[]');});
     await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
-    await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom')).toHaveCount(0);
+    await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom [data-pay-section]')).toHaveCount(5);
     await page.locator('#payStudentSearch').fill('AP-1024');await page.locator('#paySearchResults .fee-search-result').click();
     await expect(page.locator('#payProfileCollect')).toBeEnabled();await page.locator('#payProfileCollect').click();
     await expect(page.locator('#payFeeAmount')).toHaveValue('');await page.locator('#payFeeAmount').fill('800');await page.locator('#paySaveButton').click();

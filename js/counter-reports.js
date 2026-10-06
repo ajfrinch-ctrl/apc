@@ -3,6 +3,7 @@
 import { COUNTER_PAYMENT_REPORTS, buildCounterPaymentReport, counterReportCSV } from './counter-report-data.js';
 import { searchCounterStudents, assertCounterActor } from './counter-data.js';
 import { createReport, addKeyValues, addTable, addNote, buildReport, renderPagesPDF } from './report-layout.js';
+import { EMPTY_MESSAGE } from './report-catalog.js';
 import { downloadBlob } from './exam-pdf.js';
 
 export function mountCounterReports(root) {
@@ -68,10 +69,14 @@ export function mountCounterReports(root) {
    const filter={period:period.value,studentId:state.selected?.id || '',includeMobile:checkbox.checked};
    for(const [name,value] of Object.entries(fields))if(!value.wrap.hidden)filter[name]=value.input.value;
    const report=await buildCounterPaymentReport(choices.value,filter);
+   /* The same honest empty state the other panels use (§Report Center): nothing
+      matched means the preview still opens and says so, and the PDF says it too. */
+   const empty=!(report.tables||[]).some(item=>(item.rows||[]).length);
    const doc=createReport({title:report.title,period:report.period,subtitle:'পেমেন্ট রিপোর্ট · ব্যক্তিগত তথ্য সীমিত'});
    addKeyValues(doc,report.summary,{columns:2});
    for(const item of report.tables)addTable(doc,{title:item.title,columns:item.columns,rows:item.rows});
    for(const note of report.notes)addNote(doc,note);
+   if(empty)addNote(doc,EMPTY_MESSAGE);
    const rendered=await buildReport(doc),pdf=await renderPagesPDF(rendered.pages);
    await assertCounterActor();
    if(version!==state.version)return;
@@ -91,10 +96,14 @@ export function mountCounterReports(root) {
     for(const values of item.rows){const row=el('tr');values.forEach((value,index)=>{const cell=el('td',String(value??''));cell.dataset.label=item.columns[index]?.label||'';row.append(cell);});body.append(row);}table.append(body);wrap.append(table);pages.append(wrap);
    }
    for(const note of report.notes)pages.append(el('p',note,'finance-hint'));
-   preview.replaceChildren(actions,pages);
+   if(empty){const notice=el('p',EMPTY_MESSAGE,'rc-preview-notice');notice.dataset.reportEmpty='1';preview.append(notice);}
+   preview.append(actions,pages);
   }catch(error){if(version===state.version){status.textContent=error?.message || 'রিপোর্ট তৈরি হয়নি।';status.hidden=false;}}
   finally{if(version===state.version){generate.disabled=false;generate.textContent='রিপোর্ট তৈরি করুন';}}
  });
  updateDates();
- return {reset};
+ /* Report Centre deep links (e.g. হোম → আজকের ক্লোজিং) preselect a report; the
+    builder still runs only on an explicit Generate. */
+ const preset=id=>{if(!COUNTER_PAYMENT_REPORTS.some(def=>def.id===id))return false;choices.value=id;choices.dispatchEvent(new Event('change'));resetResult();return true;};
+ return {reset,preset};
 }

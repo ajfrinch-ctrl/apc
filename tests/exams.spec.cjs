@@ -1,4 +1,5 @@
 const { test, expect } = require('./fixtures.cjs');
+const { enterPortal, enterStudentApp } = require('./portal-session.cjs');
 const fs = require('node:fs/promises');
 const KEY = 'activePlus.exams.v1';
 const t0 = new Date('2026-10-01T09:00:00Z'), start = new Date('2026-10-01T10:00:00Z'), end = new Date('2026-10-01T11:00:00Z');
@@ -6,25 +7,31 @@ const template = 'প্রশ্ন: বাংলাদেশের রাজ�
 test.use({ viewport: { width: 390, height: 844 }, timezoneId: 'UTC' });
 async function teacher(page) {
   await page.addInitScript(() => localStorage.setItem('activePlus.manager.teacherAssignments.v1', JSON.stringify([{ id: 'TAS-TENTH', teacherUsername: 'teacher.apc', teacherName: 'Test Teacher', className: 'দশম শ্রেণি', group: '', subject: 'গণিত' }])));
-  await page.clock.setFixedTime(t0); await page.goto('/teacher.html'); await page.locator('#teacherEnter').click(); await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('#teacherMore [data-teacher-view=online-exams]').click();
+  await page.clock.setFixedTime(t0);
+  // One login card for everyone: the session the fixture writes is the door.
+  await enterPortal(page, 'teacher');
+  /* The exam workspace is one screen; the hub card is the documented door
+     (ফলাফল seat keeps the marks records of the class tests). */
+  await page.locator('.admin-bottom [data-teacher-view=academic]').click();
+  await page.locator('#teacherAcademic [data-academic-section=exams]').click();
 }
 async function manager(context) {
-  const page = await context.newPage(); await page.clock.setFixedTime(t0); await page.goto('/manager.html');
-  await page.evaluate(async () => {
-    const { provisionStaffAccount } = await import('/js/staff-auth.js');
-    const result = await provisionStaffAccount('manager', 'Apc-Test-2026', 'Apc-Test-2026');
-    if (!result.ok && !result.error.includes('আগেই নির্ধারিত')) throw new Error(result.error);
-  });
-  await page.locator('#managerUsername').fill('manager.apc'); await page.locator('#managerPassword').fill('Apc-Test-2026'); await page.locator('#managerLoginForm [type=submit]').click();
-  await page.locator('.manager-bottom [data-manager-view=more]').click();
-  await page.locator('#managerMoreMenu [data-manager-view=exams]').click(); return page;
+  const page = await context.newPage(); await page.clock.setFixedTime(t0);
+  // একাডেমিক is the one hub whose card opens the single examination workspace.
+  await enterPortal(page, 'manager');
+  await page.locator('.admin-bottom [data-manager-view=academic]').click();
+  await page.locator('#managerAcademicMenu [data-academic-section=exams]').click();
+  return page;
 }
 async function student(context) {
-  const page = await context.newPage(); await page.clock.setFixedTime(start); await page.goto('/index.html'); if (await page.locator('#authScreen').isVisible()) await page.locator('#demoLoginButton').click(); await page.locator('#homeView [data-view=exams]').click(); return page;
+  const page = await context.newPage(); await page.clock.setFixedTime(start);
+  await enterStudentApp(page);
+  await page.locator('.bottom-nav [data-view=exams]').click();
+  return page;
 }
 async function createUI(page, type = 'mcq', title = 'সমন্বিত অনলাইন পরীক্ষা') {
   const root = page.locator('#teacherExamWorkspace'); await root.locator(`[data-exam-action=new-${type}]`).click();
-  await root.locator('[name=title]').fill(title); await root.locator('[name=subject]').fill('গণিত');
+  await root.locator('[name=title]').fill(title); await root.locator('[name=subject]').selectOption('গণিত');
   await root.locator('[name=className]').selectOption('দশম শ্রেণি'); // the demo student's class
   await root.locator('[name=startAt]').fill('2026-10-01T10:00'); await root.locator('[name=endAt]').fill('2026-10-01T11:00');
   await root.locator('[name=template]').fill(type === 'mcq' ? template : 'প্রশ্ন: পরিবেশ রক্ষায় গাছের গুরুত্ব লেখো।\nনম্বর: ৫\n---\nপ্রশ্ন: পানি দূষণ রোধের তিনটি উপায় লেখো।\nনম্বর: ৩');
@@ -38,19 +45,31 @@ async function publishUI(page) {
 }
 async function releaseResults(office, pupil) {
   await office.clock.setFixedTime(new Date(end.getTime() + 60_000));
-  await office.locator('.manager-bottom [data-manager-view=more]').click();
-  await office.locator('#managerMoreMenu [data-manager-view=results]').click();
+  await office.locator('.manager-bottom [data-manager-view=academic]').click();
+  await office.locator('#managerAcademicMenu [data-academic-section=results]').click();
   await office.locator('[data-manager-action=publish-results]').click();
   await expect(office.locator('#managerResultList')).toContainText('ফলাফল প্রকাশিত');
   await pupil.clock.setFixedTime(new Date(end.getTime() + 60_000));
   await pupil.locator('[data-student-exam-action=refresh]').click();
 }
 async function seed(page, extra = {}) {
-  return page.evaluate(async extra => {
-    const { examRepository: repo, examTemplate, MANAGER_ACTOR } = await import('/js/exam-data.js');
-    let db = await repo.saveDraft({ title: 'ডেমো পরীক্ষা', type: 'mcq', subject: 'গণিত', className: 'দশম শ্রেণি', template: examTemplate('mcq'), startAt: new Date('2026-10-01T10:00:00Z').getTime(), endAt: new Date('2026-10-01T11:00:00Z').getTime(), lateMinutes: 10, negative: .5, passPercent: 33, ...extra });
-    const id = db.exams[0].id; await repo.requestApproval(id); await repo.review(id, 'publish', {}, MANAGER_ACTOR); return id;
+  /* One session per role, exactly like the app: the Teacher writes and submits
+     the paper on their own page, then the Manager publishes it from a manager
+     page (every repository write checks the actor's live session). */
+  const id = await page.evaluate(async extra => {
+    const { examRepository: repo, examTemplate } = await import('/js/exam-data.js');
+    const db = await repo.saveDraft({ title: 'ডেমো পরীক্ষা', type: 'mcq', subject: 'গণিত', className: 'দশম শ্রেণি', template: examTemplate('mcq'), startAt: new Date('2026-10-01T10:00:00Z').getTime(), endAt: new Date('2026-10-01T11:00:00Z').getTime(), lateMinutes: 10, negative: .5, passPercent: 33, ...extra });
+    const paper = db.exams[0].id;
+    await repo.requestApproval(paper);
+    return paper;
   }, extra);
+  const office = await manager(page.context());
+  await office.evaluate(async paper => {
+    const { examRepository: repo, MANAGER_ACTOR } = await import('/js/exam-data.js');
+    await repo.review(paper, 'publish', {}, MANAGER_ACTOR);
+  }, id);
+  await office.close();
+  return id;
 }
 async function finish(page) {
   await page.locator('[data-student-exam-action=confirm]').click(); await page.locator('[data-student-exam-action=finish]').click();

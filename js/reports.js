@@ -7,7 +7,7 @@
    Select Report → Select Filter → Generate Report → Final PDF → Preview → Download PDF
 */
 import {
-  REPORTS, FILTER_META, filterOptions, validateFilters, buildReportDocument
+  REPORTS, FILTER_META, filterOptions, validateFilters, buildReportDocument, EMPTY_MESSAGE
 } from './report-catalog.js';
 import { resolveActor, actorScope, enforceAccess } from './report-access.js';
 import { loadSnapshot } from './report-sources.js';
@@ -265,17 +265,16 @@ class ReportCenter {
       if (summary.length) result.doc.scopeLines=[...(result.doc.scopeLines||[]),...summary];
 
       if (result.empty) {
-        result.doc.blocks.push({
-          type:'note',
-          text:'এই filter অনুযায়ী কোনো data পাওয়া যায়নি।'
-        });
+        /* One wording, defined once (js/report-catalog.js). It travels inside the
+           document, so the PDF says it too. */
+        result.doc.blocks.push({ type:'note', text:EMPTY_MESSAGE });
       }
 
       /* One final document becomes one PDF Blob. The exact same Blob is used
          for both the Preview iframe and Download PDF. */
       const rendered=await buildReport(result.doc);
       const blob=await renderPagesPDF(rendered.pages);
-      this.openPreview(blob, rendered.html);
+      this.openPreview(blob, rendered.html, { empty: result.empty });
     } catch(error) {
       if (error?.code==='FORBIDDEN') this.showStatus(error.message || 'এই রিপোর্ট দেখার অনুমতি নেই।','error');
       else this.showStatus(error?.message || 'Report তৈরি করা যায়নি।','error');
@@ -284,7 +283,7 @@ class ReportCenter {
     }
   }
 
-  openPreview(blob, previewHtml = '') {
+  openPreview(blob, previewHtml = '', { empty = false } = {}) {
     this.revokePdf();
     this.pdfBlob=blob;
     this.pdfUrl=URL.createObjectURL(blob);
@@ -303,6 +302,14 @@ class ReportCenter {
        can render an object-URL PDF as a blank frame on some mobile Chrome
        builds. The downloaded file is still the exact PDF built from the same
        pages. */
+    /* An empty result is not a blank page: it states the one empty message, and
+       the PDF page underneath carries the same line. */
+    if (empty) {
+      const notice=el('p','rc-preview-notice',EMPTY_MESSAGE);
+      notice.dataset.reportEmpty='1';
+      preview.append(notice);
+    }
+
     const previewBody=el('div','rc-pdf-preview');
     previewBody.setAttribute('role','document');
     previewBody.innerHTML=previewHtml || '<p class="rc-preview-empty">রিপোর্ট প্রিভিউ তৈরি করা যায়নি।</p>';

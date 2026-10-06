@@ -50,7 +50,12 @@ test('the home page shows the quote card between the two block in the DOM', asyn
   assert.ok(order(today, quote), 'today’s classes come first');
   assert.ok(order(quote, menu), 'the quick menu follows the quote');
   assert.equal(ctx.$$('#homeView .daily-quote-card').length, 1, 'exactly one quote card');
-  assert.equal(ctx.$$('#studentServices .pay-tile').length, 8, 'the quick menu is untouched');
+  /* The quick menu is now the five academic cards the architecture names
+     (বাড়ির কাজ · সাজেশন · প্রশ্নব্যাংক · পরীক্ষা · ফলাফল) plus the Notice Board
+     entrance with its unread badge. */
+  assert.equal(ctx.$$('#studentServices .pay-tile').length, 6, 'the quick menu holds its cards');
+  assert.deepEqual(ctx.$$('#studentServices .pay-tile-label').map(node => node.textContent.trim()),
+    ['বাড়ির কাজ', 'সাজেশন', 'প্রশ্নব্যাংক', 'পরীক্ষা', 'ফলাফল', 'Notice Board']);
   card.stop();
 });
 

@@ -100,7 +100,7 @@ for (const width of [320, 390, 480]) {
       const { teachingRepository: repo } = await import('/js/teaching-data.js');
       for (const type of ['homework', 'suggestion', 'routine']) await repo.saveActivity({ type, title: type === 'homework' ? 'বীজগণিত অনুশীলনী' : 'সহায়ক পাঠ', subject: 'গণিত', className: 'দশম শ্রেণি', status: 'published', date: '2026-10-01', time: '17:00', duration: 60, details: 'প্রথম অধ্যায়ের অনুশীলনী সমাধান করো।', room: 'কক্ষ ২' });
     });
-    await page.locator('#teacherHomeLink').click();
+    await page.locator('.bottom-nav .bottom-link[data-view="home"]').click();
     await expect(page.locator('#learningSummary strong')).toHaveText(['৩', '১', '০']);
     await page.locator('[data-learning-filter=homework]').click();
     await expect(page.locator('#learningList .learning-card')).toHaveCount(1);
@@ -219,12 +219,13 @@ test('material button generates the PDF in-app offline; external links still dow
   expect((await externalDownload).suggestedFilename()).toBe('app-logo.png');
 });
 
-test('results view: the latest model test summary sits on top', async ({ page }) => {
+test('results tab: the published-result summary sits on top of the teacher board', async ({ page }) => {
   await enter(page);
-  await page.locator('.quick-tile[data-view=results]').click();
-  await expect(page.locator('#resultsView .result-hero')).toBeVisible();
-  const summaryFirst = await page.evaluate(() => document.querySelector('#resultsView .result-hero').compareDocumentPosition(document.querySelector('#teacherResultsBoard')) & Node.DOCUMENT_POSITION_FOLLOWING);
+  // পরীক্ষা → ফলাফল tab: the summary is the first thing read, the board follows.
+  await page.locator('#studentServices [data-view=exams]').last().click();
+  await page.locator('#examTabs [data-exam-tab=results]').click();
+  await expect(page.locator('[data-exam-panel=results]')).toBeVisible();
+  await expect(page.locator('#studentResultOverview .exam-summary, #studentResultOverview .exam-note')).toBeVisible();
+  const summaryFirst = await page.evaluate(() => document.querySelector('#studentResultOverview').compareDocumentPosition(document.querySelector('#teacherResultsBoard')) & Node.DOCUMENT_POSITION_FOLLOWING);
   expect(summaryFirst).toBeTruthy();
-  const statsAfterHero = await page.evaluate(() => document.querySelector('#resultsView .result-hero').compareDocumentPosition(document.querySelector('#resultsView .result-stats')) & Node.DOCUMENT_POSITION_FOLLOWING);
-  expect(statsAfterHero).toBeTruthy();
 });

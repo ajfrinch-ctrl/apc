@@ -59,11 +59,32 @@ export function showAuthScreen() {
 }
 
 /* Deep-linkable student views. The URL hash always names the open view:
-   #routine, #courses, #exams, #results, #profile, #reports (home has no hash).
-   Reports is a More/profile sub-page. Browser
-   and system Back walk the visited views; refresh and shared links reopen the
-   exact view (pattern: hash router + back button). */
-const VIEW_ROUTES = Object.freeze(['home', 'routine', 'courses', 'exams', 'results', 'profile', 'reports', 'notification-settings', 'notice-board']);
+   #routine, #courses, #exams, #profile, #settings, #student-fee, #my-profile,
+   #reports, #notification-settings, #notice-board (home has no hash).
+   Result sheets are not a route of their own any more: ফলাফল is a tab inside
+   the পরীক্ষা section, so #results is kept only as an inbound alias
+   (docs/APP-ARCHITECTURE.md §2–§3). Browser and system Back walk the visited
+   views; refresh and shared links reopen the exact view (hash router + back). */
+const VIEW_ROUTES = Object.freeze(['home', 'routine', 'courses', 'exams', 'results', 'profile', 'my-profile', 'settings', 'student-fee', 'reports', 'notification-settings', 'notice-board']);
+/* Views whose id does not follow the `<route>View` rule. */
+const VIEW_ID_OVERRIDES = Object.freeze({
+  'notification-settings': 'notificationSettingsView',
+  'my-profile': 'myProfileView',
+  'student-fee': 'studentFeeView'
+});
+/* Old/bookmarked names that now live inside another section. */
+const VIEW_ALIASES = Object.freeze({ results: 'exams' });
+/* Which bottom-bar item owns a view that is not itself a bottom-bar item. */
+const NAV_PARENTS = Object.freeze({
+  exams: 'exams',
+  results: 'exams',
+  reports: 'profile',
+  'notification-settings': 'profile',
+  'my-profile': 'profile',
+  settings: 'profile',
+  'student-fee': 'profile',
+  'notice-board': 'home'
+});
 
 export function viewRouteFromHash(hash = window.location.hash) {
   const name = String(hash || '').replace('#', '');
@@ -87,20 +108,17 @@ function syncViewHash(viewName, mode) {
   else window.history.replaceState(window.history.state, '', url);
 }
 
-/* Routes whose view id does not follow the `<route>View` rule (a hyphenated
-   route keeps its camelCase element id). */
-const VIEW_ID_OVERRIDES = Object.freeze({ 'notification-settings': 'notificationSettingsView' });
-
 export function setView(viewName, { history: historyMode = 'push' } = {}) {
-  const panel = document.getElementById(`${viewName}View`) || document.getElementById(VIEW_ID_OVERRIDES[viewName] || '');
+  const name = VIEW_ALIASES[viewName] || viewName;
+  const panel = document.getElementById(`${name}View`) || document.getElementById(VIEW_ID_OVERRIDES[name] || '');
   if (!panel) return;
   $$('[data-view-panel]').forEach(item => item.classList.toggle('active', item === panel));
+  const parent = NAV_PARENTS[name] || name;
   $$('.bottom-link').forEach(item => {
-    const parent = viewName === 'exams' ? 'courses' : viewName === 'reports' ? 'profile' : viewName === 'notice-board' ? 'home' : viewName;
     const active = item.dataset.view === parent;
     item.classList.toggle('active', active);
     if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
   });
   scrollToTop();
-  syncViewHash(viewName, historyMode);
+  syncViewHash(name, historyMode);
 }

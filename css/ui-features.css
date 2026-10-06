@@ -82,6 +82,16 @@
 .settings-list>*{background:transparent;border:0;border-bottom:1px solid var(--color-border);border-radius:0;text-align:left}
 .settings-list>*:last-child{border-bottom:0}
 .settings-list>*:hover{background:var(--color-surface-muted)}
+/* Report Center: the honest empty state (§Report Center). Same dashed language as
+   .rc-preview-empty, but it sits above the pages so an empty report never looks
+   like a blank sheet. */
+.rc-preview-notice{margin:0;padding:var(--space-5);border:1px dashed var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);color:var(--color-text-secondary);text-align:center;font-weight:600}
+/* Settings hub rows (js/settings-hub.js): an information row keeps the same
+   shape as the button/label rows, and a group whose content another module
+   renders (নোটিফিকেশন) shows its own sections instead of a card inside a card. */
+.settings-list>.settings-info{display:flex;align-items:center;gap:var(--space-3);width:100%;padding:var(--space-4)}
+.settings-value{margin-left:auto;flex:none;color:var(--color-text-secondary);font-size:var(--font-sm);text-align:right}
+.profile-section[data-settings-owner]{padding:0;border:0;background:transparent;margin-bottom:0;box-shadow:none}
 /* An empty report mount must not leave a hollow card behind. */
 .profile-section:has(.rp-mount:empty){display:none}
 @media(max-width:360px){
@@ -147,3 +157,25 @@
 .learning-summary span{font-size:var(--font-xs);color:var(--color-text-secondary)}
 @media(max-width:380px){.apc-inapp-alert-row{grid-template-columns:minmax(0,1fr)}.apc-inapp-alert-action{width:100%}}
 @media(max-width:300px){.learning-summary{grid-template-columns:1fr}}
+
+/* ---- v168: the পড়াশোনা section panels --------------------------------------
+   The five sections are one screen with five panels; only the open panel is
+   visible, and the single learning board is moved into the open panel's slot
+   by js/student-study-sections.js. A hidden panel must really collapse (the
+   hidden attribute is not enough once a display rule is set on the class). */
+.study-section-panel{display:grid;gap:var(--space-4);margin-top:var(--space-4)}
+.study-section-panel[hidden]{display:none}
+.study-section-filters{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center}
+.study-section-filters label{display:grid;gap:4px;min-width:140px;font-size:var(--font-xs);color:var(--color-text-secondary)}
+.study-section-filters select{min-height:40px;padding:0 var(--space-2);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:inherit;font-size:var(--font-sm);width:auto}
+.study-section-list{display:grid;gap:var(--space-3)}
+.study-section-count{margin:0;font-size:var(--font-sm);color:var(--color-text-secondary)}
+#studyBankFilters,#studySuggestionFilters,#studyMaterialFilters{margin-bottom:var(--space-2)}
+#learningFilters{display:none}
+
+/* ---- v168: the Teacher academic hub ----------------------------------------
+   Six cards, each opening the screen that already owns that work; the badge
+   says how much of it is waiting on the teacher. */
+.academic-count{flex:none;min-width:34px;padding:2px var(--space-2);border-radius:999px;background:var(--color-surface-muted);color:var(--color-text-secondary);font-size:var(--font-xs);text-align:center}
+.academic-count:empty{display:none}
+.academic-count.is-pending{background:color-mix(in srgb,var(--color-danger) 14%,var(--color-surface));color:var(--color-danger);font-weight:600}

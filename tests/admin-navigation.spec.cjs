@@ -3,8 +3,8 @@ const { enterPortal } = require('./portal-session.cjs');
 // System Control + Staff Management + Permissions + Security + Data + Reports
 // + Settings. Daily operations (cash entry, routine, notices, exam publish)
 // belong to the Cash Counter, Manager and Teacher panels and are not here.
-const mobileViews = ['dashboard', 'staff', 'students', 'reports', 'more'];
-const moreViews = ['roles', 'data', 'backup', 'security', 'settings', 'profile'];
+const mobileViews = ['dashboard', 'staff', 'reports', 'system', 'data', 'profile'];
+const systemViews = ['roles', 'security', 'settings', 'academics'];
 async function enter(page) {
   await enterPortal(page, 'admin');
   await expect(page.locator('#adminShell')).toBeVisible();
@@ -13,14 +13,14 @@ async function bottom(page, view) {
   await page.locator(`.admin-bottom [data-admin-view="${view}"]`).click();
 }
 for (const width of [320, 390]) {
-  test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page }) => {
+  test(`compact dashboard and six-item mobile footer (${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.clock.setFixedTime(new Date('2026-09-22T12:00:00Z'));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await enter(page);
     const footer = page.locator('.admin-bottom');
-    await expect(footer.locator('button')).toHaveCount(5);
+    await expect(footer.locator('button')).toHaveCount(6);
     expect(await footer.locator('button').evaluateAll(buttons => buttons.map(b => b.dataset.adminView))).toEqual(mobileViews);
     await expect(page.locator('#dashTitle')).toBeVisible();
     await expect(page.locator('#adminTodayDate')).toHaveText('২২ সেপ্টেম্বর ২০২৬');
@@ -65,22 +65,26 @@ for (const width of [320, 390]) {
     expect(await page.locator('.admin-bottom .nav-label').evaluateAll(labels => labels.every(label => label.textContent.trim().length > 1))).toBe(true);
     expect(await page.locator('.admin-bottom .nav-label').evaluateAll(labels => labels.every(label => parseFloat(getComputedStyle(label).fontSize) >= 11))).toBe(true);
 
-    // Six system sections plus the always-available logout row.
-    await expect(page.locator('.admin-more-item')).toHaveCount(7);
+    // সিস্টেম hub: four cards, each opening the screen that owns the work.
+    await expect(page.locator('#adminSystemMenu .admin-more-item')).toHaveCount(4);
     await expect(page.locator('.teacher-panel-link')).toHaveCount(0);
-    for (const view of moreViews) {
-      const button = page.locator(`.admin-more-item[data-admin-view="${view}"]`);
+    for (const view of systemViews) {
+      await bottom(page, 'system');
+      const button = page.locator(`#adminSystemMenu[data-admin-view="${view}"], #adminSystemMenu .admin-more-item[data-admin-view="${view}"]`);
       await button.focus();
       await page.keyboard.press('Enter');
       const panel = page.locator(`.admin-view[data-view-panel="${view}"]`);
       await expect(panel).toBeVisible();
       await expect(panel.locator('h1')).toBeFocused();
-      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
-      await panel.locator('.admin-more-back').click();
-      await expect(page.locator('#moreTitle')).toBeFocused();
-      await expect(page.locator('.admin-more-menu')).toBeVisible();
+      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'system');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
+    // ডেটা hub: management plus the one backup screen.
+    await bottom(page, 'data');
+    await expect(page.locator('#adminDataMenu .admin-more-item')).toHaveCount(1);
+    await page.locator('#adminDataMenu .admin-more-item[data-admin-view=backup]').click();
+    await expect(page.locator('.admin-view[data-view-panel=backup]')).toBeVisible();
+    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'data');
     await bottom(page, 'reports');
     await expect(page.locator('[data-finance-view=collection]')).toBeVisible();
     await expect(page.locator('#feeStudentSearch, #feeCollectionForm')).toHaveCount(0);
@@ -134,8 +138,8 @@ test('secondary controls remain functional and dashboard updates without removed
   page.on('pageerror', error => errors.push(error.message));
   await enter(page);
   const original = await page.locator('#dashClassCount').innerText();
-  await bottom(page, 'more');
-  await page.locator('.admin-more-item[data-admin-view=settings]').click();
+  await bottom(page, 'system');
+  await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
   const enabled = page.locator('#classList input:checked');
   const count = await enabled.count();
   const className = await enabled.first().getAttribute('data-class-name');
@@ -156,30 +160,34 @@ test('secondary controls remain functional and dashboard updates without removed
   await page.locator('#staffForm button[type=submit]').click();
   await expect(page.locator('#staffList')).toContainText('মোবাইল স্টাফ');
   await expect(page.locator('#staffList .staff-id-badge').first()).toContainText('STF-');
-  await bottom(page, 'more');
-  await page.locator('.admin-more-item[data-admin-view=settings]').click();
+  await bottom(page, 'system');
+  await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
   await expect(page.locator('#cfgMaintenanceMode')).toBeAttached();
-  await page.locator('#btnSaveTopAppSettings').click();
+  await page.locator('#btnSaveAppSettings').click();
   await expect(page.locator('.admin-toast')).toContainText('সংরক্ষিত');
   expect(errors).toEqual([]);
 });
 
-test('wide viewport keeps the same five-item mobile interface without a sidebar', async ({ page }) => {
+test('wide viewport keeps the same six-item mobile interface without a sidebar', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await enter(page);
   await expect(page.locator('.admin-side, .admin-nav-item')).toHaveCount(0);
   await expect(page.locator('.admin-bottom')).toBeVisible();
-  await expect(page.locator('.admin-bottom button')).toHaveCount(5);
+  await expect(page.locator('.admin-bottom button')).toHaveCount(6);
   expect((await page.locator('#adminShell').boundingBox()).width).toBe(480);
   for (const view of mobileViews) {
     await bottom(page, view);
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
     await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', view);
   }
-  for (const view of moreViews) {
-    await page.locator(`.admin-more-item[data-admin-view="${view}"]`).click();
+  for (const view of systemViews) {
+    await bottom(page, 'system');
+    await page.locator(`#adminSystemMenu .admin-more-item[data-admin-view="${view}"]`).click();
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
-    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
-    await page.locator('.admin-view.active .admin-more-back').click();
+    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', 'system');
   }
+  await bottom(page, 'data');
+  await page.locator('#adminDataMenu .admin-more-item[data-admin-view=backup]').click();
+  await expect(page.locator('.admin-view[data-view-panel=backup]')).toBeVisible();
+  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', 'data');
 });

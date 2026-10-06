@@ -1,10 +1,22 @@
-import { examRepository as repo, examMatchesStudent, retryEligibility, firstAttemptMean, examResults, totalMarks, watchExams, isStudentVisibleExam } from './exam-data.js';
+import { examRepository as repo, examMatchesStudent, retryEligibility, firstAttemptMean, examResults, totalMarks, watchExams, isStudentVisibleExam, gradeFor } from './exam-data.js';
 import { examMeta, resultMarkup, attemptStage, stageTag, codeTag, esc, num } from './exam-ui.js';
 import { downloadExamPDF } from './exam-pdf.js';
 
 export function initStudentExams({ getStudent, getAccount }) {
   const root = document.querySelector('#studentExamWorkspace'); if (!root) return () => {};
   let db = { exams: [], attempts: [] }, view = 'list', examId = null, attemptId = null, busy = false, ready = false;
+  /* The four states of the পরীক্ষা section (docs/APP-ARCHITECTURE.md §3). An exam
+     belongs to exactly one tab: a live attempt or a running window is চলমান, a
+     future paper is আসন্ন, a published paper is ফলাফল, the rest is সম্পন্ন. */
+  const TABS = ['upcoming', 'live', 'done', 'results'];
+  const EMPTY_TAB_TEXT = Object.freeze({
+    upcoming: 'এই মুহূর্তে কোনো আসন্ন পরীক্ষা নেই।',
+    live: 'এখন কোনো পরীক্ষা চলছে না।',
+    done: 'সম্পন্ন হওয়া কোনো পরীক্ষা এখনও নেই।',
+    results: 'এখনও কোনো ফলাফল প্রকাশ করা হয়নি।'
+  });
+  let tab = 'upcoming';
+  let tabChosen = false; // the student's own tap wins over the first-paint default
   root.classList.add('exam-workspace');
   root.innerHTML = '<p class="exam-note">নিজের শ্রেণির অনলাইন পরীক্ষা • এটি একই ব্রাউজারে চলা লোকাল ডেমো।</p><p class="exam-error" data-exam-error role="alert" hidden></p><p class="exam-message" data-exam-message role="status" hidden></p><div data-exam-content></div>';
   const $ = selector => root.querySelector(selector), content = $('[data-exam-content]');
@@ -14,12 +26,75 @@ export function initStudentExams({ getStudent, getAccount }) {
   function error(text) { $('[data-exam-error]').textContent = text; $('[data-exam-error]').hidden = !text; }
   function message(text) { $('[data-exam-message]').textContent = text; $('[data-exam-message]').hidden = !text; }
   function scrollTop() { if (document.querySelector('#examsView').classList.contains('active')) root.closest('main')?.scrollTo({ top: 0, behavior: 'instant' }); }
+  function visibleExams() {
+    return db.exams.filter(e => isStudentVisibleExam(e) && examMatchesStudent(e, getStudent()));
+  }
+  function tabOf(exam, now = Date.now()) {
+    const attempts = own(exam);
+    if (attempts.some(a => a.status === 'active') && now < exam.endAt) return 'live';
+    if (now < exam.startAt) return 'upcoming';
+    if (now < exam.endAt) return 'live';
+    return exam.resultsPublished ? 'results' : 'done';
+  }
+  function ownPublishedRows() {
+    const student = getStudent() || {};
+    return visibleExams().filter(e => e.resultsPublished).map(exam => {
+      const row = examResults(db, exam).find(item => item.studentId === student.id);
+      if (!row) return null;
+      const total = totalMarks(exam), percent = total ? row.score / total * 100 : 0;
+      return { exam, row, total, percent, grade: row.grade || gradeFor(row.score, total, exam.passPercent) };
+    }).filter(Boolean);
+  }
+  function paintResultOverview() {
+    const mount = document.querySelector('#studentResultOverview');
+    if (!mount) return;
+    const rows = ownPublishedRows();
+    if (!rows.length) {
+      mount.innerHTML = '<p class="exam-note">প্রকাশিত ফলাফল এখানে দেখা যাবে — শিক্ষক নম্বর দিয়ে Manager প্রকাশ করলে স্বয়ংক্রিয়ভাবে যোগ হবে।</p>';
+      return;
+    }
+    const average = rows.reduce((sum, item) => sum + item.percent, 0) / rows.length;
+    mount.innerHTML = `<div class="exam-summary"><h3>সারসংক্ষেপ</h3><dl><div><dt>প্রকাশিত ফলাফল</dt><dd>${num(rows.length)}</dd></div><div><dt>গড় শতকরা</dt><dd>${num(average.toFixed(1))}%</dd></div><div><dt>সামগ্রিক গ্রেড</dt><dd>${esc(gradeFor(average, 100))}</dd></div></dl></div>
+      <div class="exam-results">${rows.map(item => `<article class="exam-card"><span class="exam-tag">${esc(item.exam.subject || 'পরীক্ষা')}</span><h3>${esc(item.exam.title)}</h3><small>Exam ID ${esc(item.exam.id)} • প্রচেষ্টা ${num(item.row.number || 1)}</small><p><strong>${num(item.row.score)} / ${num(item.total)}</strong> • ${num(item.percent.toFixed(1))}% • গ্রেড ${esc(item.grade)}</p>${item.row.rank ? `<small>মেধাক্রম ${num(item.row.rank)}</small>` : ''}</article>`).join('')}</div>`;
+  }
+  function paintTabs() {
+    const bar = document.querySelector('#examTabs');
+    if (!bar) return;
+    const now = Date.now();
+    const exams = activeAccount() ? visibleExams() : [];
+    const counts = { upcoming: 0, live: 0, done: 0, results: 0 };
+    exams.forEach(exam => { counts[tabOf(exam, now)] += 1; });
+    bar.querySelectorAll('[data-exam-tab]').forEach(item => {
+      const key = item.dataset.examTab;
+      item.setAttribute('aria-pressed', String(key === tab));
+      const badge = item.querySelector('[data-exam-tab-count]');
+      if (badge) badge.textContent = num(counts[key] || 0);
+    });
+    const panel = document.querySelector('[data-exam-panel="results"]');
+    if (panel) panel.hidden = tab !== 'results';
+    if (tab === 'results') paintResultOverview();
+  }
+  /* Which tab a student lands on: the first one that actually has something to
+     show (a live paper first), never an empty list while another tab is full. */
+  function defaultTab(exams, now) {
+    const counts = { upcoming: 0, live: 0, done: 0, results: 0 };
+    exams.forEach(exam => { counts[tabOf(exam, now)] += 1; });
+    for (const key of ['live', 'upcoming', 'done', 'results']) if (counts[key]) return key;
+    return 'upcoming';
+  }
+  function setTab(next) {
+    if (!TABS.includes(next) || view === 'active') return;
+    tab = next;
+    tabChosen = true;
+    list();
+  }
   function list() {
     view = 'list'; examId = null; attemptId = null;
     if (!activeAccount()) { content.innerHTML = '<p class="exam-card">অনুমোদিত অ্যাকাউন্ট দিয়ে লগইন করতে হবে।</p>'; return; }
     /* Draft / review / approved / archived papers are staff-only: a student
     never sees a question before its exam is published. */
-    const exams = db.exams.filter(e => isStudentVisibleExam(e) && examMatchesStudent(e, getStudent())).sort((a, b) => b.startAt - a.startAt), now = Date.now();
+    const visible = visibleExams(), now = Date.now();
+    const exams = visible.filter(e => tabOf(e, now) === tab).sort((a, b) => b.startAt - a.startAt);
     content.innerHTML = `<div class="exam-actions">${button('refresh', 'তালিকা / জমার অবস্থা হালনাগাদ')}</div><div class="exam-list">${exams.map(e => {
       const attempts = own(e), active = attempts.find(a => a.status === 'active'), queued = attempts.some(a => a.status === 'queued');
       const canFirst = !attempts.length && now >= e.startAt && now < e.endAt && now <= e.startAt + e.lateMinutes * 60000;
@@ -27,7 +102,8 @@ export function initStudentExams({ getStudent, getAccount }) {
       return `<article class="exam-card" data-student-exam="${esc(e.id)}">${examMeta(e)}<p class="exam-note">${stageTag(e)}${codeTag(e)}</p><p class="exam-note">${esc(e.instructions)}</p>${e.type === 'mcq' ? `<p class="exam-note">সব প্রশ্ন একসঙ্গে থাকবে। প্রতি ভুলে ${num(e.negative)} নম্বর কাটা হবে; সর্বনিম্ন মোট ০। প্রথম প্রবেশের সীমা ${num(e.lateMinutes)} মিনিট।</p>${queued ? `<p class="exam-message">${esc(attemptStage(attempts.find(a => a.status === 'queued'), e))}</p>` : ''}` : ''}
         <div class="exam-actions">${e.type === 'mcq' ? active && now < e.endAt ? button('resume', 'পরীক্ষায় ফিরে যাও', e.id, 'primary') : canFirst ? button('start', 'পরীক্ষা শুরু করো', e.id, 'primary') : retry ? button('start', 'দ্বিতীয়বার পরীক্ষা দাও', e.id, 'primary') : `<small>${now < e.startAt ? 'নির্ধারিত সময়ে পরীক্ষা শুরু হবে।' : now >= e.endAt ? 'পরীক্ষার সময় শেষ।' : attempts.length ? 'চলমান গড়ের নিচে হলে দ্বিতীয় সুযোগ এখানে আসবে।' : 'প্রথম প্রবেশের সময়সীমা শেষ।'}</small>` : now >= e.startAt ? button('paper', 'প্রশ্নপত্র PDF ডাউনলোড', e.id, 'primary') : '<small>শুরুর সময় হলে PDF পাওয়া যাবে।</small>'}
         ${e.resultsPublished ? button('results', 'প্রকাশিত ফলাফল', e.id) : '<small>ফলাফল Manager-এর প্রকাশের অপেক্ষায়।</small>'}${e.type === 'mcq' && now >= e.endAt ? button('solutions', 'সঠিক উত্তরসহ PDF', e.id) : ''}</div></article>`;
-    }).join('') || '<p class="exam-card">Admin এখনও কোনো পরীক্ষা প্রকাশ করেননি।</p>'}</div>`;
+    }).join('') || `<p class="exam-card">${visible.length ? EMPTY_TAB_TEXT[tab] : 'Admin এখনও কোনো পরীক্ষা প্রকাশ করেননি।'}</p>`}</div>`;
+    paintTabs();
   }
   function activeExam(e, a) {
     view = 'active'; examId = e.id; attemptId = a.id;
@@ -65,9 +141,19 @@ export function initStudentExams({ getStudent, getAccount }) {
       else results(e);
     } else if (view === 'results' && e) results(e, false);
     else list();
+    paintTabs();
   }
   async function refresh() {
-    try { db = await repo.listForStudent(getStudent()?.id); ready = true; repaint(); }
+    try {
+      db = await repo.listForStudent(getStudent()?.id);
+      ready = true;
+      /* A refresh that succeeded clears the banner an earlier pre-login or
+         offline attempt left behind — otherwise the student keeps seeing
+         "অ্যাকাউন্ট যাচাই করা যায়নি" over a working list. */
+      error('');
+      if (!tabChosen) { tab = defaultTab(visibleExams(), Date.now()); tabChosen = true; }
+      repaint();
+    }
     catch (e) { ready = false; content.innerHTML = ''; error(e.message || 'পরীক্ষার ডেটা লোড হয়নি।'); }
   }
   async function run(operation, after = repaint) {
@@ -129,6 +215,9 @@ export function initStudentExams({ getStudent, getAccount }) {
     const detail = event.detail || {};
     if (!['exam', 'exam-soon', 'exam-live'].includes(detail.kind) || !detail.id) return;
     void refresh().then(() => {
+      const target = db.exams.find(e => e.id === String(detail.id));
+      if (target) tab = tabOf(target);
+      if (view !== 'active') list();
       const card = [...root.querySelectorAll('[data-student-exam]')]
         .find(item => item.dataset.studentExam === String(detail.id));
       if (!card) return;
@@ -138,6 +227,12 @@ export function initStudentExams({ getStudent, getAccount }) {
       if (control && !control.disabled) control.click();
       else card.querySelector('.exam-actions button')?.focus?.({ preventScroll: true });
     });
+  });
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-exam-tab]');
+    if (!trigger) return;
+    if (!document.querySelector('#examsView')?.classList.contains('active')) return;
+    setTab(trigger.dataset.examTab); // an open answer sheet ignores tab taps
   });
   watchExams(() => { if (!busy) refresh(); });
   window.addEventListener('online', () => refresh().then(sync));
@@ -157,5 +252,9 @@ export function initStudentExams({ getStudent, getAccount }) {
     lastMinute = minute;
   }, 1000);
   refresh();
-  return () => refresh().then(sync);
+  const api = () => refresh().then(sync);
+  api.setTab = setTab;
+  api.paintTabs = paintTabs;
+  api.currentTab = () => tab;
+  return api;
 }

@@ -17,7 +17,7 @@ import { STAFF_KEYS, KEYS, readJSON, writeJSON } from './database.js';
 import { hashPassword, verifyPassword, isPasswordRecord } from './password-hash.js';
 import { encryptValue, decryptValue, isEncryptedEnvelope } from './secure-store.js';
 import { buildSessionRecord, isSessionRecordValid, DAY_MS } from './session.js';
-import { generateLoginId, normalizeLoginId } from './user-id.js';
+import { generateLoginId } from './user-id.js';
 
 const REMEMBER_DAYS = 90;
 const TAB_SESSION_MARKER = '1';

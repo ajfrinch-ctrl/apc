@@ -16,10 +16,13 @@ async function prepare(page,scene={width:390,theme:'light'}) {
  },{person:PERSON,date:DATE});
  await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');await expect(page.locator('.launch-screen')).toHaveCount(0);
 }
-async function reports(page) {await page.locator('[data-counter-view="reports"]').click();await expect(page.locator('#payReportsCard')).toBeVisible();}
+async function reports(page) {await page.locator('.admin-bottom [data-pay-section="reports"]').click();await expect(page.locator('#payReportsCard')).toBeVisible();}
+/* The identity-only search lives in the শিক্ষার্থী seat of the five-seat shell. */
+async function studentsSeat(page) {await page.locator('.admin-bottom [data-pay-section="students"]').click();await expect(page.locator('#payStudentsPanel')).toBeVisible();}
 for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:1280,theme:'light'}]) {
  test(`phone search is usable and masks central three digits (${scene.width}px ${scene.theme})`,async({page})=>{
   await prepare(page,scene);await expect(page.locator('#payReportsCard')).toBeHidden();
+  await studentsSeat(page);
   for(const phone of ['01712345678','০১৭১২৩৪৫৬৭৮','+8801712345678','01898765432']) {
    await page.locator('#payStudentSearch').fill(phone);await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(1);
    await expect(page.locator('#paySearchResults')).toContainText('0171***5678');await expect(page.locator('#paySearchResults')).toContainText('0189***5432');
@@ -46,7 +49,7 @@ for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:12
   expect(require('fs').readFileSync(await pdf.path()).toString('latin1').startsWith('%PDF-1.4')).toBe(true);
   expect(await page.evaluate(()=>localStorage.getItem('activePlus.admin.transactions.v1'))).toBe(before);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.locator('[data-counter-view="today"]').click();await expect(page.locator('#payReportsCard')).toBeHidden();await expect(page.locator('#payTodayList .pay-activity-row')).toHaveCount(1);
+  await page.locator('.admin-bottom [data-pay-section="home"]').click();await expect(page.locator('#payReportsCard')).toBeHidden();await expect(page.locator('#payTodayList .pay-activity-row')).toHaveCount(1);
   expect(errors).toEqual([]);
  });
 }
@@ -63,15 +66,15 @@ test('serial T IDs continue across concurrent tabs and a date change without alt
  await page.clock.setFixedTime(new Date('2026-10-02T10:00:00Z'));const next=await write(page);expect(next.transactionNo).toBe('T26010');expect(next.receiptNo).toBe('R261002001');
 });
 test('reports do not discard an unsaved simple payment or expose its raw phone query',async({page})=>{
- await prepare(page);await page.locator('#payStudentSearch').fill(PERSON.guardianMobile);await page.locator('#paySearchResults .fee-search-result').click();await page.locator('#payProfileCollect').click();await page.locator('#payFeeAmount').fill('975');
- await reports(page);await page.locator('[data-counter-view="today"]').click();await expect(page.locator('#payFeeAmount')).toHaveValue('975');
+ await prepare(page);await studentsSeat(page);await page.locator('#payStudentSearch').fill(PERSON.guardianMobile);await page.locator('#paySearchResults .fee-search-result').click();await page.locator('#payProfileCollect').click();await page.locator('#payFeeAmount').fill('975');
+ await reports(page);await page.locator('.admin-bottom [data-pay-section="home"]').click();await expect(page.locator('#payFeeAmount')).toHaveValue('975');
 });
 test.describe('offline reports',()=>{
  test.use({serviceWorkers:'allow'});
  test('phone lookup, report preview and downloads work after cold offline PWA reload',async({page,context})=>{
   await prepare(page,{width:390,theme:'dark'});await page.evaluate(async()=>{await navigator.serviceWorker.ready;if(!navigator.serviceWorker.controller)await new Promise(r=>navigator.serviceWorker.addEventListener('controllerchange',r,{once:true}));});
   const cdp=await context.newCDPSession(page);await cdp.send('Network.clearBrowserCache');await cdp.detach();await context.setOffline(true);await page.reload();await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
-  await page.locator('#payStudentSearch').fill(PERSON.mobile);await expect(page.locator('#paySearchResults')).toContainText('0171***5678');
+  await studentsSeat(page);await page.locator('#payStudentSearch').fill(PERSON.mobile);await expect(page.locator('#paySearchResults')).toContainText('0171***5678');
   await reports(page);await page.locator('#paymentReports select[name="report"]').selectOption('cash.pending');await page.locator('#paymentReports button[type="submit"]').click();
   await expect(page.locator('[data-counter-download="pdf"]')).toBeVisible();const waiting=page.waitForEvent('download');await page.locator('[data-counter-download="pdf"]').click();expect((await waiting).suggestedFilename()).toMatch(/\.pdf$/);
  });

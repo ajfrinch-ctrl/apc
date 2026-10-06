@@ -1,5 +1,5 @@
 const { test, expect } = require('./fixtures.cjs');
-const { enterPortal } = require('./portal-session.cjs');
+const { enterPortal, enterStudentApp } = require('./portal-session.cjs');
 const KEY = 'activePlus.teaching.v1';
 test.use({ viewport: { width: 390, height: 844 } });
 async function enter(page) {
@@ -8,11 +8,20 @@ async function enter(page) {
     localStorage.setItem('activePlus.manager.teacherAssignments.v1', JSON.stringify(names.map((className, index) => ({ id: `TAS-${index}`, teacherUsername: 'teacher.apc', teacherName: 'Test Teacher', className, group: '', subject: 'Test' }))));
   });
   await enterPortal(page, 'teacher'); await expect(page.locator('#teacherShell')).toBeVisible();
+  /* The roster the teacher may see lives in the office store; specs that check
+     the student list seed the same approved row the Manager would approve. */
+  await page.evaluate(async () => {
+    const { adminStudents } = await import('/js/admin-data.js');
+    const { KEYS } = await import('/js/database.js');
+    localStorage.setItem(KEYS.students, JSON.stringify(adminStudents.map(row => ({ ...row, status: 'approved' }))));
+  });
+  await page.reload();
+  await expect(page.locator('#teacherShell')).toBeVisible();
 }
 async function create(page, type, title, overrides = {}) {
   const nav = type;
-  await page.locator('.admin-bottom [data-teacher-view=more]').click();
-  await page.locator(`#teacherMore [data-teacher-view=${nav}]`).click();
+  await page.locator('.admin-bottom [data-teacher-view=academic]').click();
+  await page.locator(`#teacherAcademic [data-teacher-view=${nav}]`).click();
   await page.locator('#teacherNewActivity').click();
   await page.locator('#activity-title').fill(title);
   await page.locator('#activity-subject').fill('গণিত');
@@ -28,8 +37,10 @@ async function create(page, type, title, overrides = {}) {
   return page.locator('#teacherRecordList .teaching-card').filter({ has: page.getByRole('heading', { name: title, exact: true }) });
 }
 async function studentPage(context) {
-  const page = await context.newPage(); await page.goto('/index.html');
-  if (await page.locator('#authScreen').isVisible()) await page.locator('#demoLoginButton').click();
+  // Students sign in on the same shared card as everyone else; the one-tap demo
+  // shortcut no longer exists.
+  const page = await context.newPage();
+  await enterStudentApp(page);
   await page.locator('.bottom-nav [data-view=courses]').click(); return page;
 }
 async function seed(page, activities) {
@@ -41,16 +52,16 @@ async function seed(page, activities) {
 
 test('exam drafts must use Manager approval workflow; legacy marks are read-only', async ({ page, context }) => {
   await enter(page);
-  await page.locator('.admin-bottom [data-teacher-view=more]').click();
-  await page.locator('#teacherMore [data-teacher-view=online-exams]').click();
+  await page.locator('.admin-bottom [data-teacher-view=academic]').click();
+  await page.locator('#teacherAcademic [data-academic-section=exams]').click();
   await page.locator('#teacherExamWorkspace [data-exam-action=new-mcq]').click();
-  await page.locator('[name=title]').fill('গণিত মূল্যায়ন'); await page.locator('[name=subject]').fill('গণিত');
-  await page.locator('[name=template]').fill('প্রশ্ন: ২ + ২ কত?\nA: ৪\nB: ৫\nC: ৬\nD: ৭\nউত্তর: A');
+  await page.locator('#teacherExamWorkspace [name=title]').fill('গণিত মূল্যায়ন'); await page.locator('#teacherExamWorkspace [name=subject]').selectOption('গণিত');
+  await page.locator('#teacherExamWorkspace [name=template]').fill('প্রশ্ন: ২ + ২ কত?\nA: ৪\nB: ৫\nC: ৬\nD: ৭\nউত্তর: A');
   await page.locator('[data-exam-form] [type=submit]').click();
   await expect(page.locator('#teacherExamWorkspace [data-managed-exam]')).toContainText('খসড়া');
   await page.locator('#teacherExamWorkspace [data-exam-action=request]').click();
   await expect(page.locator('#teacherExamWorkspace [data-managed-exam]')).toContainText('অনুমোদনের অপেক্ষায়');
-  await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('#teacherMore [data-teacher-view=exam]').click();
+  await page.locator('.admin-bottom [data-teacher-view=exam]').click();
   await expect(page.locator('#teacherNewActivity')).toBeHidden();
   const blocked = await page.evaluate(async () => {
     try {
@@ -105,23 +116,26 @@ test('suggestions, subject links, class/group scope, draft filter and escaped co
 });
 
 test('write failure keeps entered work and does not falsely save; corrupt storage fails closed', async ({ page }) => {
-  await enter(page); await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('#teacherMore [data-teacher-view=homework]').click(); await page.locator('#teacherNewActivity').click();
+  await enter(page); await page.locator('.admin-bottom [data-teacher-view=academic]').click(); await page.locator('#teacherAcademic [data-teacher-view=homework]').click(); await page.locator('#teacherNewActivity').click();
   await page.locator('#activity-title').fill('হারাবে না'); await page.locator('#activity-subject').fill('গণিত');
   await page.evaluate(key => { const real = Storage.prototype.setItem; Storage.prototype.setItem = function(k, v) { if (k === key) throw new DOMException('quota', 'QuotaExceededError'); return real.call(this, k, v); }; }, KEY);
   await page.locator('#teacherActivityForm [type=submit]').click(); await expect(page.locator('#teacherSaveError')).toContainText('সংরক্ষণ হয়নি');
   await expect(page.locator('#activity-title')).toHaveValue('হারাবে না'); await expect(page.locator('#teacherActivityForm [type=submit]')).toBeEnabled();
   expect(await page.evaluate(key => localStorage.getItem(key), KEY)).toBeNull(); await expect(page.locator('.admin-toast')).toHaveCount(0);
-  await page.reload(); await page.evaluate(key => localStorage.setItem(key, '{broken'), KEY); await page.locator('#teacherEnter').click();
-  await expect(page.locator('#teacherEntryError')).toBeVisible(); await expect(page.locator('#teacherShell')).toBeHidden();
+  await page.evaluate(key => localStorage.setItem(key, '{broken'), KEY); await page.reload();
+  // The session is still valid, so the shell opens — and the data surface
+  // refuses instead of inventing rows or silently wiping the bad value.
+  await expect(page.locator('#teacherShell')).toBeVisible();
+  await expect(page.locator('#teacherDataError')).toBeVisible();
   expect(await page.evaluate(key => localStorage.getItem(key), KEY)).toBe('{broken');
 });
 
 test('student roster needs query, matches Bengali mobile/ID, excludes pending and empty results', async ({ page }) => {
-  await enter(page); await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('[data-teacher-view=students]').click();
+  await enter(page); await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('#teacherMore [data-teacher-view=students]').click();
   await expect(page.locator('#teacherStudentList .teaching-card')).toHaveCount(0);
   await page.locator('#teacherStudentSearch').fill('০১৭০০০০০০০০'); await expect(page.locator('#teacherStudentList')).toContainText('রাইসা ইসলাম');
   await page.locator('[data-student-detail]').click(); await expect(page.locator('#teacherModalBody')).toContainText('এখনও কোনো নম্বর'); await page.keyboard.press('Escape');
-  await page.locator('#teacherStudentSearch').fill('260909032'); await expect(page.locator('#teacherStudentList')).toHaveText('কোনো শিক্ষার্থী পাওয়া যায়নি');
+  await page.locator('#teacherStudentSearch').fill('999999999');   // no such roll in the roster await expect(page.locator('#teacherStudentList')).toHaveText('কোনো শিক্ষার্থী পাওয়া যায়নি');
   await page.locator('#teacherStudentSearch').fill(''); await expect(page.locator('#teacherStudentList .teaching-card')).toHaveCount(0);
 });
 
@@ -136,7 +150,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
       const top = document.querySelector('.app-topbar').getBoundingClientRect(), foot = document.querySelector('.admin-bottom').getBoundingClientRect(), main = document.querySelector('#teacherMain').getBoundingClientRect();
       return Math.abs(top.top) < 1 && Math.abs(foot.bottom - innerHeight) < 1 && Math.abs(main.top - top.bottom) <= 1 && Math.abs(main.bottom - foot.top) <= 1 && document.documentElement.scrollWidth <= innerWidth && document.querySelector('#teacherShell').offsetWidth <= 480 && window.scrollY === 0;
     })).toBe(true);
-    await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('#teacherMore [data-teacher-view=homework]').click(); await expect.poll(() => page.locator('#teacherMain').evaluate(el => el.scrollTop)).toBe(0);
+    await page.locator('.admin-bottom [data-teacher-view=academic]').click(); await page.locator('#teacherAcademic [data-teacher-view=homework]').click(); await expect.poll(() => page.locator('#teacherMain').evaluate(el => el.scrollTop)).toBe(0);
     await page.locator('#teacherNewActivity').click(); await expect(page.locator('#teacherMain')).toHaveCSS('overflow-y', 'hidden');
     await page.locator('#activity-title').fill('মোবাইল পরীক্ষা'); await page.locator('#activity-subject').fill('গণিত');
     const submit = page.locator('#teacherActivityForm [type=submit]'); await submit.scrollIntoViewIfNeeded();
@@ -150,27 +164,41 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
 test('teacher page, modules and student feed work offline after precache', async ({ page, context }) => {
   await enter(page); await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await context.setOffline(true); await page.reload(); await page.locator('#teacherEnter').click();
+  await context.setOffline(true); await page.reload();
   await create(page, 'suggestion', 'অফলাইন সাজেশন');
   const student = await studentPage(context); await expect(student.locator('#learningList')).toContainText('অফলাইন সাজেশন');
   await context.setOffline(false);
 });
 
 test('one login page: teacher credentials typed there land on the teacher panel', async ({ page }) => {
+  const password = 'Apc-Teacher-Login-2026';
   await page.goto('/index.html'); await expect(page.locator('#authScreen')).toBeVisible();
   // No shortcut links — the single form is the way in.
   await expect(page.locator('#authScreen a[href="admin.html"], #authScreen a[href="teacher.html"], #authScreen a[href="payment.html"]')).toHaveCount(0);
+  // A real first sign-in sets its own password on this device; there is no
+  // built-in default password to type.
+  await page.evaluate(async ({ role, password }) => {
+    const auth = await import('/js/staff-auth.js');
+    const done = await auth.provisionStaffAccount(role, password, password);
+    if (!done.ok) throw new Error(done.error);
+  }, { role: 'teacher', password });
   await page.locator('#loginMobile').fill('teacher.apc');
-  await page.locator('#loginPin').fill('Apc@2026');
+  await page.locator('#loginPin').fill(password);
   await page.locator('#loginForm button[type=submit]').click();
   await page.waitForURL('**/teacher.html');
   await expect(page.locator('#teacherShell')).toBeVisible();
-  await expect(page.locator('#teacherEntry')).toBeHidden();   // no second credential form
+  // No second credential form anywhere on the panel: the panel opened on the session.
+  await expect(page.locator('#teacherEntry, #teacherEntryError, #teacherEnter, #demoLoginButton')).toHaveCount(0);
 });
 
-test('Admin More still opens the teacher panel from inside the admin panel', async ({ page }) => {
-  await page.goto('/admin.html'); await page.locator('#adminLoginForm [type=submit]').click(); await page.locator('.admin-bottom [data-admin-view=more]').click();
-  await page.locator('a[href="teacher.html"]').click(); await expect(page.locator('#teacherEnter')).toBeVisible();
+test('one device, one panel: no cross-panel link and the other panel locks itself', async ({ page, context }) => {
+  await enter(page); // teacher session on this device
+  await expect(page.locator('a[href="admin.html"], a[href="manager.html"], a[href="payment.html"]')).toHaveCount(0);
+  const admin = await context.newPage(); await admin.goto('/admin.html');
+  await expect(admin.locator('#apcPanelLock')).toBeVisible();
+  await expect(admin.locator('#adminShell')).toBeHidden();
+  await expect(admin.locator('#apcPanelLockLogin')).toBeVisible();
+  await admin.close();
 });
 
 test('profile class changes immediately re-scope the student feed and teacher roster', async ({ page, context }) => {
@@ -180,7 +208,7 @@ test('profile class changes immediately re-scope the student feed and teacher ro
   await student.locator('#classInput').selectOption('নবম শ্রেণি'); await student.locator('#profileForm [type=submit]').click();
   await student.locator('.bottom-nav [data-view=courses]').click();
   await expect(student.locator('#learningList')).toContainText('নবমের কাজ'); await expect(student.locator('#learningList')).not.toContainText('দশমের কাজ');
-  await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('[data-teacher-view=students]').click();
+  await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('#teacherMore [data-teacher-view=students]').click();
   await page.locator('#teacherStudentSearch').fill('AP-1024'); await expect(page.locator('#teacherStudentList')).toContainText('নবম শ্রেণি');
 });
 

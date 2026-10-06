@@ -30,7 +30,7 @@ before(async () => {
   await import('../js/admin.js');
   await admin.waitFor(() => admin.$('#adminShell').hidden === false);
   await admin.waitFor(() => Boolean(admin.$('#studentList .student-row')));
-  admin.click(admin.$('.admin-bottom-item[data-admin-view="students"]'));
+  admin.click(admin.$('#adminFeatureGrid [data-admin-view="students"]'));
   await admin.flush();
 });
 after(() => admin?.window.close());

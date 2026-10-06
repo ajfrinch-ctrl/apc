@@ -46,12 +46,16 @@ test('setView syncs the hash route and pushes history so Back walks the views', 
   assert.equal(window.location.hash, '#routine');
   assert.equal(ctx.$('#routineView').classList.contains('active'), true);
 
+  /* #results is kept as an inbound alias: ফলাফল is a tab of the পরীক্ষা section,
+     so the alias opens that section and rewrites the hash to the real view. */
   setView('results', { history: 'push' });
-  assert.equal(window.location.hash, '#results');
+  assert.equal(ctx.$('#examsView').classList.contains('active'), true, 'the alias opens পরীক্ষা');
+  assert.equal(window.location.hash, '#exams');
+  assert.equal(ctx.$('.bottom-link[data-view="exams"]').getAttribute('aria-current'), 'page');
 
   // A repeated tap on the current view must not add a history entry.
   const depth = window.history.length;
-  setView('results', { history: 'push' });
+  setView('exam', { history: 'push' });
   assert.equal(window.history.length, depth);
 
   // Back goes to the previous view: popstate is answered with a keep-mode

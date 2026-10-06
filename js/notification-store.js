@@ -58,13 +58,13 @@ export const SECTION_TARGET = Object.freeze({
   'exam-review': 'exams',
   'exam-returned': 'exams',
   'exam-approved': 'exams',
-  result: 'results',
+  result: 'exams',
   approved: 'home',
   rejected: 'home',
   registration: 'approvals',
   payment: 'home',
   'payment-review': 'cash-counter',
-  'payment-rejected': 'cash-counter'
+  'payment-rejected': 'home'   // the counter's own day, where its slip is re-opened
 });
 
 export const NOTIFICATION_DEFAULTS = Object.freeze({

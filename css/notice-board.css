@@ -55,3 +55,14 @@
   .notice-board-card-foot{align-items:flex-start}
   .notice-board-open{min-height:36px;padding-inline:var(--space-2)}
 }
+
+/* ---- v168: the Home notice preview -----------------------------------------
+   Home shows the three newest notices the student may see, painted by the same
+   reader as the board (js/student-notice-board.js). The compact card drops the
+   body copy and keeps the category, title and the open action. */
+.notice-board-card-compact{padding:var(--space-3);gap:var(--space-1)}
+.notice-board-card-compact h2{font-size:var(--font-sm);line-height:1.5}
+.notice-board-card-compact .notice-board-card-foot{margin-top:0;padding-top:var(--space-1);border-top:0}
+.notice-board-read-state{font-size:var(--font-xs);color:var(--color-text-muted)}
+.notice-board-card-compact.is-unread .notice-board-read-state{color:var(--color-primary);font-weight:600}
+.notice-board-empty{margin:0;padding:var(--space-4);border:1px dashed var(--color-border);border-radius:var(--radius-md);color:var(--color-text-secondary);font-size:var(--font-sm);text-align:center}

@@ -1,72 +1,74 @@
-/* Presentation only: green means confirmed Firebase data sync, not internet availability. */
-(() => {
-  const selector = '.auth-topbar, .admin-topbar, .topbar, .teacher-topbar, .manager-topbar, .pay-topbar, header[class*="topbar"]';
-  const CHIP_CLASS = 'topbar-sync-chip';
-  const CHIP_LABEL = '🟢 সিঙ্ক হয়েছে';
+/* Presentation only: the sync indicator is the topbar's own top border.
+   There is no chip, label, toast or standing message anywhere — the colour of
+   that one thin line is the entire status, and it stays after a transfer ends
+   so the last verdict is always readable.
 
-  const syncConfirmed = () => {
-    const data = document.documentElement?.dataset || {};
-    return data.realtimeSync === 'online' && Boolean(data.firebaseLastSync);
+     synced  (green) — the last Firebase read/write was confirmed, data is synchronized
+     syncing (amber) — a transfer is running, or the outbox still has pending work
+     error   (red)   — sync failed, offline, conflict or a storage problem
+     idle    (grey)  — sync has not started, is paused, or has no verdict yet
+
+   Reads only the data attributes js/sync-status.js already publishes; transport,
+   authentication, local data and the sync engine itself are untouched. */
+(() => {
+  const FAILED = new Set(['error', 'offline', 'conflict', 'storage']);
+  const WORKING = new Set(['pending', 'connecting']);
+  const ANNOUNCE = {
+    synced: 'ক্লাউড সিঙ্ক সম্পন্ন',
+    syncing: 'ক্লাউড সিঙ্ক চলছে',
+    error: 'ক্লাউড সিঙ্কে সমস্যা',
+    idle: ''
   };
 
-  /** The chip joins the header's right-hand tool cluster when the panel has one, so
-      the theme/exit/bell buttons keep their exact place. Without a cluster (login
-      screen) it goes last, and the stylesheet keeps it flush right. */
-  function chipSlot(topbar) {
-    const inner = topbar.querySelector(':scope > .app-topbar-inner, :scope > .admin-topbar-inner') || topbar;
-    const cluster = inner.querySelector('.app-topbar-actions, .admin-topbar-actions, .student-header-tools');
-    if (cluster) return { host: cluster, before: cluster.firstChild || null };
-    return { host: inner, before: null };
+  /** The colour-only verdict for the bar's top border. */
+  function visualState() {
+    const data = document.documentElement?.dataset || {};
+    const online = typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
+    const state = data.realtimeSync || '';
+    if (!online || FAILED.has(state)) return 'error';
+    if (WORKING.has(state)) return 'syncing';
+    // The cloud is reachable, but the first successful read/write is not
+    // confirmed yet: "online" alone is not a finished sync.
+    if (state === 'online') return data.firebaseLastSync ? 'synced' : 'syncing';
+    return 'idle';
   }
 
-  function syncChip(topbar, show) {
-    let chip = topbar.querySelector('.' + CHIP_CLASS);
-    if (!chip) {
-      if (!show) return; // nothing is added to the DOM until the bridge is live
-      chip = document.createElement('span');
-      chip.className = CHIP_CLASS;
-      chip.setAttribute('role', 'status');
-      chip.setAttribute('aria-label', 'Firebase-এ ডেটা সিঙ্ক হয়েছে');
-      chip.textContent = CHIP_LABEL;
-      const { host, before } = chipSlot(topbar);
-      host.insertBefore(chip, before);
-      return;
+  /* Screen readers still get the state: one visually hidden live region, kept
+     outside the bar so no panel shows a sync label. */
+  function announce(state) {
+    const text = ANNOUNCE[state] || '';
+    let live = document.getElementById('apcSyncAnnounce');
+    if (!live) {
+      if (!text || !document.body) return;
+      live = document.createElement('span');
+      live.id = 'apcSyncAnnounce';
+      live.className = 'apc-sync-announce';
+      live.setAttribute('role', 'status');
+      live.setAttribute('aria-live', 'polite');
+      document.body.append(live);
     }
-    chip.hidden = !show;
+    if (live.textContent !== text) live.textContent = text;
   }
 
   function update() {
-    const online = navigator.onLine;
-    const syncing = online && syncConfirmed();
-    document.querySelectorAll(selector).forEach(el => {
-      el.classList.toggle('connection-online', online && !syncing);
-      el.classList.toggle('connection-offline', !online);
-      el.classList.toggle('connection-sync', syncing);
-      el.setAttribute('data-connection-state', !online ? 'offline' : syncing ? 'sync' : 'online');
-      syncChip(el, syncing);
-    });
+    const root = document.documentElement;
+    if (!root) return;
+    const state = visualState();
+    if (root.dataset.syncVisual !== state) root.dataset.syncVisual = state;
+    announce(state);
   }
 
-  // Some role topbars are rendered after page load. Observe the DOM so the
-  // status is applied as soon as a topbar is created.
-  const observe = () => {
-    update();
-    const root = document.body || document.documentElement;
-    if (root) new MutationObserver(update).observe(root, { childList: true, subtree: true });
-    // Both a successful data transfer and a settled queue are required.
-    if (document.documentElement) {
-      new MutationObserver(update).observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-realtime-sync', 'data-firebase-last-sync']
-      });
-    }
-  };
-
+  update();
+  // One attribute on <html> colours every topbar — including a bar rendered
+  // later — so there is no per-bar DOM work and nothing to observe for it.
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', observe, { once: true });
-  } else {
-    observe();
+    document.addEventListener('DOMContentLoaded', update, { once: true });
   }
   window.addEventListener('online', update);
   window.addEventListener('offline', update);
+  // A finished transfer and a settled outbox both change these attributes.
+  new MutationObserver(update).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-realtime-sync', 'data-firebase-last-sync']
+  });
 })();

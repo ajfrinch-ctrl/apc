@@ -29,9 +29,12 @@ test('the Teacher panel opens the learning-library page for the assigned class o
   await openStaffPanel(ctx, 'teacher', {
     importPanel: () => import('../js/teacher.js'), shellId: 'teacherShell'
   });
-  const entry = ctx.$('[data-teacher-view="courses"]');
-  assert.ok(entry, 'the More menu has the learning-library entry');
-  assert.match(entry.textContent, /পড়াশোনা পরিচালনা করুন/);
+  /* The learning library moved to একাডেমিক → উপকরণ (docs/APP-ARCHITECTURE.md §9);
+     the feature is the same editor, opened from its new home. */
+  const entry = ctx.$('#teacherAcademic [data-teacher-view="courses"]');
+  assert.ok(entry, 'the academic hub has the learning-library entry');
+  assert.match(entry.textContent, /উপকরণ/);
+  assert.match(entry.textContent, /নোট, PDF, লেকচার/);
   ctx.click(entry);
   await ctx.waitFor(() => ctx.$('#teacherCourses')?.hidden === false);
   const editor = ctx.$('#teacherCourses #teacherCourseEditor');
@@ -65,7 +68,11 @@ test('the Manager panel opens the same page for the whole academic structure', a
   await openStaffPanel(ctx, 'manager', {
     importPanel: () => import('../js/manager.js'), shellId: 'managerShell'
   });
-  ctx.click(ctx.$('[data-manager-view="courses"]'));
+  /* উপকরণ is a card of the একাডেমিক hub (docs/APP-ARCHITECTURE.md §2 Manager);
+     the same course editor opens, for the whole academic structure. */
+  ctx.click(ctx.$('.manager-bottom [data-manager-view="academic"]'));
+  await ctx.flush();
+  ctx.click(ctx.$('#managerAcademicMenu [data-academic-section="materials"]'));
   await ctx.waitFor(() => ctx.$('[data-view-panel="courses"]') && ctx.$('[data-view-panel="courses"]').hidden === false);
   assert.match(ctx.$('#managerCourseTitle').textContent, /পড়াশোনা পরিচালনা করুন/);
   await ctx.waitFor(() => ctx.$$('#managerCourseEditor [data-course-form]').length === 1);
