@@ -1,7 +1,12 @@
 const {test,expect}=require('./fixtures.cjs');
 const {enterPortal}=require('./portal-session.cjs');
 const fs=require('node:fs/promises');
+const {readFileSync}=require('node:fs');
 test.use({viewport:{width:390,height:844}});
+/* The offline shell's cache name carries the release version the app is on;
+   read it from sw.js so this spec follows the release instead of a snapshot. */
+const CACHE_VERSION=Number(readFileSync(__dirname+'/../sw.js','utf8').match(/CACHE_VERSION\s*=\s*(\d+)/)[1]);
+const CACHE_NAME=`active-plus-student-v${CACHE_VERSION}-minimal-education`;
 async function roster(page,count=1){await page.evaluate(async count=>{
  const {ROSTER_KEY}=await import('/js/office-data.js');
  localStorage.setItem(ROSTER_KEY,JSON.stringify(Array.from({length:count},(_,i)=>({id:`QA-${i}`,name:`শিক্ষার্থী ${i}`,mobile:`017${String(10000000+i)}`,className:'দশম শ্রেণি',status:'approved',monthlyFee:1000,enrolledAt:'2026-09-01'}))));
@@ -20,18 +25,18 @@ test('SDK network failure is caught with no standing sync notice on the login sc
 test('report: 60 real rows paginate, download PDF, empty filter opens preview',async({page})=>{
  await enterPortal(page,'admin');await roster(page,60);await page.reload();
  await page.locator('.admin-bottom [data-admin-view=reports]').click();
- await page.locator('select[name=report]').selectOption('student.all');
+ await page.locator('select[name=report]').selectOption('student.status');
  await page.locator('.rc-generate').click();await expect(page.locator('.rc-pdf-preview .rp-page').first()).toBeVisible();
  expect(await page.locator('.rp-page').count()).toBeGreaterThan(1);
  await expect(page.locator('.rc-pdf-preview')).toContainText('শিক্ষার্থী 59');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const download=page.waitForEvent('download');await page.locator('.rc-download').click();const file=await download;const bytes=await fs.readFile(await file.path());expect(bytes.subarray(0,8).toString()).toContain('%PDF-1.');expect(bytes.toString('latin1')).toContain('%%EOF');
- await page.locator('.rc-back').click();await page.locator('select[name=report]').selectOption('student.pending');await page.locator('.rc-generate').click();await expect(page.locator('.rc-pdf-preview')).toBeVisible();await expect(page.locator('.rc-pdf-preview')).toContainText('কোনো');
+ await page.locator('.rc-back').click();await page.locator('select[name=report]').selectOption('exam.summary');await page.locator('.rc-generate').click();await expect(page.locator('.rc-preview')).toBeVisible();await expect(page.locator('.rc-preview-notice')).toHaveText('কোনো তথ্য পাওয়া যায়নি।');
 });
 test('teacher: all 30 MCQ templates render, apply and copy without changing academic engine',async({page,context})=>{
  await context.grantPermissions(['clipboard-read','clipboard-write']);
  await page.addInitScript(()=>localStorage.setItem('activePlus.manager.teacherAssignments.v1',JSON.stringify([{id:'QA-AS',teacherUsername:'teacher.apc',teacherName:'QA Teacher',className:'দশম শ্রেণি',group:'',subject:'গণিত'}])));
- await enterPortal(page,'teacher');await page.locator('.admin-bottom [data-teacher-view=online-exams]').click();
+ await enterPortal(page,'teacher');await page.locator('.admin-bottom [data-teacher-view=exam]').click();
  await page.locator('[data-exam-action=new-mcq]').click();
  await expect(page.locator('[data-template-index] option')).toHaveCount(30);
  for(let i=0;i<30;i++){await page.locator('[data-template-index]').selectOption(String(i));await page.locator('[data-exam-action=use-template]').click();await expect(page.locator('[name=template]')).not.toHaveValue('');}
@@ -41,8 +46,8 @@ test('teacher: all 30 MCQ templates render, apply and copy without changing acad
 test('offline update preserves sentinel, existing account and all protected assets',async({page,context})=>{
  await enterPortal(page,'admin');await page.evaluate(()=>localStorage.setItem('qa-existing-data','must-survive'));
  await page.evaluate(async()=>{const r=await navigator.serviceWorker.ready;await r.update();});
- await expect.poll(()=>page.evaluate(async()=> (await caches.keys()).some(k=>k.includes('v116')))).toBe(true);
- const cached=await page.evaluate(async()=>{const c=await caches.open('active-plus-student-v116-minimal-education');return (await c.keys()).map(r=>new URL(r.url).pathname)});
+ await expect.poll(()=>page.evaluate(name=>(caches.keys()).then(keys=>keys.some(k=>k.includes(`v${name}`))),CACHE_VERSION)).toBe(true);
+ const cached=await page.evaluate(async name=>{const c=await caches.open(name);return (await c.keys()).map(r=>new URL(r.url).pathname)},CACHE_NAME);
  for(const p of ['/firebase/firebase-config.js','/firebase/firebase-init.js','/sync/sync-core.js','/sync/sync-guard.js','/sync/sync-retry.js','/js/icons.js','/css/ui-status.css','/css/app-polish.css','/css/student-record.css'])expect(cached).toContain(p);
  await context.setOffline(true);await page.reload();await expect(page.locator('#adminShell')).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('qa-existing-data'))).toBe('must-survive');await context.setOffline(false);
 });

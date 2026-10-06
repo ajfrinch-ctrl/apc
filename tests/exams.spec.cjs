@@ -1,4 +1,5 @@
 const { test, expect } = require('./fixtures.cjs');
+const { enterPortal, enterStudentApp } = require('./portal-session.cjs');
 const fs = require('node:fs/promises');
 const KEY = 'activePlus.exams.v1';
 const t0 = new Date('2026-10-01T09:00:00Z'), start = new Date('2026-10-01T10:00:00Z'), end = new Date('2026-10-01T11:00:00Z');
@@ -6,21 +7,24 @@ const template = 'প্রশ্ন: বাংলাদেশের রাজ�
 test.use({ viewport: { width: 390, height: 844 }, timezoneId: 'UTC' });
 async function teacher(page) {
   await page.addInitScript(() => localStorage.setItem('activePlus.manager.teacherAssignments.v1', JSON.stringify([{ id: 'TAS-TENTH', teacherUsername: 'teacher.apc', teacherName: 'Test Teacher', className: 'দশম শ্রেণি', group: '', subject: 'গণিত' }])));
-  await page.clock.setFixedTime(t0); await page.goto('/teacher.html'); await page.locator('#teacherEnter').click(); await page.locator('.admin-bottom [data-teacher-view=more]').click(); await page.locator('#teacherMore [data-teacher-view=online-exams]').click();
+  await page.clock.setFixedTime(t0);
+  // One login card for everyone: the session the fixture writes is the door.
+  await enterPortal(page, 'teacher');
+  await page.locator('.admin-bottom [data-teacher-view=exam]').click();
 }
 async function manager(context) {
-  const page = await context.newPage(); await page.clock.setFixedTime(t0); await page.goto('/manager.html');
-  await page.evaluate(async () => {
-    const { provisionStaffAccount } = await import('/js/staff-auth.js');
-    const result = await provisionStaffAccount('manager', 'Apc-Test-2026', 'Apc-Test-2026');
-    if (!result.ok && !result.error.includes('আগেই নির্ধারিত')) throw new Error(result.error);
-  });
-  await page.locator('#managerUsername').fill('manager.apc'); await page.locator('#managerPassword').fill('Apc-Test-2026'); await page.locator('#managerLoginForm [type=submit]').click();
-  await page.locator('.manager-bottom [data-manager-view=more]').click();
-  await page.locator('#managerMoreMenu [data-manager-view=exams]').click(); return page;
+  const page = await context.newPage(); await page.clock.setFixedTime(t0);
+  // একাডেমিক is the one hub whose card opens the single examination workspace.
+  await enterPortal(page, 'manager');
+  await page.locator('.admin-bottom [data-manager-view=academic]').click();
+  await page.locator('#managerAcademicMenu [data-academic-section=exams]').click();
+  return page;
 }
 async function student(context) {
-  const page = await context.newPage(); await page.clock.setFixedTime(start); await page.goto('/index.html'); if (await page.locator('#authScreen').isVisible()) await page.locator('#demoLoginButton').click(); await page.locator('#homeView [data-view=exams]').click(); return page;
+  const page = await context.newPage(); await page.clock.setFixedTime(start);
+  await enterStudentApp(page);
+  await page.locator('.bottom-nav [data-view=exams]').click();
+  return page;
 }
 async function createUI(page, type = 'mcq', title = 'সমন্বিত অনলাইন পরীক্ষা') {
   const root = page.locator('#teacherExamWorkspace'); await root.locator(`[data-exam-action=new-${type}]`).click();

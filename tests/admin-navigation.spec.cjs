@@ -163,7 +163,7 @@ test('secondary controls remain functional and dashboard updates without removed
   await bottom(page, 'system');
   await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
   await expect(page.locator('#cfgMaintenanceMode')).toBeAttached();
-  await page.locator('#btnSaveTopAppSettings').click();
+  await page.locator('#btnSaveAppSettings').click();
   await expect(page.locator('.admin-toast')).toContainText('সংরক্ষিত');
   expect(errors).toEqual([]);
 });

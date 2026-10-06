@@ -64,7 +64,8 @@ for (const scene of SCENES) {
   test(`minimal counter omits More/report/directory screens (${scene.width}px ${scene.theme})`,async({page})=>{
     await prepare(page,'payment',scene);
     await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
-    for(const selector of ['#payDeskTools','#payKeypad','#payStickyBar','.admin-bottom']) await expect(page.locator(selector)).toHaveCount(0);
+    for(const selector of ['#payDeskTools','#payKeypad','#payStickyBar','[data-admin-view]','[data-teacher-view]','[data-manager-view]']) await expect(page.locator(selector)).toHaveCount(0);
+    await expect(page.locator('nav.admin-bottom [data-pay-section]')).toHaveCount(5);
     await expect(page.locator('#payProfileCard')).toBeHidden();
     await expect(page.locator('#payReportsCard')).toBeHidden();
     await expect(page.locator('#paymentReports')).toHaveCount(1);
@@ -174,7 +175,7 @@ test.describe('arranged menus remain offline', () => {
       await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
       await expect(page.locator('#paymentReports')).toHaveCount(1);
       await expect(page.locator('#payReportsCard')).toBeHidden();
-      await expect(page.locator('#payDeskTools')).toHaveCount(0);
+      await expect(page.locator('#payDeskTools, [data-admin-view], [data-teacher-view]')).toHaveCount(0);
       await expect(page.locator('#payProfileCard')).toBeHidden();
       await expect(page.locator('#payTodayList')).toBeVisible();
     }

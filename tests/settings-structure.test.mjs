@@ -80,7 +80,7 @@ test('the counter gets all five groups and exactly one control per setting', () 
      security (this device, session) and data (offline, storage, sync). A counter
      has no in-app password change, so অ্যাকাউন্ট keeps just its own two rows. */
   const REQUIRED = {
-    account: ['profile', 'logout'],
+    account: ['profile', 'password', 'logout'],
     app: ['install', 'theme'],
     security: ['device', 'session'],
     data: ['offline', 'storage']
@@ -92,8 +92,8 @@ test('the counter gets all five groups and exactly one control per setting', () 
         `${group}/${key}: expected exactly one row`);
     }
   }
-  assert.equal(hub.querySelectorAll('[data-settings-group="account"] [data-settings-row="password"]').length, 0,
-    'the counter must not invent a password control');
+  assert.equal(hub.querySelectorAll('[data-settings-group="account"] [data-settings-row="password"]').length, 1,
+    'the counter changes its own password through the shared dialog');
 
   /* One theme control on the page: the hub's row, wired to js/appearance.js. */
   assert.equal(ctx.$$('#darkModeToggle').length, 0, 'the counter has no topbar theme switch');
@@ -120,4 +120,25 @@ test('the theme row the hub adds switches the stored theme', async () => {
   input.dispatchEvent(new ctx.window.Event('change', { bubbles: true }));
   await ctx.flush();
   assert.equal(getTheme(), 'light');
+});
+/* The counter's password row is wired to the one staff dialog: a new password
+   typed there is hashed into the counter's own account (never into markup). */
+test('the counter can change its own password from Settings', async () => {
+  const { readStaffAccount, hasStaffSession } = await import('../js/staff-auth.js');
+  assert.equal(await hasStaffSession('payment'), true, 'the counter session is still open');
+  const before = await readStaffAccount('payment');
+  assert.ok(before?.password, 'the provisioned counter account has a password hash');
+
+  ctx.click(ctx.$('[data-settings-hub="payment"] [data-settings-row="password"]'));
+  await ctx.waitFor(() => ctx.$('.staff-pw-backdrop'), 20000);
+  assert.equal(ctx.$('.staff-pw-backdrop').dataset.staffPw, 'payment', 'the dialog serves the counter role');
+
+  ctx.type(ctx.$('#staffPwNew'), 'Apc-Counter-2026');
+  ctx.type(ctx.$('#staffPwConfirm'), 'Apc-Counter-2026');
+  ctx.submit(ctx.$('.staff-pw-form'));
+  await ctx.waitFor(() => !ctx.$('.staff-pw-backdrop'), 30000);
+
+  const after = await readStaffAccount('payment');
+  assert.ok(after?.password && after.password !== before.password, 'the stored hash changed');
+  assert.equal(JSON.stringify(after).includes('Apc-Counter-2026'), false, 'the plaintext is never stored');
 });

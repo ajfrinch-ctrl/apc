@@ -16,6 +16,7 @@ import { PAYMENT_USER_ID, PAYMENT_SESSION_KEY, hasPaymentSession, clearPaymentSe
 import { readStaffAccount } from './staff-auth.js';
 import { initAppearance } from './appearance.js';
 import { mountSettingsHub } from './settings-hub.js';
+import { openStaffPasswordDialog } from './staff-password-dialog.js';
 export { PAYMENT_USER_ID };
 
 registerServiceWorker();
@@ -252,7 +253,12 @@ hasPaymentSession().then(async valid=>{
   mountSettingsHub({
     mount: '#payMorePanel',
     role: 'payment',
-    actions: { logout: () => exitCounter() },
+    actions: {
+      /* The counter changes its own password through the same dialog every staff
+         role uses (js/staff-password-dialog.js → setStaffPassword('payment')). */
+      password: () => openStaffPasswordDialog({ role: 'payment', mode: 'change' }),
+      logout: () => exitCounter()
+    },
     session: { value: 'ডিভাইস-বাউন্ড কাউন্টার সেশন', hint: 'পেমেন্ট কাউন্টার সেশন' }
   });
   initAppearance();
