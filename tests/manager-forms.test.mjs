@@ -94,6 +94,12 @@ test('editing a student from the Manager card saves the operational fields', asy
 
 test('adding a routine entry from the Manager form publishes it for every panel', async () => {
   await openView('routine');
+  /* The panel's own first load (roster, ledger, exams) runs in parallel with
+     this test in a full-suite run, and the submit handler verifies the session
+     before it writes. Wait for the routine screen itself to be painted so the
+     assertion below measures the save, not the machine's load. */
+  await ctx.waitFor(() => ctx.$('.manager-view[data-view-panel="routine"]')?.hidden === false);
+  await ctx.waitFor(() => (ctx.$('#managerRoutineDays')?.children.length || 0) >= 6, 20000);
   const form = ctx.$('#managerRoutineForm');
   assert.ok(form, 'the routine form is on the page');
   ctx.type(form.querySelector('[name="subject"]'), 'ইংরেজি');
@@ -104,7 +110,8 @@ test('adding a routine entry from the Manager form publishes it for every panel'
   time.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
   const day = loadRoutine().sat ? 'sat' : Object.keys(loadRoutine())[0];
   ctx.submit(form);
-  await ctx.waitFor(() => (loadRoutine()[day]?.classes || []).some(row => row.subject === 'ইংরেজি'));
+  /* A generous budget: the handler awaits a real session check first. */
+  await ctx.waitFor(() => (loadRoutine()[day]?.classes || []).some(row => row.subject === 'ইংরেজি'), 40000);
   const row = loadRoutine()[day].classes.find(item => item.subject === 'ইংরেজি');
   assert.equal(row.teacher, 'রহিম স্যার');
   assert.equal(row.room, 'রুম ৪');

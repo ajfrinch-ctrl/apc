@@ -1,3 +1,7 @@
+// v172: Admin app architecture — the bottom bar is হোম/স্টাফ/রিপোর্ট/সিস্টেম/ডেটা/অ্যাকাউন্ট and the old More
+//       menu became two hubs (সিস্টেম → roles/security/settings/academics; ডেটা → data management +
+//       backup). Student registration review moved to a হোম tile: Admin decides on a registration,
+//       never creates a student account.
 // v171: Cash Counter app architecture — the bottom bar is হোম/শিক্ষার্থী/পেমেন্ট/রিপোর্ট/আরও and each seat owns
 //       one step of the counter's job (search → entry → verify → receipt → daily collection → history).
 //       The narrowed counter stays narrow: identity-only search, no roster/dues/profile, no dashboard
@@ -34,7 +38,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 171;
+const CACHE_VERSION = 172;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

@@ -1,4 +1,4 @@
-# APC App Architecture — একক স্থায়ী সোর্স (v171)
+# APC App Architecture — একক স্থায়ী সোর্স (v172)
 
 > এই নথিটিই APC-এর **একক architecture রেফারেন্স**। এখানে যা লেখা আছে তার বাইরে
 > কোনো section-এর ঘর নির্ধারিত নয়। নতুন feature যোগ করার আগে এখানে তার ঘর ঠিক
@@ -84,11 +84,11 @@
 | P5 | Teacher-এর মূল কাজ (বাড়ির কাজ/সাজেশন/প্রশ্ন/উপকরণ) bottom bar-এ নেই; “পরীক্ষা/উপস্থিতি” আছে | teacher bottom bar |
 | P6 | Manager-এর bottom bar-এ অনুমোদন আছে, কিন্তু “একাডেমিক”/“হিসাব”/“রিপোর্ট” bar-এ নেই | manager bottom bar |
 | P7 | Cash Counter-এর কোনো bottom bar নেই — অন্য প্যানেলের সাথে অসঙ্গত | `payment.html` — ✅ Phase 4-এ সমাধান |
-| P8 | Admin-এর bar-এ “শিক্ষার্থী” আছে, যা Admin-এর দায়িত্ব নয় (Student অ্যাকাউন্ট Admin বানাবে না) | admin bottom bar |
+| P8 | Admin-এর bar-এ “শিক্ষার্থী” আছে, যা Admin-এর দায়িত্ব নয় (Student অ্যাকাউন্ট Admin বানাবে না) | admin bottom bar — ✅ Phase 5-এ সমাধান |
 
 ---
 
-## ২। চূড়ান্ত Navigation Map (v171 লক্ষ্য)
+## ২। চূড়ান্ত Navigation Map (v172 লক্ষ্য)
 
 ### Student
 `🏠 হোম` · `📚 পড়াশোনা` · `🗓 রুটিন` · `📝 পরীক্ষা` · `👤 আরও`
@@ -289,6 +289,31 @@ bookmark-ও নতুন বাড়িতে নিয়ে যায়:
 - **কোনো dashboard ফিরছে না:** pulse/keypad/sticky-bar/due-students/আজকের-টাকার tile এখনো নেই —
   দিনের হিসাব আসে রিপোর্ট থেকেই (`দৈনিক কাউন্টার সংগ্রহ`, `কাউন্টার ক্লোজিং`)।
 
+### Phase 5 — Admin panel (এই রিলিজে যা হয়েছে)
+
+Admin-এর bottom bar এখন ঠিক **হোম · স্টাফ · রিপোর্ট · সিস্টেম · ডেটা · অ্যাকাউন্ট** (ছয়টি seat)।
+আগের ছড়ানো “আরও” মেনু তুলে দিয়ে কাজ দুটি hub-এ ভাগ করা হয়েছে, আর প্রতিটি hub-কার্ড সেই screen-ই
+খোলে যেটি আগে থেকেই ওই কাজের মালিক:
+
+| Seat | ভিতরে |
+| --- | --- |
+| 🏠 হোম | সিস্টেম ড্যাশবোর্ড (৪ snapshot tile + ৯টি service card, `নিবন্ধন অনুমোদন`-সহ) |
+| 👥 স্টাফ | Manager/Teacher/Cash Counter তৈরি · Edit · Activate · Deactivate · Delete + রয়্যালটি-ম্যাট্রিক্স |
+| 📊 রিপোর্ট | System-wide Report Center (`#adminReports`) |
+| ⚙️ সিস্টেম | hub: Roles & Permissions · সিকিউরিটি · সিস্টেম সেটিংস · ক্লাস ও বিষয় |
+| 💾 ডেটা | Data Management + hub-কার্ড **ব্যাকআপ ও রিস্টোর** |
+| 👤 অ্যাকাউন্ট | Admin প্রোফাইল · পাসওয়ার্ড · থিম · লগআউট (topbar-এর exit সব সময় উপস্থিত) |
+
+- **Admin শিক্ষার্থী অ্যাকাউন্ট বানায় না:** শিক্ষার্থী নিজে নিবন্ধন করে, আর Admin/Manager কেবল
+  `নিবন্ধন অনুমোদন`-এ সিদ্ধান্ত দেয় (owner decision 2026-09-30 অপরিবর্তিত)। সেই review screen হোমের
+  tile থেকে খোলে, তাই শিক্ষার্থী আর Admin-এর একটি nav seat নয় — কিন্তু সুবিধা হারায়নি।
+- **হিসাব/রুটিন/নোটিশ/পরীক্ষা Admin-এর প্যানেলে নেই:** ফি আদায়, রুটিন, নোটিশ, পরীক্ষা প্রকাশ —
+  প্রতিটি সেই রোলের নিজের প্যানেলে (Manager/Teacher/Cash Counter)। এই রিলিজে কোনো প্রতিলিপি তৈরি হয়নি।
+- **Seat হাইলাইট:** hub-এর ভিতরের screen খোলা থাকলে hub-এর seat-ই lit থাকে (`VIEW_SEAT`) — যেমন
+  সিকিউরিটি খুললে সিস্টেম, ব্যাকআপ খুললে ডেটা, নিবন্ধন অনুমোদন খুললে হোম।
+- **একটাই ডেটা পথ:** স্টাফ CRUD `js/staff-auth.js` + `js/staff-directory.js`, ডেটা/ব্যাকআপ
+  `js/admin-data.js` + `js/backup-merge.js`; কোনো নতুন store বা দ্বিতীয় তালিকা যোগ হয়নি।
+
 ## ৯। Phase পরিকল্পনা (স্ট্যাটাসসহ)
 
 | Phase | কাজ | স্ট্যাটাস |
@@ -298,7 +323,7 @@ bookmark-ও নতুন বাড়িতে নিয়ে যায়:
 | 2 | Teacher: `একাডেমিক` ছাতার নিচে বাড়ির কাজ/সাজেশন/প্রশ্নব্যাংক/উপকরণ/পরীক্ষা/নোটিশ + হোম-এ Quick actions, nav-এ ফলাফল | ✅ এই রিলিজে |
 | 3 | Manager: `শিক্ষার্থী` (অনুমোদন merge) · `একাডেমিক` · `হিসাব` · `রিপোর্ট` — nav ষষ্ঠ আইটেমসহ | ✅ এই রিলিজে |
 | 4 | Cash Counter: ৫-আইটেম bottom bar (হোম/শিক্ষার্থী/পেমেন্ট/রিপোর্ট/আরও) | ✅ এই রিলিজে |
-| 5 | Admin: `স্টাফ / রিপোর্ট / সিস্টেম / ডেটা / অ্যাকাউন্ট`; শিক্ষার্থী view সরানো | পরবর্তী |
+| 5 | Admin: `স্টাফ / রিপোর্ট / সিস্টেম / ডেটা / অ্যাকাউন্ট`; শিক্ষার্থী view সরানো | ✅ এই রিলিজে |
 | 6 | সব Role-এর Settings এক কাঠামো (Account/Notification/App/Security/Data) | পরবর্তী |
 | 7 | প্রতিটি Role-এ E2E QA (Teacher→Student ৯টি workflow) | ✅ এই রিলিজে — `tests/workflows-e2e.test.mjs` ৭টি + `tests/registration-approval-login.test.mjs` (Manager approval workflow) |
 

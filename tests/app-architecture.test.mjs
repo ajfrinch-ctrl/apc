@@ -13,6 +13,21 @@ import { readFileSync } from 'node:fs';
 import { loadPage } from './jsdom-harness.mjs';
 
 const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+/* One `<section class="admin-view">` panel, from its tag to the matching close. */
+function ctxSection(source, name) {
+  const marker = `<section class="admin-view`;
+  const start = source.indexOf(`data-view-panel="${name}"`);
+  if (start < 0) return '';
+  const open = source.lastIndexOf(marker, start);
+  let depth = 0, i = open;
+  while (i < source.length) {
+    if (source.startsWith('<section', i)) depth++;
+    else if (source.startsWith('</section>', i)) { depth--; if (!depth) return source.slice(open, i); }
+    i++;
+  }
+  return source.slice(open);
+}
+
 /* One panel of a page, from its opening tag to the matching close. */
 function ctxPanel(source, name) {
   const start = source.indexOf(`data-pay-panel="${name}"`);
@@ -369,4 +384,71 @@ test('Cash Counter হোম is the day’s own ledger: no dashboard tiles, one 
   const more = ctxPanel(html, 'more');
   assert.match(more, /id="payMoreLogout"/);
   assert.equal((more.match(/data-pay-section=/g) || []).length, 0, 'আরও lists no other seat');
+});
+
+/* -------------------------------- Admin ------------------------------------- */
+
+test('the Admin bottom bar is exactly হোম / স্টাফ / রিপোর্ট / সিস্টেম / ডেটা / অ্যাকাউন্ট', () => {
+  const html = read('admin.html');
+  const nav = html.slice(html.indexOf('<nav class="admin-bottom"'), html.indexOf('</nav>', html.indexOf('<nav class="admin-bottom"')));
+  assert.deepEqual([...nav.matchAll(/data-admin-view="([a-z-]+)"/g)].map(match => match[1]),
+    ['dashboard', 'staff', 'reports', 'system', 'data', 'profile']);
+  assert.deepEqual([...nav.matchAll(/<span class="nav-label">([^<]+)<\/span>/g)].map(match => nfc(match[1])),
+    ['হোম', 'স্টাফ', 'রিপোর্ট', 'সিস্টেম', 'ডেটা', 'অ্যাকাউন্ট'].map(nfc));
+  for (const seat of ['dashboard', 'staff', 'reports', 'system', 'data', 'profile'])
+    assert.ok(nav.includes(`data-admin-view="${seat}"`), `${seat} keeps a seat`);
+  assert.doesNotMatch(nav, /data-admin-view="students"/, 'student management is not an Admin seat');
+  assert.doesNotMatch(html, /data-view-panel="more"/, 'the More container is retired');
+});
+
+test('Admin সিস্টেম and ডেটা are hubs over the screens that already own the work', () => {
+  const html = read('admin.html');
+  const system = ctxSection(html, 'system');
+  assert.deepEqual([...system.matchAll(/data-admin-view="([a-z-]+)"/g)].map(match => match[1]).slice(1),
+    ['roles', 'security', 'settings', 'academics'], 'সিস্টেম holds exactly its four cards');
+  const data = ctxSection(html, 'data');
+  assert.match(data, /id="adminDataMenu"/);
+  assert.match(data, /data-admin-view="backup"/, 'ব্যাকআপ ও রিস্টোর is reached from ডেটা');
+  /* Each card's screen exists exactly once, as its own panel. */
+  for (const view of ['roles', 'security', 'settings', 'academics', 'backup'])
+    assert.equal((html.match(new RegExp(`data-view-panel="${view}"`, 'g')) || []).length, 1, view);
+  const source = read('js/admin-permissions.js');
+  assert.match(source, /export const ADMIN_SYSTEM_NAV/);
+  assert.match(source, /export const ADMIN_DATA_NAV/);
+  /* A screen inside a hub keeps its own seat lit. */
+  assert.match(source, /export const VIEW_SEAT = Object\.freeze\(\{[\s\S]*students: 'dashboard'/);
+  assert.match(read('js/admin.js'), /const seatFor = view => VIEW_SEAT\[view\] \|\| view;/);
+});
+
+test('Admin does no daily work: no class, routine, notice, exam, fee or collection control', () => {
+  const html = read('admin.html');
+  for (const banned of ['finance', 'routine', 'notices', 'exams', 'classes', 'cash-counter']) {
+    assert.equal((html.match(new RegExp(`data-view-panel="${banned}"`, 'g')) || []).length, 0, banned);
+  }
+  for (const selector of ['#feeStudentSearch', '#feeCollectionForm', '#addRoutineForm', '#noticeForm', '#dashCollectFee', '#adminExamWorkspace'])
+    assert.equal(html.includes(selector), false, `${selector} must not exist in the Admin page`);
+  const source = read('js/admin.js');
+  assert.doesNotMatch(source, /saveNotice|saveRoutine|saveCounterPayment|saveTeachingActivity/, 'no daily write path');
+  /* Student accounts are never created here: self-registration is the only door,
+     and Admin may only decide on one that already arrived. */
+  assert.match(source, /openRegistrationReview/);
+  assert.doesNotMatch(source, /createStudentAccount|registerStudent\(|saveRoster\(\[/);
+});
+
+test('the Admin slot is the only one with staff CRUD, and its hub cards are capability-gated', () => {
+  const html = read('admin.html');
+  const staff = ctxSection(html, 'staff');
+  assert.match(staff, /id="staffList"/);
+  assert.match(staff, /id="staffCreateButton"/);
+  const source = read('js/admin-permissions.js');
+  assert.match(source, /STAFF_MANAGE: 'staff\.manage'/);
+  const adminGrant = source.slice(source.indexOf('const ADMIN = Object.freeze(['), source.indexOf(']);', source.indexOf('const ADMIN = Object.freeze([')));
+  for (const withheld of ['FINANCE_COLLECT', 'FINANCE_VIEW', 'NOTICES_MANAGE', 'ROUTINE_MANAGE', 'EXAMS_PUBLISH', 'TEACHING_PANEL', 'PAYMENT_PANEL'])
+    assert.equal(adminGrant.includes(withheld), false, `${withheld} stays outside Admin`);
+  /* Every hub card carries the capability that unlocks it. */
+  const system = ctxSection(html, 'system');
+  for (const match of system.matchAll(/data-admin-view="([a-z-]+)" data-admin-cap="([a-z.]+)"/g)) {
+    assert.match(match[2], /\.(manage)$/, `${match[1]} names a management capability`);
+  }
+  assert.equal((system.match(/data-admin-cap=/g) || []).length, 4, 'all four cards are gated');
 });

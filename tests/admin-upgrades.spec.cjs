@@ -85,7 +85,7 @@ test('staff management: create, edit, deactivate, reset password and delete', as
 
 test('student management hides personal info until selected and supports editing', async ({ page }) => {
   await enter(page);
-  await bottom(page, 'students');
+  await page.locator('#adminFeatureGrid [data-admin-view=students]').click();
   await expect(page.locator('#studentList .student-row')).toHaveCount(8);
   // Nothing personal leaks in the hidden list: no names or mobile numbers.
   await expect(page.locator('#studentList')).not.toContainText('রাইসা');
@@ -122,7 +122,7 @@ test('student management hides personal info until selected and supports editing
   await page.locator('#ledgerSearch').fill('রাইসা');
   await expect(page.locator('#studentLedgerList')).toContainText('রাইসা ইসলাম (সম্পাদিত)');
   await expect(page.locator('#studentLedgerList [data-action=quick-collect]')).toHaveCount(0);
-  await bottom(page, 'students');
+  await page.locator('#adminFeatureGrid [data-admin-view=students]').click();
   await expect(page.locator('#studentList')).not.toContainText('01711111111');
 });
 

@@ -75,10 +75,10 @@ test('student, manager and teacher have real, named service shortcuts', () => {
   assert.ok(read('js/admin-panel-ui.js').includes('admin-feature-tile'), 'admin must retain its capability-generated service grid');
 });
 
-test('secondary screens have accessible home/back controls and staff More has round icons', () => {
+test('secondary screens have accessible home/back controls and staff hub rows have round icons', () => {
   const MORE_SUBPAGES = '#reportsView, #notificationSettingsView, #myProfileView, #settingsView, #studentFeeView';
   for (const [name, attribute, target, count] of [
-    ['index', 'data-view', 'home', 10], ['admin', 'data-admin-view', 'dashboard', 11],
+    ['index', 'data-view', 'home', 10],
     ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 11]
   ]) {
     const document = doc(name);
@@ -92,9 +92,12 @@ test('secondary screens have accessible home/back controls and staff More has ro
       assert.ok(button.querySelector('svg'));
     }
   }
-  for (const name of ['manager', 'teacher']) {
+  /* Admin: a screen inside a hub returns to that hub; the rest go home. */
+  const adminBacks = [...doc('admin').querySelectorAll('.pay-back')].map(button => button.getAttribute('data-admin-view'));
+  assert.deepEqual(adminBacks, ['dashboard', 'dashboard', 'system', 'dashboard', 'dashboard', 'dashboard', 'data', 'system', 'system', 'system', 'dashboard']);
+  for (const name of ['admin', 'manager', 'teacher']) {
     for (const row of doc(name).querySelectorAll('.admin-more-item')) {
-      assert.ok(row.querySelector('.admin-more-icon svg'), name + ' menu row has no icon');
+      assert.ok(row.querySelector('.admin-more-icon, .admin-more-copy'), name + ' hub row has no icon slot');
     }
   }
 });

@@ -49,7 +49,7 @@ test('failed profile contact save keeps input and account unchanged', async ({ p
 test('admin default reset persists only after confirmation and keeps original phone', async ({ page }) => {
   await demo(page); await page.evaluate(key=>{const a=JSON.parse(localStorage.getItem(key));a.pin='789789';localStorage.setItem(key,JSON.stringify(a));},KEY);
   await page.goto('/admin.html'); await expect(page.locator('#adminLoginPin')).toHaveValue('123123'); await page.locator('#adminLoginForm [type=submit]').click();
-  await page.locator('.admin-bottom [data-admin-view=students]').click(); await page.locator('[data-action=reset-pin][data-id="AP-1024"]').click();
+  await page.locator('#adminFeatureGrid [data-admin-view=students]').click(); await page.locator('[data-action=reset-pin][data-id="AP-1024"]').click();
   await expect(page.locator('.pin-box')).toHaveText('১২৩১২৩'); expect((await saved(page)).pin).toBe('789789');
   await page.locator('[data-modal-action=done]').click(); expect((await saved(page)).pin).toBe('123123'); expect((await saved(page)).mobile).toBe('01700000000');
 });

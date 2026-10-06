@@ -29,7 +29,7 @@ import { registerServiceWorker } from './service-worker.js';
 import { initFixedShell } from './fixed-shell.js';
 import { escapeHtml } from './sanitize.js';
 import { matchesStudentQuery } from './student-search.js';
-import { createAccess, CAPABILITIES, routeFromHash } from './admin-permissions.js';
+import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT } from './admin-permissions.js';
 import { rememberRoute, onRouteChange } from './panel-route.js';
 import { openRegistrationReview, DECIDED_EVENT } from './registration-review.js';
 import { initAdminPanelShell } from './admin-panel-ui.js';
@@ -131,8 +131,8 @@ async function enterPanel() {
   const account = await readStaffAccount('admin');
   access = createAccess(account?.role || 'admin');
   initAdminPanelShell({ access, onNavigate: navigate });
-  // The "More → লগআউট" row carries the same icon language as the top bar.
-  paintIcon($('#adminMoreLogout .admin-more-icon'), 'logout', 'admin-more-icon-svg apc-icon-svg');
+  // The অ্যাকাউন্ট → লগআউট row carries the same icon language as the top bar.
+  paintIcon($('#adminAccountLogout .settings-icon'), 'logout', 'apc-icon-svg');
   // Staff Management is wired once; it re-reads the directory on every render
   // and calls back so the dashboard, reports and security stay in sync.
   initStaffManagement({ onChanged: onStaffChanged });
@@ -165,7 +165,10 @@ function exitPanel() {
 
 /* ---------- View switching ---------- */
 
-const moreViews = new Set(['roles', 'data', 'backup', 'security', 'settings', 'profile', 'academics']);
+/** Which bottom seat lights up for a view that lives inside a hub. A hub's own
+ *  cards (roles, security, settings, academics, backup) and the registration
+ *  review reached from Home keep their seat lit while they are open. */
+const seatFor = view => VIEW_SEAT[view] || view;
 
 /**
  * Open one Admin Panel view.
@@ -180,9 +183,9 @@ function setView(view) {
   state.activeView = target;
   $('#adminMain')?.classList.toggle('is-staff-view', target === 'staff');
   $$('.admin-view').forEach(panel => panel.classList.toggle('active', panel.dataset.viewPanel === target));
+  const seat = seatFor(target);
   $$('.admin-bottom-item').forEach(item => {
-    const isMore = item.dataset.adminView === 'more' && moreViews.has(target);
-    const active = item.dataset.adminView === target || isMore;
+    const active = item.dataset.adminView === seat;
     item.classList.toggle('active', active);
     if (active) item.setAttribute('aria-current', 'page');
     else item.removeAttribute('aria-current');
@@ -218,7 +221,7 @@ function navigate(view, source) {
     renderStudents();
   }
   if (!setView(target)) return false;
-  if (source?.matches?.('.admin-more-item, .admin-more-back')) {
+  if (source?.matches?.('.admin-more-item, .admin-more-back, .admin-bottom-item')) {
     const heading = $('.admin-view.active h1');
     heading?.setAttribute('tabindex', '-1');
     heading?.focus({ preventScroll: true });
@@ -1590,7 +1593,7 @@ $('#backupFileInput')?.addEventListener('change', event => {
 
 $('#resetAllLocalDataButton')?.addEventListener('click', resetAllLocalData);
 
-$('#adminMoreLogout')?.addEventListener('click', exitPanel);
+$('#adminAccountLogout')?.addEventListener('click', exitPanel);
 
 $('#adminProfileForm')?.addEventListener('submit', async event => {
   event.preventDefault();

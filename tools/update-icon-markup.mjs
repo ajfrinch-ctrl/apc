@@ -9,7 +9,7 @@ const pages = ['index', 'admin', 'manager', 'teacher', 'payment', 'offline-roles
 const illustrated = '.pay-tile-icon,.admin-feature-icon,.admin-more-icon,.dashboard-routine-icon,.dashboard-empty-icon,.challenge-icon,.dashboard-feature-icon,.study-progress-icon,.learning-home-icon,.settings-icon,.help-card-icon,.pay-pulse-icon';
 const routeIcons = {
   student: { routine:'calendar', courses:'book', exams:'exam', results:'result', profile:'user' },
-  admin: { staff:'staff', students:'students', dashboard:'dashboard', roles:'roles', data:'data', backup:'backup', security:'shield', settings:'settings', reports:'reports', profile:'user' },
+  admin: { staff:'staff', students:'approval', dashboard:'dashboard', system:'settings', roles:'roles', data:'data', backup:'backup', security:'shield', settings:'settings', reports:'reports', profile:'profile' },
   manager: { dashboard:'home', students:'students', approvals:'approval', classes:'classes', teachers:'teacher', finance:'wallet', 'cash-counter':'wallet', routine:'calendar', exams:'exam', results:'result', reports:'reports', notices:'notice', profile:'user', more:'more' },
   teacher: { home:'home', classes:'classes', students:'students', 'routine-view':'calendar', routine:'attendance', homework:'assignment', 'online-exams':'exam', exam:'result', suggestion:'notice', reports:'reports', profile:'user', more:'more' },
   payment: { home:'home', students:'students', payment:'wallet', reports:'reports', more:'more' }

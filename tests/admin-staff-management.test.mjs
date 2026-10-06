@@ -305,7 +305,7 @@ test('the panel keeps the Admin menu clean: no cash, routine or notice entry', (
   for (const removed of ['finance', 'routine', 'notices', 'exams', 'app-management', 'classes']) {
     assert.equal(views.includes(removed), false, `${removed} must not be an Admin section`);
   }
-  for (const kept of ['dashboard', 'staff', 'roles', 'students', 'reports', 'data', 'backup', 'security', 'settings', 'profile', 'more']) {
+  for (const kept of ['dashboard', 'staff', 'system', 'roles', 'students', 'reports', 'data', 'backup', 'security', 'settings', 'profile']) {
     assert.equal(views.includes(kept), true, `${kept} must stay in the Admin menu`);
   }
   // No daily-operation control survives anywhere in the DOM.

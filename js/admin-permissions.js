@@ -115,13 +115,15 @@ export const ROLE_CAPABILITIES = Object.freeze({
   student: STUDENT
 });
 
-/** Which capability unlocks each Admin Panel view (route guard). */
+/** Which capability unlocks each Admin Panel view (route guard). `system` is
+ *  the hub the four system screens are reached through (see ADMIN_SYSTEM_NAV). */
 export const VIEW_CAPABILITIES = Object.freeze({
   dashboard: CAPABILITIES.DASHBOARD,
   staff: CAPABILITIES.STAFF_MANAGE,
   roles: CAPABILITIES.ROLES_MANAGE,
   students: CAPABILITIES.STUDENTS_VIEW,
   reports: CAPABILITIES.REPORTS_VIEW,
+  system: CAPABILITIES.SETTINGS_MANAGE,
   data: CAPABILITIES.DATA_MANAGE,
   backup: CAPABILITIES.BACKUP_MANAGE,
   security: CAPABILITIES.SECURITY_MANAGE,
@@ -130,35 +132,43 @@ export const VIEW_CAPABILITIES = Object.freeze({
   profile: CAPABILITIES.PROFILE_VIEW
 });
 
-/** Views reachable from the "More" menu. */
-export const MORE_VIEWS = Object.freeze(['roles', 'data', 'backup', 'security', 'academics', 'settings', 'profile']);
-
-/** Bottom-bar entries. `order` keeps the tab order stable no matter which
- *  entries survive the capability filter. */
+/** The bottom bar: হোম · স্টাফ · রিপোর্ট · সিস্টেম · ডেটা · অ্যাকাউন্ট.
+ *  `order` keeps the tab order stable no matter which entries survive the
+ *  capability filter. */
 export const ADMIN_BOTTOM_NAV = Object.freeze([
-  { view: 'dashboard', label: 'ড্যাশবোর্ড', icon: 'dashboard', capability: CAPABILITIES.DASHBOARD, order: 1 },
+  { view: 'dashboard', label: 'হোম', icon: 'dashboard', capability: CAPABILITIES.DASHBOARD, order: 1 },
   { view: 'staff', label: 'স্টাফ', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 2 },
-  { view: 'students', label: 'শিক্ষার্থী', icon: 'students', capability: CAPABILITIES.STUDENTS_VIEW, order: 3 },
-  { view: 'reports', label: 'রিপোর্ট', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 4 },
-  { view: 'more', label: 'আরও', icon: 'more', capability: null, order: 5 }
+  { view: 'reports', label: 'রিপোর্ট', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 3 },
+  { view: 'system', label: 'সিস্টেম', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 },
+  { view: 'data', label: 'ডেটা', icon: 'data', capability: CAPABILITIES.DATA_MANAGE, order: 5 },
+  { view: 'profile', label: 'অ্যাকাউন্ট', icon: 'profile', capability: CAPABILITIES.PROFILE_VIEW, order: 6 }
 ]);
 
-/** "More" menu entries (same shape as the bottom bar, plus a description). */
-export const ADMIN_MORE_NAV = Object.freeze([
+/** সিস্টেম hub cards — each opens a screen that already owns its work. */
+export const ADMIN_SYSTEM_NAV = Object.freeze([
   { view: 'roles', label: 'Roles & Permissions', hint: 'রোলভিত্তিক অনুমতির ম্যাট্রিক্স', icon: 'roles', capability: CAPABILITIES.ROLES_MANAGE, order: 1 },
-  { view: 'data', label: 'Data Management', hint: 'ডেটা সংগ্রহ, পরিসংখ্যান ও পরিষ্কার', icon: 'data', capability: CAPABILITIES.DATA_MANAGE, order: 2 },
-  { view: 'backup', label: 'Backup & Restore', hint: 'সম্পূর্ণ ব্যাকআপ নিন ও ফিরিয়ে আনুন', icon: 'backup', capability: CAPABILITIES.BACKUP_MANAGE, order: 3 },
-  { view: 'security', label: 'সিকিউরিটি', hint: 'সেশন, পাসওয়ার্ড নীতি ও সুরক্ষিত অ্যাকাউন্ট', icon: 'security', capability: CAPABILITIES.SECURITY_MANAGE, order: 4 },
-  { view: 'academics', label: 'ক্লাসের বিষয় ঠিক করুন', hint: 'ক্লাস, বিষয় ও ম্যাপিংয়ের একক কেন্দ্র', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 5 },
-  { view: 'settings', label: 'সিস্টেম সেটিংস', hint: 'অ্যাপ কন্ট্রোল ও ব্র্যান্ডিং', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 6 },
-  { view: 'profile', label: 'Admin Profile', hint: 'নিজের পরিচয় ও পাসওয়ার্ড', icon: 'profile', capability: CAPABILITIES.PROFILE_VIEW, order: 6 }
+  { view: 'security', label: 'সিকিউরিটি', hint: 'সেশন, পাসওয়ার্ড নীতি ও সুরক্ষিত অ্যাকাউন্ট', icon: 'security', capability: CAPABILITIES.SECURITY_MANAGE, order: 2 },
+  { view: 'settings', label: 'সিস্টেম সেটিংস', hint: 'অ্যাপ কন্ট্রোল, ব্র্যান্ডিং ও নোটিশ', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 3 },
+  { view: 'academics', label: 'ক্লাস ও বিষয়', hint: 'ক্লাস, বিষয় ও শিক্ষক ম্যাপিংয়ের একক কেন্দ্র', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 }
 ]);
+
+/** ডেটা hub cards — data management, then the one backup screen. */
+export const ADMIN_DATA_NAV = Object.freeze([
+  { view: 'backup', label: 'ব্যাকআপ ও রিস্টোর', hint: 'সম্পূর্ণ ব্যাকআপ নিন ও ফিরিয়ে আনুন', icon: 'backup', capability: CAPABILITIES.BACKUP_MANAGE, order: 1 }
+]);
+
+/** Which seat lights up for a view that lives inside a hub. */
+export const VIEW_SEAT = Object.freeze({
+  roles: 'system', security: 'system', settings: 'system', academics: 'system',
+  backup: 'data',
+  students: 'dashboard'
+});
 
 /** Dashboard tiles show system sections only, generated from the capabilities
  *  the signed-in role holds. No daily cash/fee entry tile. */
 export const ADMIN_FEATURE_TILES = Object.freeze([
   { view: 'staff', label: 'স্টাফ ম্যানেজমেন্ট', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 1 },
-  { view: 'students', label: 'শিক্ষার্থী', icon: 'students', capability: CAPABILITIES.STUDENTS_VIEW, order: 2 },
+  { view: 'students', label: 'নিবন্ধন অনুমোদন', icon: 'approval', capability: CAPABILITIES.STUDENTS_VIEW, order: 2 },
   { view: 'reports', label: 'রিপোর্ট', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 3 },
   { view: 'roles', label: 'Roles & Permissions', icon: 'roles', capability: CAPABILITIES.ROLES_MANAGE, order: 4 },
   { view: 'security', label: 'সিকিউরিটি', icon: 'security', capability: CAPABILITIES.SECURITY_MANAGE, order: 5 },
@@ -189,16 +199,13 @@ export function createAccess(role) {
     allowsView(view) {
       const key = String(view || '').trim();
       if (!key) return false;
-      if (key === 'more') return MORE_VIEWS.some(entry => this.has(VIEW_CAPABILITIES[entry]));
       const capability = VIEW_CAPABILITIES[key];
       return capability ? this.has(capability) : false;
     },
-    /** First bottom-bar tab this role may open — the fallback destination.
-     *  The "More" container counts only while it holds at least one sub-view. */
+    /** First bottom-bar tab this role may open — the fallback destination. */
     defaultView() {
-      const moreAllowed = MORE_VIEWS.some(view => this.has(VIEW_CAPABILITIES[view]));
       const first = ADMIN_BOTTOM_NAV
-        .filter(entry => (entry.capability === null ? moreAllowed : this.has(entry.capability)))
+        .filter(entry => entry.capability === null || this.has(entry.capability))
         .sort((a, b) => a.order - b.order)[0];
       return first ? first.view : 'dashboard';
     },
@@ -220,7 +227,7 @@ export function viewCapability(view) {
 export function routeFromHash(hash) {
   const key = String(hash || '').replace(/^#/, '').replace(/^\/+/, '').trim();
   if (!key) return null;
-  return Object.hasOwn(VIEW_CAPABILITIES, key) || key === 'more' ? key : null;
+  return Object.hasOwn(VIEW_CAPABILITIES, key) ? key : null;
 }
 
 /**

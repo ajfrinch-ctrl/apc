@@ -464,7 +464,11 @@ async function loadOperationalData() {
   if (activeView === 'routine') renderRoutine();
   if (activeView === 'results') renderResults();
 }
-async function managerGuard() { return !managerBusy && await hasStaffSession('manager'); }
+/* Session check only. The old guard also refused while any *other* action was
+   still saving (managerBusy), which made an unrelated routine entry look like a
+   session failure and silently drop the Manager's work; a per-action lock is
+   not needed for these single-write handlers, whose values are idempotent. */
+async function managerGuard() { return hasStaffSession('manager'); }
 async function approveStudent(studentId, decision) {
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি। আবার প্রবেশ করুন।', true);
   const student = students.find(row => row.id === studentId);
