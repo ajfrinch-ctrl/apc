@@ -1,4 +1,6 @@
-import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage } from './staff-auth.js';
+import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
+import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
+import { mountSettingsHub } from './settings-hub.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
 import { decideRegistration, DECISION_MESSAGES, DECIDED_EVENT } from './registration-review.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
@@ -20,7 +22,6 @@ import { initFixedShell } from './fixed-shell.js';
 import { initExamManager } from './exam-manager.js';
 import { listTeacherAssignments, saveTeacherAssignment, deleteTeacherAssignment, deleteAssignmentSubject, selectableSubjects, TEACHER_ASSIGNMENTS_KEY } from './teacher-assignments.js';
 import { listClasses } from './academics.js';
-import { initNotificationSettings } from './notification-settings.js';
 import { noticeCategory, noticeCategoryInfo } from './notification-rules.js';
 import { mountReports, refreshReports } from './reports.js';
 import { iconElement } from './icons.js';
@@ -822,8 +823,18 @@ async function enterManager() {
   renderView(normalizeView(wanted) ? wanted : 'dashboard');
   onRouteChange(name => { const next = normalizeView(name); if (next && next.view !== activeView) renderView(name); });
   await loadOperationalData();
-  // Settings → Notification Settings, inside the Manager's own profile page.
-  initNotificationSettings({ mount: '#notificationSettings' });
+  /* One Settings structure for every role (§29). The hub fills নিরাপত্তা ও ডেটা
+     and mounts the notification rows — the Manager's profile card, password row
+     and theme switch stay exactly where they were. */
+  mountSettingsHub({
+    mount: '[data-settings-hub="manager"]',
+    role: 'manager',
+    actions: {
+      password: () => openStaffPasswordDialog({ role: 'manager', mode: 'change' }),
+      logout: () => { clearStaffSession('manager'); goToLoginPage(); }
+    },
+    session: { value: `${bn(STAFF_SESSION_RULES.rememberDays)} দিন`, hint: 'ডিভাইস-বাউন্ড সেশন', password: `${bn(STAFF_DIRECTORY_RULES.passwordMin)}–${bn(STAFF_DIRECTORY_RULES.passwordMax)} অক্ষর · PBKDF2 হ্যাশ` }
+  });
   // পড়াশোনা পরিচালনা করুন: the same content library the Teacher writes into.
   await mountCourseEditor();
   await mountReports($('#managerReports'), { panel: 'manager' });

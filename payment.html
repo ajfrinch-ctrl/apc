@@ -22,7 +22,7 @@
   <!-- Shared Active Plus design system; no separate dashboard skin. -->
   <link rel="preload" href="assets/fonts/NotoSansBengali-Variable.ttf" as="font" type="font/ttf" crossorigin>
 
-  <link rel="stylesheet" href="css/design-system.css?v=172">
+  <link rel="stylesheet" href="css/design-system.css?v=173">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -100,14 +100,21 @@
       <section class="pay-panel" data-pay-panel="more" id="payMorePanel" aria-labelledby="payMoreTitle" hidden>
                     <section class="admin-card" id="payMoreCard">
                       <h2 id="payMoreTitle">আরও</h2>
-                      <p class="finance-hint">কাউন্টারের সেশন ও সংরক্ষণ। কাউন্টার শুধু নিজের আদায় ও ফি রিপোর্ট দেখে — শিক্ষার্থীর বকেয়া, ফলাফল বা ক্লাস তালিকা এখানে নেই।</p>
-                      <dl class="pay-more-list">
-                        <div><dt>কাউন্টার</dt><dd id="payMoreUser">—</dd></div>
-                        <div><dt>সেশন</dt><dd>ডিভাইস-বাউন্ড কাউন্টার সেশন</dd></div>
-                        <div><dt>সংরক্ষণ</dt><dd>অফলাইন-ফার্স্ট (এই ডিভাইসে)</dd></div>
-                      </dl>
-                      <button class="admin-btn ghost" type="button" id="payMoreLogout">লগআউট</button>
+                      <p class="finance-hint">কাউন্টারের নিজের Settings — অ্যাকাউন্ট, নোটিফিকেশন, অ্যাপ, নিরাপত্তা ও ডেটা। কাউন্টার শুধু নিজের আদায় ও ফি রিপোর্ট দেখে — শিক্ষার্থীর বকেয়া, ফলাফল বা ক্লাস তালিকা এখানে নেই।</p>
                     </section>
+                    <div class="settings-hub" data-settings-hub="payment">
+                      <div class="profile-section" data-settings-group="account">
+                        <p class="eyebrow">অ্যাকাউন্ট</p>
+                        <div class="settings-list">
+                          <div class="settings-info" data-settings-row="profile"><span class="settings-copy"><strong>কাউন্টার</strong><small id="payMoreUser">—</small></span></div>
+                          <button type="button" class="settings-row-link" data-settings-row="logout" id="payMoreLogout"><span class="settings-icon danger" aria-hidden="true"></span><span class="settings-copy"><strong>লগআউট</strong><small>এই ডিভাইস থেকে সেশন শেষ করুন</small></span></button>
+                        </div>
+                      </div>
+                      <div class="profile-section" data-settings-group="notification"></div>
+                      <div class="profile-section" data-settings-group="app"></div>
+                      <div class="profile-section" data-settings-group="security"></div>
+                      <div class="profile-section" data-settings-group="data"></div>
+                    </div>
                   </section>
     </main>
     <nav class="admin-bottom" aria-label="পেমেন্ট কাউন্টার navigation"><button class="admin-bottom-item active" type="button" data-pay-section="home" aria-current="page"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="home" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10.5 9-7.7 9 7.7M5.2 9.3v10a1.7 1.7 0 0 0 1.7 1.7h10.2a1.7 1.7 0 0 0 1.7-1.7v-10M9.5 21v-6.5h5V21"/></svg></span><span>হোম</span></button><button class="admin-bottom-item" type="button" data-pay-section="students"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="students" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 6.2 9-3.5 9 3.5-9 3.5ZM6 7.5v3q6 3.5 12 0v-3M21 6.2v6"/><circle cx="12" cy="13.5" r="2.4"/><path d="M6.5 21v-.5a5.5 5.5 0 0 1 11 0v.5"/></svg></span><span>শিক্ষার্থী</span></button><button class="admin-bottom-item" type="button" data-pay-section="payment"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="wallet" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="14" rx="2.5"/><path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H18v4M21 12.5h-5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5"/><circle cx="17.7" cy="15" r=".6" fill="currentColor" stroke="none"/></svg></span><span>পেমেন্ট</span></button><button class="admin-bottom-item" type="button" data-pay-section="reports"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="reports" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2.2"/><path d="M7.5 16.5v-4M12 16.5v-9M16.5 16.5V10"/></svg></span><span>রিপোর্ট</span></button><button class="admin-bottom-item" type="button" data-pay-section="more"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" data-icon="more" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></span><span>আরও</span></button></nav>

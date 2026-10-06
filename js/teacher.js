@@ -12,7 +12,7 @@ import { listQuestionsForStaff } from './question-bank.js';
 import { listCourseContent } from './course-content.js';
 import { classByName } from './academics.js';
 import { NOTICE_CATEGORIES } from './notification-rules.js';
-import { initNotificationSettings } from './notification-settings.js';
+import { mountSettingsHub } from './settings-hub.js';
 import { initFixedShell } from './fixed-shell.js';
 import { registerServiceWorker } from './service-worker.js';
 import { mountReports, refreshReports } from './reports.js';
@@ -605,8 +605,15 @@ async function showTeacherShell() {
   setView(TEACHER_VIEWS.includes(wanted) ? wanted : 'home');
   onRouteChange(name => { if (TEACHER_VIEWS.includes(name) && name !== state.view) setView(name); });
   const loaded = await reload();
-  // Settings → Notification Settings, inside the Teacher's profile page.
-  initNotificationSettings({ mount: '#notificationSettings' });
+  /* Settings → the shared five-group structure. The profile card, password row
+     and theme switch keep their homes; the hub adds the notification group and
+     what the Teacher page did not have (app install, session, data). */
+  mountSettingsHub({
+    mount: '#teacherProfile',
+    role: 'teacher',
+    actions: { logout: () => { clearStaffSession('teacher'); goToLoginPage(); } },
+    session: { value: 'ডিভাইস-বাউন্ড সেশন', hint: 'লগইন এই ডিভাইসেই বাঁধা' }
+  });
   // পড়াশোনা পরিচালনা করুন — content for the Teacher's own class+subject only.
   await mountCourseEditor();
   await mountReports($('#teacherReports'), { panel: 'teacher' });

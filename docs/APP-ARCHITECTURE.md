@@ -1,4 +1,4 @@
-# APC App Architecture — একক স্থায়ী সোর্স (v172)
+# APC App Architecture — একক স্থায়ী সোর্স (v173)
 
 > এই নথিটিই APC-এর **একক architecture রেফারেন্স**। এখানে যা লেখা আছে তার বাইরে
 > কোনো section-এর ঘর নির্ধারিত নয়। নতুন feature যোগ করার আগে এখানে তার ঘর ঠিক
@@ -88,7 +88,7 @@
 
 ---
 
-## ২। চূড়ান্ত Navigation Map (v172 লক্ষ্য)
+## ২। চূড়ান্ত Navigation Map (v173 লক্ষ্য)
 
 ### Student
 `🏠 হোম` · `📚 পড়াশোনা` · `🗓 রুটিন` · `📝 পরীক্ষা` · `👤 আরও`
@@ -314,6 +314,34 @@ Admin-এর bottom bar এখন ঠিক **হোম · স্টাফ · �
 - **একটাই ডেটা পথ:** স্টাফ CRUD `js/staff-auth.js` + `js/staff-directory.js`, ডেটা/ব্যাকআপ
   `js/admin-data.js` + `js/backup-merge.js`; কোনো নতুন store বা দ্বিতীয় তালিকা যোগ হয়নি।
 
+### Phase 6 — Settings (এই রিলিজে যা হয়েছে)
+
+প্রতিটি role-এর Settings এখন **একই পাঁচটি group, একই ক্রমে** — Student আরও→সেটিংস, Teacher/Manager
+প্রোফাইল (নাম এখন সেটিংস), Admin অ্যাকাউন্ট seat, আর Cash Counter-এর আরও। কাঠামোর মালিক
+`js/settings-hub.js`; ভিতরের কাজ যার, ঘর তার:
+
+| Group | কী থাকে | কে owns |
+| --- | --- | --- |
+| অ্যাকাউন্ট | প্রোফাইল · পাসওয়ার্ড · লগআউট (শিক্ষার্থী/কাউন্টারের নিজের যেটুকু আছে) | প্যানেল নিজেই |
+| নোটিফিকেশন | চালু/বন্ধ · ব্রাউজার অনুমতি · ব্যাকগ্রাউন্ড · শব্দ · প্রিভিউ · ইতিহাস | `js/notification-settings.js` |
+| অ্যাপ | অ্যাপ ইনস্টল · গাঢ় থিম | `js/install.js` · `js/appearance.js` |
+| নিরাপত্তা | এই ডিভাইস · সেশন · পাসওয়ার্ড নীতি | প্যানেল + নীতি constant |
+| ডেটা | অফলাইন ডেটা · সংরক্ষিত আকার (এই ডিভাইস) | `js/settings-hub.js` |
+
+- **একটি setting, একটি control:** hub আগে দেখে প্যানেলে সেই row আগে থেকেই আছে কি না (`data-settings-row`
+  marker, নয়তো আগের id — `#managerChangePassword`, `#adminAccountLogout`, `#trustedDeviceToggle`,
+  `#darkModeToggle`…), আর খোঁজটা hub-এর নিজের surface-এর ভিতরেই সীমিত। তাই কোনো প্যানেলে profiling/
+  password/logout/theme দুবার আসে না — `tests/settings-structure.test.mjs` এটাই প্রমাণ করে।
+- **থিম switch একটাই:** যেখানে প্যানেলের নিজের `#darkModeToggle` আছে (Student/Teacher/Manager/Admin)
+  hub কিছু যোগ করে না; যেখানে নেই (Cash Counter), hub-এর row-টাই সেই এক switch —
+  `js/appearance.js` এখন `[data-settings-toggle="theme"]`-ও bind করে, আর সেটা থাকে না থাকলে যায়।
+- **লেখা আছে, দাবি নেই:** hub কোনো store, key বা permission বানায় না; সব số/লেবেল আসে যেই module আগে
+  থেকেই সেটার মালিক। শিক্ষার্থীর Settings-এই একমাত্র নতুন তথ্য **সংরক্ষিত আকার** (এই ডিভাইসে কত ডেটা)।
+- **Sync status এখানে নেই:** §8-এর নিয়ম অপরিবর্তিত — topbar-এর বর্ডার রঙই একমাত্র indicator, Settings-এ
+  সিঙ্ক নিয়ে কোনো লেখা নেই।
+- **নোটিফিকেশন আলাদাই থাকে:** Settings-এর নোটিফিকেশন group কেবল *কীভাবে জানাবে* তা ঠিক করে; কনটেন্ট
+  আগের মতোই আলাদা notice board, আর শিক্ষার্থীর আরও-এ নোটিফিকেশন entry আলাদা (এক merge হয়নি)।
+
 ## ৯। Phase পরিকল্পনা (স্ট্যাটাসসহ)
 
 | Phase | কাজ | স্ট্যাটাস |
@@ -324,7 +352,7 @@ Admin-এর bottom bar এখন ঠিক **হোম · স্টাফ · �
 | 3 | Manager: `শিক্ষার্থী` (অনুমোদন merge) · `একাডেমিক` · `হিসাব` · `রিপোর্ট` — nav ষষ্ঠ আইটেমসহ | ✅ এই রিলিজে |
 | 4 | Cash Counter: ৫-আইটেম bottom bar (হোম/শিক্ষার্থী/পেমেন্ট/রিপোর্ট/আরও) | ✅ এই রিলিজে |
 | 5 | Admin: `স্টাফ / রিপোর্ট / সিস্টেম / ডেটা / অ্যাকাউন্ট`; শিক্ষার্থী view সরানো | ✅ এই রিলিজে |
-| 6 | সব Role-এর Settings এক কাঠামো (Account/Notification/App/Security/Data) | পরবর্তী |
+| 6 | সব Role-এর Settings এক কাঠামো (Account/Notification/App/Security/Data) | ✅ এই রিলিজে — `js/settings-hub.js` |
 | 7 | প্রতিটি Role-এ E2E QA (Teacher→Student ৯টি workflow) | ✅ এই রিলিজে — `tests/workflows-e2e.test.mjs` ৭টি + `tests/registration-approval-login.test.mjs` (Manager approval workflow) |
 
 প্রতিটি phase-এ নিয়ম এক: **আগে feature-এর নতুন বাড়ি নিশ্চিত, তারপর পুরোনো menu সরানো** — এবং

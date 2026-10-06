@@ -31,6 +31,7 @@ import { initStudentNoticeBoard } from './student-notice-board.js';
 import { initStudentDashboard } from './student-dashboard.js';
 import { mountReports, refreshReports } from './reports.js';
 import { initNotificationSettings } from './notification-settings.js';
+import { mountSettingsHub } from './settings-hub.js';
 import { initCourseHub } from './course-hub.js';
 import { initStudentStudySections } from './student-study-sections.js';
 import { initStudentFee } from './student-more.js';
@@ -334,7 +335,16 @@ window.addEventListener('apc-sync-updated', event => {
 window.addEventListener('storage', event => {
   if (!event.key || event.key === ROSTER_KEY) void applyRosterProfileToStudent();
 });
-// Settings → Notification Settings: switches, permission, preview and history.
+/* Settings → the one five-group structure every role shares (js/settings-hub.js).
+   The student's own rows (profile, install, theme, device, offline) stay exactly
+   where they are; the hub only adds what was missing — session, storage, sync —
+   and hands the notification group to js/notification-settings.js. */
+mountSettingsHub({
+  mount: '#settingsView',
+  role: 'student',
+  session: { value: 'লগইন সেশন এই ডিভাইসে', hint: 'নিরাপত্তার জন্য সেশন ডিভাইস-বাউন্ড' }
+});
+// Settings → Notification Settings (the full screen behind এই নোটিফিকেশন সেটিংস).
 initNotificationSettings({ mount: '#notificationSettings' });
 initConnectivity();
 // Firebase is optional during online testing; offline startup remains independent.

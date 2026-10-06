@@ -82,6 +82,12 @@
 .settings-list>*{background:transparent;border:0;border-bottom:1px solid var(--color-border);border-radius:0;text-align:left}
 .settings-list>*:last-child{border-bottom:0}
 .settings-list>*:hover{background:var(--color-surface-muted)}
+/* Settings hub rows (js/settings-hub.js): an information row keeps the same
+   shape as the button/label rows, and a group whose content another module
+   renders (নোটিফিকেশন) shows its own sections instead of a card inside a card. */
+.settings-list>.settings-info{display:flex;align-items:center;gap:var(--space-3);width:100%;padding:var(--space-4)}
+.settings-value{margin-left:auto;flex:none;color:var(--color-text-secondary);font-size:var(--font-sm);text-align:right}
+.profile-section[data-settings-owner]{padding:0;border:0;background:transparent;margin-bottom:0;box-shadow:none}
 /* An empty report mount must not leave a hollow card behind. */
 .profile-section:has(.rp-mount:empty){display:none}
 @media(max-width:360px){

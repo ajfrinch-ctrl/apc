@@ -1,6 +1,6 @@
 import { studentRecordMarkup } from './student-record.js';
 import { initAdminAcademics } from './admin-academics.js';
-import { initNotificationSettings } from './notification-settings.js';
+import { mountSettingsHub } from './settings-hub.js';
 import { iconMarkup } from './icons.js';
 /* Admin panel — System Control + Staff Management + Permissions + Security +
    Data + Reports + Settings.
@@ -139,8 +139,14 @@ async function enterPanel() {
   await refreshStaffSnapshot();
   renderAll();
   // The Reports Module re-reads who is signed in and what they may see.
-  // Settings → Notification Settings, inside the Admin Profile page.
-  initNotificationSettings({ mount: '#notificationSettings' });
+  /* Settings → the shared five-group structure (Admin অ্যাকাউন্ট seat). Profile,
+     session/logout and password keep their own cards; the hub adds the
+     notification group plus app, security and data rows. */
+  mountSettingsHub({
+    mount: '[data-settings-hub="admin"]',
+    role: 'admin',
+    session: { value: 'নিরাপত্তা নীতি অনুযায়ী সেশন', hint: 'ডিভাইস-বাউন্ড সেশন' }
+  });
   mountReports($('#adminReports'), { panel: 'admin' });
   // A deep link (admin.html#staff) opens only when this role may see it;
   // anything else falls back to the first permitted tab.

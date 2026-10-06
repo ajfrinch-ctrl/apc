@@ -14,6 +14,8 @@ import { goToLoginPage } from './staff-auth.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
 import { PAYMENT_USER_ID, PAYMENT_SESSION_KEY, hasPaymentSession, clearPaymentSession } from './payment-auth.js';
 import { readStaffAccount } from './staff-auth.js';
+import { initAppearance } from './appearance.js';
+import { mountSettingsHub } from './settings-hub.js';
 export { PAYMENT_USER_ID };
 
 registerServiceWorker();
@@ -245,5 +247,14 @@ hasPaymentSession().then(async valid=>{
   $('#payCurrentDate').textContent=new Intl.DateTimeFormat('bn-BD',{day:'numeric',month:'long',year:'numeric'}).format(new Date());
   try {const account=await readStaffAccount('payment');$('#payMoreUser').textContent=account?.fullName || account?.username || PAYMENT_USER_ID;}
   catch {$('#payMoreUser').textContent=PAYMENT_USER_ID;}
+  // আরও → the same five Settings groups every role gets. The counter's own rows
+  // (নিজের তথ্য, লগআউট) stay put; the hub adds app/security/data where missing.
+  mountSettingsHub({
+    mount: '#payMorePanel',
+    role: 'payment',
+    actions: { logout: () => exitCounter() },
+    session: { value: 'ডিভাইস-বাউন্ড কাউন্টার সেশন', hint: 'পেমেন্ট কাউন্টার সেশন' }
+  });
+  initAppearance();
   configureForm(); showCounterView('home'); await refreshToday();
 });

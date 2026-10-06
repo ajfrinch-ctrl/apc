@@ -1,3 +1,8 @@
+// v173: one Settings structure for every role — অ্যাকাউন্ট · নোটিফিকেশন · অ্যাপ · নিরাপত্তা · ডেটা.
+//       The Student আরও→সেটিংস, the Teacher/Manager profile page, the Admin অ্যাকাউন্ট seat and the
+//       Cash Counter's আরও all render the same five groups (js/settings-hub.js); a group's internals
+//       stay with the module that owns that work, an existing control is never duplicated, and the
+//       counter's theme switch is the same one switch the other panels already had.
 // v172: Admin app architecture — the bottom bar is হোম/স্টাফ/রিপোর্ট/সিস্টেম/ডেটা/অ্যাকাউন্ট and the old More
 //       menu became two hubs (সিস্টেম → roles/security/settings/academics; ডেটা → data management +
 //       backup). Student registration review moved to a হোম tile: Admin decides on a registration,
@@ -38,7 +43,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 172;
+const CACHE_VERSION = 173;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -141,6 +146,7 @@ const APP_SHELL = [
   './js/staff-password-dialog.js',
   './js/notification-store.js',
   './js/notification-settings.js',
+  './js/settings-hub.js',
   './js/academics.js',
   './js/brand.js',
   './js/admin-academics.js',

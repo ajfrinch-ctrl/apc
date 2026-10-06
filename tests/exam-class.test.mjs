@@ -13,8 +13,13 @@ import { provisionStaff, openStaffPanel } from './staff-harness.mjs';
 
 let ctx, repo;
 const $ = sel => ctx.$(sel);
-const settle = () => new Promise(resolve => setTimeout(resolve, 60));
-const exams = () => JSON.parse(ctx.window.localStorage.getItem(EXAM_KEY)).exams;
+/* Saving an exam goes through validation + the repository, which can take longer
+   than one frame when the whole suite runs in parallel — wait for the record
+   itself, never for a fixed delay. */
+const settle = predicate => predicate
+  ? ctx.waitFor(predicate, 30000)
+  : new Promise(resolve => setTimeout(resolve, 60));
+const exams = () => (JSON.parse(ctx.window.localStorage.getItem(EXAM_KEY) || '{}') || {}).exams || [];
 const write = db => ctx.window.localStorage.setItem(EXAM_KEY, JSON.stringify(db));
 const seedStudentSession = student => {
   ctx.window.localStorage.setItem(STORAGE_KEYS.account, JSON.stringify({ status: 'active', student }));
@@ -55,7 +60,7 @@ test('saving an exam records the chosen class and the card shows it', async () =
   ctx.$('select[name=className]').value = tenth.className;
   ctx.type($('textarea[name=template]'), examTemplate('mcq'));
   ctx.submit($('[data-exam-form]'));
-  await settle();
+  await settle(() => exams()[0]?.className);
 
   const saved = exams()[0];
   assert.equal(saved.className, tenth.className);
@@ -66,7 +71,7 @@ test('an exam keeps its class when it is reopened for editing', async () => {
   ctx.click($(`#teacherExamWorkspace [data-managed-exam="${exams()[0].id}"]`));
   await settle();
   ctx.click($(`#teacherExamWorkspace [data-exam-action="edit"][data-id="${exams()[0].id}"]`));
-  await settle();
+  await settle(() => ctx.$('select[name=className]')?.value === tenth.className);
   assert.equal(ctx.$('select[name=className]').value, tenth.className);
 });
 
@@ -80,6 +85,7 @@ test('a class the app does not run is refused', () => {
 
 test('only that class can start the published exam', async () => {
   const id = exams()[0].id;
+  assert.ok(id, 'the exam saved in the previous test is still there');
   await repo.requestApproval(id);
   await repo.review(id, 'publish', {}, MANAGER_ACTOR);
   // Open the window: publishing requires a future start, taking it a past one.

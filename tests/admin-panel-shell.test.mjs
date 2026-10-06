@@ -277,3 +277,22 @@ test('a role with no capability leaves the panel empty — menus, cards and rout
   assert.equal(fresh.$('.admin-bottom').hidden, true);
   assert.equal(fresh.$$('.admin-view').length, 0);
 });
+
+test('Admin Settings is the shared five-group hub, with no duplicated control', () => {
+  /* §29 — one Settings structure for every role: অ্যাকাউন্ট · নোটিফিকেশন · অ্যাপ ·
+     নিরাপত্তা · ডেটা. The Admin's own profile/session/password cards stay; the hub
+     adds the notification group and the rows the seat did not have. */
+  const hub = ctx.$('[data-settings-hub="admin"]');
+  assert.ok(hub, 'admin settings hub missing');
+  assert.deepEqual([...hub.querySelectorAll('[data-settings-group]')].map(section => section.dataset.settingsGroup),
+    ['account', 'notification', 'app', 'security', 'data']);
+  assert.equal(ctx.$$('#darkModeToggle').length, 1, 'one theme switch (the page\'s own)');
+  assert.equal(ctx.$$('[data-settings-toggle="theme"]').length, 0, 'the hub must not add a second theme switch');
+  for (const key of ['profile', 'password', 'logout']) {
+    assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
+  }
+  for (const key of ['install', 'device', 'session', 'offline', 'storage']) {
+    assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
+  }
+  assert.equal(hub.querySelector('[data-settings-group="notification"]').dataset.settingsOwner, 'notification');
+});

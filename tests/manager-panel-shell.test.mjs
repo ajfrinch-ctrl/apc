@@ -164,3 +164,23 @@ test('every আরও row opens its own page without an error', async () => {
   }
   assert.deepEqual(ctx.jsdomErrors, [], 'no page raised an error while opening');
 });
+
+test('Manager Settings is the shared five-group hub, with no duplicated control', () => {
+  /* §29 — one Settings structure for every role. The Manager's own profile card,
+     password row and theme switch stay where they were; the hub fills the rest. */
+  const hub = ctx.$('[data-settings-hub="manager"]');
+  assert.ok(hub, 'manager settings hub missing');
+  assert.deepEqual([...hub.querySelectorAll('[data-settings-group]')].map(section => section.dataset.settingsGroup),
+    ['account', 'notification', 'app', 'security', 'data']);
+  assert.equal(ctx.$$('#darkModeToggle').length, 1, 'one theme switch (the page\'s own)');
+  assert.equal(ctx.$$('[data-settings-toggle="theme"]').length, 0, 'the hub must not add a second theme switch');
+  assert.equal(hub.querySelectorAll('[data-settings-row="profile"]').length, 1, 'the profile card is the profile row');
+  assert.equal(hub.querySelectorAll('[data-settings-row="password"]').length, 1, 'one password row');
+  assert.equal(hub.querySelectorAll('[data-settings-row="logout"]').length, 1, 'one logout row');
+  assert.equal(hub.querySelectorAll('[data-settings-row="install"]').length, 1, 'app install comes from the hub');
+  for (const key of ['device', 'session', 'storage']) {
+    assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
+  }
+  assert.equal(hub.querySelector('[data-settings-group="notification"]').dataset.settingsOwner, 'notification',
+    'the notification group stays owned by js/notification-settings.js');
+});

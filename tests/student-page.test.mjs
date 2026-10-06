@@ -48,6 +48,29 @@ test('session restore lands in the app and every bottom-nav view opens', async (
   assert.deepEqual(navErrors(ctx), [], 'script errors on the student page');
 });
 
+test('সেটিংস is the shared five-group hub, filled around the student\'s own rows', async () => {
+  const ctx = await boot();
+  const { $, $$ } = ctx;
+  const hub = $('#settingsView');
+  assert.deepEqual([...hub.querySelectorAll('[data-settings-group]')].map(section => section.dataset.settingsGroup),
+    ['account', 'notification', 'app', 'security', 'data']);
+  // The student's own controls are untouched and never duplicated by the hub.
+  assert.equal($$('#darkModeToggle').length, 1);
+  assert.equal($$('[data-settings-toggle="theme"]').length, 0);
+  assert.equal(hub.querySelectorAll('[data-settings-row="profile"]').length, 1);
+  assert.equal(hub.querySelectorAll('[data-settings-row="install"]').length, 1);
+  assert.equal(hub.querySelectorAll('[data-settings-row="logout"]').length, 1);
+  assert.equal(hub.querySelectorAll('[data-settings-row="device"]').length, 1);
+  assert.equal(hub.querySelectorAll('[data-settings-row="offline"]').length, 1);
+  // What the page did not own comes from the hub.
+  for (const key of ['session', 'storage']) {
+    assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
+  }
+  // নোটিফিকেশন opens the one full notification screen (it is not a floating drawer).
+  assert.equal(hub.querySelectorAll('[data-settings-row="notification-link"]').length, 1);
+  assert.equal(navErrors(ctx).length, 0, navErrors(ctx).join('\n'));
+});
+
 test('routine day tabs switch the shown day', async () => {
   const ctx = await boot();
   const { $, click } = ctx;

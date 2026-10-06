@@ -85,8 +85,11 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
     const backs = [...document.querySelectorAll('.pay-back')];
     assert.equal(backs.length, count, name);
     for (const button of backs) {
-      // Every আরও sub-page (প্রোফাইল, রিপোর্ট, নোটিফিকেশন, ফি, সেটিংস) goes back to More.
-      const parent = name === 'index' && button.closest(MORE_SUBPAGES) ? 'profile' : target;
+      // Every আরও sub-page goes back to More — the student's (প্রোফাইল, রিপোর্ট,
+      // নোটিফিকেশন, ফি, সেটিংস) and the staff profile/Settings page too.
+      const staffHubPage = name !== 'index' && button.closest('[data-view-panel="profile"], #teacherProfile');
+      const parent = name === 'index' && button.closest(MORE_SUBPAGES) ? 'profile'
+        : staffHubPage ? 'more' : target;
       assert.equal(button.getAttribute(attribute), parent);
       assert.ok(button.getAttribute('aria-label'));
       assert.ok(button.querySelector('svg'));
@@ -142,8 +145,11 @@ test('notification settings live inside a hidden view, never floating outside th
     assert.ok(view, name + ' settings mount is outside every view panel');
     if (name === 'teacher') assert.equal(view.hidden, true, name + ' settings view is not hidden by default');
     else assert.equal(view.classList.contains('active'), false, name + ' settings view is active by default');
-    // A view panel hides its whole subtree; the mount must not escape it.
-    assert.equal(mount.parentElement, view, name + ' settings mount is not a direct view child subtree');
+    // A view panel hides its whole subtree; the mount must not escape it. Inside
+    // the view it now sits in the Settings hub's নোটিফিকেশন group (§29).
+    assert.ok(view.contains(mount), name + ' settings mount is outside its view panel');
+    assert.ok(mount.closest('[data-settings-group="notification"], #notificationSettingsView'),
+      name + ' notification settings are not inside the নোটিফিকেশন group');
   }
   assert.equal(doc('payment').getElementById('notificationSettings'), null, 'counter has no staff settings mount');
 });
