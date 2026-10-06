@@ -82,6 +82,10 @@
 .settings-list>*{background:transparent;border:0;border-bottom:1px solid var(--color-border);border-radius:0;text-align:left}
 .settings-list>*:last-child{border-bottom:0}
 .settings-list>*:hover{background:var(--color-surface-muted)}
+/* Report Center: the honest empty state (§Report Center). Same dashed language as
+   .rc-preview-empty, but it sits above the pages so an empty report never looks
+   like a blank sheet. */
+.rc-preview-notice{margin:0;padding:var(--space-5);border:1px dashed var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);color:var(--color-text-secondary);text-align:center;font-weight:600}
 /* Settings hub rows (js/settings-hub.js): an information row keeps the same
    shape as the button/label rows, and a group whose content another module
    renders (নোটিফিকেশন) shows its own sections instead of a card inside a card. */

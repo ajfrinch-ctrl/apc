@@ -1202,6 +1202,39 @@ const academicAssignment = {
   }
 };
 
+const academicSuggestion = {
+  id: 'academic.suggestion',
+  category: 'academic',
+  title: 'Suggestion Report',
+  subtitle: 'দেওয়া সাজেশনের তালিকা, অধ্যায় ও শ্রেণি',
+  roles: ['admin', 'manager', 'teacher'],
+  filters: ['period', 'class', 'batch', 'subject', 'teacher'],
+  period: 'activity',
+  async build(ctx) {
+    const activities = activitiesFor(ctx, ['suggestion']);
+    const rows = activities.map(activity => [
+      dateLabel(activity.date), dash(activity.title), dash(activity.subject),
+      dash(activity.details || activity.chapter || '—'), dash(activity.className),
+      dash(activity.group || 'সব'), dash(activity.teacherName), dash(activity.status)
+    ]);
+    return {
+      period: ctx.range.label,
+      scopeLines: scopeLine(ctx),
+      blocks: [
+        tiles([
+          { label: 'মোট সাজেশন', value: num(activities.length) },
+          { label: 'বিষয়', value: num(new Set(activities.map(item => item.subject).filter(Boolean)).size) }
+        ], 4),
+        table([
+          { label: 'তারিখ', width: 1 }, { label: 'শিরোনাম', width: 2 }, { label: 'বিষয়', width: 1.2 },
+          { label: 'বিস্তারিত', width: 2.2 }, { label: 'শ্রেণি', width: 1.1 }, { label: 'বিভাগ', width: 1 },
+          { label: 'শিক্ষক', width: 1.4 }, { label: 'অবস্থা', width: 1 }
+        ], rows, 'সাজেশন')
+      ]
+    };
+  }
+};
+
 const academicAssignmentSubmission = {
   id: 'academic.assignment-submission',
   category: 'academic',
@@ -2665,6 +2698,7 @@ export const BUILDERS = Object.freeze([
   academicAttendance,
   academicAttendanceSummary,
   academicAssignment,
+  academicSuggestion,
   academicAssignmentSubmission,
   academicPerformance,
   teacherMyClass,

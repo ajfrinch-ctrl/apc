@@ -310,6 +310,8 @@ test('5 — no records means the honest empty state, never invented rows', async
   // The empty state travels inside the document, so the PDF says it too — and
   // no zero-filled table is printed in its place.
   assert.ok($('.rc-pdf-preview').textContent.includes(catalog.EMPTY_MESSAGE), 'the preview uses the catalogue empty message');
+  assert.match(catalog.EMPTY_MESSAGE, /কোনো তথ্য পাওয়া যায়নি/, 'the empty state carries the required wording');
+  assert.equal($('.rc-preview-notice').textContent, catalog.EMPTY_MESSAGE, 'the preview states the empty result above the page');
   assert.equal($('.rc-pdf-preview').textContent.includes('AP-1024'), false, 'no student rows leak into an empty report');
   assert.ok(catalog.EMPTY_MESSAGE.length > 0, 'the catalogue keeps the Bengali empty message');
 });

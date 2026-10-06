@@ -1,3 +1,8 @@
+// v174: Report Center final sweep — one empty-state wording for every role ("কোনো তথ্য পাওয়া যায়নি।",
+//       defined once in js/report-catalog.js and used by the preview, the PDF and the counter), the
+//       empty message now stands above the page instead of leaving a blank sheet, and the Academic
+//       family gained the Suggestion Report (সাজেশন — learning, status, chapter, class) beside the
+//       assignment/attendance reports.
 // v173: one Settings structure for every role — অ্যাকাউন্ট · নোটিফিকেশন · অ্যাপ · নিরাপত্তা · ডেটা.
 //       The Student আরও→সেটিংস, the Teacher/Manager profile page, the Admin অ্যাকাউন্ট seat and the
 //       Cash Counter's আরও all render the same five groups (js/settings-hub.js); a group's internals
@@ -43,7 +48,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 173;
+const CACHE_VERSION = 174;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

@@ -2,7 +2,7 @@
    simple input/select form and durable pending receipt with no suffix. */
 import test, { before } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadPage } from './jsdom-harness.mjs';
+import { loadPage, stubPdfPrimitives } from './jsdom-harness.mjs';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
 import { adminStudents, paymentMethods } from '../js/admin-data.js';
 import { KEYS } from '../js/database.js';
@@ -169,6 +169,25 @@ test('a rejected-entry notification opens that entry’s own slip, not a bare li
  assert.equal($$('.admin-bottom [data-pay-section="home"]').length,1);
 });
 
+test('the counter Report Center previews only after Generate and says so when nothing matched',async()=>{
+ const {$,click,waitFor}=ctx;
+ /* Only the browser primitives jsdom lacks (canvas/font/image), never app logic. */
+ stubPdfPrimitives(ctx.window);
+ click($('.admin-bottom [data-pay-section="reports"]'));
+ const preview=$('#paymentReports .counter-report-preview');
+ assert.equal(preview.textContent,'','no preview before Generate');
+ /* A daily report for a day with no ledger rows: still Generate-then-preview,
+    and the honest empty state — never a blank sheet, never an invented row. */
+ const choices=$('#paymentReports select[name="report"]');
+ choices.value='fee.daily';choices.dispatchEvent(new window.Event('change',{bubbles:true}));
+ const date=$('#paymentReports input[name="date"]');
+ date.value='2019-01-01';date.dispatchEvent(new window.Event('change',{bubbles:true}));
+ $('#paymentReports .counter-report-form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+ await waitFor(()=>$('#paymentReports [data-report-empty]'),30000);
+ assert.equal($('#paymentReports [data-report-empty]').textContent.trim(),'কোনো তথ্য পাওয়া যায়নি।');
+ assert.equal(preview.textContent.includes(person.name),false,'an empty report carries no student row');
+ assert.ok($('#paymentReports [data-counter-download="pdf"]'),'the PDF stays available for the empty report too');
+});
 test('corrupt ledger disables payment instead of overwriting financial history',async()=>{
  const {$,window,waitFor}=ctx;
  window.localStorage.setItem(KEYS.transactions,'broken');window.dispatchEvent(new window.StorageEvent('storage',{key:KEYS.transactions}));

@@ -24,7 +24,9 @@ for (const viewport of viewports) {
     await expect(page.locator('#appShell')).toBeVisible();
     await expect(page.locator('.bottom-nav .bottom-link')).toHaveCount(5);
     expect((await page.locator('#appShell').boundingBox()).width).toBe(Math.min(viewport.width,480));
-    for (const view of ['home','routine','courses','results','profile']) {
+    /* The student bar is হোম · পড়াশোনা · রুটিন · পরীক্ষা · আরও; ফলাফল is a tab
+       inside পরীক্ষা (Phase 1b), so the mobile sweep walks the real seats. */
+    for (const view of ['home','routine','courses','exams','profile']) {
       await page.locator(`.bottom-nav [data-view="${view}"]`).click();
       await expect(page.locator(`#${view}View`)).toBeVisible();
       await noOverflow(page, '#appShell');

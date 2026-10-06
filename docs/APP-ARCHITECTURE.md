@@ -1,4 +1,4 @@
-# APC App Architecture — একক স্থায়ী সোর্স (v173)
+# APC App Architecture — একক স্থায়ী সোর্স (v174)
 
 > এই নথিটিই APC-এর **একক architecture রেফারেন্স**। এখানে যা লেখা আছে তার বাইরে
 > কোনো section-এর ঘর নির্ধারিত নয়। নতুন feature যোগ করার আগে এখানে তার ঘর ঠিক
@@ -88,7 +88,7 @@
 
 ---
 
-## ২। চূড়ান্ত Navigation Map (v173 লক্ষ্য)
+## ২। চূড়ান্ত Navigation Map (v174 লক্ষ্য)
 
 ### Student
 `🏠 হোম` · `📚 পড়াশোনা` · `🗓 রুটিন` · `📝 পরীক্ষা` · `👤 আরও`
@@ -342,6 +342,30 @@ Admin-এর bottom bar এখন ঠিক **হোম · স্টাফ · �
 - **নোটিফিকেশন আলাদাই থাকে:** Settings-এর নোটিফিকেশন group কেবল *কীভাবে জানাবে* তা ঠিক করে; কনটেন্ট
   আগের মতোই আলাদা notice board, আর শিক্ষার্থীর আরও-এ নোটিফিকেশন entry আলাদা (এক merge হয়নি)।
 
+### Report Center — চূড়ান্ত sweep (এই রিলিজে যা হয়েছে)
+
+প্রতিটি Role-এর Report Center একই workflow-এ চলে — **Report dropdown → Date/Filter → Generate →
+Preview → PDF**, আর Generate-এর আগে preview খোলে না:
+
+| Role | Report Center কোথায় | কী দেখে |
+| --- | --- | --- |
+| Admin | রিপোর্ট seat (`#adminReports`) | system-wide: student/fee/cash/academic/exam/result/notice/staff/management |
+| Manager | রিপোর্ট seat (`#managerReports`) | একই catalog, staff report ছাড়া (Manager staffOnly report চাইলে refusal) |
+| Teacher | ফলাফল → রিপোর্ট (আগের মতোই) | শুধু assigned class/batch/subject-এর academic/exam/result/notice |
+| Cash Counter | রিপোর্ট seat (`#paymentReports`) | শুধু পেমেন্ট-সংক্রান্ত ২০টি report; ব্যক্তিগত তথ্য সীমিত |
+| Student | আরও → আমার রিপোর্ট (`#studentReports`) | শুধু নিজের payment/due/attendance/assignment/exam/result |
+
+- **একটি empty-state, এক জায়গায়:** `EMPTY_MESSAGE = 'কোনো তথ্য পাওয়া যায়নি।'` (`js/report-catalog.js`) —
+  preview, PDF আর কাউন্টারের Report Center তিনজনই সেই একই লেখা পড়ে। Empty result-ও কিন্তু
+  **preview খোলে** (শূন্য সারির পৃষ্ঠা নয়, লেখাটাই সামনে) — অনুমান-করা কোনো সারি বা `০`-ভর্তি table নেই।
+- **নতুন Report:** `academic.suggestion` (সাজেশন রিপোর্ট) — তারিখ · শিরোনাম · বিষয় · বিস্তারিত ·
+  শ্রেণি · বিভাগ · শিক্ষক · অবস্থা। বাড়ির কাজ/উপস্থিতির পাশে একই Academic পরিবারে, একই `teaching`
+  store থেকে লেখা ও পড়া (দ্বিতীয় তালিকা নেই)।
+- **প্রমাণ:** `tests/report-center-sweep.test.mjs` এখন সব report × সব role চালায় — Generate কখনো
+  throw করে না, empty device-এ কোনো সারি বানায় না, এবং কোনো role অন্য role-এর report চাইলে
+  `FORBIDDEN` পায়। UI-এর স্বাভাবিক পথ `tests/report-center.test.mjs`, `tests/reports-ui.test.mjs`
+  আর কাউন্টারের `tests/payment-desk.test.mjs`-এ।
+
 ## ৯। Phase পরিকল্পনা (স্ট্যাটাসসহ)
 
 | Phase | কাজ | স্ট্যাটাস |
@@ -353,6 +377,7 @@ Admin-এর bottom bar এখন ঠিক **হোম · স্টাফ · �
 | 4 | Cash Counter: ৫-আইটেম bottom bar (হোম/শিক্ষার্থী/পেমেন্ট/রিপোর্ট/আরও) | ✅ এই রিলিজে |
 | 5 | Admin: `স্টাফ / রিপোর্ট / সিস্টেম / ডেটা / অ্যাকাউন্ট`; শিক্ষার্থী view সরানো | ✅ এই রিলিজে |
 | 6 | সব Role-এর Settings এক কাঠামো (Account/Notification/App/Security/Data) | ✅ এই রিলিজে — `js/settings-hub.js` |
+| 6b | Report Center চূড়ান্ত sweep (empty state এক ভাষায়, সাজেশন রিপোর্ট, সব report × সব role) | ✅ এই রিলিজে |
 | 7 | প্রতিটি Role-এ E2E QA (Teacher→Student ৯টি workflow) | ✅ এই রিলিজে — `tests/workflows-e2e.test.mjs` ৭টি + `tests/registration-approval-login.test.mjs` (Manager approval workflow) |
 
 প্রতিটি phase-এ নিয়ম এক: **আগে feature-এর নতুন বাড়ি নিশ্চিত, তারপর পুরোনো menu সরানো** — এবং
