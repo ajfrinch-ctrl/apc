@@ -437,7 +437,6 @@ function saveStudentEdit(student) {
   persistStudents();
   closeModal();
   renderStudents();
-  renderFinance();
   renderDashboard();
   toast(`${name} এর তথ্য সম্পাদনা করা হয়েছে`);
 }
@@ -792,7 +791,6 @@ function clearSelectedCollection() {
     }
     closeModal();
     toast(`${item.label} মুছে ফেলা হয়েছে`);
-    await loadFinanceTransactions();
     state.students = loadRoster();
     state.routine = loadRoutine();
     state.notices = loadNotices();
