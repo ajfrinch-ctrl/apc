@@ -19,13 +19,13 @@ import { after } from 'node:test';
 import { loadPage } from './jsdom-harness.mjs';
 import { hashPassword } from '../js/password-hash.js';
 import { STORAGE_KEYS } from '../js/config.js';
-import { ROSTER_KEY, saveNotices, saveRoutine, blankRoutine } from '../js/office-data.js';
+import { ROSTER_KEY, saveRoutine, blankRoutine } from '../js/office-data.js';
 import { TEACHING_KEY } from '../js/teaching-data.js';
 import { EXAM_KEY } from '../js/exam-data.js';
 import { QUESTION_BANK_KEY } from '../js/question-bank.js';
 import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
 import { TRANSACTIONS_KEY } from '../js/finance-data.js';
-import { provisionStaff, seedStaffSession, STAFF_TEST_PASSWORD } from './staff-harness.mjs';
+import { openStaffPanel, provisionStaff, seedStaffSession, STAFF_TEST_PASSWORD } from './staff-harness.mjs';
 
 const CLASS = 'দশম শ্রেণি';
 const STUDENT = Object.freeze({
@@ -105,12 +105,12 @@ async function seedAcademics() {
   return withoutStaffSessions(dump(keepOpen(ctx)));
 }
 
-async function openStudent(storage) {
+async function openStudent(storage, { student = STUDENT, username = USERNAME } = {}) {
   const seed = withoutStaffSessions(storage);
   seed['activePlus.demo.autofill.v1'] = 'off';
   seed[STORAGE_KEYS.account] = JSON.stringify({
-    username: USERNAME, mobile: STUDENT.studentMobile, registrationMobile: STUDENT.studentMobile,
-    pinHash: await hashPassword(PASSWORD), status: 'active', student: STUDENT
+    username, mobile: student.studentMobile, registrationMobile: student.studentMobile,
+    pinHash: await hashPassword(PASSWORD), status: 'active', student
   });
   /* The page boots its own entry module (js/app-entry.js → js/main.js). No
      second module graph is created here: a duplicate import would give the
@@ -127,7 +127,7 @@ async function openStudent(storage) {
   await import(`../js/main.js?workflow=${Math.random()}`);
   /* The student signs in on the shared card, exactly like a real phone: the
      device-bound session is written by the app, never by the test. */
-  ctx.type(ctx.$('#loginMobile'), USERNAME);
+  ctx.type(ctx.$('#loginMobile'), username);
   ctx.type(ctx.$('#loginPin'), PASSWORD);
   ctx.submit(ctx.$('#loginForm'));
   await ctx.waitFor(() => ctx.$('#appShell').hidden === false, 20000);
@@ -365,14 +365,37 @@ test('workflow 7 — a counter payment shows on the student ফি screen, which
 });
 
 /* ------------------------------- 8. Teacher → Notice → Student Notification */
-test('workflow 8 — a published notice reaches the student notice board, Home preview and notification feed', async () => {
+test('workflow 8 — a teacher notice reaches its own class only: board, Home preview and notification feed', async () => {
   const base = await seedAcademics();
-  const manager = await openStaff('manager.html', 'manager', base);
-  saveNotices([{
-    id: 'N-WF-1', title: 'আগামীকাল ক্লাস বন্ধ (ওয়ার্কফ্লো)', body: 'শুক্রবার প্রতিষ্ঠান বন্ধ থাকবে।',
-    category: 'academic', audience: 'সকল শিক্ষার্থী', status: 'published', createdAt: new Date().toISOString()
-  }]);
-  const storage = dump(manager);
+  const teacher = await openStaff('teacher.html', 'teacher', base);
+  /* The teacher writes it in the panel itself: একাডেমিক → নোটিশ → নতুন নোটিশ,
+     with the class picked from the panel's own assignment list. */
+  await openStaffPanel(teacher, 'teacher', {
+    provision: false,
+    importPanel: () => import('../js/teacher.js'),
+    shellId: 'teacherShell',
+    ready: () => teacher.$$('#teacherHomeClass option').length > 1
+  });
+  teacher.click(teacher.$('.admin-bottom [data-teacher-view="academic"]'));
+  await teacher.flush(6);
+  assert.equal(teacher.$('#teacherAcademic').hidden, false, 'একাডেমিক is the hub seat');
+  teacher.click(teacher.$('#teacherAcademic [data-teacher-view="notice"]'));
+  await teacher.flush(8);
+  assert.equal(teacher.$('#teacherNotice').hidden, false, 'the hub opens the notice screen');
+  teacher.click(teacher.$('#teacherNewNotice'));
+  await teacher.flush(6);
+  teacher.type(teacher.$('#notice-title'), 'আগামীকাল ক্লাস বন্ধ (ওয়ার্কফ্লো)');
+  teacher.type(teacher.$('#notice-body'), 'শুক্রবার প্রতিষ্ঠান বন্ধ থাকবে।');
+  teacher.$('#notice-className').value = CLASS;
+  teacher.submit(teacher.$('#teacherNoticeForm'));
+  await teacher.waitFor(() => String(teacher.window.localStorage.getItem('activePlus.admin.notices.v1') || '').includes('আগামীকাল ক্লাস বন্ধ'), 10000);
+  const storage = dump(teacher);
+  const saved = JSON.parse(storage['activePlus.admin.notices.v1']).find(notice => notice.title.includes('আগামীকাল ক্লাস বন্ধ'));
+  assert.equal(saved.className, CLASS, 'the teacher notice carries the class it was written for');
+  assert.equal(saved.createdByRole, 'teacher');
+  assert.equal(saved.status, 'published');
+  /* নাম-না-লেখা আরও নোটিশ আগের মতোই সবার কাছে পৌঁছায় — পুরোনো ডেটা হারায় না। */
+  assert.equal(saved.audience, 'সকল শিক্ষার্থী');
 
   const student = await openStudent(storage);
   assert.match(student.$('#homeNoticeList').textContent, /আগামীকাল ক্লাস বন্ধ \(ওয়ার্কফ্লো\)/, 'Home previews the newest notice');
@@ -381,8 +404,17 @@ test('workflow 8 — a published notice reaches the student notice board, Home p
   assert.equal(student.$('#notice-boardView').classList.contains('active'), true, 'the notice opens its own board');
   assert.match(student.$('#noticeBoardDetail').textContent, /আগামীকাল ক্লাস বন্ধ/);
   const feed = await import('../js/notification-rules.js');
-  const plan = feed.planInAppAlerts({ feed: [feed.noticeItem({ ...JSON.parse(storage['activePlus.admin.notices.v1'])[0] })], known: [] });
+  const plan = feed.planInAppAlerts({ feed: [feed.noticeItem(saved)], known: [] });
   assert.ok(plan.show.some(item => item.kind === 'notice'), 'the notice is a notification too, pointing at the board');
+
+  /* Student isolation: the same device data on a নবম শ্রেণি phone must not
+     show a notice written for দশম শ্রেণি. */
+  const roster = JSON.parse(storage[ROSTER_KEY]);
+  roster.push({ ...STUDENT, id: 'AP-WF-2001', name: 'নবম শ্রেণির শিক্ষার্থী', className: 'নবম শ্রেণি' });
+  const ninth = await openStudent({ ...storage, [ROSTER_KEY]: JSON.stringify(roster) },
+    { student: { ...STUDENT, id: 'AP-WF-2001', name: 'নবম শ্রেণির শিক্ষার্থী', className: 'নবম শ্রেণি' }, username: 'workflow.ninth' });
+  assert.doesNotMatch(ninth.$('#homeNoticeList').textContent, /আগামীকাল ক্লাস বন্ধ/,
+    'another class never receives this notice');
 });
 
 /* ------------------------------------------------- 9. Manager → Routine → Student */

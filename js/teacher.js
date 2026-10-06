@@ -1,4 +1,4 @@
-import { loadRoutine, WEEK_DAYS } from './office-data.js';
+import { loadRoutine, loadNotices, saveNotices, WEEK_DAYS } from './office-data.js';
 import { readStaffAccount } from './staff-auth.js';
 import { listTeacherAssignments } from './teacher-assignments.js';
 import { hasStaffSession, clearStaffSession, goToLoginPage } from './staff-auth.js';
@@ -8,6 +8,10 @@ import { openStaffPasswordDialog } from './staff-password-dialog.js';
 import { loadAppConfig } from './storage.js';
 import { toBanglaNumber as bn } from './ui.js';
 import { initExamManager } from './exam-manager.js';
+import { listQuestionsForStaff } from './question-bank.js';
+import { listCourseContent } from './course-content.js';
+import { classByName } from './academics.js';
+import { NOTICE_CATEGORIES } from './notification-rules.js';
 import { initNotificationSettings } from './notification-settings.js';
 import { initFixedShell } from './fixed-shell.js';
 import { registerServiceWorker } from './service-worker.js';
@@ -19,7 +23,10 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', homeClass: 'all', status: 'all', ready: false, busy: false, recordLimit: 15 };
 let modalTrigger, toastTimer;
 initFixedShell();
-initExamManager('#teacherExamWorkspace', 'teacher');
+/* The examination workspace is the single exam/question surface; the academic
+   hub only deep-links into its own screens. It is mounted at import time (its
+   own first paint is asynchronous), exactly like before the hub existed. */
+const examWorkspace = initExamManager('#teacherExamWorkspace', 'teacher');
 registerServiceWorker();
 
 function toast(message) {
@@ -115,14 +122,22 @@ const dayLabel = date => {
 };
 function renderTypeCounts() {
   const records = own();
+  let pendingTotal = 0;
   Object.keys(ACTIVITY_TYPES).forEach(type => {
     const all = records.filter(a => a.type === type);
     const waiting = all.filter(a => pendingNote(a)).length;
+    pendingTotal += waiting;
     const tab = $('#tabCount-' + type);
     if (tab) tab.textContent = all.length ? bn(all.length) : '';
+    /* The nav dot sits on the seat that owns the work: attendance on রুটিন,
+       class-test marks on ফলাফল (see docs/APP-ARCHITECTURE.md §9 Phase 2). */
     const dot = $('#navDot-' + type);
     if (dot) { dot.hidden = !waiting; dot.textContent = bn(waiting); }
+    const card = $(`[data-academic-count="${type}"]`);
+    if (card && type !== 'exam') card.dataset.waiting = waiting ? '1' : '';
   });
+  const academicDot = $('#navDot-academic');
+  if (academicDot) { academicDot.hidden = !pendingTotal; academicDot.textContent = bn(pendingTotal); }
 }
 function renderHome() {
   const hasAssignments = state.assignments.length > 0;
@@ -232,8 +247,8 @@ function renderTeacherProfile() {
   const account = state.teacher || {};
   host.innerHTML = `<div class="manager-profile-list"><div><small>নাম</small><strong>${esc(account.fullName || '—')}</strong></div><div><small>Username</small><strong>${esc(account.username || '—')}</strong></div><div><small>যোগাযোগ</small><strong>${esc(account.mobile || '—')}</strong></div><div><small>Role</small><strong>Teacher — Academic</strong></div><div><small>Assigned class/batch</small><strong>${bn(state.assignments.length)}</strong></div></div>`;
 }
-function render() { renderHome(); renderRecords(); renderStudents(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports(); renderTeacherProfile(); }
-const TEACHER_VIEWS = Object.freeze(['home', 'more', 'students', 'online-exams', 'courses', 'classes', 'routine-view', 'reports', 'profile', ...Object.keys(ACTIVITY_TYPES)]);
+function render() { renderHome(); renderRecords(); renderStudents(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports(); renderTeacherProfile(); renderAcademic(); renderNotices(); }
+const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'students', 'online-exams', 'courses', 'classes', 'routine-view', 'reports', 'profile', ...Object.keys(ACTIVITY_TYPES)]);
 function setView(view) {
   if (!TEACHER_VIEWS.includes(view)) return;
   const previous = state.view;
@@ -244,14 +259,19 @@ function setView(view) {
     state.recordLimit = 15;
   }
   state.view = view;
-  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', more: 'teacherMore', students: 'teacherStudents', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
+  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', more: 'teacherMore', students: 'teacherStudents', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
   $$('.teacher-view').forEach(el => { el.hidden = el.id !== panel; });
   $$('.teacher-type-tabs [data-type-tab]').forEach(el => {
     const active = el.dataset.typeTab === view;
     el.classList.toggle('active', active);
     el.setAttribute('aria-selected', String(active));
   });
-  const bottomView = ['home', 'students', 'routine', 'online-exams', 'more'].includes(view) ? view : 'more';
+  /* The bottom bar keeps its five seats: the academic screens light up the
+     একাডেমিক seat, the class-test results the ফলাফল seat. */
+  const bottomView = view === 'home' ? 'home'
+    : ['academic', 'homework', 'suggestion', 'online-exams', 'courses', 'notice'].includes(view) ? 'academic'
+      : view === 'routine-view' ? 'routine-view'
+        : view === 'exam' ? 'exam' : 'more';
   $$('.admin-bottom [data-teacher-view]').forEach(el => {
     const active = el.dataset.teacherView === bottomView;
     el.classList.toggle('active', active);
@@ -266,7 +286,7 @@ async function reload() {
     const [db, students, teacher] = await Promise.all([teachingRepository.list(), teachingRepository.listStudents(), readStaffAccount('teacher')]);
     state.db = db; state.students = students; state.teacher = teacher; state.assignments = listTeacherAssignments(teacher?.username || 'teacher.apc');
     state.ready = true;
-    ['teacherHomeClass', 'teacherClassFilter', 'teacherStudentClass'].forEach(id => {
+    ['teacherHomeClass', 'teacherClassFilter', 'teacherStudentClass', 'teacherNoticeClass'].forEach(id => {
       const select = $('#' + id), selected = select.value;
       select.innerHTML = `<option value="all">সব assigned class</option>${classOptions(selected)}`;
       if ([...select.options].some(option => option.value === selected)) select.value = selected; else select.value = 'all';
@@ -424,6 +444,153 @@ function showStudent(id) {
 }
 
 ['teacherHomeClass', 'teacherClassFilter', 'teacherStudentClass'].forEach(id => { $('#' + id).insertAdjacentHTML('beforeend', classOptions()); });
+/* ---- একাডেমিক hub, notice composer and quick actions ------------------------ */
+
+/** Which academic section is which: the hub card targets an existing screen. */
+const ACADEMIC_SECTIONS = Object.freeze({
+  homework: { view: 'homework' },
+  suggestion: { view: 'suggestion' },
+  bank: { view: 'online-exams', screen: 'bank' },
+  materials: { view: 'courses' },
+  exams: { view: 'online-exams' },
+  notice: { view: 'notice' }
+});
+
+function renderAcademic() {
+  const host = $('#teacherAcademicScope');
+  if (!host) return;
+  const classes = assignedClasses();
+  host.textContent = classes.length
+    ? `আপনার assigned class: ${classes.join(' • ')} — এই শ্রেণি/বিষয়ের কাজই এখানে যোগ হবে।`
+    : 'Manager এখনো কোনো class/batch assignment দেননি। Assignment পেলে একাডেমিক কাজ খুলে যাবে।';
+  const records = own();
+  const counts = {
+    homework: records.filter(a => a.type === 'homework').length,
+    suggestion: records.filter(a => a.type === 'suggestion').length,
+    exams: records.filter(a => a.type === 'exam').length
+  };
+  Object.entries(counts).forEach(([key, value]) => {
+    const node = $(`[data-academic-count="${key}"]`);
+    if (!node) return;
+    const waiting = records.filter(a => a.type === key && pendingNote(a)).length;
+    /* The card shows what is waiting on the teacher first, the total count second. */
+    node.textContent = waiting ? `${bn(waiting)} বাকি` : value ? bn(value) : '';
+    node.classList.toggle('is-pending', Boolean(waiting));
+  });
+  const bank = $('[data-academic-count="bank"]');
+  const materials = $('[data-academic-count="materials"]');
+  if (bank) bank.textContent = '';
+  if (materials) materials.textContent = '';
+  if (!state.assignments.length) return;
+  /* Counts come from the same stores the sections show — nothing is copied,
+     and a read that needs a staff session can never break the panel. */
+  listQuestionsForStaff('teacher')
+    .then(rows => { if (bank && Array.isArray(rows)) bank.textContent = rows.length ? bn(rows.length) : ''; })
+    .catch(() => {});
+  try {
+    const rows = assignedClasses().flatMap(className => {
+      const record = classByName(className);
+      return record ? listCourseContent({ classId: record.id, publishedOnly: false, includeInactive: true }) : [];
+    });
+    if (materials) materials.textContent = rows.length ? bn(rows.length) : '';
+  } catch { /* the material shelf count can wait for its own screen */ }
+}
+
+/** The notices this teacher wrote; every other notice stays out of this list. */
+function ownNotices(username) {
+  return loadNotices().filter(notice => notice && notice.createdByRole === 'teacher' && notice.createdBy === username);
+}
+
+function noticeAudienceLabel(notice) {
+  return `${notice.className || 'সব শ্রেণি'}${notice.group ? ' • ' + notice.group : ''}`;
+}
+
+function renderNotices() {
+  const host = $('#teacherNoticeList');
+  if (!host) return;
+  const username = String(state.teacher?.username || 'teacher.apc');
+  const className = $('#teacherNoticeClass')?.value || 'all';
+  const mine = ownNotices(username).slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const list = mine.filter(notice => className === 'all' || notice.className === className);
+  const count = $('#teacherNoticeCount');
+  if (count) count.textContent = `${bn(list.length)}টি নোটিশ${className === 'all' ? '' : ' • ' + esc(className)}`;
+  const badge = $('[data-academic-count="notice"]');
+  if (badge) badge.textContent = mine.length ? bn(mine.length) : '';
+  host.innerHTML = list.map(notice => `<article class="teaching-card" data-notice-id="${esc(notice.id)}">
+    <div class="teaching-card-head"><span class="teaching-kind">নোটিশ</span><span class="teaching-status ${notice.status === 'published' ? 'published' : 'draft'}">${notice.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}</span></div>
+    <h3>${esc(notice.title)}</h3><small>${esc(noticeAudienceLabel(notice))} • ${esc(displayDate(String(notice.createdAt || '').slice(0, 10)))}</small>
+    <p class="teaching-preview">${esc(notice.body || '')}</p>
+    <div class="teaching-actions">
+      <button type="button" data-notice-action="edit" data-id="${esc(notice.id)}">সম্পাদনা</button>
+      <button type="button" class="${notice.status === 'published' ? '' : 'primary'}" data-notice-action="toggle" data-id="${esc(notice.id)}">${notice.status === 'published' ? 'প্রকাশ বন্ধ করুন' : 'প্রকাশ করুন'}</button>
+      <button class="danger" type="button" data-notice-action="delete" data-id="${esc(notice.id)}">মুছুন</button>
+    </div></article>`).join('')
+    || `<p class="teacher-empty">${mine.length ? 'এই শ্রেণির কোনো নোটিশ নেই।' : 'এখনও কোনো নোটিশ লেখা হয়নি। “+ নোটিশ” চেপে শ্রেণি/ব্যাচের জন্য ঘোষণা দিন।'}</p>`;
+}
+
+/** The composer writes exactly the record the student notice board reads. */
+function showNoticeEditor(old = null) {
+  if (!state.ready || state.busy) return toast('আগে ডেটা লোড হতে দিন বা আবার চেষ্টা করুন।');
+  const draft = old || { title: '', body: '', category: 'academic', className: assignedClasses()[0] || '', group: '', status: 'published' };
+  const categories = NOTICE_CATEGORIES.map(category => `<option value="${esc(category.id)}" ${draft.category === category.id ? 'selected' : ''}>${esc(category.label)}</option>`).join('');
+  openModal(`${old ? 'নোটিশ সম্পাদনা' : 'নতুন নোটিশ'}`, `<form id="teacherNoticeForm" class="teacher-form">
+    <div><label for="notice-title">শিরোনাম *</label><input id="notice-title" name="title" type="text" required maxlength="150" value="${esc(draft.title)}"></div>
+    <div><label for="notice-body">ঘোষণা *</label><textarea id="notice-body" name="body" rows="5" required maxlength="2000">${esc(draft.body)}</textarea></div>
+    <div><label for="notice-category">ধরন</label><select id="notice-category" name="category">${categories}</select></div>
+    <div><label for="notice-className">শ্রেণি *</label><select id="notice-className" name="className" required><option value="">সব শ্রেণি</option>${classOptions(draft.className)}</select></div>
+    <div><label for="notice-group">ব্যাচ / বিভাগ (খালি রাখলে পুরো শ্রেণি)</label><input id="notice-group" name="group" type="text" maxlength="80" value="${esc(draft.group)}" list="teacherGroups" placeholder="যেমন: বিজ্ঞান বিভাগ"></div>
+    <div><label for="notice-status">অবস্থা</label><select id="notice-status" name="status"><option value="published" ${draft.status !== 'draft' ? 'selected' : ''}>প্রকাশিত — শিক্ষার্থী দেখবে</option><option value="draft" ${draft.status === 'draft' ? 'selected' : ''}>খসড়া — শুধু আপনি দেখবেন</option></select></div>
+    <p class="finance-error" id="teacherSaveError" role="alert" hidden></p>
+    <div class="modal-actions"><button class="admin-btn primary" type="submit">সংরক্ষণ করুন</button><button class="admin-btn ghost" type="button" data-close-teacher>বাতিল</button></div>
+  </form>`);
+  $('#teacherNoticeForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const values = Object.fromEntries(new FormData(form));
+    save(form, () => saveNoticeRecord(values, old), old ? 'নোটিশ আপডেট হয়েছে' : 'নোটিশ প্রকাশ হয়েছে');
+  });
+}
+
+/** Append or update one notice in the shared store; nothing else is touched. */
+async function saveNoticeRecord(values, old) {
+  const username = String(state.teacher?.username || 'teacher.apc');
+  const name = String(state.teacher?.fullName || username);
+  const notices = loadNotices();
+  const now = new Date().toISOString();
+  const record = {
+    id: old?.id || `notice-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    title: String(values.title || '').trim().slice(0, 150),
+    body: String(values.body || '').trim().slice(0, 2000),
+    category: String(values.category || 'academic'),
+    audience: old?.audience || 'সকল শিক্ষার্থী',
+    className: String(values.className || '').trim(),
+    group: String(values.group || '').trim(),
+    status: values.status === 'draft' ? 'draft' : 'published',
+    createdAt: old?.createdAt || now,
+    updatedAt: now,
+    createdBy: username,
+    createdByRole: 'teacher',
+    authorName: name
+  };
+  const index = notices.findIndex(notice => notice?.id === record.id);
+  if (index < 0) notices.unshift(record); else notices[index] = { ...notices[index], ...record };
+  if (!saveNotices(notices)) throw new Error('নোটিশ সংরক্ষণ হয়নি। ব্রাউজারের স্টোরেজ পরীক্ষা করুন।');
+  return state.db;
+}
+
+async function runNoticeAction(action, notice) {
+  if (state.busy || !state.ready) return;
+  const notices = loadNotices();
+  const index = notices.findIndex(item => item?.id === notice.id);
+  if (index < 0) return toast('নোটিশটি পাওয়া যায়নি।');
+  if (action === 'toggle') notices[index] = { ...notices[index], status: notice.status === 'published' ? 'draft' : 'published', updatedAt: new Date().toISOString() };
+  if (action === 'delete') notices.splice(index, 1);
+  if (!saveNotices(notices)) return toast('নোটিশ সংরক্ষণ হয়নি।');
+  renderNotices();
+  toast(action === 'delete' ? 'নোটিশ মুছে ফেলা হয়েছে।' : notice.status === 'published' ? 'নোটিশ প্রকাশ বন্ধ হয়েছে।' : 'নোটিশ প্রকাশ হয়েছে।');
+}
+
 async function showTeacherShell() {
   /* Access closed by the Admin: the page locks where it stands instead of
      sending the teacher somewhere else. (The session itself is not thrown
@@ -462,6 +629,8 @@ $('#teacherExit').addEventListener('click', () => {
   goToLoginPage();
 });
 $('#teacherRetry').addEventListener('click', reload);
+$('#teacherNewNotice')?.addEventListener('click', () => showNoticeEditor());
+$('#teacherNoticeClass')?.addEventListener('change', renderNotices);
 $('#teacherNewActivity').addEventListener('click', () => showEditor(state.view));
 ['teacherRecordSearch', 'teacherClassFilter'].forEach(id => $('#' + id).addEventListener(id.includes('Search') ? 'input' : 'change', () => { state.recordLimit = 15; renderRecords(); }));
 $('#teacherHomeClass').addEventListener('change', () => { state.homeClass = $('#teacherHomeClass').value; renderHome(); });
@@ -482,6 +651,20 @@ document.addEventListener('click', event => {
   if (state.busy) return;
   const nav = event.target.closest('[data-teacher-view]'); if (nav) setView(nav.dataset.teacherView);
   const create = event.target.closest('[data-new-activity]'); if (create) showEditor(create.dataset.newActivity);
+  const section = event.target.closest('[data-academic-section]');
+  if (section) {
+    const target = ACADEMIC_SECTIONS[section.dataset.academicSection];
+    if (target) {
+      setView(target.view);
+      if (target.screen) examWorkspace?.open?.(target.screen);
+    }
+  }
+  const noticeAction = event.target.closest('[data-notice-action]');
+  if (noticeAction) {
+    const notice = ownNotices(String(state.teacher?.username || 'teacher.apc')).find(item => item.id === noticeAction.dataset.id);
+    if (notice && noticeAction.dataset.noticeAction === 'edit') showNoticeEditor(notice);
+    else if (notice) runNoticeAction(noticeAction.dataset.noticeAction, notice);
+  }
   if (event.target.closest('[data-close-teacher]')) closeModal();
   const record = event.target.closest('[data-record-action]');
   if (record) {

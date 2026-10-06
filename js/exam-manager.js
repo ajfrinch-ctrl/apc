@@ -715,4 +715,18 @@ export function initExamManager(container, role) {
      rendering the whole question list. */
   try { repo.ensureCodes(); } catch { /* codes are stamped on the next write */ }
   reload();
+  /* The panel shell may deep-link into the workspace (the Teacher academic hub
+     opens প্রশ্নব্যাংক / পরীক্ষা here). No second copy of any screen is made:
+     this only switches the section the workspace is already rendering. */
+  return {
+    open(screen = '') {
+      /* Only screens this workspace already renders can be opened; anything
+         else lands on its own home, never on a new copy of a screen. */
+      const target = String(screen || '').trim();
+      view = { bank: 'bank', exams: 'home', archive: 'archive', upcoming: 'upcoming' }[target] || 'home';
+      selected = null; openQuestion = null;
+      paint();
+      scrollTop();
+    }
+  };
 }

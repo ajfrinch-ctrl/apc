@@ -162,3 +162,10 @@
 .study-section-count{margin:0;font-size:var(--font-sm);color:var(--color-text-secondary)}
 #studyBankFilters,#studySuggestionFilters,#studyMaterialFilters{margin-bottom:var(--space-2)}
 #learningFilters{display:none}
+
+/* ---- v168: the Teacher academic hub ----------------------------------------
+   Six cards, each opening the screen that already owns that work; the badge
+   says how much of it is waiting on the teacher. */
+.academic-count{flex:none;min-width:34px;padding:2px var(--space-2);border-radius:999px;background:var(--color-surface-muted);color:var(--color-text-secondary);font-size:var(--font-xs);text-align:center}
+.academic-count:empty{display:none}
+.academic-count.is-pending{background:color-mix(in srgb,var(--color-danger) 14%,var(--color-surface));color:var(--color-danger);font-weight:600}

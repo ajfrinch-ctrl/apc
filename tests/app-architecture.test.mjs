@@ -149,3 +149,84 @@ test('the retired results route has no leftover button anywhere in the app', () 
   }
   assert.doesNotMatch(html, /resultsView/, 'the removed results panel is still referenced');
 });
+
+/* ---- Teacher panel (docs/APP-ARCHITECTURE.md §9 Phase 2) -------------------- */
+
+const teacherHtml = read('teacher.html');
+
+test('the teacher bottom bar is exactly হোম / একাডেমিক / রুটিন / ফলাফল / আরও', () => {
+  const nav = teacherHtml.slice(teacherHtml.indexOf('<nav class="admin-bottom"'), teacherHtml.indexOf('</nav>', teacherHtml.indexOf('<nav class="admin-bottom"')));
+  assert.deepEqual([...nav.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
+    ['home', 'academic', 'routine-view', 'exam', 'more']);
+  assert.deepEqual([...nav.matchAll(/<span>([^<]+)<\/span>/g)].map(match => nfc(match[1])),
+    ['হোম', 'একাডেমিক', 'রুটিন', 'ফলাফল', 'আরও'].map(nfc));
+  for (const item of nav.split('<button').slice(1)) assert.match(item, /<svg/, 'every bottom-bar item keeps its icon');
+});
+
+test('একাডেমিক is one hub whose six cards open the screens that already own the work', () => {
+  const hub = teacherHtml.slice(teacherHtml.indexOf('id="teacherAcademic"'), teacherHtml.indexOf('id="teacherStudents"'));
+  assert.deepEqual([...hub.matchAll(/data-academic-count="([a-z]+)"/g)].map(match => match[1]),
+    ['homework', 'suggestion', 'bank', 'materials', 'exams', 'notice']);
+  /* Nothing is rebuilt for the hub: each card points at an existing screen. */
+  const routes = [...hub.matchAll(/data-(teacher-view|academic-section)="([a-z-]+)"/g)].map(match => `${match[1]}:${match[2]}`);
+  assert.ok(routes.includes('teacher-view:homework'));
+  assert.ok(routes.includes('teacher-view:suggestion'));
+  assert.ok(routes.includes('teacher-view:courses'));
+  assert.ok(routes.includes('teacher-view:notice'));
+  assert.ok(routes.includes('academic-section:bank'));
+  assert.ok(routes.includes('academic-section:exams'));
+  /* One examination workspace: প্রশ্নব্যাংক is a screen of it, not a copy. */
+  assert.equal((teacherHtml.match(/id="teacherExamWorkspace"/g) || []).length, 1);
+  assert.match(read('js/exam-manager.js'), /return \{\s*open\(screen = ''\)/, 'the workspace exposes a deep link');
+});
+
+test('teacher Home puts the four create actions in front of the teacher', () => {
+  const quick = teacherHtml.slice(teacherHtml.indexOf('id="teacherQuickActions"'), teacherHtml.indexOf('id="teacherAttention"'));
+  assert.deepEqual([...quick.matchAll(/data-new-activity="([a-z]+)"/g)].map(match => match[1]), ['homework', 'suggestion']);
+  assert.deepEqual([...quick.matchAll(/data-academic-section="([a-z]+)"/g)].map(match => match[1]), ['bank', 'exams']);
+  assert.deepEqual([...quick.matchAll(/>([^<]*\+\s*[^<]+)</g)].map(match => nfc(match[1].trim())),
+    ['+ বাড়ির কাজ', '+ সাজেশন', '+ প্রশ্ন', '+ পরীক্ষা'].map(nfc));
+  /* The teacher's own pending work stays visible from every screen. */
+  for (const dot of ['academic', 'routine', 'exam']) assert.match(teacherHtml, new RegExp(`id="navDot-${dot}"`));
+});
+
+test('teacher রুটিন is read-only: the Manager owns the schedule, the teacher records attendance', () => {
+  const view = teacherHtml.slice(teacherHtml.indexOf('id="teacherRoutine"'), teacherHtml.indexOf('id="teacherAcademicReports"'));
+  assert.match(nfc(view), /read-only/);
+  assert.match(nfc(view), /উপস্থিতি খুলুন/, 'attendance keeps a door from the routine screen');
+  assert.doesNotMatch(view, /data-routine-(save|new|edit)|id="routineForm"/, 'no routine editor in the teacher panel');
+  const source = read('js/teacher.js');
+  assert.doesNotMatch(source, /saveRoutine\s*\(/, 'the teacher module never writes the office routine');
+});
+
+test('teacher আরও keeps only what the new navigation does not own', () => {
+  const more = teacherHtml.slice(teacherHtml.indexOf('id="teacherMore"'), teacherHtml.indexOf('id="teacherStudents"'));
+  assert.deepEqual([...more.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
+    ['home', 'students', 'classes', 'reports', 'profile']);
+  for (const academic of ['homework', 'suggestion', 'online-exams', 'courses', 'routine']) {
+    assert.equal(new RegExp(`data-teacher-view="${academic}"`).test(more), false, `${academic} is duplicated in আরও`);
+  }
+  /* The class-test marks lane stays reachable from the ফলাফল seat. */
+  assert.match(teacherHtml, /data-teacher-view="exam"/);
+  const source = read('js/teacher.js');
+  assert.match(source, /ACADEMIC_SECTIONS/, 'the hub routes through one table');
+  assert.match(nfc(source), /classOptions/, 'the notice composer reuses the assignment picker');
+});
+
+test('a teacher notice is class/batch-scoped and stays a notice, never a notification', async () => {
+  const rules = await import('../js/notification-rules.js');
+  const student = { kind: 'student', studentId: 'AP-1', className: 'দশম শ্রেণি', group: 'বিজ্ঞান বিভাগ' };
+  assert.equal(rules.audienceMatches({ audience: 'সকল শিক্ষার্থী', className: 'দশম শ্রেণি' }, student), true);
+  assert.equal(rules.audienceMatches({ audience: 'সকল শিক্ষার্থী', className: 'নবম শ্রেণি' }, student), false,
+    'another class never receives the notice');
+  assert.equal(rules.audienceMatches({ audience: 'সকল শিক্ষার্থী', className: 'দশম শ্রেণি', group: 'মানবিক' }, student), false,
+    'another batch inside the same class never receives it either');
+  assert.equal(rules.audienceMatches({ audience: 'সকল শিক্ষার্থী' }, student), true,
+    'an untargeted notice keeps reaching everyone exactly as before');
+  assert.equal(rules.audienceMatches({ audience: 'সকল শিক্ষার্থী', className: 'দশম শ্রেণি' }, { kind: 'staff' }), true,
+    'staff see every notice they publish');
+  /* Notice and Notification stay two systems with two stores. */
+  assert.match(read('js/teacher.js'), /saveNotices/, 'the composer writes the shared notice store');
+  assert.match(read('js/teacher.js'), /createdByRole: 'teacher'/);
+  assert.match(read('js/notification-store.js'), /notificationByKey|markRead/);
+});

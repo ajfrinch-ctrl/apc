@@ -43,6 +43,28 @@ export function viewerKeyOf(viewer) {
 /** Audience strings written by the Manager notice form. */
 export const AUDIENCES = Object.freeze(['সকল শিক্ষার্থী', 'অভিভাবক', 'শিক্ষার্থী ও অভিভাবক']);
 
+/** Normalised comparison for class / batch names (Bengali text mixes forms). */
+const scopeKey = value => text(value).normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * Does a class/batch-targeted notice reach this viewer?
+ *
+ * A Teacher (or a Manager) may address one class and one batch instead of the
+ * whole school. A notice without `className`/`group` keeps reaching everyone
+ * exactly as before, so every stored notice stays visible; a notice that names
+ * a class reaches only that class, and one that names a batch only that batch
+ * inside the class.
+ */
+export function noticeScopeMatches(notice, viewer) {
+  if (!notice || !viewer) return true;
+  const className = text(notice.className || notice.targetClass);
+  const group = text(notice.group || notice.batch || notice.targetGroup);
+  if (!className && !group) return true;
+  if (className && scopeKey(className) !== scopeKey(viewer.className)) return false;
+  if (group && scopeKey(group) !== scopeKey(viewer.group)) return false;
+  return true;
+}
+
 /**
  * Does this notice belong on this device's notice screen?
  *
@@ -55,8 +77,8 @@ export function audienceMatches(notice, viewer) {
   if (!notice) return false;
   if (viewer?.kind === 'staff') return true;
   const audience = text(notice.audience);
-  if (!audience) return true;
-  return AUDIENCES.includes(audience);
+  if (audience && !AUDIENCES.includes(audience)) return false;
+  return noticeScopeMatches(notice, viewer);
 }
 
 export const NOTICE_BOARD_READ_PREFIX = 'activePlus.noticeBoard.read.v1:';

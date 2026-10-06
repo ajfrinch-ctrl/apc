@@ -70,10 +70,12 @@ export async function cancelStaffPasswordDialog(ctx) {
     because the module checks it once at load and redirects otherwise.
 
     `ready` is an optional extra predicate for panels that unhide their shell
-    before their first data load has painted. */
-export async function openStaffPanel(ctx, role, { importPanel, shellId, ready } = {}) {
+    before their first data load has painted. `provision: false` is for callers
+    that already gave the role its password on this device (a helper such as
+    workflows-e2e's openStaff does), so the first-use dialog is not asked twice. */
+export async function openStaffPanel(ctx, role, { importPanel, shellId, ready, provision = true } = {}) {
   const { $, waitFor } = ctx;
-  await provisionStaff(role);
+  if (provision) await provisionStaff(role);
   seedStaffSession(ctx.window, role);
   if (importPanel) {
     const module = await importPanel();

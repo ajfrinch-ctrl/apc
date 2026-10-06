@@ -29,9 +29,12 @@ test('the Teacher panel opens the learning-library page for the assigned class o
   await openStaffPanel(ctx, 'teacher', {
     importPanel: () => import('../js/teacher.js'), shellId: 'teacherShell'
   });
-  const entry = ctx.$('[data-teacher-view="courses"]');
-  assert.ok(entry, 'the More menu has the learning-library entry');
-  assert.match(entry.textContent, /পড়াশোনা পরিচালনা করুন/);
+  /* The learning library moved to একাডেমিক → উপকরণ (docs/APP-ARCHITECTURE.md §9);
+     the feature is the same editor, opened from its new home. */
+  const entry = ctx.$('#teacherAcademic [data-teacher-view="courses"]');
+  assert.ok(entry, 'the academic hub has the learning-library entry');
+  assert.match(entry.textContent, /উপকরণ/);
+  assert.match(entry.textContent, /নোট, PDF, লেকচার/);
   ctx.click(entry);
   await ctx.waitFor(() => ctx.$('#teacherCourses')?.hidden === false);
   const editor = ctx.$('#teacherCourses #teacherCourseEditor');

@@ -79,7 +79,7 @@ test('secondary screens have accessible home/back controls and staff More has ro
   const MORE_SUBPAGES = '#reportsView, #notificationSettingsView, #myProfileView, #settingsView, #studentFeeView';
   for (const [name, attribute, target, count] of [
     ['index', 'data-view', 'home', 10], ['admin', 'data-admin-view', 'dashboard', 11],
-    ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 9]
+    ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 11]
   ]) {
     const document = doc(name);
     const backs = [...document.querySelectorAll('.pay-back')];
