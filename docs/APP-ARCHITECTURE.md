@@ -1,4 +1,4 @@
-# APC App Architecture — একক স্থায়ী সোর্স (v169)
+# APC App Architecture — একক স্থায়ী সোর্স (v170)
 
 > এই নথিটিই APC-এর **একক architecture রেফারেন্স**। এখানে যা লেখা আছে তার বাইরে
 > কোনো section-এর ঘর নির্ধারিত নয়। নতুন feature যোগ করার আগে এখানে তার ঘর ঠিক
@@ -88,7 +88,7 @@
 
 ---
 
-## ২। চূড়ান্ত Navigation Map (v169 লক্ষ্য)
+## ২। চূড়ান্ত Navigation Map (v170 লক্ষ্য)
 
 ### Student
 `🏠 হোম` · `📚 পড়াশোনা` · `🗓 রুটিন` · `📝 পরীক্ষা` · `👤 আরও`
@@ -240,6 +240,32 @@ Topbar-এর উপরের বর্ডার রঙই একমাত্র
 
 ---
 
+### Phase 3 — Manager panel (এই রিলিজে যা হয়েছে)
+
+Manager bottom bar এখন ঠিক **হোম · শিক্ষার্থী · একাডেমিক · হিসাব · রিপোর্ট · আরও** (ছয়টি seat)।
+প্রতিটি পুরোনো screen-ই আছে — শুধু তার বাড়ি ঠিক হয়েছে; পুরোনো নাম (`approvals`, `cash-counter`) আগের
+bookmark-ও নতুন বাড়িতে নিয়ে যায়:
+
+| Seat | কী থাকে |
+| --- | --- |
+| 🏠 হোম | আজকের operational সারসংক্ষেপ, অপেক্ষমাণ অনুমোদন, সাম্প্রতিক activity, ৮টি shortcut |
+| 👨‍🎓 শিক্ষার্থী | **নিবন্ধন অপেক্ষমাণ · সক্রিয় · নিষ্ক্রিয় · বাতিল** filter + search; Approve · Reject · Edit · Activate · Deactivate · Password Reset — সবই **এক roster record**, অনুমোদন তালিকা এই screen-এরই অংশ |
+| 📚 একাডেমিক | এক hub, ৮টি কার্ড: বাড়ির কাজ · সাজেশন · প্রশ্নব্যাংক · উপকরণ · পরীক্ষা · ফলাফল · রুটিন · নোটিশ + **শিক্ষক ব্যবস্থাপনা** |
+| 💰 হিসাব | ৪টি বিভাগ: **আদায় · পেমেন্ট অনুমোদন · বকেয়া · পেমেন্ট ইতিহাস** — সবই একই ledger |
+| 📊 রিপোর্ট | Report Center (dropdown → Date/Filter → Generate → Preview → PDF) |
+| 👤 আরও | ক্লাস ও ব্যাচ · ম্যানেজার প্রোফাইল · লগআউট |
+
+- **এক জায়গা, এক interface:** প্রশ্নব্যাংক/পরীক্ষা সেই একই examination workspace (`js/exam-manager.js`),
+  উপকরণ সেই একই course editor — hub-কার্ড শুধু `open(...)` দিয়ে সেখানে নিয়ে যায়।
+- **বাড়ির কাজ/সাজেশন পর্যালোচনা:** শিক্ষকের লেখা `teaching` record-ই Manager-এর “একাডেমিক কাজ” screen-এ
+  পড়া হয় (ধরন/শ্রেণি filter) — সংশোধন করেন শিক্ষক নিজেই, তাই এক লেখক ও এক রেকর্ড।
+- **শিক্ষার্থীর জীবনচক্র:** Deactivate = roster status `inactive` → ওই শিক্ষার্থীর ডিভাইস-অ্যাকাউন্টও
+  `inactive` হয় (`syncAccountStatus`), আর `js/main.js`-এর গেট তখন অ্যাপ বন্ধ রাখে। বাতিল (rejected) আর
+  নিষ্ক্রিয় (inactive) আলাদা অবস্থা। ফি/ফলাফল/উপস্থিতির কোনো ইতিহাস মুছে যায় না।
+- **নোটিশ:** Manager-ও এখন শ্রেণি/ব্যাচ বেছে নোটিশ দেন; রেকর্ড Teacher-এর মতোই একই shape
+  (`className`/`group`/`createdBy`/`createdByRole`), তাই `js/notification-rules.js`-এর একই নিয়মে
+  শিক্ষার্থীর board-এ পৌঁছায়। শ্রেণি না দিলে আগের মতোই সবার কাছে।
+
 ## ৯। Phase পরিকল্পনা (স্ট্যাটাসসহ)
 
 | Phase | কাজ | স্ট্যাটাস |
@@ -247,7 +273,7 @@ Topbar-এর উপরের বর্ডার রঙই একমাত্র
 | **1a** | Student nav: `হোম / পড়াশোনা / রুটিন / পরীক্ষা / আরও`; ফলাফল পরীক্ষার ভিতরে, nav থেকে সরানো | ✅ এই রিলিজে |
 | **1b** | Student `পড়াশোনা` → ৫টি section (আমার কোর্স / বাড়ির কাজ / সাজেশন / প্রশ্নব্যাংক / উপকরণ) + পরীক্ষা view-তে ৪ tab | ✅ এই রিলিজে |
 | 2 | Teacher: `একাডেমিক` ছাতার নিচে বাড়ির কাজ/সাজেশন/প্রশ্নব্যাংক/উপকরণ/পরীক্ষা/নোটিশ + হোম-এ Quick actions, nav-এ ফলাফল | ✅ এই রিলিজে |
-| 3 | Manager: `শিক্ষার্থী` (অনুমোদন merge) · `একাডেমিক` · `হিসাব` · `রিপোর্ট` — nav ষষ্ঠ আইটেমসহ | পরবর্তী |
+| 3 | Manager: `শিক্ষার্থী` (অনুমোদন merge) · `একাডেমিক` · `হিসাব` · `রিপোর্ট` — nav ষষ্ঠ আইটেমসহ | ✅ এই রিলিজে |
 | 4 | Cash Counter: ৫-আইটেম bottom bar (হোম/শিক্ষার্থী/পেমেন্ট/রিপোর্ট/আরও) | পরবর্তী |
 | 5 | Admin: `স্টাফ / রিপোর্ট / সিস্টেম / ডেটা / অ্যাকাউন্ট`; শিক্ষার্থী view সরানো | পরবর্তী |
 | 6 | সব Role-এর Settings এক কাঠামো (Account/Notification/App/Security/Data) | পরবর্তী |
@@ -293,7 +319,7 @@ Teacher panel-এর bottom bar এখন ঠিক **হোম · একাড�
 | 5 | Student → ফলাফল (Manager প্রকাশের পর) | `workflow 4 + 5` |
 | 6 | Manager → Student অনুমোদন → Student login | `registration-approval-login.test.mjs` |
 | 7 | Cash Counter → Payment → Student ফি | `workflow 7` |
-| 8 | Teacher → নোটিশ (শ্রেণি/ব্যাচ) → Student Board/Notification | `workflow 8` |
+| 8 | Teacher/Manager → নোটিশ (শ্রেণি/ব্যাচ) → Student Board/Notification | `workflow 8` |
 | 9 | Manager → Routine → Student রুটিন | `workflow 9` |
 
 সঙ্গে দুটি ছোট source সংশোধন এই রিলিজে ধরা পড়েছে: সফল refresh আর stale পরীক্ষা-ত্রুটি বার্তা

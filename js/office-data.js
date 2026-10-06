@@ -146,8 +146,33 @@ export async function syncAccountStatus(studentId, status) {
   if (!account) return false;
   const id = account.student?.id || account.studentId;
   if (id !== studentId) return false;
-  const mapped = status === 'approved' ? 'active' : status === 'rejected' ? 'rejected' : 'pending';
+  /* approved → active (the app's own word for a working account). Every other
+     roster status keeps its name, so a rejected application and a deactivated
+     student stay two different things on the device. */
+  const mapped = status === 'approved' ? 'active' : String(status || 'pending');
   return saveAccount({ ...account, status: mapped });
+}
+
+/** Manager-only: mark a student active (English: approved) or inactive. The
+    roster row is the record; the device account of that same student follows
+    the roster exactly as it does for an approval, so the student app locks. */
+export async function setStudentStatus(studentId, status) {
+  if (!(await hasStaffSession('manager'))) throw Object.assign(new Error('শুধু Manager শিক্ষার্থীর অবস্থা বদলাতে পারবেন।'), { code: 'ACCESS_DENIED' });
+  const reviewer = await readStaffAccount('manager');
+  if (!reviewer || ['disabled', 'inactive', 'rejected'].includes(reviewer.status) || reviewer.accountStatus === 'disabled') {
+    throw Object.assign(new Error('সক্রিয় Manager profile ছাড়া এই কাজ করা যাবে না।'), { code: 'ACCESS_DENIED' });
+  }
+  const wanted = status === 'inactive' ? 'inactive' : 'approved';
+  const records = listDocumentsStrict('students', row => Boolean(row && typeof row.id === 'string' && row.id));
+  const index = records.findIndex(row => row.id === String(studentId));
+  if (index < 0) throw new Error('শিক্ষার্থী রেকর্ড পাওয়া যায়নি।');
+  const current = records[index];
+  if (current.status === 'pending') throw new Error('আগে নিবন্ধন অনুমোদন বা বাতিল করুন।');
+  const updated = { ...current, status: wanted, updatedAt: new Date().toISOString(), updatedBy: reviewer.username || 'manager', statusChangedAt: new Date().toISOString() };
+  records[index] = updated;
+  replaceDocumentsStrict('students', records);
+  await syncAccountStatus(studentId, wanted);
+  return updated;
 }
 
 /** Adopt Manager-owned profile/class/fee changes from the synced roster row on

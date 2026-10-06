@@ -1,3 +1,7 @@
+// v170: Manager app architecture — the bottom bar is হোম/শিক্ষার্থী/একাডেমিক/হিসাব/রিপোর্ট/আরও; শিক্ষার্থী owns the
+//       whole lifecycle (নিবন্ধন অপেক্ষমাণ · সক্রিয় · নিষ্ক্রিয় + approve/reject/edit/activate/deactivate/password
+//       reset), একাডেমিক is one hub over the eight academic sections + teacher management, হিসাব owns
+//       collection/approval/due/history over the same ledger, and a Manager notice is class/batch-scoped.
 // v169: Teacher app architecture — the bottom bar is হোম/একাডেমিক/রুটিন/ফলাফল/আরও; একাডেমিক is one hub
 //       (বাড়ির কাজ / সাজেশন / প্রশ্নব্যাংক / উপকরণ / পরীক্ষা / নোটিশ) over the existing screens, Home carries
 //       the four create actions, and a Teacher notice is class/batch-scoped while Notice stays a notice.
@@ -26,7 +30,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 169;
+const CACHE_VERSION = 170;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

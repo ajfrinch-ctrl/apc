@@ -42,7 +42,7 @@ test('student, manager and teacher have real, named service shortcuts', () => {
   /* The student grid is the five quick academic cards of the app architecture
      plus the Notice Board entrance; the staff panels keep their eight tiles. */
   const allowed = {
-    manager: ['approvals', 'classes', 'teachers', 'finance', 'routine', 'exams', 'notices', 'reports'],
+    manager: ['students', 'classes', 'teachers', 'finance', 'routine', 'exams', 'notices', 'reports'],
     teacher: ['classes', 'students', 'routine-view', 'routine', 'homework', 'online-exams', 'exam', 'reports']
   };
   const studentCards = [

@@ -68,7 +68,11 @@ test('the Manager panel opens the same page for the whole academic structure', a
   await openStaffPanel(ctx, 'manager', {
     importPanel: () => import('../js/manager.js'), shellId: 'managerShell'
   });
-  ctx.click(ctx.$('[data-manager-view="courses"]'));
+  /* উপকরণ is a card of the একাডেমিক hub (docs/APP-ARCHITECTURE.md §2 Manager);
+     the same course editor opens, for the whole academic structure. */
+  ctx.click(ctx.$('.manager-bottom [data-manager-view="academic"]'));
+  await ctx.flush();
+  ctx.click(ctx.$('#managerAcademicMenu [data-academic-section="materials"]'));
   await ctx.waitFor(() => ctx.$('[data-view-panel="courses"]') && ctx.$('[data-view-panel="courses"]').hidden === false);
   assert.match(ctx.$('#managerCourseTitle').textContent, /পড়াশোনা পরিচালনা করুন/);
   await ctx.waitFor(() => ctx.$$('#managerCourseEditor [data-course-form]').length === 1);

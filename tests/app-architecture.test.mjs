@@ -230,3 +230,79 @@ test('a teacher notice is class/batch-scoped and stays a notice, never a notific
   assert.match(read('js/teacher.js'), /createdByRole: 'teacher'/);
   assert.match(read('js/notification-store.js'), /notificationByKey|markRead/);
 });
+
+/* ---- Manager panel (docs/APP-ARCHITECTURE.md §2/§3 Manager) ---------------- */
+
+const managerHtml = read('manager.html');
+
+test('the Manager bottom bar is exactly হোম / শিক্ষার্থী / একাডেমিক / হিসাব / রিপোর্ট / আরও', () => {
+  const nav = managerHtml.slice(managerHtml.indexOf('<nav class="admin-bottom manager-bottom"'), managerHtml.indexOf('</nav>', managerHtml.indexOf('<nav class="admin-bottom manager-bottom"')));
+  assert.deepEqual([...nav.matchAll(/data-manager-view="([a-z-]+)"/g)].map(match => match[1]),
+    ['dashboard', 'students', 'academic', 'finance', 'reports', 'more']);
+  assert.deepEqual([...nav.matchAll(/<span class="nav-label">([^<]+)<\/span>/g)].map(match => nfc(match[1])),
+    ['হোম', 'শিক্ষার্থী', 'একাডেমিক', 'হিসাব', 'রিপোর্ট', 'আরও'].map(nfc));
+  for (const item of nav.split('<button').slice(1)) assert.match(item, /<svg/, 'every bottom-bar item keeps its icon');
+});
+
+test('Manager শিক্ষার্থী is one screen for the whole lifecycle, and অনুমোদন is a filter of it', () => {
+  const panel = managerHtml.slice(managerHtml.indexOf('data-view-panel="students"'), managerHtml.indexOf('data-view-panel="academic"'));
+  /* The three lists of the spec: pending registration, active, inactive. */
+  assert.deepEqual([...panel.matchAll(/data-student-scope="([a-z]+)"/g)].map(match => match[1]),
+    ['all', 'pending', 'approved', 'inactive', 'rejected']);
+  assert.match(panel, /id="managerStudentQueue"/, 'the pending queue lives inside শিক্ষার্থী');
+  assert.match(panel, /id="managerStudentList"/);
+  assert.equal((managerHtml.match(/data-view-panel="approvals"/g) || []).length, 0, 'no second student screen');
+  const source = read('js/manager.js');
+  for (const action of ['approve-student', 'reject-student', 'edit-student', 'activate-student', 'deactivate-student', 'reset-password']) {
+    assert.match(source, new RegExp(`'${action}'`), `শিক্ষার্থী action ${action} is missing`);
+  }
+  /* The old name still resolves into the same screen with the pending filter. */
+  assert.match(source, /approvals: \{ view: 'students', scope: 'pending' \}/);
+  assert.match(read('js/office-data.js'), /export async function setStudentStatus/, 'activate/deactivate goes through one roster writer');
+  assert.match(read('js/office-data.js'), /status === 'inactive' \? 'inactive' : 'approved'/, 'deactivation is not an approval');
+});
+
+test('Manager একাডেমিক is one hub over the eight sections plus teacher management', () => {
+  const hubStart = managerHtml.indexOf('data-view-panel="academic"');
+  const hub = managerHtml.slice(hubStart, managerHtml.indexOf('data-view-panel="academic-records"'));
+  assert.deepEqual([...hub.matchAll(/data-academic-section="([a-z]+)"/g)].map(match => match[1]),
+    ['homework', 'suggestion', 'bank', 'materials', 'exams', 'results', 'routine', 'notice']);
+  assert.match(hub, /id="managerAcademicTeachers"[\s\S]*data-manager-view="teachers"/, 'teacher management sits in একাডেমিক');
+  const source = read('js/manager.js');
+  assert.match(source, /ACADEMIC_SECTIONS = Object\.freeze\(/, 'the hub routes through one table');
+  assert.match(source, /bank: \{ view: 'exams', screen: 'bank' \}/, 'প্রশ্নব্যাংক deep-links into the one exam workspace');
+  assert.equal((managerHtml.match(/id="managerExamWorkspace"/g) || []).length, 1, 'one examination workspace, never a copy');
+  /* Nothing academic is duplicated in আরও. */
+  const more = read('js/manager.js').slice(read('js/manager.js').indexOf('const MORE_MODULES'));
+  const rows = [...more.slice(0, more.indexOf(']')).matchAll(/view: '([a-z-]+)'/g)].map(match => match[1]);
+  assert.deepEqual(rows, ['classes', 'profile'], 'আরও keeps only the structural modules');
+});
+
+test('Manager হিসাব owns four segments: collection, approval, due and history', () => {
+  assert.deepEqual([...managerHtml.matchAll(/data-finance-segment="([a-z]+)"/g)].map(match => match[1]),
+    ['collection', 'approval', 'due', 'history']);
+  assert.deepEqual([...managerHtml.matchAll(/data-finance-panel="([a-z]+)"/g)].map(match => match[1]),
+    ['collection', 'approval', 'due', 'history']);
+  for (const id of ['mgrFinanceCollectionNote', 'managerCashList', 'managerFinanceDueList', 'managerPaymentList']) {
+    assert.equal((managerHtml.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, `#${id} appears once`);
+  }
+  assert.equal((managerHtml.match(/data-view-panel="cash-counter"/g) || []).length, 0, 'the Cash Counter review was a segment, not a screen of its own');
+  const source = read('js/manager.js');
+  assert.match(source, /'cash-counter': \{ view: 'finance', segment: 'approval' \}/, 'the old link still opens the approval queue');
+  assert.match(source, /function renderCashCounter\(\) \{ financeSegment = 'approval';/, 'one renderer for the queue');
+  /* Every money figure still comes from the shared ledger, never a copy. */
+  assert.match(source, /financeRepository\.listTransactions/);
+  assert.doesNotMatch(source, /saveTransaction\(/, 'the Manager never writes a counter entry');
+});
+
+test('a Manager notice is class/batch-scoped and Notice stays separate from Notification', () => {
+  const form = managerHtml.slice(managerHtml.indexOf('id="managerNoticeForm"'), managerHtml.indexOf('id="managerNoticeList"'));
+  assert.deepEqual([...form.matchAll(/name="(title|body|category|className|group|audience)"/g)].map(match => match[1]),
+    ['title', 'body', 'category', 'className', 'group', 'audience']);
+  const source = read('js/manager.js');
+  assert.match(source, /className: String\(data\.get\('className'\)/, 'the composer writes the scope');
+  assert.match(source, /noticeScopeText/, 'the list shows who a notice reaches');
+  /* The student board reads the very same store through the shared rule. */
+  assert.match(read('js/student-notice-board.js'), /loadNotices\(\)/);
+  assert.match(read('js/notification-rules.js'), /export function noticeScopeMatches/);
+});

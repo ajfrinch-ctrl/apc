@@ -442,3 +442,45 @@ test('workflow 9 — the Manager-authored routine appears in the student রু�
   assert.match(list, /রুম ১০১/, 'the room reaches the student routine');
   assert.equal(student.$('#routineList').hidden, false);
 });
+
+/* ------------------- 8b. Manager → Notice (class scope) → Student ------------ */
+test('workflow 8b — a Manager-written notice carries its class scope and stays off other classes', async () => {
+  const base = await seedAcademics();
+  const manager = await openStaff('manager.html', 'manager', base);
+  /* The Manager writes it where the architecture puts it: একাডেমিক → নোটিশ. */
+  await openStaffPanel(manager, 'manager', {
+    provision: false,
+    importPanel: () => import('../js/manager.js'),
+    shellId: 'managerShell'
+  });
+  manager.click(manager.$('.manager-bottom [data-manager-view="academic"]'));
+  await manager.flush(6);
+  assert.equal(manager.$('[data-view-panel="academic"]').hidden, false, 'একাডেমিক is the hub');
+  manager.click(manager.$('#managerAcademicMenu [data-academic-section="notice"]'));
+  await manager.waitFor(() => manager.$('[data-view-panel="notices"]')?.hidden === false, 8000);
+  await manager.waitFor(() => manager.$$('#managerNoticeClass option').length > 1, 8000);
+  manager.type(manager.$('#managerNoticeForm [name=title]'), 'মাসিক পরীক্ষার রুটিন (ওয়ার্কফ্লো)');
+  manager.type(manager.$('#managerNoticeForm [name=body]'), 'দশম শ্রেণির পরীক্ষা শনিবার শুরু।');
+  manager.$('#managerNoticeForm [name=className]').value = CLASS;
+  manager.$('#managerNoticeForm [name=group]').value = '';
+  manager.submit(manager.$('#managerNoticeForm'));
+  await manager.waitFor(() => String(manager.window.localStorage.getItem('activePlus.admin.notices.v1') || '').includes('মাসিক পরীক্ষার রুটিন'), 10000);
+  const storage = dump(manager);
+  const saved = JSON.parse(storage['activePlus.admin.notices.v1']).find(notice => notice.title.includes('মাসিক পরীক্ষার রুটিন'));
+  assert.equal(saved.className, CLASS, 'the Manager notice carries the class it was written for');
+  assert.equal(saved.createdByRole, 'manager');
+  assert.equal(saved.status, 'published');
+  /* Both writers produce the SAME record shape; the student board has one reader. */
+  assert.equal(saved.audience, 'সকল শিক্ষার্থী');
+  assert.ok(saved.createdBy && saved.author, 'the notice keeps its author fields');
+
+  const student = await openStudent(storage);
+  assert.match(student.$('#homeNoticeList').textContent, /মাসিক পরীক্ষার রুটিন/);
+
+  const roster = JSON.parse(storage[ROSTER_KEY]);
+  roster.push({ ...STUDENT, id: 'AP-WF-3001', name: 'অন্য শ্রেণির শিক্ষার্থী', className: 'নবম শ্রেণি' });
+  const other = await openStudent({ ...storage, [ROSTER_KEY]: JSON.stringify(roster) },
+    { student: { ...STUDENT, id: 'AP-WF-3001', name: 'অন্য শ্রেণির শিক্ষার্থী', className: 'নবম শ্রেণি' }, username: 'workflow.other' });
+  assert.doesNotMatch(other.$('#homeNoticeList').textContent, /মাসিক পরীক্ষার রুটিন/,
+    'the scoped Manager notice stays off another class');
+});
