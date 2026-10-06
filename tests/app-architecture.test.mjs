@@ -13,6 +13,19 @@ import { readFileSync } from 'node:fs';
 import { loadPage } from './jsdom-harness.mjs';
 
 const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+/* One panel of a page, from its opening tag to the matching close. */
+function ctxPanel(source, name) {
+  const start = source.indexOf(`data-pay-panel="${name}"`);
+  if (start < 0) return '';
+  const open = source.lastIndexOf('<section', start);
+  let depth = 0, i = open;
+  while (i < source.length) {
+    if (source.startsWith('<section', i)) depth++;
+    else if (source.startsWith('</section>', i)) { depth--; if (!depth) return source.slice(open, i); }
+    i++;
+  }
+  return source.slice(open);
+}
 const html = read('index.html');
 /* Bangla text mixes precomposed and combining forms; compare in NFC. */
 const nfc = value => String(value ?? '').normalize('NFC');
@@ -305,4 +318,55 @@ test('a Manager notice is class/batch-scoped and Notice stays separate from Noti
   /* The student board reads the very same store through the shared rule. */
   assert.match(read('js/student-notice-board.js'), /loadNotices\(\)/);
   assert.match(read('js/notification-rules.js'), /export function noticeScopeMatches/);
+});
+
+/* ---------------------------- Cash Counter ---------------------------------- */
+
+test('the Cash Counter bottom bar is exactly হোম / শিক্ষার্থী / পেমেন্ট / রিপোর্ট / আরও', async () => {
+  const ctx = await loadPage('payment.html');
+  const seats = ctx.$$('.admin-bottom .admin-bottom-item');
+  assert.deepEqual(seats.map(seat => seat.dataset.paySection), ['home', 'students', 'payment', 'reports', 'more']);
+  assert.deepEqual(seats.map(seat => nfc(seat.textContent.trim())), ['হোম', 'শিক্ষার্থী', 'পেমেন্ট', 'রিপোর্ট', 'আরও'].map(nfc));
+  for (const seat of seats) assert.ok(seat.querySelector('svg'), 'every seat keeps its icon');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.paySection, 'home');
+  ctx.window.close();
+});
+
+test('Cash Counter শিক্ষার্থী only verifies identity, and the panel owns no academic work', async () => {
+  const source = read('js/payment.js');
+  /* Search returns identity + a masked contact, never dues, class or a profile. */
+  assert.match(source, /searchCounterStudents/);
+  assert.doesNotMatch(source, /studentFeeSummary|loadRoster|mountReports|dueStudents|whatsappTarget|renderQuickPicks/);
+  assert.doesNotMatch(source, /saveRoutine|saveNotice|teachingRepository|examRepository|reviewTransaction/,
+    'the counter never writes academics, notices, exams or approvals');
+  const html = read('payment.html');
+  for (const forbidden of [/data-academic-section/, /data-view-panel/, /data-manager-view/, /data-teacher-view/])
+    assert.doesNotMatch(html, forbidden, 'another role’s surfaces do not appear here');
+  const students = ctxPanel(html, 'students');
+  assert.match(students, /id="paySearchCard"/);
+  assert.match(students, /id="payProfileCard"/);
+  assert.doesNotMatch(students, /id="payCollectionForm"/, 'the entry form belongs to the পেমেন্ট seat');
+  assert.match(ctxPanel(html, 'payment'), /id="payCollectionForm"/);
+  /* Every money figure comes from the ledger the Manager approves against. */
+  assert.match(source, /listCounterTodayTransactions|saveCounterPayment/);
+  assert.match(read('js/counter-data.js'), /financeRepository/);
+  const reports = ctxPanel(html, 'reports');
+  assert.match(reports, /id="paymentReports"/, 'রিপোর্ট is the existing report centre');
+  assert.match(read('js/payment.js'), /mountCounterReports/);
+});
+
+test('Cash Counter হোম is the day’s own ledger: no dashboard tiles, one list, one receipt', () => {
+  const html = read('payment.html');
+  const home = ctxPanel(html, 'home');
+  assert.match(home, /id="payTodayList"/, 'আজকের লেনদেন is the day’s list');
+  assert.equal((home.match(/id="payTodayList"/g) || []).length, 1, 'the list is not duplicated per seat');
+  for (const banned of ['payPulse', 'payTodayAmount', 'payMonthAmount', 'payDueStudents', 'payKeypad', 'payStickyBar', 'payDeskTools'])
+    assert.doesNotMatch(html, new RegExp(`id="${banned}"`), `the narrowed counter never grows ${banned}`);
+  /* Receipt → daily collection: a fresh slip closes onto হোম. */
+  assert.match(read('js/payment.js'), /state\.afterReceipt='home'/);
+  assert.match(read('js/payment.js'), /entry → receipt → daily collection/);
+  /* আরও is the counter's own session, not a second menu. */
+  const more = ctxPanel(html, 'more');
+  assert.match(more, /id="payMoreLogout"/);
+  assert.equal((more.match(/data-pay-section=/g) || []).length, 0, 'আরও lists no other seat');
 });

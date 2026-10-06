@@ -16,7 +16,7 @@ async function prepare(page,scene={width:390,theme:'light'}) {
  },{person:PERSON,date:DATE});
  await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');await expect(page.locator('.launch-screen')).toHaveCount(0);
 }
-async function reports(page) {await page.locator('[data-counter-view="reports"]').click();await expect(page.locator('#payReportsCard')).toBeVisible();}
+async function reports(page) {await page.locator('.admin-bottom [data-pay-section="reports"]').click();await expect(page.locator('#payReportsCard')).toBeVisible();}
 for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:1280,theme:'light'}]) {
  test(`phone search is usable and masks central three digits (${scene.width}px ${scene.theme})`,async({page})=>{
   await prepare(page,scene);await expect(page.locator('#payReportsCard')).toBeHidden();
@@ -46,7 +46,7 @@ for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:12
   expect(require('fs').readFileSync(await pdf.path()).toString('latin1').startsWith('%PDF-1.4')).toBe(true);
   expect(await page.evaluate(()=>localStorage.getItem('activePlus.admin.transactions.v1'))).toBe(before);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.locator('[data-counter-view="today"]').click();await expect(page.locator('#payReportsCard')).toBeHidden();await expect(page.locator('#payTodayList .pay-activity-row')).toHaveCount(1);
+  await page.locator('.admin-bottom [data-pay-section="home"]').click();await expect(page.locator('#payReportsCard')).toBeHidden();await expect(page.locator('#payTodayList .pay-activity-row')).toHaveCount(1);
   expect(errors).toEqual([]);
  });
 }
@@ -64,7 +64,7 @@ test('serial T IDs continue across concurrent tabs and a date change without alt
 });
 test('reports do not discard an unsaved simple payment or expose its raw phone query',async({page})=>{
  await prepare(page);await page.locator('#payStudentSearch').fill(PERSON.guardianMobile);await page.locator('#paySearchResults .fee-search-result').click();await page.locator('#payProfileCollect').click();await page.locator('#payFeeAmount').fill('975');
- await reports(page);await page.locator('[data-counter-view="today"]').click();await expect(page.locator('#payFeeAmount')).toHaveValue('975');
+ await reports(page);await page.locator('.admin-bottom [data-pay-section="home"]').click();await expect(page.locator('#payFeeAmount')).toHaveValue('975');
 });
 test.describe('offline reports',()=>{
  test.use({serviceWorkers:'allow'});

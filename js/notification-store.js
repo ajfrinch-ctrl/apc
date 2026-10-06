@@ -64,7 +64,7 @@ export const SECTION_TARGET = Object.freeze({
   registration: 'approvals',
   payment: 'home',
   'payment-review': 'cash-counter',
-  'payment-rejected': 'cash-counter'
+  'payment-rejected': 'home'   // the counter's own day, where its slip is re-opened
 });
 
 export const NOTIFICATION_DEFAULTS = Object.freeze({

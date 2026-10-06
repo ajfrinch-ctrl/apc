@@ -96,5 +96,8 @@ export function mountCounterReports(root) {
   finally{if(version===state.version){generate.disabled=false;generate.textContent='রিপোর্ট তৈরি করুন';}}
  });
  updateDates();
- return {reset};
+ /* Report Centre deep links (e.g. হোম → আজকের ক্লোজিং) preselect a report; the
+    builder still runs only on an explicit Generate. */
+ const preset=id=>{if(!COUNTER_PAYMENT_REPORTS.some(def=>def.id===id))return false;choices.value=id;choices.dispatchEvent(new Event('change'));resetResult();return true;};
+ return {reset,preset};
 }

@@ -12,7 +12,7 @@ const routeIcons = {
   admin: { staff:'staff', students:'students', dashboard:'dashboard', roles:'roles', data:'data', backup:'backup', security:'shield', settings:'settings', reports:'reports', profile:'user' },
   manager: { dashboard:'home', students:'students', approvals:'approval', classes:'classes', teachers:'teacher', finance:'wallet', 'cash-counter':'wallet', routine:'calendar', exams:'exam', results:'result', reports:'reports', notices:'notice', profile:'user', more:'more' },
   teacher: { home:'home', classes:'classes', students:'students', 'routine-view':'calendar', routine:'attendance', homework:'assignment', 'online-exams':'exam', exam:'result', suggestion:'notice', reports:'reports', profile:'user', more:'more' },
-  payment: { search:'home', activity:'receipt', collect:'wallet', reports:'reports', settings:'more' }
+  payment: { home:'home', students:'students', payment:'wallet', reports:'reports', more:'more' }
 };
 
 for (const page of pages) {

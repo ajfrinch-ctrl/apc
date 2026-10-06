@@ -109,7 +109,7 @@ for (const scene of [{ width:320, theme:'dark' },{ width:390, theme:'light' }]) 
     await page.goto('/offline-roles.html');await seed(page,'payment');
     await page.evaluate(async()=>{const {adminStudents}=await import('/js/admin-data.js');const {KEYS}=await import('/js/database.js');localStorage.setItem(KEYS.students,JSON.stringify(adminStudents));localStorage.setItem(KEYS.transactions,'[]');});
     await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
-    await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom')).toHaveCount(0);
+    await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom [data-pay-section]')).toHaveCount(5);
     await page.locator('#payStudentSearch').fill('AP-1024');await page.locator('#paySearchResults .fee-search-result').click();
     await expect(page.locator('#payProfileCollect')).toBeEnabled();await page.locator('#payProfileCollect').click();
     await expect(page.locator('#payFeeAmount')).toHaveValue('');await page.locator('#payFeeAmount').fill('800');await page.locator('#paySaveButton').click();

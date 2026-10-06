@@ -1,5 +1,7 @@
-/* Minimal counter: today's own transactions and query-only identity search.
-   No roster, dues, detailed profiles, history/report or contact-sharing views. */
+/* Cash Counter panel: হোম · শিক্ষার্থী · পেমেন্ট · রিপোর্ট · আরও (one seat per job step).
+   The counter still sees no roster, dues, detailed profile or contact-sharing view:
+   সার্চ = identity only, আরও = session/storage, and every figure comes from the one
+   ledger through counter-data.js — the panel never writes a second copy. */
 import { feeCategories, paymentMethods } from './admin-data.js';
 import { monthLabel } from './finance-data.js';
 import { searchCounterStudents, listCounterTodayTransactions, saveCounterPayment } from './counter-data.js';
@@ -11,20 +13,33 @@ import { registerServiceWorker } from './service-worker.js';
 import { goToLoginPage } from './staff-auth.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
 import { PAYMENT_USER_ID, PAYMENT_SESSION_KEY, hasPaymentSession, clearPaymentSession } from './payment-auth.js';
+import { readStaffAccount } from './staff-auth.js';
 export { PAYMENT_USER_ID };
 
 registerServiceWorker();
 const $ = selector => document.querySelector(selector);
-const state = { view:'today', matches:[], selected:null, today:[], ready:false, saving:false, receipt:null, queryVersion:0 };
+const state = { view:'home', matches:[], selected:null, today:[], ready:false, saving:false, receipt:null, queryVersion:0, afterReceipt:null };
+/* One seat per step of the counter's job: search → entry → verify → receipt →
+   daily collection → history. Old names stay valid for anything already open. */
+const COUNTER_VIEWS = Object.freeze(['home','students','payment','reports','more']);
+const COUNTER_VIEW_TITLES = Object.freeze({ home:'আজকের লেনদেন', students:'শিক্ষার্থী', payment:'পেমেন্ট এন্ট্রি', reports:'পেমেন্ট রিপোর্ট', more:'আরও' });
+const COUNTER_VIEW_ALIASES = Object.freeze({ today:'home', history:'reports' });
 const search = $('#payStudentSearch');
 const reports = mountCounterReports($('#paymentReports'));
 function showCounterView(view) {
-  if (!['today','reports'].includes(view) || state.saving) return;
-  state.view=view; $('#payCounterHome').hidden=view!=='today'; $('#payReportsCard').hidden=view!=='reports';
-  $('#counterViewTitle').textContent=view==='reports'?'পেমেন্ট রিপোর্ট':'আজকের লেনদেন';
-  document.querySelectorAll('[data-counter-view]').forEach(button=>{if(button.dataset.counterView===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
+  const target=COUNTER_VIEW_ALIASES[view] || view;
+  if (!COUNTER_VIEWS.includes(target) || state.saving) return false;
+  state.view=target;
+  document.querySelectorAll('[data-pay-panel]').forEach(panel=>{panel.hidden=panel.dataset.payPanel!==target;});
+  $('#payReportsCard').hidden=target!=='reports';
+  $('#counterViewTitle').textContent=COUNTER_VIEW_TITLES[target];
+  document.querySelectorAll('.admin-bottom [data-pay-section]').forEach(seat=>{
+    const active=seat.dataset.paySection===target;
+    seat.classList.toggle('active',active);
+    if(active)seat.setAttribute('aria-current','page');else seat.removeAttribute('aria-current');
+  });
+  return true;
 }
-document.querySelectorAll('[data-counter-view]').forEach(button=>button.addEventListener('click',()=>showCounterView(button.dataset.counterView)));
 const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
 const status = tx => tx.status === 'pending' ? 'অনুমোদন বাকি' : tx.status === 'rejected' ? 'বাতিল' : 'অনুমোদিত';
 function toast(message, tone='info') {
@@ -62,11 +77,13 @@ async function refreshToday() {
   const collect=$('#payProfileCollect'); if(collect) collect.disabled=!state.ready || state.saving;
   $('#paySaveButton').disabled=!state.ready || state.saving;
 }
+const ENTRY_EMPTY='কোনো শিক্ষার্থী নির্বাচিত নেই — শিক্ষার্থী বিভাগে সার্চ করে যাচাই করুন।';
 function clearSelection() {
-  state.selected=null; $('#paySearchCard').hidden=false;
+  state.selected=null;
   $('#payQuickProfile').replaceChildren(); $('#payProfileCard').hidden=true;
   $('#payCollectionForm').hidden=true; $('#payCollectionForm').reset();
   $('#paySaveError').hidden=true;
+  $('#payEntryStudent').textContent=ENTRY_EMPTY; $('#payEntrySearch').hidden=false;
 }
 function renderResults() {
   $('#paySearchResults').innerHTML=state.matches.map(student=>`
@@ -107,15 +124,22 @@ function openForm() {
   if(form.hidden) {
     form.reset(); $('#payStudent').value=state.selected.id;
     $('#paySaveError').hidden=true; form.hidden=false;
-    $('#paySearchCard').hidden=true; $('#payProfileCollect').hidden=true;
+    /* The verify card names who the entry is for; the entry panel takes over. */
+    $('#payEntryStudent').textContent=`${state.selected.name} · Student ID: ${state.selected.id}`;
+    $('#payEntrySearch').hidden=true; $('#payProfileCollect').hidden=true;
   }
+  showCounterView('payment');
   $('#payFeeAmount').focus({preventScroll:true});
 }
 search.addEventListener('input',()=>{if(!state.saving) void findStudents();});
 $('#paySearchClear').addEventListener('click',()=>{if(state.saving)return;search.value='';void findStudents();search.focus();});
-$('#payCancelButton').addEventListener('click',()=>{if(state.saving)return;clearSelection();search.focus();});
+$('#payCancelButton').addEventListener('click',()=>{if(state.saving)return;clearSelection();showCounterView('students');search.focus();});
 $('#payActivityRefresh').addEventListener('click',()=>{void refreshToday();});
 document.addEventListener('click',event=>{
+  const seat=event.target.closest('[data-pay-section]');
+  if(seat) {showCounterView(seat.dataset.paySection);return;}
+  if(event.target.closest('#payClosingShortcut')) {if(showCounterView('reports')) reports.preset('cash.closing');return;}
+  if(event.target.closest('#payMoreLogout')) {exitCounter();return;}
   const student=event.target.closest('[data-pay-student]'); if(student) selectStudent(student.dataset.payStudent);
   if(event.target.closest('#payProfileCollect')) openForm();
   const trigger=event.target.closest('[data-pay-tx]');
@@ -146,6 +170,7 @@ $('#payCollectionForm').addEventListener('submit',async event=>{
   state.today=saved.today; renderToday();
   clearSelection(); search.value=''; state.matches=[]; renderResults(); $('#paySearchStatus').textContent=''; $('#paySearchClear').hidden=true;
   toast('পেমেন্ট সংরক্ষিত হয়েছে; অনুমোদন বাকি।','success');
+  state.afterReceipt='home';
   openReceipt(saved.transaction);
 });
 async function openReceipt(tx) {
@@ -158,8 +183,17 @@ async function openReceipt(tx) {
 }
 function closeReceipt() {
   $('#payReceiptBackdrop').hidden=true; document.body.classList.remove('admin-modal-open'); state.receipt=null;
+  /* entry → receipt → daily collection: closing a fresh slip lands on today's list. */
+  const landing=state.afterReceipt; state.afterReceipt=null;
+  if(landing) showCounterView(landing);
   $('#payActivityRefresh').focus({preventScroll:true});
 }
+/* A rejected-entry notification deep-links to that entry's own slip (§25). */
+window.addEventListener('apc-notification-action',event=>{
+  if(event.detail?.kind!=='payment-rejected') return;
+  const tx=state.today.find(row=>row.id===event.detail.id);
+  if(tx) openReceipt(tx);
+});
 $('#payReceiptClose').addEventListener('click',closeReceipt);
 $('#payReceiptBackdrop').addEventListener('click',event=>{if(event.target===event.currentTarget)closeReceipt();});
 $('#payReceiptDownload').addEventListener('click',async()=>{
@@ -168,11 +202,12 @@ $('#payReceiptDownload').addEventListener('click',async()=>{
   try {await downloadReceipt(state.receipt);} catch {toast('PDF তৈরি করা যায়নি। আবার চেষ্টা করুন।','error');}
   finally {button.disabled=false;}
 });
-$('#payExitButton').addEventListener('click',()=>{
+function exitCounter() {
   clearPaymentSession(); ++state.queryVersion; state.matches=[]; state.today=[];
   clearSelection(); closeReceipt(); $('#payTodayList').replaceChildren(); $('#paySearchResults').replaceChildren();
   $('#payShell').hidden=true; goToLoginPage();
-});
+}
+$('#payExitButton').addEventListener('click',exitCounter);
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape' && !$('#payReceiptBackdrop').hidden) closeReceipt();
   if(event.key==='/' && !$('#payShell').hidden && !/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) {event.preventDefault();search.focus();}
@@ -190,7 +225,7 @@ window.addEventListener('storage',async event=>{
 new MutationObserver(() => {
   if (!$('#payShell').hidden) return;
   ++state.queryVersion; state.matches=[]; state.today=[]; state.ready=false;
-  reports.reset(); showCounterView('today');
+  reports.reset(); showCounterView('home');
   clearSelection(); closeReceipt();
   $('#payReceiptBody').replaceChildren(); $('#payReceiptSub').textContent='';
   $('#payTodayList').replaceChildren(); renderResults(); search.value='';
@@ -208,5 +243,7 @@ hasPaymentSession().then(async valid=>{
   if(!valid) return lockPanel({ role: 'payment.html', reason: 'পেমেন্ট কাউন্টার শুধু কাউন্টারের বৈধ সেশন দিয়ে খোলে।'});
   $('#payShell').hidden=false; watchOwnPanelSession('payment');
   $('#payCurrentDate').textContent=new Intl.DateTimeFormat('bn-BD',{day:'numeric',month:'long',year:'numeric'}).format(new Date());
-  configureForm(); await refreshToday();
+  try {const account=await readStaffAccount('payment');$('#payMoreUser').textContent=account?.fullName || account?.username || PAYMENT_USER_ID;}
+  catch {$('#payMoreUser').textContent=PAYMENT_USER_ID;}
+  configureForm(); showCounterView('home'); await refreshToday();
 });

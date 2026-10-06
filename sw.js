@@ -1,3 +1,7 @@
+// v171: Cash Counter app architecture — the bottom bar is হোম/শিক্ষার্থী/পেমেন্ট/রিপোর্ট/আরও and each seat owns
+//       one step of the counter's job (search → entry → verify → receipt → daily collection → history).
+//       The narrowed counter stays narrow: identity-only search, no roster/dues/profile, no dashboard
+//       tiles; every figure still comes from the one ledger.
 // v170: Manager app architecture — the bottom bar is হোম/শিক্ষার্থী/একাডেমিক/হিসাব/রিপোর্ট/আরও; শিক্ষার্থী owns the
 //       whole lifecycle (নিবন্ধন অপেক্ষমাণ · সক্রিয় · নিষ্ক্রিয় + approve/reject/edit/activate/deactivate/password
 //       reset), একাডেমিক is one hub over the eight academic sections + teacher management, হিসাব owns
@@ -30,7 +34,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 170;
+const CACHE_VERSION = 171;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

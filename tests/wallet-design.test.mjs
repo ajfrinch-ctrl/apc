@@ -145,9 +145,14 @@ test('notification settings live inside a hidden view, never floating outside th
   assert.equal(doc('payment').getElementById('notificationSettings'), null, 'counter has no staff settings mount');
 });
 
-test('counter keeps only the requested today/search/payment surfaces, not wallet dashboard extras', () => {
+test('counter keeps only its five job surfaces, not wallet dashboard extras', () => {
   const document = doc('payment');
-  for (const selector of ['.admin-bottom','#payStickyBar','#payKeypad','#payDeskTools','#payQuickPicks','#payTodayAmount','#payMonthAmount','#payDueStudents']) assert.equal(document.querySelector(selector),null,selector);
+  const seats = [...document.querySelectorAll('.admin-bottom [data-pay-section]')].map(seat => seat.dataset.paySection);
+  assert.deepEqual(seats, ['home', 'students', 'payment', 'reports', 'more'], 'one seat per step of the counter job');
+  assert.deepEqual([...document.querySelectorAll('[data-pay-panel]')].map(panel => panel.dataset.payPanel),
+    ['home', 'students', 'payment', 'reports', 'more'], 'every seat owns exactly one panel');
+  assert.equal(document.querySelectorAll('[data-academic-section]').length, 0, 'no academic management at the counter');
+  for (const selector of ['#payStickyBar','#payKeypad','#payDeskTools','#payQuickPicks','#payTodayAmount','#payMonthAmount','#payDueStudents']) assert.equal(document.querySelector(selector),null,selector);
   for (const id of ['paySearchCard','payProfileCard','payActivityCard','payCollectionForm','payStudentSearch']) assert.equal(document.querySelectorAll('#'+id).length,1,id);
   assert.equal(document.querySelector('#payProfileCard').hidden,true);
   assert.equal(document.querySelector('#payFeeMethod').tagName,'SELECT');
