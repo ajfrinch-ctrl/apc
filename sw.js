@@ -1,3 +1,9 @@
+// v175: retired-markup cleanup — every module that still wrote to a control the redesign
+//       had removed (Admin's old finance tiles, ledger and receipt viewer; the student topbar
+//       clock/date strip and daily-advice line; the dead staff stat tiles, manager short name,
+//       teacher records back bar and the text-based connection pill with its own module) is
+//       pruned. Nothing that renders changed: the app shell just stopped shipping code that
+//       could never find its element, so no page can grow a second interface again.
 // v174: Report Center final sweep — one empty-state wording for every role ("কোনো তথ্য পাওয়া যায়নি।",
 //       defined once in js/report-catalog.js and used by the preview, the PDF and the counter), the
 //       empty message now stands above the page instead of leaving a blank sheet, and the Academic
@@ -48,7 +54,7 @@
 // answer-key PDFs, the student Learning Hub (class → subject → chapter) and the
 // shared brand module. v148: date-wise examination workspace — question
 // archive, review workflow and question-level editing for the Manager.
-const CACHE_VERSION = 174;
+const CACHE_VERSION = 175;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -188,7 +194,6 @@ const APP_SHELL = [
   './js/navigation.js',
   './js/notice-center.js',
   './js/install.js',
-  './js/connectivity.js',
   './js/service-worker.js',
   './js/theme.js',
   './js/fixed-shell.js',

@@ -20,7 +20,6 @@ import { initNavigation } from './navigation.js';
 import { initProfile, openProfileEditor, shareStudentOnWhatsApp } from './profile.js';
 import { initRoutine } from './routine.js';
 import { initInstallPrompt, installApp } from './install.js';
-import { initConnectivity } from './connectivity.js';
 import { registerServiceWorker } from './service-worker.js';
 import { initDynamicTheme } from './theme.js';
 import { initFixedShell } from './fixed-shell.js';
@@ -75,7 +74,7 @@ function applyMaintenanceMode(cfg = loadAppConfig()) {
   const { on } = maintenanceState(cfg);
   if (!on) {
     MAINTENANCE_HOSTS.forEach(({ id }) => $(`#${id}`)?.remove());
-    $('#appMaintenanceBanner')?.remove();   // legacy id from an older build
+    $('#appMaintenanceBanner')?.remove();   // legacy cleanup: id from an older build, no page renders it
     return;
   }
   const markup = maintenanceBannerMarkup(cfg);
@@ -346,7 +345,6 @@ mountSettingsHub({
 });
 // Settings → Notification Settings (the full screen behind এই নোটিফিকেশন সেটিংস).
 initNotificationSettings({ mount: '#notificationSettings' });
-initConnectivity();
 // Firebase is optional during online testing; offline startup remains independent.
 // The connection smoke test is diagnostic-only and costs an extra SDK download,
 // so it runs only when explicitly asked (index.html?fbtest=1) — never on a

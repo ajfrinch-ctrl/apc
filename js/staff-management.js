@@ -198,24 +198,6 @@ function clearModalError() {
    Rendering — stats, filters, cards
    ------------------------------------------------------------------------ */
 
-function renderStats() {
-  const host = $('#staffStats');
-  if (!host) return;
-  const counts = state.counts || { total: 0, active: 0, inactive: 0, byRole: {} };
-  const tiles = [
-    { label: 'মোট স্টাফ', value: counts.total, tone: 'mint', icon: 'staff' },
-    { label: 'সক্রিয়', value: counts.active, tone: 'blue', icon: 'checkCircle' },
-    { label: 'নিষ্ক্রিয়/স্থগিত', value: (counts.inactive || 0) + (counts.suspended || 0), tone: 'amber', icon: 'lock' },
-    { label: 'পাসওয়ার্ড বদল বাকি', value: counts.passwordDue || 0, tone: 'lilac', icon: 'shield' }
-  ];
-  host.innerHTML = tiles.map(tile => `
-    <div class="staff-stat-tile tone-${tile.tone}">
-      <span class="staff-stat-icon" aria-hidden="true">${icon(tile.icon, 'staff-icon')}</span>
-      <p class="staff-stat-label">${escapeHtml(tile.label)}</p>
-      <p class="staff-stat-value">${bn(tile.value)}</p>
-    </div>`).join('');
-}
-
 function renderRoleFilter() {
   const host = $('#staffRoleFilter');
   if (!host) return;
@@ -332,7 +314,6 @@ export async function renderStaff() {
     const note = $('#staffReadonlyNote');
     if (note) note.hidden = false;
   }
-  renderStats();
   renderRoleFilter();
   renderStatusFilter();
   renderList();

@@ -170,7 +170,6 @@ function renderRecords() {
   if (!ACTIVITY_TYPES[state.view]) return;
   $('#teacherRecordsTitle').textContent = ACTIVITY_TYPES[state.view].plural;
   $('#teacherNewActivity').hidden = state.view === 'exam';
-  if ($('#teacherRecordsBack')) $('#teacherRecordsBack').hidden = !['suggestion', 'routine'].includes(state.view);
   $('#teacherOnlineExamHint').hidden = state.view !== 'exam';
   const query = $('#teacherRecordSearch').value.trim().toLocaleLowerCase();
   const className = $('#teacherClassFilter').value;

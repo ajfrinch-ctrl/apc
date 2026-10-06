@@ -814,8 +814,6 @@ async function enterManager() {
     return;
   }
   $('#managerShell').hidden = false;
-  const shortName = $('#managerNameShort');
-  if (shortName) shortName.textContent = managerAccount.fullName || 'Manager Profile';
   if (!examStarted) { const workspace = initExamManager('#managerExamWorkspace', 'manager'); examWorkspaceOpen = screen => workspace?.open?.(screen); examStarted = true; }
   // A refresh (or a shared link) reopens the page that was open, when it is a
   // page this panel knows.

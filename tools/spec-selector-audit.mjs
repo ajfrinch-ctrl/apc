@@ -5,7 +5,11 @@
    This is a maintenance tool, not a test: the browser specs themselves cannot run
    in every environment (no Chromium download), so this catches the class of
    failure the architecture work can introduce — a spec pointing at a control that
-   moved house. */
+   moved house.
+
+   Deliberate exceptions are marked in the source with the word `legacy` on the
+   same line (e.g. js/main.js removing a banner left by an older build); a stale
+   pointer from a redesign carries no such marker and is reported. */
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -110,10 +114,16 @@ for (const spec of readdirSync(path.join(root, 'tests')).filter(file => file.end
 const deadRefs = new Map();
 for (const file of jsFiles) {
   const source = read(`js/${file}`);
-  const refs = new Set([...source.matchAll(/[\$(]\s*['"]#([A-Za-z][\w-]*)['"]/g)].map(match => match[1]));
-  for (const id of refs) {
+  for (const match of source.matchAll(/[\$(]\s*['"]#([A-Za-z][\w-]*)['"]/g)) {
+    const id = match[1];
     if (htmlIds.has(id) || runtimeIds.has(id)) continue;
     if (dynamicIdPrefixes.some(prefix => id.startsWith(prefix))) continue;
+    /* A lookup whose id is built by concatenation (`#navDot-` + type) cannot be
+       enumerated; markup provides the leaves the loop actually paints. */
+    const tail = source.slice(match.index + match[0].length, match.index + match[0].length + 12);
+    if (tail.startsWith(' ' + '+') || tail.startsWith('+') || tail.startsWith('`')) continue;
+    const line = source.slice(source.lastIndexOf('\n', match.index) + 1, source.indexOf('\n', match.index));
+    if (/legacy/i.test(line)) continue;
     if (!deadRefs.has(file)) deadRefs.set(file, []);
     deadRefs.get(file).push(id);
   }
@@ -130,7 +140,7 @@ for (const [spec, list] of bySpec) {
 }
 if (deadRefs.size) {
   console.log('\nGuarded module references to retired markup (no selector can resolve them):');
-  for (const [file, list] of deadRefs) console.log(`   js/${file}: ${list.length} — ${list.slice(0, 6).join(', ')}${list.length > 6 ? ' …' : ''}`);
+  for (const [file, list] of deadRefs) { const unique = [...new Set(list)]; console.log(`   js/${file}: ${unique.length} — ${unique.slice(0, 6).join(', ')}${unique.length > 6 ? ' …' : ''}`); }
 }
 const dynamicBySpec = new Map();
 for (const item of dynamic) {

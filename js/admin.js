@@ -15,15 +15,13 @@ import { iconMarkup } from './icons.js';
    notices and routine start empty and stay on this device. */
 import { enabledClasses, DEFAULT_APP_SETTINGS, ADMIN_ID, DEFAULT_PIN, maintenanceState } from './config.js';
 import { toBanglaNumber } from './ui.js';
-import { classCodes, feeCategories, paymentMethods } from './admin-data.js';
+import { classCodes } from './admin-data.js';
 import { loadAppConfig, saveAppConfig, loadAccount, saveAccount } from './storage.js';
-import { loadRoster, saveRoster, syncAccountStatus, loadNotices, loadRoutine } from './office-data.js';
-import { changeStaffPassword, updateStaffProfile, ensureBootstrapStaffAccounts, readStaffAccount, hasStaffSession, clearStaffSession, goToLoginPage, STAFF_SESSION_RULES, STAFF_KEYS_LIST } from './staff-auth.js';
+import { loadRoster, saveRoster, loadNotices, loadRoutine } from './office-data.js';
+import { changeStaffPassword, updateStaffProfile, ensureBootstrapStaffAccounts, readStaffAccount, hasStaffSession, clearStaffSession, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
-import { openStaffPasswordDialog } from './staff-password-dialog.js';
-import { financeRepository, monthLabel, dateLabel, searchStudents, studentFeeSummary, newestTransactions, stampTransaction, isFinalizedTransaction, TRANSACTIONS_KEY } from './finance-data.js';
-import { newId, KEYS, readJSON, writeJSON } from './database.js';
-import { receiptMarkup, downloadReceipt } from './finance-receipt.js';
+import { dateLabel } from './finance-data.js';
+import { KEYS, readJSON, writeJSON } from './database.js';
 import { mountReports, refreshReports } from './reports.js';
 import { registerServiceWorker } from './service-worker.js';
 import { initFixedShell } from './fixed-shell.js';
@@ -34,7 +32,6 @@ import { rememberRoute, onRouteChange } from './panel-route.js';
 import { openRegistrationReview, DECIDED_EVENT } from './registration-review.js';
 import { initAdminPanelShell } from './admin-panel-ui.js';
 import { paintIcon } from './icons.js';
-import { TEACHER_ASSIGNMENTS_KEY } from './teacher-assignments.js';
 import {
   BACKUP_STAMP_KEY,
   STAFF_DIRECTORY_KEY,
@@ -61,17 +58,11 @@ const $$ = selector => Array.from(document.querySelectorAll(selector));
 const state = {
   students: loadRoster(),
   notices: loadNotices(),
-  transactions: [],
   routine: loadRoutine(),
   enabled: new Set(enabledClasses),
   appConfig: loadAppConfig(),
   activeView: 'dashboard',
   activeDay: 'sat',
-  activeFinanceTab: 'collection',
-  feeStudentId: null,
-  financeReady: false,
-  savingFee: false,
-  ledgerFilter: 'all',
   filter: 'all',
   classFilter: 'all',
   query: '',
@@ -107,23 +98,6 @@ function persistStudents() { saveRoster(state.students); }
    are Manager-owned records (manager.html). They are only read here, for the
    routine report and the data-management statistics. */
 
-function showBootstrapCredentials(accounts) {
-  if (!accounts?.length) return;
-  const list = $('#bootstrapCredentialsList');
-  if (!list) return;
-  list.replaceChildren();
-  accounts.forEach(account => {
-    const row = document.createElement('article');
-    row.className = 'admin-card bootstrap-credential-row';
-    const role = document.createElement('strong'); role.textContent = account.role;
-    const username = document.createElement('p'); username.textContent = `Username: ${account.username}`;
-    const password = document.createElement('code'); password.textContent = account.password;
-    row.append(role, username, password);
-    list.append(row);
-  });
-  $('#bootstrapCredentialsBackdrop').hidden = false;
-}
-
 async function enterPanel() {
   $('#adminShell').hidden = false;
   // The capability set follows the role stored in the account record — the
@@ -157,9 +131,11 @@ async function enterPanel() {
     welcome.textContent = 'স্বাগতম, এডমিন';
     welcome.hidden = false;
   }
+  /* First-run provisioning of the other staff accounts. The one-time credential
+     dialog it used to open was retired with the old login flow; nothing is shown,
+     the accounts are simply ready for the shared login card. */
   readStaffAccount('admin')
-    .then(account => ensureBootstrapStaffAccounts(account?.username || 'admin.apc'))
-    .then(result => { if (result.ok && result.accounts.length) showBootstrapCredentials(result.accounts); });
+    .then(account => ensureBootstrapStaffAccounts(account?.username || 'admin.apc'));
 }
 
 function exitPanel() {
@@ -237,19 +213,9 @@ function navigate(view, source) {
 
 /* ---------- Dashboard ---------- */
 
-function pendingStudents() {
-  return state.students.filter(student => student.status === 'pending');
-}
 
 function renderDashboard() {
   $('#dashStudentCount').textContent = bn(state.students.length);
-  // The approval queue belongs to the Manager portal, so the shortcut is only
-  // drawn for roles that may decide on a student (js/admin-permissions.js).
-  if (access.has(CAPABILITIES.STUDENTS_APPROVE) && $('#dashPendingCount')) {
-    const pendingCount = pendingStudents().length;
-    $('#dashPendingCount').textContent = bn(pendingCount);
-    $('#dashPendingCount').classList.toggle('has-pending', pendingCount > 0);
-  }
   $('#dashClassCount').textContent = bn(state.enabled.size);
   if ($('#dashStaffCount')) $('#dashStaffCount').textContent = bn(state.staffCounts.active || 0);
   if ($('#dashProtectedCount')) {
@@ -269,27 +235,6 @@ function renderDashboard() {
   const today = new Date();
   $('#adminTodayDate').textContent = dateLabel(today);
   $('#adminTodayDate').dateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  renderFinanceSummary();
-}
-
-/* System-level finance overview: aggregate records only, no daily cash workflow. */
-function renderFinanceSummary() {
-  if (!$('#dashMonthAmount') && !$('#dashTotalAmount')) return;
-  const money = value => '৳' + bn(Math.round(value).toLocaleString('en-US'));
-  const month = monthLabel();
-  const finalized = state.transactions.filter(isFinalizedTransaction);
-  const monthTx = finalized.filter(tx => tx.month === month);
-  const monthTotal = monthTx.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const grandTotal = finalized.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const monthDue = state.students.filter(s => s.status === 'approved')
-    .reduce((sum, student) => sum + studentFeeSummary(student, state.transactions).due, 0);
-  if ($('#dashTransactionCount')) {
-    $('#dashTransactionCount').textContent = `${bn(state.transactions.length)} টি`;
-    $('#dashMonthAmount').textContent = money(monthTotal);
-    $('#dashMonthSub').textContent = month;
-    $('#dashMonthDue').textContent = money(monthDue);
-    $('#dashTotalAmount').textContent = money(grandTotal);
-  }
 }
 
 /* ---------- Students ---------- */
@@ -323,28 +268,8 @@ function visibleStudents() {
   });
 }
 
-function renderStudentOverviewStats() {
-  const host = $('#studentOverviewStats');
-  if (!host) return;
-  const total = state.students.length;
-  const approved = state.students.filter(s => s.status === 'approved').length;
-  const pending = state.students.filter(s => s.status === 'pending').length;
-  const rejected = state.students.filter(s => s.status === 'rejected').length;
-  const classes = new Set(state.students.map(s => s.className).filter(Boolean)).size;
-  host.innerHTML = [
-    ['মোট শিক্ষার্থী', total, 'users'],
-    ['অনুমোদিত', approved, 'check-circle'],
-    ['অপেক্ষমাণ', pending, 'clipboard'],
-    ['শ্রেণি', classes, 'book']
-  ].map(([label, value, iconName]) => `
-    <div class="student-summary-card">
-      <span class="student-summary-icon" aria-hidden="true">${iconMarkup(`icon-${iconName}`)}</span>
-      <div><small>${label}</small><strong>${bn(value)}</strong></div>
-    </div>`).join('');
-}
 
 function renderStudents() {
-  renderStudentOverviewStats();
   const list = visibleStudents();
   const clearBtn = $('#studentSearchClear');
   const countBadge = $('#studentCountBadge');
@@ -558,7 +483,7 @@ function closeModal() {
   $('#adminModalBackdrop').hidden = true;
   document.body.classList.remove('admin-modal-open');
   const canRestore = modalTrigger?.isConnected && modalTrigger.matches('button, input, select, textarea, a[href], [tabindex]') && !modalTrigger.disabled && modalTrigger.getClientRects().length;
-  const target = canRestore ? modalTrigger : $('#feeProfileCollect');
+  const target = canRestore ? modalTrigger : $('#adminModalClose');
   target?.focus({ preventScroll: true });
 }
 
@@ -600,320 +525,6 @@ function toggleClass(event) {
   renderClasses();
   renderDashboard();
   toast(`${className} [${classCodes[className] || 'CLS-GEN'}] ${input.checked ? 'চালু' : 'বন্ধ'} করা হয়েছে (ডেমো)`);
-}
-
-/* ---------- Finance & Fee Collection & Reports ---------- */
-
-function setFinanceTab(tab) {
-  state.activeFinanceTab = tab;
-  if (!$('#financeSubNav')) return; // Tabs left with the finance block.
-  $$('#financeSubNav .chip').forEach(btn =>
-    btn.classList.toggle('active', btn.dataset.financeTab === tab)
-  );
-  $$('.finance-panel').forEach(panel =>
-    panel.classList.toggle('active', panel.dataset.financeView === tab)
-  );
-}
-
-async function loadFinanceTransactions() {
-  try {
-    state.transactions = await financeRepository.listTransactions({ role: 'admin' });
-    state.financeReady = true;
-    if ($('#financeLoadError')) $('#financeLoadError').hidden = true;
-    populateFinanceMonths();
-    renderFinance();
-    renderDashboard();
-  } catch {
-    state.financeReady = false;
-    if ($('#financeLoadError')) {
-      $('#financeLoadError').textContent = 'লেনদেনের ডেটা পড়া যায়নি। ব্রাউজারের স্টোরেজ চালু করে পেজ রিফ্রেশ করুন। ডেটা নিরাপদ রাখতে পেমেন্ট বন্ধ আছে।';
-      $('#financeLoadError').hidden = false;
-    }
-    renderFeeProfile();
-  }
-}
-
-function populateFinanceMonths() {
-  const monthNode = $('#feeMonth');
-  if (!monthNode) return; // No month picker without the collection form.
-  const selectedMonth = monthNode.value;
-  const now = new Date();
-  const months = new Set();
-  for (let offset = 1; offset >= -12; offset--) {
-    months.add(monthLabel(new Date(now.getFullYear(), now.getMonth() + offset, 1)));
-  }
-  state.transactions.forEach(tx => months.add(tx.month));
-  const options = [...months].map(month => `<option value="${escapeHtml(month)}">${escapeHtml(month)}</option>`).join('');
-  monthNode.innerHTML = options;
-  monthNode.value = months.has(selectedMonth) ? selectedMonth : monthLabel();
-}
-
-function renderFinanceStats() {
-  if (!$('#financeTotalCollected')) return; // Finance Summary is gone from Reports.
-  const finalized = state.transactions.filter(isFinalizedTransaction);
-  const totalCollected = finalized.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const monthCollected = finalized.filter(tx => tx.month === monthLabel())
-    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const totalDue = state.students.filter(s => s.status === 'approved')
-    .reduce((sum, student) => sum + studentFeeSummary(student, state.transactions).due, 0);
-  $('#financeTotalCollected').textContent = '৳' + bn(totalCollected.toLocaleString('en-US'));
-  $('#financeMonthCollected').textContent = '৳' + bn(monthCollected.toLocaleString('en-US'));
-  $('#financeMonthCollected').nextElementSibling.textContent = `চলতি মাস (${monthLabel()})`;
-  $('#financeTotalDue').textContent = '৳' + bn(totalDue.toLocaleString('en-US'));
-  $('#financeTrxCount').textContent = bn(state.transactions.length) + ' টি';
-  $('#trxCountBadge').textContent = bn(Math.min(5, state.transactions.length)) + ' টি আদায়';
-}
-
-function renderFeeSearch() {
-  const searchInput = $('#feeStudentSearch');
-  if (!searchInput) return; // Collection search is not part of this page.
-  const query = searchInput.value.trim();
-  const matches = searchStudents(state.students, query);
-  $('#feeSearchStatus').textContent = !query ? '' : matches.length ? `${bn(matches.length)} জন শিক্ষার্থী পাওয়া গেছে` : 'কোনো শিক্ষার্থী পাওয়া যায়নি';
-  $('#feeSearchResults').innerHTML = matches.map(student => `
-    <button class="fee-search-result" type="button" data-fee-student="${escapeHtml(student.id)}" aria-pressed="${student.id === state.feeStudentId}">
-      <span class="student-avatar" aria-hidden="true">${escapeHtml(student.name.charAt(0))}</span>
-      <span><strong>${escapeHtml(student.name)}</strong><small>Student ID: ${escapeHtml(student.id)} • ${escapeHtml(student.className)}</small></span>
-    </button>`).join('');
-}
-
-function selectFeeStudent(id) {
-  if (!$('#feeQuickProfile')) return; // No collection UI on this page.
-  if (!access.has(CAPABILITIES.FINANCE_COLLECT) || state.savingFee || !$('#feeCollectionForm')) return;
-  state.feeStudentId = id;
-  $('#feeCollectionForm').reset();
-  $('#feeCollectionForm').hidden = true;
-  $('#feeSaveError').hidden = true;
-  renderFeeSearch();
-  renderFeeProfile();
-  $('#feeQuickProfile').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  $('#feeProfileCollect')?.focus({ preventScroll: true });
-}
-
-function renderFeeProfile() {
-  const profile = $('#feeQuickProfile');
-  if (!profile) return; // No collection profile should render in Admin's read-only view.
-  const student = state.students.find(s => s.id === state.feeStudentId);
-  if (!student) {
-    profile.innerHTML = '<p class="admin-empty">উপরে সার্চ করে শিক্ষার্থীর নামের উপর ক্লিক করুন।</p>';
-    return;
-  }
-  const summary = studentFeeSummary(student, state.transactions);
-  const status = statusMeta[student.status] || { label: student.status || 'অজানা', className: '' };
-  const money = value => '৳' + bn(value.toLocaleString('en-US'));
-  profile.innerHTML = `
-    <div class="fee-profile-heading">
-      <span class="student-avatar" aria-hidden="true">${escapeHtml(student.name.charAt(0))}</span>
-      <div><h3>${escapeHtml(student.name)}</h3><small>Student ID: ${escapeHtml(student.id)}</small></div>
-      <span class="badge ${status.className}">${escapeHtml(status.label)}</span>
-    </div>
-    <dl class="fee-profile-details">
-      <div><dt>শ্রেণি ও বিভাগ</dt><dd>${escapeHtml(student.className)} • ${escapeHtml(student.group || '—')}</dd></div>
-      <div><dt>মোবাইল নম্বর</dt><dd>${escapeHtml(student.mobile || '—')}</dd></div>
-      <div><dt>সর্বশেষ পেমেন্টের তারিখ</dt><dd>${escapeHtml(summary.lastPayment?.date || 'এখনও পেমেন্ট নেই')}</dd></div>
-      <div><dt>সর্বশেষ পেমেন্টের মাধ্যম</dt><dd>${escapeHtml(summary.lastPayment?.method || '—')}</dd></div>
-    </dl>
-    <dl class="fee-balance-grid">
-      <div><dt>নির্ধারিত মাসিক ফি</dt><dd>${money(summary.monthlyFee)}</dd></div>
-      <div><dt>চলতি মাসে পরিশোধ</dt><dd>${money(summary.paid)}</dd></div>
-      <div class="${summary.due ? 'has-due' : ''}"><dt>বর্তমান মাসের বকেয়া</dt><dd>${money(summary.due)}</dd></div>
-    </dl>
-    <p class="finance-hint">${summary.month} • বকেয়া শুধু মাসিক বেতনের; অন্যান্য ফি বেতন থেকে বাদ যায় না।</p>
-    <button id="feeProfileCollect" class="admin-btn primary fee-profile-collect" type="button" ${!state.financeReady || state.savingFee ? 'disabled' : ''}>পেমেন্ট গ্রহণ</button>`;
-}
-
-function beginFeePayment() {
-  if (!access.has(CAPABILITIES.FINANCE_COLLECT)) return;
-  const student = state.students.find(s => s.id === state.feeStudentId);
-  if (!student || !state.financeReady || state.savingFee) return;
-  const summary = studentFeeSummary(student, state.transactions);
-  $('#feeCollectionForm').reset();
-  $('#feeStudent').value = student.id;
-  $('#feeMonth').value = monthLabel();
-  $('#feeAmount').value = summary.due || summary.monthlyFee || '';
-  $('#feePaymentFor').textContent = `${student.name} • Student ID: ${student.id}`;
-  $('#feeSaveError').hidden = true;
-  $('#feeCollectionForm').hidden = false;
-  $('#feeType').focus();
-}
-
-function renderRecentTransactions() {
-  if (!$('#recentTrxList')) return; // Recent Payments block was removed.
-  const listEl = $('#recentTrxList');
-  if (!listEl) return;
-
-  listEl.innerHTML = state.transactions.length
-    ? newestTransactions(state.transactions).slice(0, 5).map(tx => `
-      <div class="trx-item">
-        <div class="trx-left">
-          <span class="trx-icon" aria-hidden="true">
-            ${iconMarkup("receipt")}
-          </span>
-          <div class="trx-info">
-            <strong>${escapeHtml(tx.studentName)}</strong>
-            <small>${escapeHtml(tx.className)} • ${escapeHtml(tx.feeType)} (${escapeHtml(tx.month)}) • ${escapeHtml(tx.method)}</small>
-          </div>
-        </div>
-        <div class="trx-right">
-          <span class="trx-amount">৳${bn(Number(tx.amount).toLocaleString('en-US'))}</span>
-          <span class="trx-date">${escapeHtml(tx.date)}</span>
-          ${tx.status === 'pending' ? '<span class="badge badge-pending">Manager approval বাকি</span>' : tx.status === 'rejected' ? '<span class="badge badge-rejected">বাতিল</span>' : ''}
-          <button class="mini-btn" type="button" data-action="view-receipt" data-trx-id="${escapeHtml(tx.id)}">রসিদ দেখুন</button>
-          <button class="mini-btn" type="button" data-action="download-receipt" data-trx-id="${escapeHtml(tx.id)}">ডাউনলোড</button>
-        </div>
-      </div>`).join('')
-    : '<p class="admin-empty">এখনও কোনো ফি কালেকশন রেকর্ড নেই।</p>';
-}
-
-function renderStudentLedger() {
-  if (!$('#studentLedgerList')) return; // Ledger sub-panel was removed.
-  const listEl = $('#studentLedgerList');
-  if (!listEl) return;
-
-  const studentsWithStatus = state.students.map(student => {
-    const summary = studentFeeSummary(student, state.transactions);
-    return { ...student, paidAmount: summary.tuitionPaid, dueAmount: summary.due, isPaid: summary.due === 0 };
-  });
-
-  const query = ($('#ledgerSearch')?.value || '').trim();
-  const searched = query ? searchStudents(studentsWithStatus, query) : studentsWithStatus;
-
-  const canCollect = access.has(CAPABILITIES.FINANCE_COLLECT);
-  const filtered = searched.filter(s => {
-    if (state.ledgerFilter === 'due') return !s.isPaid;
-    if (state.ledgerFilter === 'paid') return s.isPaid;
-    return true;
-  });
-
-  listEl.innerHTML = filtered.length
-    ? filtered.map(student => `
-      <article class="ledger-item">
-        <div class="student-copy">
-          <strong>${student.name}</strong>
-          <small>${student.className} • ${student.group} • 📞 ${bn(student.mobile)}</small>
-          <small style="margin-top:2px;color:${student.isPaid ? 'var(--color-success)' : 'var(--color-danger)'};font-weight:700;">
-            ${monthLabel()}: ${student.isPaid ? 'পরিশোধিত (৳' + bn(student.paidAmount) + ')' : 'বকেয়া: ৳' + bn(student.dueAmount)}
-          </small>
-        </div>
-        <div class="student-side">
-          <span class="badge ${student.isPaid ? 'badge-approved' : 'badge-pending'}">
-            ${student.isPaid ? 'পরিশোধিত' : 'বকেয়া'}
-          </span>
-          <div class="student-actions">
-            ${!student.isPaid && canCollect ? `
-              <button class="mini-btn approve" type="button" data-action="quick-collect" data-id="${student.id}">
-                ফি গ্রহণ
-              </button>` : `
-              <button class="mini-btn" type="button" data-action="view-student-receipts" data-id="${student.id}">
-                রসিদ দেখুন
-              </button>`}
-          </div>
-        </div>
-      </article>`).join('')
-    : '<p class="admin-empty">কোনো শিক্ষার্থী পাওয়া যায়নি।</p>';
-}
-
-function money(amount) {
-  return `৳${bn(Number(amount || 0).toLocaleString('en-US'))}`;
-}
-
-async function collectFee(event) {
-  event.preventDefault();
-  // The Admin panel is read-only for finance; collection stays with Payment/Cash Counter.
-  if (!access.has(CAPABILITIES.FINANCE_COLLECT)) {
-    toast('ফি গ্রহণের জন্য পেমেন্ট কাউন্টার ব্যবহার করুন');
-    return;
-  }
-  const form = event.currentTarget;
-  if (state.savingFee || !state.financeReady || form.hidden) return;
-  if (!form.reportValidity()) return;
-  const student = state.students.find(s => s.id === $('#feeStudent').value && s.id === state.feeStudentId);
-  const amount = Number($('#feeAmount').value);
-  const feeType = $('#feeType').value;
-  const method = $('#feeMethod').value;
-  if (!student || !Number.isSafeInteger(amount) || amount <= 0 || amount > 10000000 || !feeCategories.includes(feeType) || !paymentMethods.includes(method) || !$('#feeMonth').value) {
-    toast('শিক্ষার্থী ও পেমেন্টের তথ্য সঠিকভাবে পূরণ করুন');
-    return;
-  }
-  const now = new Date();
-  const tx = stampTransaction({
-    id: newId('T'),
-    receiptNo: newId('R'),
-    studentId: student.id,
-    studentName: student.name,
-    className: student.className,
-    feeType,
-    month: $('#feeMonth').value,
-    amount,
-    method,
-    trxRef: $('#feeTrxId').value.trim(),
-    date: dateLabel(now),
-    collectedBy: 'এডমিন',
-    note: $('#feeNote').value.trim()
-  }, now);
-  state.savingFee = true;
-  form.setAttribute('aria-busy', 'true');
-  $('#feeSaveError').hidden = true;
-  const controls = [...form.querySelectorAll('input, select, button')];
-  controls.forEach(control => { control.disabled = true; });
-  $('#feeSaveButton').textContent = 'সংরক্ষণ হচ্ছে…';
-  $('#feeStudentSearch').disabled = true;
-  renderFeeProfile();
-  try {
-    // Only update the UI and issue a receipt after durable storage succeeds.
-    state.transactions = await financeRepository.saveTransaction(tx, { serialTransaction: true, receiptDate: now });
-  } catch {
-    $('#feeSaveError').textContent = 'পেমেন্ট সংরক্ষণ হয়নি। ব্রাউজারের স্টোরেজ/খালি জায়গা পরীক্ষা করে আবার চেষ্টা করুন।';
-    $('#feeSaveError').hidden = false;
-    return;
-  } finally {
-    state.savingFee = false;
-    form.removeAttribute('aria-busy');
-    controls.forEach(control => { control.disabled = false; });
-    $('#feeSaveButton').textContent = 'ফি গ্রহণ ও রসিদ তৈরি করুন';
-    $('#feeStudentSearch').disabled = false;
-    renderFeeProfile();
-  }
-  form.reset();
-  form.hidden = true;
-  renderFinance();
-  toast(`${student.name}-এর ৳${bn(amount)} ফি সফলভাবে জমা নেওয়া হয়েছে`);
-  openReceiptModal(tx);
-}
-
-async function saveReceiptFile(tx, button) {
-  if (button.disabled) return;
-  const label = button.textContent;
-  button.disabled = true;
-  button.textContent = 'ডাউনলোড তৈরি হচ্ছে…';
-  button.setAttribute('aria-busy', 'true');
-  try { await downloadReceipt(tx); }
-  catch { toast('রসিদ ডাউনলোড হয়নি। আবার ডাউনলোড বাটনে চাপ দিন।'); }
-  finally {
-    button.disabled = false;
-    button.textContent = label;
-    button.removeAttribute('aria-busy');
-  }
-}
-
-function openReceiptModal(tx) {
-  openModal('মানি রসিদ', `রসিদ নং: ${tx.receiptNo || tx.id}`, `
-    <div class="modal-actions receipt-actions">
-      <button class="admin-btn primary" type="button" data-modal-action="download-receipt">রসিদ ডাউনলোড</button>
-      <button class="admin-btn ghost" type="button" data-modal-action="close">বন্ধ করুন</button>
-    </div>
-    <p class="receipt-download-hint">এক চাপেই লোগোসহ রসিদ PDF ফাইলে ডাউনলোড করুন।</p>
-    ${receiptMarkup(tx)}`);
-  $('#adminModalBody [data-modal-action="download-receipt"]').addEventListener('click', event => saveReceiptFile(tx, event.currentTarget));
-  $('#adminModalBody [data-modal-action="close"]').addEventListener('click', closeModal);
-}
-
-function renderFinance() {
-  renderFinanceStats();
-  renderFeeSearch();
-  renderFeeProfile();
-  renderRecentTransactions();
-  renderStudentLedger();
 }
 
 /* ---------- Student App Management ---------- */
@@ -1439,7 +1050,6 @@ function renderAll() {
   if (viewExists('students')) renderStudents();
   if (viewExists('settings')) renderAppManagement();
   if (viewExists('settings')) renderClasses();
-  if (viewExists('reports')) renderFinance();
   if (viewExists('roles')) renderRoles();
   if (viewExists('data')) renderDataManagement();
   if (viewExists('backup')) renderBackup();
@@ -1465,14 +1075,6 @@ function onStaffChanged() {
 $('#btnSaveAppSettings')?.addEventListener('click', saveAppSettingsFromForm);
 $('#btnSaveBroadcast')?.addEventListener('click', saveBroadcastFromForm);
 $('#btnSaveMaintenance')?.addEventListener('click', saveMaintenanceFromForm);
-
-$('#bootstrapCredentialsDone')?.addEventListener('click', () => { $('#bootstrapCredentialsBackdrop').hidden = true; });
-$('#bootstrapCopyCredentials')?.addEventListener('click', async () => {
-  const text = [...($('#bootstrapCredentialsList')?.querySelectorAll('.bootstrap-credential-row') || [])]
-    .map(row => `${row.querySelector('strong')?.textContent}\n${row.querySelector('p')?.textContent}\nTemporary password: ${row.querySelector('code')?.textContent}`).join('\n\n');
-  try { await navigator.clipboard.writeText(text); toast('প্রাথমিক Role ID কপি হয়েছে — নিরাপদে সংরক্ষণ করুন'); }
-  catch { toast('কপি করা যায়নি — তথ্যগুলো হাতে সংরক্ষণ করুন'); }
-});
 
 $('#adminExitButton')?.addEventListener('click', exitPanel);
 /* Bottom-bar tabs and "More" menu rows are rebuilt by the permission model
@@ -1656,86 +1258,6 @@ $('#adminPasswordForm')?.addEventListener('submit', async event => {
   toast('পাসওয়ার্ড বদল করা হয়েছে');
 });
 
-/* ---------- Finance Wiring ---------- */
-
-$('#financeSubNav')?.addEventListener('click', event => {
-  const tab = event.target.closest('[data-finance-tab]');
-  if (!tab) return;
-  setFinanceTab(tab.dataset.financeTab);
-});
-
-/* The finance sub-navigation lives inside Reports now: switching tabs is all
-   it needs; there is no "go collect" shortcut any more. */
-
-$('#feeCollectionForm')?.addEventListener('submit', collectFee);
-$('#feeCollectionForm')?.addEventListener('click', event => {
-  // Quick amount chips: full due, monthly fee, or a half payment.
-  const chip = event.target.closest('[data-fee-quick]');
-  if (!chip || state.savingFee || $('#feeCollectionForm').hidden) return;
-  const student = state.students.find(s => s.id === $('#feeStudent').value);
-  if (!student) return;
-  const summary = studentFeeSummary(student, state.transactions);
-  const base = summary.due > 0 ? summary.due : summary.monthlyFee;
-  if (chip.dataset.feeQuick === 'due') $('#feeAmount').value = base || '';
-  else if (chip.dataset.feeQuick === 'monthly') $('#feeAmount').value = summary.monthlyFee || '';
-  else if (chip.dataset.feeQuick === 'half') $('#feeAmount').value = base ? Math.max(1, Math.round(base / 2)) : '';
-});
-$('#feeStudentSearch')?.addEventListener('input', () => {
-  state.feeStudentId = null;
-  $('#feeCollectionForm').hidden = true;
-  $('#feeStudent').value = '';
-  renderFeeSearch();
-  renderFeeProfile();
-});
-$('#feeSearchResults')?.addEventListener('click', event => {
-  const button = event.target.closest('[data-fee-student]');
-  if (button) selectFeeStudent(button.dataset.feeStudent);
-});
-$('#feeQuickProfile')?.addEventListener('click', event => {
-  if (event.target.closest('#feeProfileCollect')) beginFeePayment();
-});
-
-
-$('#ledgerFilterChips')?.addEventListener('click', event => {
-  const chip = event.target.closest('[data-ledger-filter]');
-  if (!chip) return;
-  state.ledgerFilter = chip.dataset.ledgerFilter;
-  $$('#ledgerFilterChips .chip').forEach(item => item.classList.toggle('active', item === chip));
-  renderStudentLedger();
-});
-
-$('#ledgerSearch')?.addEventListener('input', renderStudentLedger);
-
-const handleFinanceClick = event => {
-  const button = event.target.closest('[data-action]');
-  if (!button) return;
-  const { action, trxId, id } = button.dataset;
-
-  if (action === 'view-receipt') {
-    const tx = state.transactions.find(t => t.id === trxId);
-    if (tx) openReceiptModal(tx);
-  } else if (action === 'download-receipt') {
-    const tx = state.transactions.find(t => t.id === trxId);
-    if (tx) saveReceiptFile(tx, button);
-  } else if (action === 'quick-collect') {
-    if (!access.has(CAPABILITIES.FINANCE_COLLECT)) return;
-    setFinanceTab('collection');
-    const search = $('#feeStudentSearch');
-    if (!search) return;
-    search.value = id;
-    selectFeeStudent(id);
-  } else if (action === 'view-student-receipts') {
-    const studentTxs = newestTransactions(state.transactions.filter(t => t.studentId === id));
-    if (studentTxs.length) {
-      openReceiptModal(studentTxs[0]);
-    } else {
-      toast('এই শিক্ষার্থীর কোনো রসিদ পাওয়া যায়নি');
-    }
-  }
-};
-$('#recentTrxList')?.addEventListener('click', handleFinanceClick);
-$('#studentLedgerList')?.addEventListener('click', handleFinanceClick);
-
 $('#adminModalClose').addEventListener('click', closeModal);
 $('#adminModalBackdrop').addEventListener('click', event => {
   if (event.target === event.currentTarget) closeModal();
@@ -1752,9 +1274,6 @@ document.addEventListener('keydown', event => {
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
   if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 });
-if ($('#feeMonth')) $('#feeMonth').innerHTML = '';
-populateFinanceMonths();
-loadFinanceTransactions();
 let cloudRefreshTimer;
 // A decision taken here (list button or tapped notification) refreshes the list.
 window.addEventListener(DECIDED_EVENT, () => {
@@ -1763,7 +1282,6 @@ window.addEventListener(DECIDED_EVENT, () => {
   renderAll();
 });
 window.addEventListener('storage', event => {
-  if (!state.savingFee && (event.key === TRANSACTIONS_KEY || event.key === null)) loadFinanceTransactions();
   if (!event.apcRemote) return;
   clearTimeout(cloudRefreshTimer);
   cloudRefreshTimer = setTimeout(async () => {
