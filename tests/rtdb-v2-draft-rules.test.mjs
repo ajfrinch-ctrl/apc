@@ -295,6 +295,20 @@ test('question bank: answer keys stay staff-side and students receive only per-s
   assert.equal(state()[V2_ROOT].studentQuestionBank.S1.q1.answer, 'B', 'a student may receive the answer only in their own scoped practice copy');
 });
 
+test('teacher assignments: staff and linked Teachers read the node; only Admin/Manager write; the release queue is server-only', () => {
+  // Whole-node read for staff + linked Teachers is the draft's default; the
+  // stricter "own rows only" variant is an owner decision (§4 of the plan).
+  only(['admin', 'manager', 'teacher', 'teacher2'], user => canRead(user, R('teacherAssignments')));
+  assert.equal(canRead(BLOCKED.teacherWithoutLink, R('teacherAssignments')), false, 'an unlinked Teacher cannot read assignments');
+  const row = { id: 'as2', teacherId: 'T1', className: 'Class 1', subjects: ['Math'] };
+  only(['admin', 'manager'], user => canWrite(user, R('teacherAssignments/as2'), row));
+  assert.equal(canWrite(USERS.manager, R('teacherAssignments/as3'), { ...row, id: 'wrong' }), false, 'assignment id must match its key');
+  assert.equal(canWrite(USERS.teacher, R('teacherAssignments/as2'), row), false, 'Teachers never write their own scope');
+  // Server-only release queue: no client grant, Admin included.
+  only([], user => canRead(user, R('questionBankReleaseQueue')));
+  only([], user => canWrite(user, R('questionBankReleaseQueue/q9'), { id: 'q9', endAt: NOW }));
+});
+
 test('roster: staff read all; a student reads only their own record; Admin/Manager write', () => {
   only(['admin', 'manager', 'teacher', 'teacher2', 'payment'], user => canRead(user, R('students')));
   only(['admin', 'manager', 'teacher', 'teacher2', 'payment', 'studentA'], user => canRead(user, R('students/S1')));

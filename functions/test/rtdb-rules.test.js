@@ -225,6 +225,39 @@ test('RTDB v2 draft: per-user/role boundary', async t => {
   await assertFails(get(studentA, p('studentQuestionBank')));
   await assertFails(put(studentA, p('studentQuestionBank/S1/q4'), { ...question, id: 'q4' }));
 
+  // The V2 identity link is the key: a role claim without its teacherId /
+  // studentId link reaches no Question Bank path, a pending student reaches
+  // nothing, and suspended staff is locked out.
+  const teacherUnlinked = as('u-tx', staff('teacher'));
+  const studentUnlinked = as('u-sx', { role: 'student', status: 'approved' });
+  const studentPending = as('u-sp', { role: 'student', status: 'pending', studentId: 'S1' });
+  const managerSuspended = as('u-m2', staff('manager', { status: 'suspended' }));
+  await assertFails(get(teacherUnlinked, p('teacherQuestionBank/T1')));
+  await assertFails(get(teacherUnlinked, p('questionBankDraftsByTeacher/T1')));
+  await assertFails(get(teacherUnlinked, p('teacherAssignments')));
+  await assertFails(get(studentUnlinked, p('studentQuestionBank/S1')));
+  await assertFails(get(studentPending, p('studentQuestionBank/S1')));
+  await assertFails(get(studentPending, p('students/S1')));
+  await assertFails(get(managerSuspended, p('questionBank')));
+  await assertFails(get(managerSuspended, p('students/S1')));
+
+  // Assignments: the whole node is readable by staff and by linked Teachers
+  // (the draft's default; tightening to "own rows only" is an owner decision
+  // recorded in docs/RTDB-PER-USER-RULES-PLAN.md), but only Admin/Manager may
+  // write, and record ids must match their key. The exam-release queue is
+  // server-only: invisible to every client, Admin included.
+  await assertSucceeds(get(teacher, p('teacherAssignments')));
+  await assertSucceeds(get(manager, p('teacherAssignments')));
+  await assertFails(get(studentA, p('teacherAssignments')));
+  await assertFails(get(payment, p('teacherAssignments')));
+  await assertSucceeds(put(manager, p('teacherAssignments/as2'), { id: 'as2', teacherId: 'T1', className: 'Class 1' }));
+  await assertFails(put(manager, p('teacherAssignments/as3'), { id: 'wrong', teacherId: 'T1' }));
+  await assertFails(put(teacher, p('teacherAssignments/as4'), { id: 'as4', teacherId: 'T1' }));
+  for (const dbCtx of [admin, manager, teacher, studentA]) {
+    await assertFails(get(dbCtx, p('questionBankReleaseQueue')));
+    await assertFails(put(dbCtx, p('questionBankReleaseQueue/q9'), { id: 'q9', endAt: NOW }));
+  }
+
   // Roster: students see only themselves.
   await assertSucceeds(get(teacher, p('students')));
   await assertSucceeds(get(studentA, p('students/S1')));

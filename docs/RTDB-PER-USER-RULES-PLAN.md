@@ -367,6 +367,31 @@ Done (client + functions, tested by `npm test`):
       Admin-only retro-link callable `adminProvisionV2Identities`
       (dry-run preview by default; never modifies legacy bridge rows).
 
+### Retro-link runbook (`adminProvisionV2Identities`)
+
+Run from an Admin session. From a Firebase CLI checkout:
+
+    firebase functions:shell
+    > adminProvisionV2Identities({})
+    // → { preview: true, usernames: [...], totalRows }
+
+For each active Teacher username in the preview:
+
+    > adminProvisionV2Identities({ username: 'rafiq' })
+    // → linkedClaims { role, status, teacherId }, assignments, unresolved
+
+Review `unresolved` (reasons: teacher-identity-not-found, username-mismatch,
+teacher-not-active, teacher-auth-disabled, unsafe/duplicate ids, missing
+class/subjects). Fix the source of the problem in Staff Management or the
+legacy assignments, then re-run — the callable is idempotent per assignment id
+and never modifies legacy `activePlusSync/v1` rows. When the report is clean:
+
+    > adminProvisionV2Identities({ username: 'rafiq', applyAssignments: true })
+
+The Admin SDK bypasses RTDB rules, so `applyAssignments` is safe before the v2
+rules deploy; the written rows are simply unreadable until cutover. Claims take
+effect on the account's next ID-token refresh (≤ 1 h).
+
 Still required before cutover (owner-gated, in order):
 - [ ] Run `adminProvisionV2Identities` dry-run, review unresolved rows, then
       link each active Teacher (`applyAssignments: true`).
