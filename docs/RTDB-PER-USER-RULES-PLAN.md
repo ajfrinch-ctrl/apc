@@ -1,9 +1,16 @@
 # Realtime Database: per-user / per-role rules — design plan
 
-Status: **PROPOSAL. Nothing here is deployed or enabled.**
-`firebase.json` still publishes `database.rules.json`, which denies all client
-access (see `docs/CLOUD-CONTAINMENT-114.md`). That must stay true until every
-gate in §8 passes.
+Status: **STAGED MIGRATION; proposal only. No production cutover authorized.**
+The owner selected preparation and testing of Firebase Auth/custom-claims access
+and a new data layout while the existing sync stays on. `firebase.json` still
+points to `database.rules.json`, the interim anonymous-bridge policy
+(`auth != null`) for `activePlusSync/v1`; the live Console policy has not been
+verified from this workspace. The expanded v2 draft is still incompatible with
+the current client and is not approved to replace the interim file. Keep current
+sync, deployed rules and live data unchanged until migration tests pass and a
+separate cutover is approved. Interim exposure risk remains during preparation.
+The old deny-all policy in `docs/CLOUD-CONTAINMENT-114.md` is historical/emergency
+containment, not the current repository configuration.
 
 | Artifact | Purpose |
 | --- | --- |
@@ -55,9 +62,11 @@ The draft rules require, on every grant:
 
 ## 3. Data layout (`activePlusV2/…`)
 
-The legacy `activePlusSync` tree stays `false/false` permanently. A new root
-avoids mixing old, credential-bearing data with the new data. Two rules of
-Realtime Database drive the layout:
+After a verified migration, the legacy `activePlusSync` tree should become
+`false/false` permanently. Until then, it remains the current client's interim
+bridge and must keep its existing policy if that stop-gap is still authorized.
+The proposed new root avoids mixing old, credential-bearing data with the new
+data. Two Realtime Database rules drive the layout:
 
 * **Rules are not filters.** A listener on `students` needs read access to the
   *whole* node. Data that a student may see only partly is therefore split into
@@ -68,10 +77,20 @@ Realtime Database drive the layout:
 | Path | Read | Write |
 | --- | --- | --- |
 | `settings` | any active account | Admin |
-| `notices/{id}` | any active account | Admin |
-| `routine/{id}` | any active account | Admin, Teacher |
-| `teaching/{id}` | any active account | Admin, Teacher |
+| `notices/{id}` | active staff only | Admin, Manager; published records only; Teacher publication uses an assignment-checking callable |
+| `noticeDraftsByAuthor/{authUid}/{id}` | Admin, Manager, author Teacher | Admin, Manager, author Teacher; drafts cannot be directly published |
+| `studentNotices/{sid}/{id}` | owning student only | *server only*; class/group-scoped fan-out so students cannot read other classes’ notices |
+| `routine/{id}` | any active account | Admin, Manager, Teacher (matches the tested Manager routine workflow) |
+| `academics/{syncKey}` | any active account | Admin; wrapper keys must match `_syncKind` + record ID (`class-…`, `subject-…`, `mapping-…`, `chapter-…`); metadata is `__metadata` |
 | `teacherAssignments/{id}` | Admin, Manager, Teacher | Admin, Manager |
+| `teachingDraftsByTeacher/{teacherId}/{activityId}` | Admin, Manager, owning Teacher | Admin, Manager, owning Teacher; only `draft`, no `progress` |
+| `teachingByTeacher/{teacherId}/{activityId}` | Admin, Manager, owning Teacher | Admin direct; Teacher publish/update through an assignment-checking callable; published records contain no `progress` map |
+| `studentTeaching/{sid}/{activityId}` | owning student only | *server only*; Function fan-out of published metadata with no progress |
+| `studentTeachingProgress/{sid}/{activityId}` | owning student only | owning student may report `done` for their own published homework; Function mirrors progress to staff view |
+| `teachingProgressByTeacher/{teacherId}/{sid}/{activityId}` | Admin, Manager, owning Teacher | *server only*; Function checks roster/activity scope before mirroring staff updates |
+| `courseContentDraftsByAuthor/{authUid}/{recordId}` | Admin, Manager, owning Teacher | Admin, Manager, owning Teacher; Teacher draft only, never published directly |
+| `courseContentByAuthor/{authUid}/{recordId}` | Admin, Manager, owning Teacher | Admin, Manager direct; Teacher publishes through an assignment-checking callable; unpublished drafts never student-readable |
+| `studentCourseContent/{sid}/{recordId}` | owning student only | *server only*; Function fans out published and active content for that student’s class/group |
 | `students` / `students/{sid}` | staff: whole node. Student: own record only | Admin, Manager |
 | `transactions/{id}` | Admin, Payment | Payment: **create only**. Admin: any |
 | `studentLedger/{sid}` | Admin, Payment, owning student | *server only* (trigger copy) |
@@ -107,7 +126,7 @@ No password hash, username registry or staff directory lives in RTDB any more:
    connections keep their auth until then. If that is too slow, also call
    `revokeRefreshTokens` and add a server-written `revoked/{uid}` check to every
    grant.
-5. Notices: should Manager publish too? [no, matching `firestore.rules`].
+5. Notice/routine authoring: the repository E2E workflows confirm Teachers and Managers author notices and Managers author routines. The draft preserves those writers; no product workflow change is assumed.
 
 ## 5. Required code changes
 
@@ -115,12 +134,32 @@ No password hash, username registry or staff directory lives in RTDB any more:
 * `adminCreateAccount` / `managerReviewStudent`: set a `studentId` claim linked
   to the roster record. Add a `linkTeacher` step that sets `teacherId`.
 * `adminSetAccountStatus`: also `revokeRefreshTokens(uid)`.
-* New triggers:
+* New triggers / callables:
+  * on `notices/{id}` being published/updated, resolve the target class/group
+    server-side and fan out only to `studentNotices/{sid}/{id}` for matching
+    students; provide a Teacher publish callable which verifies the teacher's
+    assignment before copying their private draft into the canonical notice;
   * on `exams/{id}` becoming published, fan out a copy **without `answer`
     fields** to `studentExams/{sid}/{id}` for each participant;
   * on `attempts/{sid}/{aid}` becoming `submitted`, score it against the key
     and write `results/{sid}/{examId}`;
-  * on `transactions/{id}`, mirror to `studentLedger/{studentId}/{id}`.
+  * on `transactions/{id}`, mirror to `studentLedger/{studentId}/{id}`;
+  * on `teachingByTeacher/{teacherId}/{activityId}` being published, resolve
+    the approved class/group roster server-side and fan out activity metadata
+    without progress to `studentTeaching/{sid}/{activityId}`; unpublish/delete
+    must retract or mark each student copy inactive;
+  * student `studentTeachingProgress` writes must be validated as own, published
+    homework completion, then mirrored to the staff-only
+    `teachingProgressByTeacher` path;
+  * Teachers submit review/attendance updates via a callable which verifies the
+    teacher claim, activity owner, student roster membership and allowed value,
+    then updates staff progress and the student's own view atomically;
+  * on `courseContentByAuthor/{authUid}/{id}` publish/archive, resolve class and
+    group scope server-side and fan out/retract `studentCourseContent` copies.
+    Never copy unpublished drafts to a student subtree;
+  * `publishNotice`, `publishTeachingActivity` and `publishCourseContent` must
+    verify the authenticated Teacher's server-side assignment before promoting
+    their author-scoped draft. UI checks alone are not authorization.
 * `managerReviewExam`: work on the RTDB `exams/{id}` (it currently updates
   Firestore `exams`).
 * Callables `usernameAvailable`, `listStaff` / `updateStaff`.
@@ -157,6 +196,34 @@ No password hash, username registry or staff directory lives in RTDB any more:
 * `js/push-notifications.js`
   * Write to `pushTokens/<auth.uid>/<deviceId>`. Set `role` from the ID-token
     claim (not `cash-counter`/`staff`), and `studentId` from the claim or `''`.
+* Notices (`js/notice-center.js`, `js/teacher.js`, `js/manager.js`)
+  * Students listen only to `studentNotices/<studentId>`. Staff may use the
+    canonical staff collection. Teacher saves/publishes through the private
+    author draft plus assignment-checking callable; Manager/Admin writes the
+    canonical notice and a Function creates the student-specific copies.
+* Teaching (`js/teaching-data.js`)
+  * Migrate each activity from the current flat list to an author-scoped path:
+    unpublished rows to `teachingDraftsByTeacher/<teacherId>/<activityId>`,
+    published rows to `teachingByTeacher/<teacherId>/<activityId>`. Strip the
+    shared `progress` map and preserve all IDs/statuses. Split every progress
+    row into the student's own subtree and the staff-only
+    `teachingProgressByTeacher` index.
+  * Student listeners use only `studentTeaching/<studentId>` and
+    `studentTeachingProgress/<studentId>`. Teacher listeners use only their
+    draft/canonical subtree and `teachingProgressByTeacher/<teacherId>`. Do not
+    download the whole roster to a student browser and filter it there.
+* Course content (`js/course-content.js`, `js/course-hub.js`)
+  * Move unpublished records into `courseContentDraftsByAuthor/<auth.uid>/<id>`
+    and published/archive records into `courseContentByAuthor/<auth.uid>/<id>`;
+    map legacy `createdBy` names to Firebase UIDs without changing record IDs.
+    A Teacher may not directly set a draft's `published` flag.
+  * Publish only server-generated, class/group-scoped copies to
+    `studentCourseContent/<studentId>`. Students must not subscribe to the
+    canonical author tree and UI filters are not an access-control boundary.
+* Academics (`js/sync-collections.js`)
+  * The existing v1 adapter stores `class-<id>`, `subject-<id>`,
+    `mapping-<id>` and `chapter-<id>` wrappers plus `__metadata`; retain that
+    shape or explicitly migrate it with the same stable record IDs.
 * `sync/cloud-access.js`
   * Currently `LEGACY_CLOUD_ENABLED = true` and `assertCloudAccess()` always
     returns `true`. This **contradicts** `CLOUD-CONTAINMENT-114.md`. It is
@@ -168,14 +235,26 @@ No password hash, username registry or staff directory lives in RTDB any more:
 
 1. Export `activePlusSync/v1` with the Admin SDK on a trusted machine. Keep the
    export offline and encrypted.
-2. Provision a Firebase Auth account for every real staff member and student
-   through `adminCreateAccount`. **Do not import the PBKDF2 hashes.** Users get
-   temporary passwords with `mustChangePassword: true`.
-3. Set the `studentId` / `teacherId` claims from the roster mapping.
+2. Provision staff Firebase Auth accounts through the Admin-controlled
+   provisioning flow with temporary passwords and `mustChangePassword: true`.
+   Provision student Auth identities through the registration/approval flow;
+   keep them pending until Manager review. **Do not import PBKDF2 hashes.**
+3. Set the `studentId` / `teacherId` claims from verified roster/staff mappings
+   before granting the corresponding approved/active data-access claims.
 4. Use an Admin SDK script to copy the non-credential collections into
-   `activePlusV2`, reshaping `examDb/attempts` into `attempts/{sid}`. Then run
-   the fan-out triggers once, or a backfill script.
-5. After verification, delete `activePlusSync` (a separate, explicit step).
+   `activePlusV2`, keeping stable IDs and preserving every existing record.
+   Reshape `examDb/attempts` into `attempts/{sid}`; split shared teaching
+   `progress` by student and Teacher; move unpublished teaching/course/notice
+   records into author-scoped draft paths and published records into canonical
+   paths; and backfill only published/active, correctly scoped student copies.
+   Run the fan-out triggers/backfill and reconcile record counts and checksums,
+   including drafts and archived items.
+5. Test on staging with real role-bearing accounts and each role's actual
+   screens, including a second student/Teacher to verify cross-user denials.
+   Keep legacy sync enabled while the v2 client and migration are validated.
+6. After explicit cutover approval, switch app and rules together. Do not delete
+   or overwrite `activePlusSync` as part of preparation; preserve an encrypted
+   export and only remove legacy data in a separately approved retention step.
 
 ## 7. Testing
 
@@ -196,10 +275,17 @@ No password hash, username registry or staff directory lives in RTDB any more:
 - [ ] All §5 function and client changes merged. The app works using only
       per-record writes and role-scoped listeners.
 - [ ] `npm run test:rtdb-rules` (emulator) and `npm test` are green.
-- [ ] Migration §6 steps 1–4 done on a **staging** project and checked with
-      real devices for each role.
-- [ ] App Check enforcement turned on for Realtime Database in the console.
+- [ ] Migration §6 steps 1–5 complete on a **staging** project and verified
+      with real accounts/devices for every role, including negative cross-user
+      access tests and reconciliation of preserved data.
+- [ ] Emulator tests, full repo tests, and staging workflow checks pass for all
+      migrated paths and Functions; App Check is configured and enforced for
+      Realtime Database.
 - [ ] Rules Playground spot-check: anonymous and signed-out are denied
       everywhere, and each role matches the table in §3.
-- [ ] Rename the draft to `database.rules.json` in the same change that
-      updates `tests/cloud-containment.test.mjs` and this document.
+- [ ] The owner separately approves production cutover after reviewing the
+      interim risk and rollback/export plan.
+- [ ] Only then switch `firebase.json` to the migrated rules in the same change
+      that updates the interim-policy tests (`tests/interim-sync-rules.test.mjs`,
+      `tests/rtdb-path-coverage.test.mjs`) and this document; do not leave the
+      v2 draft accidentally deployable before the client migration.

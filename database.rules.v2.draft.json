@@ -12,23 +12,41 @@
         ".write": "(auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin')"
       },
       "notices": {
-        ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && (auth.token.role === 'admin' || auth.token.role === 'manager' || auth.token.role === 'payment' || (auth.token.role === 'teacher' && auth.token.teacherId != null))) || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null))",
+        ".read": "(auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && (auth.token.role === 'admin' || auth.token.role === 'manager' || auth.token.role === 'payment' || (auth.token.role === 'teacher' && auth.token.teacherId != null)))",
         "$recordId": {
-          ".write": "(auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin')",
-          ".validate": "newData.child('id').val() === $recordId"
+          ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager'))",
+          ".validate": "newData.child('id').val() === $recordId && newData.child('published').val() === true"
+        }
+      },
+      "noticeDraftsByAuthor": {
+        "$authorUid": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && auth.uid === $authorUid))",
+          "$recordId": {
+            ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && auth.uid === $authorUid))",
+            ".validate": "newData.child('id').val() === $recordId && newData.child('authorUid').val() === $authorUid && newData.child('classId').isString() && newData.child('group').isString() && newData.child('status').val() === 'draft' && newData.child('published').val() === false"
+          }
+        }
+      },
+      "studentNotices": {
+        "$studentId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null) && $studentId === auth.token.studentId)",
+          "$recordId": {
+            ".write": false,
+            ".validate": "newData.child('id').val() === $recordId && newData.child('published').val() === true"
+          }
         }
       },
       "routine": {
         ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && (auth.token.role === 'admin' || auth.token.role === 'manager' || auth.token.role === 'payment' || (auth.token.role === 'teacher' && auth.token.teacherId != null))) || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null))",
         "$recordId": {
-          ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null))"
+          ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null))"
         }
       },
-      "teaching": {
+      "academics": {
         ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && (auth.token.role === 'admin' || auth.token.role === 'manager' || auth.token.role === 'payment' || (auth.token.role === 'teacher' && auth.token.teacherId != null))) || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null))",
         "$recordId": {
-          ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null))",
-          ".validate": "newData.child('id').val() === $recordId"
+          ".write": "(auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin')",
+          ".validate": "((newData.child('_syncKind').val() === 'metadata' && $recordId === '__metadata' && newData.child('id').val() === '__metadata' && newData.child('version').val() === 2) || ((newData.child('_syncKind').val() === 'class' && $recordId === 'class-' + newData.child('record').child('id').val()) || (newData.child('_syncKind').val() === 'subject' && $recordId === 'subject-' + newData.child('record').child('id').val()) || (newData.child('_syncKind').val() === 'mapping' && $recordId === 'mapping-' + newData.child('record').child('id').val()) || (newData.child('_syncKind').val() === 'chapter' && $recordId === 'chapter-' + newData.child('record').child('id').val())) && newData.child('record').child('id').isString())"
         }
       },
       "teacherAssignments": {
@@ -36,6 +54,80 @@
         "$recordId": {
           ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager'))",
           ".validate": "newData.child('id').val() === $recordId"
+        }
+      },
+      "teachingDraftsByTeacher": {
+        "$teacherId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && $teacherId === auth.token.teacherId))",
+          "$activityId": {
+            ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && $teacherId === auth.token.teacherId))",
+            ".validate": "newData.child('id').val() === $activityId && newData.child('teacherId').val() === $teacherId && newData.child('status').val() === 'draft' && !newData.hasChild('progress')"
+          }
+        }
+      },
+      "teachingByTeacher": {
+        "$teacherId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && $teacherId === auth.token.teacherId))",
+          "$activityId": {
+            ".write": "(auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin')",
+            ".validate": "newData.child('id').val() === $activityId && newData.child('teacherId').val() === $teacherId && newData.child('status').val() === 'published' && !newData.hasChild('progress')"
+          }
+        }
+      },
+      "studentTeaching": {
+        "$studentId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null) && $studentId === auth.token.studentId)",
+          "$activityId": {
+            ".write": false,
+            ".validate": "newData.child('id').val() === $activityId && newData.child('status').val() === 'published' && !newData.hasChild('progress')"
+          }
+        }
+      },
+      "studentTeachingProgress": {
+        "$studentId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null) && $studentId === auth.token.studentId)",
+          "$activityId": {
+            ".write": "(((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null) && $studentId === auth.token.studentId) && newData.exists() && root.child('activePlusV2/studentTeaching').child($studentId).child($activityId).child('type').val() === 'homework' && root.child('activePlusV2/studentTeaching').child($studentId).child($activityId).child('status').val() === 'published')",
+            ".validate": "newData.numChildren() === 4 && newData.hasChildren(['studentId', 'activityId', 'value', 'updatedAt']) && newData.child('studentId').val() === $studentId && newData.child('activityId').val() === $activityId && newData.child('value').val() === 'done' && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now"
+          }
+        }
+      },
+      "teachingProgressByTeacher": {
+        "$teacherId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && $teacherId === auth.token.teacherId))",
+          "$studentId": {
+            "$activityId": {
+              ".write": false,
+              ".validate": "newData.child('teacherId').val() === $teacherId && newData.child('studentId').val() === $studentId && newData.child('activityId').val() === $activityId && ((root.child('activePlusV2/teachingByTeacher').child($teacherId).child($activityId).child('type').val() === 'homework' && (newData.child('value').val() === 'pending' || newData.child('value').val() === 'done' || newData.child('value').val() === 'reviewed')) || (root.child('activePlusV2/teachingByTeacher').child($teacherId).child($activityId).child('type').val() === 'routine' && (newData.child('value').val() === 'present' || newData.child('value').val() === 'absent' || newData.child('value').val() === 'late')))  && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now"
+            }
+          }
+        }
+      },
+      "courseContentDraftsByAuthor": {
+        "$authorUid": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && auth.uid === $authorUid))",
+          "$recordId": {
+            ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && auth.uid === $authorUid))",
+            ".validate": "newData.child('id').val() === $recordId && newData.child('authorUid').val() === $authorUid && newData.child('classId').isString() && newData.child('subjectId').isString() && newData.child('published').val() === false && newData.child('active').isBoolean()"
+          }
+        }
+      },
+      "courseContentByAuthor": {
+        "$authorUid": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && auth.uid === $authorUid))",
+          "$recordId": {
+            ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager'))",
+            ".validate": "newData.child('id').val() === $recordId && newData.child('authorUid').val() === $authorUid && newData.child('classId').isString() && newData.child('subjectId').isString() && newData.child('published').val() === true && newData.child('active').isBoolean()"
+          }
+        }
+      },
+      "studentCourseContent": {
+        "$studentId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null) && $studentId === auth.token.studentId)",
+          "$recordId": {
+            ".write": false,
+            ".validate": "newData.child('id').val() === $recordId && newData.child('published').val() === true && newData.child('active').val() === true"
+          }
         }
       },
       "students": {
