@@ -44,6 +44,8 @@ const noProgress = '!newData.hasChild(\'progress\')';
 const academicRecord = "((newData.child('_syncKind').val() === 'metadata' && $recordId === '__metadata' && newData.child('id').val() === '__metadata' && newData.child('version').val() === 2) || ((newData.child('_syncKind').val() === 'class' && $recordId === 'class-' + newData.child('record').child('id').val()) || (newData.child('_syncKind').val() === 'subject' && $recordId === 'subject-' + newData.child('record').child('id').val()) || (newData.child('_syncKind').val() === 'mapping' && $recordId === 'mapping-' + newData.child('record').child('id').val()) || (newData.child('_syncKind').val() === 'chapter' && $recordId === 'chapter-' + newData.child('record').child('id').val())) && newData.child('record').child('id').isString())";
 const progressActivityType = `root.child('${V2_ROOT}/teachingByTeacher').child($teacherId).child($activityId).child('type').val()`;
 const teacherProgressValue = `((${progressActivityType} === 'homework' && (newData.child('value').val() === 'pending' || newData.child('value').val() === 'done' || newData.child('value').val() === 'reviewed')) || (${progressActivityType} === 'routine' && (newData.child('value').val() === 'present' || newData.child('value').val() === 'absent' || newData.child('value').val() === 'late'))) `;
+const questionRecord = recordId => `${idMatches(recordId)} && newData.child('className').isString() && newData.child('subject').isString() && newData.child('type').isString() && newData.child('text').isString() && newData.child('answer').isString() && newData.child('answerText').isString() && newData.child('active').isBoolean()`;
+const questionDraftRecord = `newData.child('id').val() === $questionId && newData.child('teacherId').val() === $teacherId && newData.child('status').val() === 'draft' && newData.child('question').child('id').val() === $questionId && newData.child('question').child('className').isString() && newData.child('question').child('subject').isString()`;
 
 /** Collection readable at its root, with record-level writes. */
 function collection({ read, write, validate }) {
@@ -165,6 +167,45 @@ export function buildRules() {
                 '.write': false,
                 '.validate': `newData.child('teacherId').val() === $teacherId && newData.child('studentId').val() === $studentId && newData.child('activityId').val() === $activityId && ${teacherProgressValue} && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now`
               }
+            }
+          }
+        },
+
+        // Question answers are staff-only in the canonical bank. Teachers edit
+        // private drafts; an assignment-checking callable promotes them and
+        // builds teacher/student projections. Student copies may contain answer
+        // keys for practice, so they are per-student, active-only, and an exam-
+        // sourced question is readable only after its official endAt. A client
+        // never filters a shared answer-key collection after downloading it.
+        questionBank: collection({
+          read: any(ADMIN, MANAGER),
+          write: any(ADMIN, MANAGER),
+          validate: questionRecord('$recordId')
+        }),
+        questionBankDraftsByTeacher: {
+          $teacherId: {
+            '.read': any(ADMIN, MANAGER, ownTeacher('$teacherId')),
+            $questionId: {
+              '.write': any(ADMIN, MANAGER, ownTeacher('$teacherId')),
+              '.validate': questionDraftRecord
+            }
+          }
+        },
+        teacherQuestionBank: {
+          $teacherId: {
+            '.read': any(ADMIN, MANAGER, ownTeacher('$teacherId')),
+            $questionId: {
+              '.write': false,
+              '.validate': questionRecord('$questionId')
+            }
+          }
+        },
+        studentQuestionBank: {
+          $studentId: {
+            '.read': ownStudent('$studentId'),
+            $questionId: {
+              '.write': false,
+              '.validate': `${questionRecord('$questionId')} && newData.child('active').val() === true && (!newData.child('source').child('examId').exists() || (newData.child('endAt').isNumber() && newData.child('endAt').val() > 0 && newData.child('endAt').val() < now))`
             }
           }
         },

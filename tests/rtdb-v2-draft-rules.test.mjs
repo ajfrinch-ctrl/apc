@@ -87,6 +87,21 @@ const state = () => ({
       S1: { c1: { id: 'c1', published: true, active: true, body: 'Published copy' } },
       S2: { c2: { id: 'c2', published: true, active: true, body: 'Class 2 copy' } }
     },
+    questionBank: {
+      q1: { id: 'q1', className: 'Class 1', subject: 'Math', type: 'mcq', text: '2+2?', answer: 'B', answerText: '', active: true }
+    },
+    questionBankDraftsByTeacher: {
+      T1: { qDraft1: { id: 'qDraft1', teacherId: 'T1', status: 'draft', question: { id: 'qDraft1', className: 'Class 1', subject: 'Math', text: 'Draft?' } } },
+      T2: { qDraft2: { id: 'qDraft2', teacherId: 'T2', status: 'draft', question: { id: 'qDraft2', className: 'Class 2', subject: 'Math', text: 'Other draft?' } } }
+    },
+    teacherQuestionBank: {
+      T1: { q1: { id: 'q1', className: 'Class 1', subject: 'Math', type: 'mcq', text: '2+2?', answer: 'B', answerText: '', active: true } },
+      T2: { q2: { id: 'q2', className: 'Class 2', subject: 'Math', type: 'mcq', text: '3+3?', answer: 'C', answerText: '', active: true } }
+    },
+    studentQuestionBank: {
+      S1: { q1: { id: 'q1', className: 'Class 1', subject: 'Math', type: 'mcq', text: '2+2?', answer: 'B', answerText: '', active: true } },
+      S2: { q2: { id: 'q2', className: 'Class 2', subject: 'Math', type: 'mcq', text: '3+3?', answer: 'C', answerText: '', active: true } }
+    },
     students: { S1: { id: 'S1', name: 'A' }, S2: { id: 'S2', name: 'B' } },
     transactions: { tx1: { id: 'tx1', studentId: 'S1', amount: 500 } },
     studentLedger: { S1: { tx1: { amount: 500 } } },
@@ -126,6 +141,16 @@ test('draft stays a draft: firebase.json deploys database.rules.json, not the v2
 test('committed draft JSON matches its generator', () => {
   assert.equal(read('../database.rules.v2.draft.json'), render(),
     'run: node tools/rtdb-rules/build-v2-draft.mjs');
+});
+
+test('question-bank validators bind record ids to each subtree key', () => {
+  const bank = draft.rules[V2_ROOT];
+  assert.match(bank.questionBank.$recordId['.validate'], /\$recordId/);
+  for (const path of [bank.teacherQuestionBank.$teacherId.$questionId, bank.studentQuestionBank.$studentId.$questionId]) {
+    assert.match(path['.validate'], /\$questionId/);
+    assert.doesNotMatch(path['.validate'], /\$recordId/);
+  }
+  assert.match(bank.questionBankDraftsByTeacher.$teacherId.$questionId['.validate'], /\$questionId/);
 });
 
 test('structure: no bare "auth != null", no true grants, no credential nodes, legacy bridge closed', () => {
@@ -242,6 +267,34 @@ test('course content: author-only drafts, server-published canonical records and
   only([], user => canWrite(user, R('studentCourseContent/S1/c3'), { id: 'c3', published: true, active: true }));
 });
 
+test('question bank: answer keys stay staff-side and students receive only per-student server copies', () => {
+  const bankRow = { id: 'q3', className: 'Class 1', subject: 'Math', type: 'mcq', text: '3+3?', answer: 'C', answerText: '', active: true };
+  only(['admin', 'manager'], user => canRead(user, R('questionBank')));
+  only(['admin', 'manager'], user => canWrite(user, R('questionBank/q3'), bankRow));
+  assert.equal(canWrite(USERS.admin, R('questionBank/q3'), { ...bankRow, id: 'wrong' }), false, 'canonical question id must match path');
+  assert.equal(canWrite(USERS.teacher, R('questionBank/q3'), bankRow), false, 'Teacher publishes through the assignment-checking callable');
+  assert.equal(canRead(USERS.teacher, R('questionBank')), false, 'Teacher never downloads the all-class canonical bank');
+  assert.equal(canRead(USERS.studentA, R('questionBank')), false, 'student never downloads canonical answer keys');
+  assert.equal(canRead(USERS.payment, R('questionBank')), false, 'payment role does not need exam content');
+
+  const draft = { id: 'qDraft3', teacherId: 'T1', status: 'draft', question: { id: 'qDraft3', className: 'Class 1', subject: 'Math', text: 'Draft?' } };
+  only(['admin', 'manager', 'teacher'], user => canWrite(user, R('questionBankDraftsByTeacher/T1/qDraft3'), draft));
+  only(['admin', 'manager', 'teacher'], user => canRead(user, R('questionBankDraftsByTeacher/T1')));
+  assert.equal(canRead(USERS.teacher2, R('questionBankDraftsByTeacher/T1')), false, 'another Teacher cannot inspect this draft');
+  assert.equal(canWrite(USERS.teacher2, R('questionBankDraftsByTeacher/T1/qDraft3'), draft), false, 'another Teacher cannot write this draft');
+  assert.equal(canWrite(USERS.teacher, R('questionBankDraftsByTeacher/T1/qDraft3'), { ...draft, status: 'published' }), false, 'Teacher cannot directly promote a draft');
+  assert.equal(canWrite(USERS.teacher, R('questionBankDraftsByTeacher/T1/qDraft3'), { ...draft, question: { ...draft.question, id: 'other' } }), false, 'draft question id must match its path');
+
+  only(['admin', 'manager', 'teacher'], user => canRead(user, R('teacherQuestionBank/T1')));
+  only(['admin', 'manager', 'teacher2'], user => canRead(user, R('teacherQuestionBank/T2')));
+  only([], user => canWrite(user, R('teacherQuestionBank/T1/q3'), bankRow));
+  only(['studentA'], user => canRead(user, R('studentQuestionBank/S1')));
+  only(['studentB'], user => canRead(user, R('studentQuestionBank/S2')));
+  only([], user => canRead(user, R('studentQuestionBank')));
+  only([], user => canWrite(user, R('studentQuestionBank/S1/q3'), bankRow));
+  assert.equal(state()[V2_ROOT].studentQuestionBank.S1.q1.answer, 'B', 'a student may receive the answer only in their own scoped practice copy');
+});
+
 test('roster: staff read all; a student reads only their own record; Admin/Manager write', () => {
   only(['admin', 'manager', 'teacher', 'teacher2', 'payment'], user => canRead(user, R('students')));
   only(['admin', 'manager', 'teacher', 'teacher2', 'payment', 'studentA'], user => canRead(user, R('students/S1')));
@@ -306,11 +359,13 @@ test('blocked identities get nothing anywhere in the v2 tree', () => {
   const paths = ['settings', 'notices', 'noticeDraftsByAuthor/u-teacher', 'studentNotices/S9', 'routine', 'academics', 'teacherAssignments',
     'teachingDraftsByTeacher/T1', 'teachingByTeacher/T1', 'studentTeaching/S9', 'studentTeachingProgress/S9',
     'teachingProgressByTeacher/T1', 'courseContentDraftsByAuthor/u-teacher', 'courseContentByAuthor/u-teacher',
-    'studentCourseContent/S9', 'students', 'students/S9', 'transactions', 'studentLedger/S9', 'exams',
+    'studentCourseContent/S9', 'questionBank', 'questionBankDraftsByTeacher/T1', 'teacherQuestionBank/T1', 'studentQuestionBank/S9',
+    'students', 'students/S9', 'transactions', 'studentLedger/S9', 'exams',
     'studentExams/S9', 'attempts', 'attempts/S9', 'results/S9'];
   for (const [name, user] of Object.entries(BLOCKED)) {
     for (const path of paths) assert.equal(canRead(user, R(path)), false, `${name} read ${path}`);
     assert.equal(canWrite(user, R('notices/n9'), { id: 'n9' }), false, `${name} write notice`);
+    assert.equal(canWrite(user, R('questionBank/q9'), { id: 'q9', className: 'C', subject: 'S', type: 'mcq', text: 'Q', answer: 'A', answerText: '', active: true }), false, `${name} write question bank`);
     assert.equal(canWrite(user, R('attempts/S9/z'), attempt({ id: 'z', studentId: 'S9' })), false, `${name} write attempt`);
   }
 });

@@ -70,6 +70,21 @@ test('RTDB v2 draft: per-user/role boundary', async t => {
           S1: { c1: { id: 'c1', published: true, active: true } },
           S2: { c2: { id: 'c2', published: true, active: true } }
         },
+        questionBank: {
+          q1: { id: 'q1', className: 'Class 1', subject: 'Math', type: 'mcq', text: '2+2?', answer: 'B', answerText: '', active: true }
+        },
+        questionBankDraftsByTeacher: {
+          T1: { qDraft1: { id: 'qDraft1', teacherId: 'T1', status: 'draft', question: { id: 'qDraft1', className: 'Class 1', subject: 'Math', text: 'Draft?' } } },
+          T2: { qDraft2: { id: 'qDraft2', teacherId: 'T2', status: 'draft', question: { id: 'qDraft2', className: 'Class 2', subject: 'Math', text: 'Other draft?' } } }
+        },
+        teacherQuestionBank: {
+          T1: { q1: { id: 'q1', className: 'Class 1', subject: 'Math', type: 'mcq', text: '2+2?', answer: 'B', answerText: '', active: true } },
+          T2: { q2: { id: 'q2', className: 'Class 2', subject: 'Math', type: 'mcq', text: '3+3?', answer: 'C', answerText: '', active: true } }
+        },
+        studentQuestionBank: {
+          S1: { q1: { id: 'q1', className: 'Class 1', subject: 'Math', type: 'mcq', text: '2+2?', answer: 'B', answerText: '', active: true } },
+          S2: { q2: { id: 'q2', className: 'Class 2', subject: 'Math', type: 'mcq', text: '3+3?', answer: 'C', answerText: '', active: true } }
+        },
         students: { S1: { id: 'S1', name: 'A' }, S2: { id: 'S2', name: 'B' } },
         transactions: { tx1: { id: 'tx1', studentId: 'S1', amount: 500 } },
         exams: {
@@ -184,6 +199,31 @@ test('RTDB v2 draft: per-user/role boundary', async t => {
   await assertFails(get(studentA, p('studentCourseContent/S2')));
   await assertFails(get(studentA, p('studentCourseContent')));
   await assertFails(put(studentA, p('studentCourseContent/S1/c3'), { id: 'c3', published: true, active: true }));
+
+  // Question Bank: answer keys are never downloaded from the canonical staff
+  // bank; Teacher and student listeners are scoped to their own projections.
+  const question = { id: 'q3', className: 'Class 1', subject: 'Math', type: 'mcq', text: '3+3?', answer: 'C', answerText: '', active: true };
+  await assertSucceeds(get(admin, p('questionBank')));
+  await assertSucceeds(get(manager, p('questionBank')));
+  await assertFails(get(teacher, p('questionBank')));
+  await assertFails(get(studentA, p('questionBank')));
+  await assertFails(get(payment, p('questionBank')));
+  await assertSucceeds(put(manager, p('questionBank/q3'), question));
+  await assertFails(put(teacher, p('questionBank/q4'), { ...question, id: 'q4' }));
+  await assertFails(put(manager, p('questionBank/q4'), { ...question, id: 'wrong' }));
+  const questionDraft = { id: 'qDraft3', teacherId: 'T1', status: 'draft', question: { id: 'qDraft3', className: 'Class 1', subject: 'Math', text: 'Draft?' } };
+  await assertSucceeds(put(teacher, p('questionBankDraftsByTeacher/T1/qDraft3'), questionDraft));
+  await assertFails(get(teacher2, p('questionBankDraftsByTeacher/T1')));
+  await assertFails(put(teacher2, p('questionBankDraftsByTeacher/T1/qDraft4'), { ...questionDraft, id: 'qDraft4', question: { ...questionDraft.question, id: 'qDraft4' } }));
+  await assertFails(put(teacher, p('questionBankDraftsByTeacher/T1/qDraft3'), { ...questionDraft, status: 'published' }));
+  await assertSucceeds(get(teacher, p('teacherQuestionBank/T1')));
+  await assertFails(get(teacher, p('teacherQuestionBank/T2')));
+  await assertSucceeds(get(manager, p('teacherQuestionBank/T2')));
+  await assertFails(put(teacher, p('teacherQuestionBank/T1/q4'), { ...question, id: 'q4' }));
+  await assertSucceeds(get(studentA, p('studentQuestionBank/S1')));
+  await assertFails(get(studentA, p('studentQuestionBank/S2')));
+  await assertFails(get(studentA, p('studentQuestionBank')));
+  await assertFails(put(studentA, p('studentQuestionBank/S1/q4'), { ...question, id: 'q4' }));
 
   // Roster: students see only themselves.
   await assertSucceeds(get(teacher, p('students')));

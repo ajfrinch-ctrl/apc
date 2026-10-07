@@ -91,6 +91,10 @@ data. Two Realtime Database rules drive the layout:
 | `courseContentDraftsByAuthor/{authUid}/{recordId}` | Admin, Manager, owning Teacher | Admin, Manager, owning Teacher; Teacher draft only, never published directly |
 | `courseContentByAuthor/{authUid}/{recordId}` | Admin, Manager, owning Teacher | Admin, Manager direct; Teacher publishes through an assignment-checking callable; unpublished drafts never student-readable |
 | `studentCourseContent/{sid}/{recordId}` | owning student only | *server only*; Function fans out published and active content for that student’s class/group |
+| `questionBank/{questionId}` | Admin, Manager only; contains answer keys | Admin, Manager; Teacher promotion goes through an assignment-checking callable |
+| `questionBankDraftsByTeacher/{teacherId}/{questionId}` | Admin, Manager, owning Teacher | Admin, Manager, owning Teacher; draft only, never directly student-readable |
+| `teacherQuestionBank/{teacherId}/{questionId}` | Admin, Manager, owning Teacher | *server only*; assignment-scoped projection for Teacher workspaces |
+| `studentQuestionBank/{sid}/{questionId}` | owning student only | *server only*; active, class/group-scoped practice copy; exam-sourced questions only after the official `endAt` |
 | `students` / `students/{sid}` | staff: whole node. Student: own record only | Admin, Manager |
 | `transactions/{id}` | Admin, Payment | Payment: **create only**. Admin: any |
 | `studentLedger/{sid}` | Admin, Payment, owning student | *server only* (trigger copy) |
@@ -100,6 +104,27 @@ data. Two Realtime Database rules drive the layout:
 | `results/{sid}/{examId}` | staff, owning student | *server only* (scored from the answer key) |
 | `pushTokens/{uid}/{deviceId}` | **nobody** (Functions only) | owner uid. `role` must equal the claim. `studentId` must equal the claim, or be empty for staff |
 | `staffAccounts`, `studentAccounts`, `usernames`, `staffDirectory` | **removed** | **removed** |
+
+### Question Bank answer-key boundary
+
+The existing local Question Bank has a `sync-collections.js` adapter but is
+intentionally **not** in the anonymous v1 `SYNCABLE` list. Its records include
+`answer` / `answerText`; adding it to `activePlusSync/v1` would expose answer
+keys to every anonymous client. Keep that exclusion unchanged.
+
+In v2, Admin/Manager use the canonical bank. A Teacher edits only a private
+`questionBankDraftsByTeacher/<teacherId>` draft and receives only their
+assignment-scoped `teacherQuestionBank/<teacherId>` copy. Promotion is a
+server-side callable that checks the live teacher assignment; client/UI checks
+are not sufficient. Students listen only to
+`studentQuestionBank/<studentId>`. That own-student projection may contain the
+answer needed by the practice feature, but a Function must fan out only active
+questions matching the student's class/group. If a question has `source.examId`,
+it must not be copied to a student until its official `endAt` has passed; a
+server-side scheduled release/backfill is required. Students must never
+subscribe to the canonical bank and filter answer keys locally. Preserve
+unassigned/orphan questions in the staff-only canonical bank for reconciliation,
+not by dropping them during migration.
 
 ### Where credentials go
 
@@ -157,6 +182,18 @@ No password hash, username registry or staff directory lives in RTDB any more:
   * on `courseContentByAuthor/{authUid}/{id}` publish/archive, resolve class and
     group scope server-side and fan out/retract `studentCourseContent` copies.
     Never copy unpublished drafts to a student subtree;
+  * add `publishQuestionBankDraft`: require the authenticated active Teacher,
+    load the draft under the claim's `teacherId`, verify the current
+    class/group/subject assignment, validate and write the canonical question;
+    never trust a client-supplied role or assignment;
+  * on canonical Question Bank create/update/delete, maintain assignment-scoped
+    `teacherQuestionBank/<teacherId>` and active class/group-scoped
+    `studentQuestionBank/<studentId>` projections, retracting stale copies when
+    scope changes. Recompute affected copies when a student's class/group or a
+    Teacher assignment changes. Exam-sourced questions stay staff-only until
+    `endAt`; a server scheduled task releases them only after the end time.
+    Preserve answer fields only in staff projections and the student's own
+    eligible practice copy; students never read the canonical bank;
   * `publishNotice`, `publishTeachingActivity` and `publishCourseContent` must
     verify the authenticated Teacher's server-side assignment before promoting
     their author-scoped draft. UI checks alone are not authorization.
@@ -220,6 +257,16 @@ No password hash, username registry or staff directory lives in RTDB any more:
   * Publish only server-generated, class/group-scoped copies to
     `studentCourseContent/<studentId>`. Students must not subscribe to the
     canonical author tree and UI filters are not an access-control boundary.
+* Question Bank (`js/question-bank.js`, `js/sync-collections.js`)
+  * Keep `questionBank` out of v1 `SYNCABLE`. On v2, map Admin/Manager to the
+    canonical question map; Teacher sessions listen to their assigned
+    `teacherQuestionBank/<teacherId>` and their own drafts; students listen only
+    to `studentQuestionBank/<studentId>`.
+  * Preserve stable question IDs and offline local copies. Teacher changes go
+    to private drafts and are promoted only by the assignment-checking callable.
+    Do not solve sync by downloading global answer keys and filtering in
+    JavaScript. Student projections may include practice answers only for the
+    student's own class/group, and exam-sourced questions only after `endAt`.
 * Academics (`js/sync-collections.js`)
   * The existing v1 adapter stores `class-<id>`, `subject-<id>`,
     `mapping-<id>` and `chapter-<id>` wrappers plus `__metadata`; retain that
@@ -246,9 +293,12 @@ No password hash, username registry or staff directory lives in RTDB any more:
    Reshape `examDb/attempts` into `attempts/{sid}`; split shared teaching
    `progress` by student and Teacher; move unpublished teaching/course/notice
    records into author-scoped draft paths and published records into canonical
-   paths; and backfill only published/active, correctly scoped student copies.
-   Run the fan-out triggers/backfill and reconcile record counts and checksums,
-   including drafts and archived items.
+   paths. Move every Question Bank row into the staff-only canonical bank,
+   preserving unresolved authors for Manager review; build assignment-scoped
+   Teacher copies and only active, class/group-scoped student copies. Do not
+   backfill an exam-sourced student question before its `endAt`; schedule its
+   release after the official window. Run the fan-out triggers/backfill and
+   reconcile record counts and checksums, including drafts and archived items.
 5. Test on staging with real role-bearing accounts and each role's actual
    screens, including a second student/Teacher to verify cross-user denials.
    Keep legacy sync enabled while the v2 client and migration are validated.
@@ -261,10 +311,11 @@ No password hash, username registry or staff directory lives in RTDB any more:
 * `npm test` includes `tests/rtdb-v2-draft-rules.test.mjs`. It checks the full
   matrix for 7 active identities and 9 blocked ones: signed-out, anonymous,
   anonymous with a forged role claim, no claims, `mustChangePassword`,
-  suspended, pending student, unlinked student, unlinked teacher. It also
-  asserts that the draft is not wired into `firebase.json` and that the
-  committed JSON matches its generator. **It uses a simulator. It is not
-  evidence about production.**
+  suspended, pending student, unlinked student, unlinked teacher. Question
+  Bank checks cover canonical/draft/teacher/student path separation and key
+  binding. It also asserts that the draft is not wired to `firebase.json` and
+  that the committed JSON matches its generator. **It uses a simulator. It is
+  not evidence about production or Functions' fan-out behavior.**
 * `functions/test/rtdb-rules.test.js` runs the same boundary on the real
   emulator. It was **not run in the sandbox where it was written**: Java and the
   emulator download were unavailable. It must pass in CI or locally first.

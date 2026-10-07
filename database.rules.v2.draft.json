@@ -103,6 +103,40 @@
           }
         }
       },
+      "questionBank": {
+        ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager'))",
+        "$recordId": {
+          ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager'))",
+          ".validate": "newData.child('id').val() === $recordId && newData.child('className').isString() && newData.child('subject').isString() && newData.child('type').isString() && newData.child('text').isString() && newData.child('answer').isString() && newData.child('answerText').isString() && newData.child('active').isBoolean()"
+        }
+      },
+      "questionBankDraftsByTeacher": {
+        "$teacherId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && $teacherId === auth.token.teacherId))",
+          "$questionId": {
+            ".write": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && $teacherId === auth.token.teacherId))",
+            ".validate": "newData.child('id').val() === $questionId && newData.child('teacherId').val() === $teacherId && newData.child('status').val() === 'draft' && newData.child('question').child('id').val() === $questionId && newData.child('question').child('className').isString() && newData.child('question').child('subject').isString()"
+          }
+        }
+      },
+      "teacherQuestionBank": {
+        "$teacherId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && $teacherId === auth.token.teacherId))",
+          "$questionId": {
+            ".write": false,
+            ".validate": "newData.child('id').val() === $questionId && newData.child('className').isString() && newData.child('subject').isString() && newData.child('type').isString() && newData.child('text').isString() && newData.child('answer').isString() && newData.child('answerText').isString() && newData.child('active').isBoolean()"
+          }
+        }
+      },
+      "studentQuestionBank": {
+        "$studentId": {
+          ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null) && $studentId === auth.token.studentId)",
+          "$questionId": {
+            ".write": false,
+            ".validate": "newData.child('id').val() === $questionId && newData.child('className').isString() && newData.child('subject').isString() && newData.child('type').isString() && newData.child('text').isString() && newData.child('answer').isString() && newData.child('answerText').isString() && newData.child('active').isBoolean() && newData.child('active').val() === true && (!newData.child('source').child('examId').exists() || (newData.child('endAt').isNumber() && newData.child('endAt').val() > 0 && newData.child('endAt').val() < now))"
+          }
+        }
+      },
       "courseContentDraftsByAuthor": {
         "$authorUid": {
           ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'admin') || (auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'manager') || ((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'active' && auth.token.role === 'teacher' && auth.token.teacherId != null) && auth.uid === $authorUid))",
