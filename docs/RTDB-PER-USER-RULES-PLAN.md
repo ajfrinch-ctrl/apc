@@ -340,3 +340,39 @@ No password hash, username registry or staff directory lives in RTDB any more:
       that updates the interim-policy tests (`tests/interim-sync-rules.test.mjs`,
       `tests/rtdb-path-coverage.test.mjs`) and this document; do not leave the
       v2 draft accidentally deployable before the client migration.
+
+## 9. Implementation status (staged; no production cutover)
+
+Question Bank v2 code is merged but **claims-gated and rules-gated**: nothing
+below changes live behavior until claims are provisioned AND the v2 rules are
+deployed. The legacy anonymous bridge stays untouched throughout.
+
+Done (client + functions, tested by `npm test`):
+- [x] Client path selector: `sync/question-bank-v2-policy.js` (+ retry decision).
+- [x] Authenticated Question Bank client: `sync/question-bank-v2-sync.js`
+      (canonical/Teacher-draft/Student modes; offline outbox; soft-archive on
+      removal; owned-id bookkeeping). Wired into `js/realtime-sync-entry.js`.
+- [x] Projection + fan-out helpers: `functions/question-bank-projection.js`,
+      incl. the draft-publish race guard `advanceDraftAfterPublish`.
+- [x] Question Bank callables/triggers in `functions/index.js`:
+      `publishQuestionBankDraft`, `projectQuestionBankRecord`,
+      `rebuildStudentQuestionBank`, `rebuildTeacherQuestionBank`,
+      `releaseQuestionBankExamQuestions` (1-minute release job, Asia/Dhaka).
+- [x] V2 identity claims provisioned server-side at account lifecycle events
+      (`teacherId`/`studentId` === Auth uid): `adminCreateAccount`,
+      `managerReviewStudent`, `adminSetAccountStatus` (backfill),
+      via `v2IdentityClaims` in `functions/teacher-assignment-migration.js`.
+- [x] Legacy username→uid assignment migration helper
+      (`buildTeacherAssignmentMigration`, `migrationForTeacher`) and the
+      Admin-only retro-link callable `adminProvisionV2Identities`
+      (dry-run preview by default; never modifies legacy bridge rows).
+
+Still required before cutover (owner-gated, in order):
+- [ ] Run `adminProvisionV2Identities` dry-run, review unresolved rows, then
+      link each active Teacher (`applyAssignments: true`).
+- [ ] Deploy Functions (`cd functions && npm run deploy`) after emulator tests.
+- [ ] Pass the emulator gate `npm run test:rtdb-rules` (needs Java + emulator).
+- [ ] Staging rehearsal with real accounts for every role, including negative
+      cross-user tests and legacy-data reconciliation.
+- [ ] Owner approval, then point `firebase.json` at the v2 rules together with
+      the interim-policy test updates (§8).

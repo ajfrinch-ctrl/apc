@@ -19,6 +19,12 @@ const {
   buildTeacherQuestionProjection,
   buildQuestionBankFanout
 } = require('./question-bank-projection.js');
+const {
+  linkedTeacherClaims,
+  migrationForTeacher,
+  entriesOfLegacyAssignments,
+  v2IdentityClaims
+} = require('./teacher-assignment-migration.js');
 
 initializeApp();
 const auth = getAuth();
@@ -149,7 +155,7 @@ exports.adminCreateAccount = onCall(async request => {
   try {
     user = await auth.createUser({ email: authEmail(profile.username), password: profile.password, displayName: profile.fullName, disabled: false });
     const status = role === 'student' ? 'pending' : 'active';
-    await auth.setCustomUserClaims(user.uid, { role, status, mustChangePassword: role !== 'student' });
+    await auth.setCustomUserClaims(user.uid, { role, status, mustChangePassword: role !== 'student', ...v2IdentityClaims(role, user.uid) });
     await db.runTransaction(async tx => {
       const current = await tx.get(ref);
       if (!current.exists || current.data().reservation !== lockId) throw new HttpsError('aborted', 'Username reservation বদলে গেছে।');
@@ -219,7 +225,9 @@ exports.managerReviewStudent = onCall(async request => {
     tx.update(userRef, { status, reviewedBy: request.auth.uid, reviewedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
   });
   const user = await auth.getUser(uid);
-  await auth.setCustomUserClaims(uid, { ...user.customClaims, role: 'student', status: decision });
+  // Force the V2 link on approval so accounts created before the staged
+  // migration (no studentId claim) still reach their own projection node.
+  await auth.setCustomUserClaims(uid, { ...user.customClaims, role: 'student', status: decision, ...v2IdentityClaims('student', uid) });
   return { ok: true, uid, status: decision };
 });
 
@@ -253,15 +261,19 @@ exports.adminSetAccountStatus = onCall(async request => {
   const status = String(request.data.status || '');
   if (!uid || !['active', 'suspended'].includes(status)) throw new HttpsError('invalid-argument', 'Account status সঠিক নয়।');
   const ref = db.doc(`users/${uid}`);
+  let accountRole = '';
   await db.runTransaction(async tx => {
     const doc = await tx.get(ref);
     if (!doc.exists || doc.data().role === 'admin' || doc.data().role === 'student') {
       throw new HttpsError('failed-precondition', 'এই Account status Admin-এর মাধ্যমে বদলানো যাবে না।');
     }
+    accountRole = String(doc.data().role || '');
     tx.update(ref, { status, updatedAt: FieldValue.serverTimestamp() });
   });
   const user = await auth.getUser(uid);
-  await auth.setCustomUserClaims(uid, { ...user.customClaims, status });
+  // Backfill the V2 link for accounts created before the staged migration:
+  // teacherId/studentId always equal the account's own Auth uid.
+  await auth.setCustomUserClaims(uid, { ...user.customClaims, status, ...v2IdentityClaims(accountRole || String(user.customClaims?.role || ''), uid) });
   await auth.updateUser(uid, { disabled: status !== 'active' });
   return { ok: true, uid, status };
 });
@@ -538,6 +550,84 @@ exports.releaseQuestionBankExamQuestions = onSchedule({
     undefined,
     false
   )));
+});
+
+/**
+ * Staged-migration link step for accounts that predate the V2 claims.
+ *
+ * • Dry run (no `username`): reports which legacy usernames carry assignment
+ *   rows, without writing anything.
+ * • With `username`: verifies the identity server-side through
+ *   `usernameIndex` → `users/{uid}` → Firebase Auth, then sets the secure
+ *   `teacherId` claim via linkedTeacherClaims(). An inactive, disabled or
+ *   non-Teacher identity is rejected — the legacy username alone is never
+ *   trusted.
+ * • With `applyAssignments: true`: additionally writes that Teacher's migrated
+ *   rows to `activePlusV2/teacherAssignments/{id}` (Admin SDK writes bypass
+ *   rules, so this is safe before the V2 rules deploy). Legacy bridge rows are
+ *   never modified or deleted; unresolved rows are reported, not dropped.
+ */
+exports.adminProvisionV2Identities = onCall(async request => {
+  requireCaller(request, 'admin');
+  const username = normalizeUsername(request.data?.username);
+  const applyAssignments = request.data?.applyAssignments === true;
+  const database = getDatabase();
+  const legacySnapshot = await database.ref(`${BRIDGE_ROOT}/teacherAssignments`).get();
+  const legacyValue = legacySnapshot.val();
+  const legacyRows = entriesOfLegacyAssignments(legacyValue);
+
+  if (!username) {
+    const usernames = new Set();
+    for (const [, row] of legacyRows) usernames.add(normalizeUsername(row?.teacherUsername));
+    usernames.delete('');
+    return { ok: true, preview: true, usernames: [...usernames].sort(), totalRows: legacyRows.length };
+  }
+  if (!HANDLE.test(username)) {
+    throw new HttpsError('invalid-argument', 'username গ্রহণযোগ্য নয়।');
+  }
+
+  const indexSnapshot = await usernameDoc(username).get();
+  const uid = String(indexSnapshot.exists ? indexSnapshot.data()?.uid || '' : '');
+  if (!safeQuestionKey(uid)) throw new HttpsError('not-found', 'এই username-এর যাচাইযোগ্য অ্যাকাউন্ট পাওয়া যায়নি।');
+  const profileSnapshot = await db.doc(`users/${uid}`).get();
+  const profile = profileSnapshot.exists ? profileSnapshot.data() : null;
+  const record = await auth.getUser(uid).catch(() => null);
+  if (!profile || !record) throw new HttpsError('not-found', 'এই username-এর যাচাইযোগ্য অ্যাকাউন্ট পাওয়া যায়নি।');
+  if (record.disabled) throw new HttpsError('failed-precondition', 'ডিজেবল করা অ্যাকাউন্ট লিংক করা যাবে না।');
+  const identity = {
+    uid,
+    username: normalizeUsername(profile.username) || username,
+    role: String(profile.role || ''),
+    status: String(profile.status || ''),
+    disabled: false,
+    mustChangePassword: profile.mustChangePassword === true
+  };
+  if (identity.username !== username) {
+    throw new HttpsError('failed-precondition', 'username index এবং profile মিলছে না।');
+  }
+  let claims;
+  try {
+    claims = linkedTeacherClaims({ uid, profile: identity, authClaims: record.customClaims || {} });
+  } catch {
+    throw new HttpsError('failed-precondition', 'শুধু সক্রিয় Teacher অ্যাকাউন্ট লিংক করা যায়।');
+  }
+  await auth.setCustomUserClaims(uid, claims);
+
+  const migration = migrationForTeacher(legacyValue, username, identity);
+  if (applyAssignments && migration.assignments.length) {
+    const patch = {};
+    for (const row of migration.assignments) patch[`${V2_ROOT}/teacherAssignments/${row.id}`] = row;
+    await database.ref().update(patch);
+  }
+  return {
+    ok: true,
+    uid,
+    username,
+    linkedClaims: { role: claims.role, status: claims.status, teacherId: claims.teacherId },
+    assignments: migration.assignments,
+    unresolved: migration.unresolved,
+    applied: applyAssignments
+  };
 });
 
 async function tokenEntries() {

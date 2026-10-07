@@ -87,11 +87,44 @@ function linkedTeacherClaims({ uid, profile, authClaims = {} } = {}) {
   };
 }
 
+/**
+ * Select one teacher's legacy rows and migrate them against a single verified
+ * identity. Used by the Admin retro-link callable so a teacher whose account
+ * predates the V2 claims still gets their class/group/subject scope carried
+ * over. Rows that fail validation are reported, never silently dropped.
+ */
+function migrationForTeacher(legacyValue, username, identity) {
+  const wanted = normalizeUsername(username);
+  if (!wanted) return { assignments: [], unresolved: [] };
+  const rows = {};
+  for (const [wireId, rowValue] of entriesOfLegacyAssignments(legacyValue)) {
+    if (normalizeUsername(rowValue?.teacherUsername) === wanted) rows[wireId] = rowValue;
+  }
+  if (!Object.keys(rows).length) return { assignments: [], unresolved: [] };
+  return buildTeacherAssignmentMigration(rows, { [wanted]: identity });
+}
+
+/**
+ * The V2 link established at provisioning time: Teacher scope nodes are
+ * addressed by `teacherId`, Student nodes by `studentId`, and both always
+ * equal the account's own Firebase Auth uid (roster records are keyed
+ * `students/{uid}`). Admin/Manager/Payment need no extra link — the canonical
+ * and staff paths are addressed by role claims alone.
+ */
+function v2IdentityClaims(role, uid) {
+  if (!safeKey(uid)) return {};
+  if (role === 'teacher') return { teacherId: uid };
+  if (role === 'student') return { studentId: uid };
+  return {};
+}
+
 module.exports = {
   SAFE_KEY,
   safeKey,
   normalizeUsername,
   entriesOfLegacyAssignments,
   buildTeacherAssignmentMigration,
-  linkedTeacherClaims
+  linkedTeacherClaims,
+  migrationForTeacher,
+  v2IdentityClaims
 };

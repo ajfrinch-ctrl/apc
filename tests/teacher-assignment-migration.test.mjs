@@ -13,7 +13,9 @@ const {
   buildTeacherAssignmentMigration,
   linkedTeacherClaims,
   normalizeUsername,
-  entriesOfLegacyAssignments
+  entriesOfLegacyAssignments,
+  migrationForTeacher,
+  v2IdentityClaims
 } = require('../functions/teacher-assignment-migration.js');
 
 const TEACHERS = {
@@ -153,4 +155,46 @@ test('normalizeUsername and entriesOfLegacyAssignments fail closed on garbage', 
   assert.deepEqual(entriesOfLegacyAssignments(42), []);
   const entries = entriesOfLegacyAssignments([{ className: 'ক' }]);
   assert.equal(entries[0][0], 'legacy-1');
+});
+
+test('migrationForTeacher selects only that teacher’s rows and keeps others out', () => {
+  const legacy = {
+    a: row({ id: 'TAS-1' }),                                   // rafiq
+    b: row({ id: 'TAS-2', teacherUsername: 'salma', className: 'নবম শ্রেণি' }),
+    c: row({ id: 'TAS-3', className: 'অষ্টম শ্রেণি' })          // rafiq
+  };
+  const { assignments, unresolved } = migrationForTeacher(legacy, 'RAFIQ', TEACHERS.rafiq);
+  assert.equal(unresolved.length, 0);
+  assert.deepEqual(assignments.map(item => item.id).sort(), ['TAS-1', 'TAS-3']);
+  for (const item of assignments) assert.equal(item.teacherId, 'uid-rafiq');
+  // Salma's row never leaks into Rafiq's migration.
+  assert.equal(assignments.some(item => item.id === 'TAS-2'), false);
+});
+
+test('migrationForTeacher with an empty/unknown username migrates nothing', () => {
+  const legacy = { a: row() };
+  assert.deepEqual(migrationForTeacher(legacy, '', TEACHERS.rafiq), { assignments: [], unresolved: [] });
+  assert.deepEqual(migrationForTeacher(legacy, 'ghost', TEACHERS.rafiq), { assignments: [], unresolved: [] });
+  assert.deepEqual(migrationForTeacher(null, 'rafiq', TEACHERS.rafiq), { assignments: [], unresolved: [] });
+});
+
+test('migrationForTeacher reports a row whose stored username mismatches the verified identity', () => {
+  // The legacy row says "rafiq" but the verified identity is Salma: the row is
+  // not silently re-attributed, it lands in unresolved with username-mismatch.
+  const { assignments, unresolved } = migrationForTeacher({ a: row() }, 'rafiq', TEACHERS.salma);
+  assert.deepEqual(assignments, []);
+  assert.equal(unresolved.length, 1);
+  assert.equal(unresolved[0].reason, 'username-mismatch');
+});
+
+test('v2IdentityClaims links Teachers and Students to their own uid, nobody else', () => {
+  assert.deepEqual(v2IdentityClaims('teacher', 'uid-1'), { teacherId: 'uid-1' });
+  assert.deepEqual(v2IdentityClaims('student', 'uid-2'), { studentId: 'uid-2' });
+  // Staff paths are role-addressed; Admin/Manager/Payment carry no V2 link.
+  for (const role of ['admin', 'manager', 'payment', '']) {
+    assert.deepEqual(v2IdentityClaims(role, 'uid-3'), {}, role);
+  }
+  // An unsafe uid never produces a claim.
+  assert.deepEqual(v2IdentityClaims('teacher', '../evil'), {});
+  assert.deepEqual(v2IdentityClaims('student', ''), {});
 });
