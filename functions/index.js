@@ -1,5 +1,6 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onValueWritten } = require('firebase-functions/v2/database');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -8,6 +9,16 @@ const { getMessaging } = require('firebase-admin/messaging');
 const { noticePush, broadcastPush, examPushes, chunkTokens, tokensToPrune, messageFor } =
   require('./notification-payload.js');
 const crypto = require('node:crypto');
+const {
+  safeKey: safeQuestionKey,
+  normalizeQuestionRecord,
+  questionMatchesTeacher,
+  questionMatchesExamPaper,
+  buildStudentQuestionProjection,
+  advanceDraftAfterPublish,
+  buildTeacherQuestionProjection,
+  buildQuestionBankFanout
+} = require('./question-bank-projection.js');
 
 initializeApp();
 const auth = getAuth();
@@ -282,6 +293,252 @@ exports.adminSetAccountStatus = onCall(async request => {
 const BRIDGE_ROOT = 'activePlusSync/v1';
 const PUSH_TOKENS_PATH = `${BRIDGE_ROOT}/pushTokens`;
 const DB_REGION = 'asia-southeast1';
+const V2_ROOT = 'activePlusV2';
+const mapObject = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const valuesOf = value => Object.values(mapObject(value)).filter(item => item && typeof item === 'object' && !Array.isArray(item));
+const jsonEqual = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+
+async function applyV2Updates(updates) {
+  const patch = {};
+  for (const [path, value] of Object.entries(updates || {})) patch[`${V2_ROOT}/${path}`] = value;
+  if (Object.keys(patch).length) await getDatabase().ref().update(patch);
+}
+
+function questionHasFutureExamWindow(question, now = Date.now()) {
+  return Boolean(question?.active === true && question?.source?.examId && Number(question.endAt) > now);
+}
+
+/** Teacher-authoring entry point. The draft is private and its scope is checked
+ * again against the live Manager assignment before the canonical answer key is
+ * written. The client never chooses its teacherId or publication role. */
+exports.publishQuestionBankDraft = onCall(async request => {
+  requireCaller(request, 'teacher');
+  const teacherId = String(request.auth.token.teacherId || '');
+  const questionId = String(request.data?.questionId || '');
+  if (!safeQuestionKey(teacherId) || !safeQuestionKey(questionId)) {
+    throw new HttpsError('permission-denied', 'সক্রিয় Teacher identity প্রয়োজন।');
+  }
+  const database = getDatabase();
+  const [draftSnapshot, assignmentsSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/questionBankDraftsByTeacher/${teacherId}/${questionId}`).get(),
+    database.ref(`${V2_ROOT}/teacherAssignments`).get()
+  ]);
+  const draft = draftSnapshot.val();
+  if (!draft || draft.id !== questionId || draft.teacherId !== teacherId || draft.status !== 'draft' || draft.question?.id !== questionId) {
+    throw new HttpsError('not-found', 'নিজের অপেক্ষমাণ প্রশ্ন Draft পাওয়া যায়নি।');
+  }
+  let question;
+  try { question = normalizeQuestionRecord(draft.question, { id: questionId }); }
+  catch { throw new HttpsError('invalid-argument', 'প্রশ্নের তথ্য সঠিক নয়।'); }
+  const assignmentRows = valuesOf(assignmentsSnapshot.val());
+  const now = Date.now();
+  if (question.source?.examId) {
+    if (!safeQuestionKey(question.source.examId)) {
+      throw new HttpsError('invalid-argument', 'পরীক্ষার Question Bank source সঠিক নয়।');
+    }
+    const examSnapshot = await database.ref(`${V2_ROOT}/exams/${question.source.examId}`).get();
+    const exam = examSnapshot.val();
+    if (!questionMatchesExamPaper(question, exam, teacherId) || !(Number(exam.endAt) > 0)) {
+      throw new HttpsError('permission-denied', 'পরীক্ষার Question Bank source যাচাই করা যায়নি।');
+    }
+    question = {
+      ...question,
+      className: String(exam.className || ''),
+      subject: String(exam.subject || ''),
+      group: String(exam.group || ''),
+      startAt: Number(exam.startAt) || 0,
+      endAt: Number(exam.endAt) || 0,
+      source: {
+        examId: String(exam.id),
+        examCode: String(exam.code || ''),
+        examTitle: String(exam.title || ''),
+        at: Number(exam.createdAt) || now
+      }
+    };
+  }
+  if (!questionMatchesTeacher(question, teacherId, assignmentRows)) {
+    throw new HttpsError('permission-denied', 'এই class/group/subject-এ আপনার সক্রিয় assignment নেই।');
+  }
+
+  const profileSnapshot = await db.doc(`users/${request.auth.uid}`).get();
+  const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
+  const displayName = String(profile.fullName || profile.username || request.auth.token.name || 'Teacher').trim().slice(0, 100);
+  const canonicalRef = database.ref(`${V2_ROOT}/questionBank/${questionId}`);
+  const result = await canonicalRef.transaction(current => {
+    if (current) {
+      // Assigned teachers may maintain assigned shared questions, but an ID
+      // cannot be moved to a different class/subject/group or stripped of its
+      // authoritative exam provenance.
+      if (!questionMatchesTeacher(current, teacherId, assignmentRows)) return;
+      const sameScope = value => String(value || '').normalize('NFC').trim().toLocaleLowerCase('en-US');
+      if (sameScope(current.className) !== sameScope(question.className)
+          || sameScope(current.subject) !== sameScope(question.subject)
+          || sameScope(current.group).replace(/\s*বিভাগ$/, '') !== sameScope(question.group).replace(/\s*বিভাগ$/, '')) return;
+      if ((current.source?.examId || '') !== (question.source?.examId || '')) return;
+    }
+    return {
+      ...question,
+      createdBy: current?.createdBy || displayName,
+      createdAt: Number(current?.createdAt) || now,
+      updatedBy: displayName,
+      updatedAt: now,
+      createdByUid: current?.createdByUid || request.auth.uid,
+      updatedByUid: request.auth.uid,
+      teacherId: current?.teacherId || teacherId
+    };
+  }, undefined, false);
+  if (!result.committed) {
+    throw new HttpsError('permission-denied', 'এই প্রশ্নের assignment scope বা authoritative exam source মিলছে না।');
+  }
+  const publishedAt = Date.now();
+  // Draft flips to published ONLY if its content still equals the exact
+  // question that was just promoted. If the Teacher kept editing while the
+  // publish was in flight, the draft stays 'draft' and republishes the new
+  // content instead of being silently marked released (see
+  // advanceDraftAfterPublish in question-bank-projection.js).
+  await database.ref(`${V2_ROOT}/questionBankDraftsByTeacher/${teacherId}/${questionId}`)
+    .transaction(current => advanceDraftAfterPublish(current, {
+      teacherId, questionId, publishedQuestion: draft.question, publishedAt
+    }), undefined, false);
+  return { ok: true, questionId, updatedAt: now };
+});
+
+/** Canonical Question Bank edits are mirrored in real time to assignment- and
+ * student-scoped trees. Admin/Manager SDK writes are authoritative; all client
+ * paths remain role-checked by RTDB rules. */
+exports.projectQuestionBankRecord = onValueWritten({ ref: `${V2_ROOT}/questionBank/{questionId}`, region: DB_REGION }, async event => {
+  const questionId = String(event.params.questionId || '');
+  if (!safeQuestionKey(questionId)) return;
+  const before = event.data.before.val();
+  const after = event.data.after.val();
+  if (after) {
+    try { normalizeQuestionRecord(after, { id: questionId }); }
+    catch (error) { throw new Error(`Invalid canonical Question Bank row ${questionId}: ${error.message}`); }
+  }
+  const database = getDatabase();
+  const [studentsSnapshot, assignmentsSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/students`).get(),
+    database.ref(`${V2_ROOT}/teacherAssignments`).get()
+  ]);
+  const now = Date.now();
+  const updates = buildQuestionBankFanout({
+    questionId,
+    before,
+    after,
+    students: studentsSnapshot.val() || {},
+    assignments: assignmentsSnapshot.val() || {},
+    now
+  });
+  updates[`questionBankReleaseQueue/${questionId}`] = questionHasFutureExamWindow(after, now)
+    ? { endAt: Number(after.endAt), queuedAt: now }
+    : null;
+  await applyV2Updates(updates);
+});
+
+/** Rebuild one student's projection if their approval or class/group changes.
+ * Removing approval clears only their copy, never the canonical bank. */
+exports.rebuildStudentQuestionBank = onValueWritten({ ref: `${V2_ROOT}/students/{studentId}`, region: DB_REGION }, async event => {
+  const studentId = String(event.params.studentId || '');
+  if (!safeQuestionKey(studentId)) return;
+  const student = event.data.after.val();
+  const database = getDatabase();
+  const projectionRef = database.ref(`${V2_ROOT}/studentQuestionBank/${studentId}`);
+  if (!student || student.id !== studentId || student.status !== 'approved') {
+    await projectionRef.set(null);
+    return;
+  }
+  const [bankSnapshot, existingSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/questionBank`).get(),
+    projectionRef.get()
+  ]);
+  const projection = buildStudentQuestionProjection(bankSnapshot.val() || {}, student, Date.now());
+  const existing = mapObject(existingSnapshot.val());
+  const updates = {};
+  for (const questionId of new Set([...Object.keys(existing), ...Object.keys(projection)])) {
+    if (!safeQuestionKey(questionId)) continue;
+    const next = projection[questionId] || null;
+    if (!jsonEqual(existing[questionId] ?? null, next)) updates[`studentQuestionBank/${studentId}/${questionId}`] = next;
+  }
+  await applyV2Updates(updates);
+});
+
+/** Assignment edits rebuild only the affected Teacher's projection, including
+ * removals, so a revoked class/subject cannot leave an old answer-key copy. */
+exports.rebuildTeacherQuestionBank = onValueWritten({ ref: `${V2_ROOT}/teacherAssignments/{assignmentId}`, region: DB_REGION }, async event => {
+  const before = event.data.before.val();
+  const after = event.data.after.val();
+  const teacherIds = new Set([before?.teacherId, after?.teacherId].map(value => String(value || '')).filter(safeQuestionKey));
+  if (!teacherIds.size) return;
+  const database = getDatabase();
+  const [assignmentsSnapshot, bankSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/teacherAssignments`).get(),
+    database.ref(`${V2_ROOT}/questionBank`).get()
+  ]);
+  const assignments = valuesOf(assignmentsSnapshot.val());
+  const questions = mapObject(bankSnapshot.val());
+  const updates = {};
+  for (const teacherId of teacherIds) {
+    const projection = buildTeacherQuestionProjection(questions, teacherId, assignments);
+    const existingSnapshot = await database.ref(`${V2_ROOT}/teacherQuestionBank/${teacherId}`).get();
+    const existing = mapObject(existingSnapshot.val());
+    for (const questionId of new Set([...Object.keys(existing), ...Object.keys(projection)])) {
+      if (!safeQuestionKey(questionId)) continue;
+      const next = projection[questionId] || null;
+      if (!jsonEqual(existing[questionId] ?? null, next)) updates[`teacherQuestionBank/${teacherId}/${questionId}`] = next;
+    }
+  }
+  await applyV2Updates(updates);
+});
+
+/** One-minute server release queue: exam-sourced answers are inserted in each
+ * student's own bank only after the official endAt, even if no client reconnects. */
+exports.releaseQuestionBankExamQuestions = onSchedule({
+  schedule: 'every 1 minutes',
+  timeZone: 'Asia/Dhaka',
+  region: DB_REGION
+}, async () => {
+  const database = getDatabase();
+  const queueSnapshot = await database.ref(`${V2_ROOT}/questionBankReleaseQueue`).get();
+  const now = Date.now();
+  const due = Object.entries(mapObject(queueSnapshot.val())).filter(([, item]) => Number(item?.endAt) > 0 && Number(item.endAt) < now);
+  if (!due.length) return;
+  const [bankSnapshot, studentsSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/questionBank`).get(),
+    database.ref(`${V2_ROOT}/students`).get()
+  ]);
+  const bank = mapObject(bankSnapshot.val());
+  const students = mapObject(studentsSnapshot.val());
+  const updates = {};
+  const processed = [];
+  for (const [questionId, queued] of due) {
+    if (!safeQuestionKey(questionId)) continue;
+    const question = bank[questionId];
+    if (!question || question.id !== questionId || question.active !== true || !question.source?.examId) {
+      processed.push([questionId, Number(queued.endAt)]);
+      continue;
+    }
+    const endAt = Number(question.endAt);
+    if (endAt !== Number(queued.endAt)) {
+      // A reschedule superseded this queue entry; the canonical trigger creates
+      // the replacement entry, so leave it alone if it has already changed.
+      if (!(endAt > now)) processed.push([questionId, Number(queued.endAt)]);
+      continue;
+    }
+    for (const [studentId, student] of Object.entries(students)) {
+      if (!safeQuestionKey(studentId) || !student || student.id !== studentId) continue;
+      const projection = buildStudentQuestionProjection({ [questionId]: question }, student, now);
+      if (projection[questionId]) updates[`studentQuestionBank/${studentId}/${questionId}`] = projection[questionId];
+    }
+    processed.push([questionId, Number(queued.endAt)]);
+  }
+  await applyV2Updates(updates);
+  // Clear a queue entry only if it is still the same schedule we processed.
+  await Promise.all(processed.map(([questionId, endAt]) => database.ref(`${V2_ROOT}/questionBankReleaseQueue/${questionId}`).transaction(
+    current => current && Number(current.endAt) === endAt ? null : undefined,
+    undefined,
+    false
+  )));
+});
 
 async function tokenEntries() {
   const snapshot = await getDatabase().ref(PUSH_TOKENS_PATH).get();

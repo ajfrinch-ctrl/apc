@@ -71,7 +71,8 @@
 //       an empty localStorage sees the Login screen instead of "Create Admin Account";
 //       creation is a single atomic claim that a second device can only lose, and a
 //       device that cannot verify the cloud never creates an Admin at all.
-const CACHE_VERSION = 180;
+// v181: precache the Admin-only Staff Management stylesheet.
+const CACHE_VERSION = 182;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -100,6 +101,7 @@ const APP_SHELL = [
   './css/ui-forms.css',
   './css/ui-features.css',
   './css/notice-board.css',
+  './css/staff-management.css',
 
   './js/panel-lockdown.js',
   './firebase/firebase-config.js',
@@ -114,6 +116,8 @@ const APP_SHELL = [
   './sync/sync-retry.js',
   './sync/sync-status.js',
   './sync/sync-guard.js',
+  './sync/question-bank-v2-policy.js',
+  './sync/question-bank-v2-sync.js',
   './js/firebase-config.js',
   './js/firebase-online-test.js',
   './js/firebase-diagnostic-ui.js',
