@@ -1,6 +1,9 @@
 /* Authenticated, role-scoped Question Bank realtime client for activePlusV2.
- * This module is intentionally opt-in until the v2 rules/functions are staged.
- * The legacy anonymous bridge does not call it or include questionBank. */
+ * Wired into js/realtime-sync-entry.js, but claims-gated: it only activates
+ * for a signed-in user whose custom claims authorize a Question Bank path
+ * (see sync/question-bank-v2-policy.js), so devices stay no-ops until the
+ * staged migration provisions claims and the v2 rules. The legacy anonymous
+ * bridge does not call it and does not include questionBank. */
 import { firebaseApp, appCheckReady } from '../firebase/firebase-init.js';
 import {
   getAuth, getDatabase, ref, get, set, runTransaction, onValue as firebaseOnValue

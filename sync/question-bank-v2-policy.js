@@ -34,3 +34,16 @@ export function questionBankSyncPlan(claims = {}, signInProvider = '') {
   }
   return { ok: false, reason: 'role-not-authorized' };
 }
+
+/* Startup retry decision for the Question Bank v2 controller. A signed-out
+ * device or a signed-in device whose token claims do not authorize Question
+ * Bank paths is a persistent "no work" state — the session events restart the
+ * controller, so a blind retry loop would only hammer Auth. Every other
+ * failure is transient and backs off through the protected retry table. */
+const NO_RETRY_REASONS = new Set(['authentication-required', 'role-not-authorized']);
+export function questionBankV2RetryDecision(result) {
+  if (result?.ok) return { retry: false, started: true, reason: '' };
+  const reason = String(result?.reason || 'unknown');
+  if (NO_RETRY_REASONS.has(reason)) return { retry: false, started: false, reason };
+  return { retry: true, started: false, reason };
+}
