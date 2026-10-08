@@ -185,12 +185,12 @@ test('the retired results route has no leftover button anywhere in the app', () 
 
 const teacherHtml = read('teacher.html');
 
-test('the teacher bottom bar is exactly হোম / পড়াশোনা / রুটিন / পরীক্ষা / আরও', () => {
+test('the teacher bottom bar is exactly হোম / কাজ দিন / রুটিন / পরীক্ষা / আরও', () => {
   const nav = teacherHtml.slice(teacherHtml.indexOf('<nav class="admin-bottom"'), teacherHtml.indexOf('</nav>', teacherHtml.indexOf('<nav class="admin-bottom"')));
   assert.deepEqual([...nav.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
     ['home', 'academic', 'routine-view', 'exam', 'more']);
   assert.deepEqual([...nav.matchAll(/<span>([^<]+)<\/span>/g)].map(match => nfc(match[1])),
-    ['হোম', 'পড়াশোনা', 'রুটিন', 'পরীক্ষা', 'আরও'].map(nfc));
+    ['হোম', 'কাজ দিন', 'রুটিন', 'পরীক্ষা', 'আরও'].map(nfc));
   for (const item of nav.split('<button').slice(1)) assert.match(item, /<svg/, 'every bottom-bar item keeps its icon');
 });
 
