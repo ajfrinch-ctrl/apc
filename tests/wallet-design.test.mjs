@@ -41,9 +41,9 @@ test('all portals retain the same uncluttered two-action brand bar', () => {
 test('student, manager and teacher have real, named service shortcuts', () => {
   const allowed = {
     manager: ['students', 'classes', 'teachers', 'routine', 'exams', 'notices', 'finance', 'reports'],
-    teacher: ['classes', 'students', 'routine-view', 'routine', 'homework', 'online-exams', 'exam', 'reports']
+    teacher: ['routine', 'homework', 'suggestion', 'online-exams', 'exam', 'notice', 'classes', 'students', 'courses']
   };
-  const expectedCount = { manager: 9, teacher: 8 };
+  const expectedCount = { manager: 9, teacher: 9 };
   const studentCards = [
     ['homework', 'বাড়ির কাজ'], ['suggestion', 'সাজেশন'], ['question-bank', 'প্রশ্নব্যাংক'],
     ['exams', 'পরীক্ষা'], ['exam-results', 'ফলাফল'], ['notice-board', 'Notice Board']
