@@ -1,6 +1,7 @@
 /* The existing router owns visibility; CSS only presents that state. */
 .view,.admin-view,.manager-view,.finance-panel,.auth-panel,.pending-screen{display:none}
 .view.active,.admin-view.active,.manager-view.active,.finance-panel.active,.auth-panel.active{display:block}
+.manager-view:not(.active),.manager-view[hidden]{display:none!important}
 .app-shell.is-pending .pending-screen{display:block}.app-shell.is-pending #studentHeader,.app-shell.is-pending .app-main,.app-shell.is-pending .bottom-nav{display:none}
 .app-shell,.admin-shell,.pay-shell{min-height:100dvh}
 .app-topbar{position:sticky;top:0;z-index:30;background:var(--color-surface);border-bottom:1px solid var(--color-border)}

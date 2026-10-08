@@ -131,7 +131,7 @@ test('the আরও page lists every module as a real page, not a floating drawe
   assert.equal(ctx.$('#managerMoreTitle').textContent.trim(), 'আরও');
   assert.equal(ctx.window.location.hash, '#more', 'the open page lives in the URL');
 
-  const rows = ctx.$$('#managerMoreMenu .pay-tile');
+  const rows = ctx.$$('#managerMoreHub .pay-tile');
   assert.deepEqual(rows.map(row => row.dataset.managerView), ['profile', 'settings']);
   assert.equal(rows.some(row => row.dataset.managerView === 'classes'), false, 'ক্লাস পরিচালনা is not in আরও');
   for (const row of rows) {
@@ -146,7 +146,7 @@ test('the আরও page lists every module as a real page, not a floating drawe
 test('every আরও row opens its own page without an error', async () => {
   ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]'));
   await ctx.flush();
-  for (const row of ctx.$$('#managerMoreMenu .pay-tile')) {
+  for (const row of ctx.$$('#managerMoreHub .pay-tile')) {
     if (row.classList.contains('is-logout')) continue;
     const view = row.dataset.managerView;
     ctx.click(row);

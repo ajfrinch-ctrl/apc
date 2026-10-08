@@ -24,7 +24,6 @@ import { listTeacherAssignments, saveTeacherAssignment, deleteTeacherAssignment,
 import { listClasses } from './academics.js';
 import { noticeCategory, noticeCategoryInfo } from './notification-rules.js';
 import { mountReports, refreshReports } from './reports.js';
-import { iconElement } from './icons.js';
 
 registerServiceWorker();
 initFixedShell();
@@ -653,30 +652,7 @@ async function changeRoutine(index) {
   void loadOperationalData(); toast('Routine assignment আপডেট হয়েছে।');
 }
 
-/* Manager's menu is an explicit allow-list. No Admin-only route/view exists here. */
-function moreMenuItem({ icon, label }) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'pay-tile';
-  const iconHost = document.createElement('span');
-  iconHost.className = 'pay-tile-icon';
-  iconHost.setAttribute('aria-hidden', 'true');
-  iconHost.append(iconElement(icon, 'apc-icon-svg'));
-  const copy = document.createElement('span');
-  copy.className = 'pay-tile-label';
-  copy.textContent = label;
-  button.append(iconHost, copy);
-  return button;
-}
-const moreMenu = $('#managerMoreMenu');
-if (moreMenu) {
-  moreMenu.replaceChildren();
-  MORE_MODULES.forEach(module => {
-    const button = moreMenuItem(module);
-    button.dataset.managerView = module.view;
-    moreMenu.append(button);
-  });
-}
+/* আরও markup is static in manager.html (#managerMoreHub). Do not inject rows. */
 document.addEventListener('click', event => {
   const examTile = event.target.closest('[data-manager-exam]');
   if (!examTile) return;
