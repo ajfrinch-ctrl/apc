@@ -8,8 +8,8 @@
     teacher: './teacher.js', payment: './payment.js'
   };
   const entry = entries[script?.dataset.entry];
-  if (!entry || !script?.src) return;
-  const moduleUrl = new URL(entry, script.src).href;
+  if (!entry) return;
+  const moduleUrl = new URL(entry, script.src || document.baseURI || location.href).href;
   let failed = false;
   let timer;
   function message(text) {
@@ -58,14 +58,19 @@
   }
   function start() {
     timer = setTimeout(showFailure, 12000);
-    import(moduleUrl).then(() => {
+    const el = document.createElement('script');
+    el.type = 'module';
+    el.src = moduleUrl;
+    el.addEventListener('error', () => {
+      console.warn('[Active Plus] entry module unavailable');
+      showFailure();
+    });
+    el.addEventListener('load', () => {
       clearTimeout(timer);
       document.getElementById('appEntryError')?.remove();
       failed = false;
-    }).catch(error => {
-      console.warn('[Active Plus] entry module unavailable:', error?.name || 'unknown');
-      showFailure();
     });
+    document.head.append(el);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true});
   else start();
