@@ -5,9 +5,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=216" data-entry="student"></script>
-  <script type="module" src="js/main.js?v=216"></script>
-  <script src="js/topbar-connectivity.js?v=21661005-syncborder"></script>
+  <script src="js/app-entry.js?v=217" data-entry="student"></script>
+  <script type="module" src="js/main.js?v=217"></script>
+  <script src="js/topbar-connectivity.js?v=21761005-syncborder"></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
   <script src="js/theme-logos.js?v=158"></script>
@@ -25,7 +25,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="preload" href="assets/fonts/NotoSansBengali-Variable.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="css/design-system.css?v=216">
+  <link rel="stylesheet" href="css/design-system.css?v=217">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -53,7 +53,7 @@
           <label for="loginPin">পাসওয়ার্ড</label>
           <div class="input-wrap"><svg class="apc-glyph-icon" data-icon="lock" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="10" width="14" height="11" rx="2.4"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14.5v2.5"/></svg><input id="loginPin" name="pin" type="password" inputmode="text" minlength="4" maxlength="32" autocomplete="current-password" placeholder="পাসওয়ার্ড" required><button class="show-pin" type="button" data-toggle-pin="loginPin" aria-label="পাসওয়ার্ড দেখুন"><svg class="apc-glyph-icon" data-icon="eye" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2.5 12q9.5-12.5 19 0-9.5 12.5-19 0Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
           <div class="form-row"><label class="remember-label"><input type="checkbox" id="rememberMe" checked><span class="fake-check"></span>এই ডিভাইসে মনে রাখুন</label><button type="button" class="link-button" id="forgotPinButton">পাসওয়ার্ড ভুলে গেছেন?</button></div>
-          <button class="auth-submit" type="submit" disabled>লগইন করুন <svg class="apc-glyph-icon" data-icon="arrow-right" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
+          <button class="auth-submit" type="submit">লগইন করুন <svg class="apc-glyph-icon" data-icon="arrow-right" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
         </form>
         <!-- First use only: shown by js/login.js while this device has no Admin
              record at all. Once the first Admin exists it is removed. -->
