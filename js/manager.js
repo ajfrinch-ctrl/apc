@@ -72,6 +72,29 @@ let financeSegment = 'collection', academicScope = 'all', academicClass = 'all';
 /* One examination workspace for the panel; একাডেমিক → প্রশ্নব্যাংক / পরীক্ষা
    deep-link into its own screens instead of rendering a second copy. */
 let examWorkspaceOpen = null;
+let managerExamScreen = '';
+const EXAM_SCREENS = Object.freeze({
+  bank: 'bank', upcoming: 'upcoming', done: 'archive', papers: 'archive',
+  live: 'home', instant: 'home', recent: 'home', results: 'home', other: 'home'
+});
+function ensureExamWorkspace() {
+  if (examStarted) return;
+  const workspace = initExamManager('#managerExamWorkspace', 'manager');
+  examWorkspaceOpen = screen => workspace?.open?.(screen);
+  examStarted = true;
+}
+function paintManagerExam() {
+  const hub = $('#managerExamHub');
+  const workspace = $('#managerExamWorkspace');
+  if (!hub || !workspace) return;
+  const open = Boolean(managerExamScreen);
+  hub.hidden = open;
+  workspace.hidden = !open;
+  if (open) {
+    ensureExamWorkspace();
+    examWorkspaceOpen?.(managerExamScreen);
+  }
+}
 const scopeLabel = Object.freeze({ all: 'সব', pending: 'নিবন্ধন অপেক্ষমাণ', approved: 'সক্রিয়', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });
 
 function toast(message, error = false) {
@@ -117,6 +140,7 @@ function renderView(view) {
   if (view === 'notices') renderNotices();
   if (view === 'courses') mountCourseEditor();
   if (view === 'routine' || ROUTINE_CHILD_VIEWS.includes(view)) renderRoutine();
+  if (view === 'exams') paintManagerExam();
   if (view === 'results') renderResults();
   if (view === 'reports') void refreshReports($('#managerReports'));
   if (view === 'profile') renderProfile();
@@ -654,8 +678,15 @@ const moreLogout = moreMenuItem({ icon: 'logout', label: 'লগআউট', hint
 moreLogout.classList.add('is-logout');
 moreLogout.addEventListener('click', () => { clearStaffSession('manager'); goToLoginPage(); });
 moreMenu.append(moreLogout);
+document.addEventListener('click', event => {
+  const examTile = event.target.closest('[data-manager-exam]');
+  if (!examTile) return;
+  managerExamScreen = EXAM_SCREENS[examTile.dataset.managerExam] || 'home';
+  renderView('exams');
+});
 $$('[data-manager-view]').forEach(button => button.addEventListener('click', () => {
   const view = button.dataset.managerView;
+  if (view === 'exams') managerExamScreen = '';
   if (!normalizeView(view)) return;
   /* A shortcut may carry its own filter (dashboard → অনুমোদন opens শিক্ষার্থী
      already filtered to the pending queue). */
@@ -754,8 +785,8 @@ document.addEventListener('click', event => {
     const target = ACADEMIC_SECTIONS[card.dataset.academicSection];
     if (target) {
       if (target.scope) academicScope = target.scope;
+      managerExamScreen = target.screen || (target.view === 'exams' ? '' : managerExamScreen);
       renderView(target.view);
-      if (target.screen) examWorkspaceOpen?.(target.screen);
       $$('[data-academic-scope]').forEach(item => item.classList.toggle('active', item.dataset.academicScope === academicScope));
     }
     return;
@@ -843,7 +874,7 @@ async function enterManager() {
     return;
   }
   $('#managerShell').hidden = false;
-  if (!examStarted) { const workspace = initExamManager('#managerExamWorkspace', 'manager'); examWorkspaceOpen = screen => workspace?.open?.(screen); examStarted = true; }
+  ensureExamWorkspace();
   // A refresh (or a shared link) reopens the page that was open, when it is a
   // page this panel knows.
   const wanted = routeName();

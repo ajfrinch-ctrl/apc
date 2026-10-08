@@ -20,7 +20,7 @@ import { teachingRepository, DEMO_TEACHER, ACTIVITY_TYPES, PROGRESS_LABELS, esca
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', homeClass: 'all', status: 'all', ready: false, busy: false, recordLimit: 15 };
+const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', homeClass: 'all', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '' };
 let modalTrigger, toastTimer;
 initFixedShell();
 /* The examination workspace is the single exam/question surface; the academic
@@ -303,6 +303,7 @@ function setView(view) {
     el.classList.toggle('active', active);
     if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
+  paintTeacherExam();
   $('#teacherMain').scrollTo({ top: 0, behavior: 'instant' }); render();
   // The open page lives in the URL, so a refresh lands back on it.
   rememberRoute(view);
@@ -482,6 +483,20 @@ const ACADEMIC_SECTIONS = Object.freeze({
   notice: { view: 'notice' }
 });
 
+const EXAM_SCREENS = Object.freeze({
+  bank: 'bank', upcoming: 'upcoming', done: 'archive', papers: 'archive',
+  live: 'home', instant: 'home', recent: 'home', results: 'home', other: 'home'
+});
+function paintTeacherExam() {
+  const hub = $('#teacherExamHub');
+  const workspace = $('#teacherExamWorkspace');
+  if (!hub || !workspace) return;
+  const screen = state.view === 'online-exams' || state.view === 'exam' ? state.examScreen : '';
+  const open = Boolean(screen);
+  hub.hidden = open;
+  workspace.hidden = !open;
+  if (open) examWorkspace?.open?.(screen);
+}
 function renderAcademic() {
   const host = $('#teacherAcademicScope');
   if (!host) return;
@@ -682,14 +697,24 @@ $('#teacherStatusFilter').addEventListener('click', event => {
 });
 document.addEventListener('click', event => {
   if (state.busy) return;
-  const nav = event.target.closest('[data-teacher-view]'); if (nav) setView(nav.dataset.teacherView);
+  const examTile = event.target.closest('[data-teacher-exam]');
+  if (examTile) {
+    state.examScreen = EXAM_SCREENS[examTile.dataset.teacherExam] || 'home';
+    setView('online-exams');
+    return;
+  }
+  const nav = event.target.closest('[data-teacher-view]');
+  if (nav) {
+    if (nav.dataset.teacherView === 'exam' || nav.dataset.teacherView === 'online-exams') state.examScreen = '';
+    setView(nav.dataset.teacherView);
+  }
   const create = event.target.closest('[data-new-activity]'); if (create) showEditor(create.dataset.newActivity);
   const section = event.target.closest('[data-academic-section]');
   if (section) {
     const target = ACADEMIC_SECTIONS[section.dataset.academicSection];
     if (target) {
+      state.examScreen = target.screen || '';
       setView(target.view);
-      if (target.screen) examWorkspace?.open?.(target.screen);
     }
   }
   const noticeAction = event.target.closest('[data-notice-action]');
