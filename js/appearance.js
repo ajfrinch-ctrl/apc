@@ -8,7 +8,7 @@
    tests/appearance.test.mjs). */
 
 export const APPEARANCE_KEY = 'active-plus-appearance-v2';
-export const THEME_COLOR = Object.freeze({ light: '#f3f6fb', dark: '#000000' });
+export const THEME_COLOR = Object.freeze({ light: '#f7f8fc', dark: '#000000' });
 export const THEME_LABEL = Object.freeze({ light: 'লাইট থিম', dark: 'AMOLED থিম' });
 
 function normalize(theme) {

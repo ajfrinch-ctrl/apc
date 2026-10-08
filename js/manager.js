@@ -24,7 +24,6 @@ import { listTeacherAssignments, saveTeacherAssignment, deleteTeacherAssignment,
 import { listClasses } from './academics.js';
 import { noticeCategory, noticeCategoryInfo } from './notification-rules.js';
 import { mountReports, refreshReports } from './reports.js';
-import { iconElement } from './icons.js';
 
 registerServiceWorker();
 initFixedShell();
@@ -36,7 +35,8 @@ const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
    হোম · শিক্ষার্থী · একাডেমিক · হিসাব · রিপোর্ট · আরও. Every screen that used to
    have its own seat keeps exactly one home; the two old names still resolve so
    a bookmark or a saved refresh never lands nowhere. */
-const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
+const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
+const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'profile', 'settings', 'more']);
 const LEGACY_VIEWS = Object.freeze({
   approvals: { view: 'students', scope: 'pending' },
   'cash-counter': { view: 'finance', segment: 'approval' }
@@ -60,8 +60,8 @@ const FINANCE_SEGMENTS = Object.freeze(['collection', 'approval', 'due', 'histor
    it is reached from. Labels stay Bangla like the bottom bar; the hint names
    what actually happens inside. Academic work lives in একাডেমিক, money in হিসাব. */
 const MORE_MODULES = Object.freeze([
-  { view: 'classes', icon: 'book', label: 'ক্লাস পরিচালনা করুন', hint: 'শ্রেণি, ব্যাচ ও বিষয় তালিকা' },
-  { view: 'profile', icon: 'user', label: 'ম্যানেজার প্রোফাইল', hint: 'নিজের পরিচয়, থিম, নোটিফিকেশন ও পাসওয়ার্ড' }
+  { view: 'profile', icon: 'user', label: 'আমার প্রোফাইল' },
+  { view: 'settings', icon: 'settings', label: 'সেটিংস' }
 ]);
 const dayLabel = Object.freeze({ sat: 'শনিবার', sun: 'রবিবার', mon: 'সোমবার', tue: 'মঙ্গলবার', wed: 'বুধবার', thu: 'বৃহস্পতিবার' });
 const statusLabel = Object.freeze({ approved: 'সক্রিয়', pending: 'অপেক্ষমাণ', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });
@@ -71,8 +71,38 @@ let financeSegment = 'collection', academicScope = 'all', academicClass = 'all';
 /* One examination workspace for the panel; একাডেমিক → প্রশ্নব্যাংক / পরীক্ষা
    deep-link into its own screens instead of rendering a second copy. */
 let examWorkspaceOpen = null;
+let managerExamScreen = '';
+const EXAM_SCREENS = Object.freeze({
+  bank: 'bank', upcoming: 'upcoming', done: 'archive', papers: 'archive',
+  live: 'home', instant: 'home', recent: 'home', results: 'home', other: 'home'
+});
+function ensureExamWorkspace() {
+  if (examStarted) return;
+  const workspace = initExamManager('#managerExamWorkspace', 'manager');
+  examWorkspaceOpen = screen => workspace?.open?.(screen);
+  examStarted = true;
+}
+function paintManagerExam() {
+  const hub = $('#managerExamHub');
+  const workspace = $('#managerExamWorkspace');
+  if (!hub || !workspace) return;
+  const open = Boolean(managerExamScreen);
+  hub.hidden = open;
+  workspace.hidden = !open;
+  if (open) {
+    ensureExamWorkspace();
+    examWorkspaceOpen?.(managerExamScreen);
+  }
+}
 const scopeLabel = Object.freeze({ all: 'সব', pending: 'নিবন্ধন অপেক্ষমাণ', approved: 'সক্রিয়', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });
 
+function pressTiles(selector, isOn) {
+  $$(selector).forEach(item => {
+    const on = isOn(item);
+    item.classList.toggle('active', on);
+    if (item.matches('.pay-tile')) item.setAttribute('aria-pressed', String(on));
+  });
+}
 function toast(message, error = false) {
   const node = $('#managerToast'); if (!node) return;
   node.textContent = message; node.dataset.tone = error ? 'error' : 'success'; node.hidden = false;
@@ -94,7 +124,7 @@ function renderView(view) {
   $$('.manager-view').forEach(panel => { const active = panel.dataset.viewPanel === view; panel.classList.toggle('active', active); panel.hidden = !active; });
   const seat = view === 'dashboard' ? 'dashboard'
     : view === 'students' ? 'students'
-      : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'teachers'].includes(view) ? 'academic'
+      : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
         : view === 'finance' ? 'finance'
           : view === 'reports' ? 'reports' : 'more';
   $$('.manager-bottom [data-manager-view]').forEach(button => {
@@ -115,7 +145,8 @@ function renderView(view) {
   if (view === 'finance') renderFinance();
   if (view === 'notices') renderNotices();
   if (view === 'courses') mountCourseEditor();
-  if (view === 'routine') renderRoutine();
+  if (view === 'routine' || ROUTINE_CHILD_VIEWS.includes(view)) renderRoutine();
+  if (view === 'exams') paintManagerExam();
   if (view === 'results') renderResults();
   if (view === 'reports') void refreshReports($('#managerReports'));
   if (view === 'profile') renderProfile();
@@ -135,31 +166,13 @@ function attendanceSummary() {
 function renderDashboard() {
   const today = dateLabel(new Date());
   const approved = students.filter(student => student.status === 'approved');
-  const pendingStudents = students.filter(student => student.status === 'pending');
-  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-  const newToday = students.filter(student => Date.parse(student.createdAt || '') >= startOfToday.getTime()).length;
   const todayPayments = transactions.filter(tx => isFinalizedTransaction(tx) && tx.date === today);
   const totalToday = todayPayments.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const pendingTx = transactions.filter(tx => tx.status === 'pending');
   const todayKey = routineDayForToday();
   const todaysClasses = Object.hasOwn(routine, todayKey) ? (routine[todayKey]?.classes?.length || 0) : null;
   safeSetText('#managerToday', today);
   safeSetText('#mgrTotalStudents', bn(students.length)); safeSetText('#mgrActiveStudents', bn(approved.length));
-  safeSetText('#mgrPendingStudents', `${bn(newToday)} / ${bn(pendingStudents.length)}`);
-  safeSetText('#mgrTodayCollection', money(totalToday)); safeSetText('#mgrPendingPayments', bn(pendingTx.length)); safeSetText('#mgrTodayClasses', todaysClasses == null ? '—' : bn(todaysClasses));
-  safeSetText('#mgrCounterStatus', pendingTx.length ? `${bn(pendingTx.length)}টি এন্ট্রি পর্যালোচনার অপেক্ষায়` : 'অপেক্ষমাণ এন্ট্রি নেই');
-  safeSetText('#mgrAttendanceSummary', attendanceSummary());
-  const upcoming = exams.exams.filter(exam => isLiveExam(exam) && Number(exam.startAt) >= Date.now()).sort((a, b) => a.startAt - b.startAt).slice(0, 3);
-  $('#mgrUpcomingExams').innerHTML = upcoming.length ? upcoming.map(exam => compactRow(exam.title, `${exam.className || '—'} • ${new Date(exam.startAt).toLocaleDateString('bn-BD')}`)).join('') : '<p class="finance-hint">কোনো প্রকাশিত আসন্ন পরীক্ষা নেই।</p>';
-  const pendingResults = exams.exams.filter(exam => isLiveExam(exam) && exam.type !== 'mcq' && exam.endAt < Date.now()).map(exam => ({ exam, remaining: (exam.participants || []).filter(person => !exams.attempts.some(a => a.examId === exam.id && a.studentId === person.id && (a.questionScores || a.status === 'absent'))).length })).filter(item => item.remaining > 0);
-  $('#mgrPendingResults').innerHTML = pendingResults.length ? pendingResults.slice(0, 3).map(({ exam, remaining }) => compactRow(exam.title, `${bn(remaining)} শিক্ষার্থীর written marks/absence বাকি`)).join('') : '<p class="finance-hint">কোনো অপেক্ষমাণ ফলাফল record নেই।</p>';
-  $('#mgrRecentNotices').innerHTML = notices.length ? notices.slice(0, 2).map(item => compactRow(item.title, item.date || '')).join('') : '<p class="finance-hint">এখনো কোনো নোটিশ নেই।</p>';
-  const activity = [
-    ...students.filter(s => s.reviewedAt).map(s => ({ at: s.reviewedAt, text: `নিবন্ধন ${statusLabel[s.status] || s.status}: ${s.name}` })),
-    ...transactions.filter(tx => tx.reviewedAt).map(tx => ({ at: tx.reviewedAt, text: `পেমেন্ট ${statusLabel[tx.status] || tx.status}: ${tx.studentName} • ${money(tx.amount)}` })),
-    ...notices.filter(n => n.createdAt).map(n => ({ at: n.createdAt, text: `নোটিশ: ${n.title}` }))
-  ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 5);
-  $('#mgrRecentActivity').innerHTML = activity.length ? activity.map(item => compactRow(item.text, new Date(item.at).toLocaleString('bn-BD'))).join('') : '<p class="finance-hint">কোনো operational activity log সংরক্ষিত নেই।</p>';
+  safeSetText('#mgrTodayCollection', money(totalToday)); safeSetText('#mgrTodayClasses', todaysClasses == null ? '—' : bn(todaysClasses));
 }
 function routineDayForToday(date = new Date()) { return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()]; }
 function searchValue() { return String($('#managerStudentSearch')?.value || '').trim().toLocaleLowerCase(); }
@@ -338,7 +351,7 @@ function renderFinance() {
   $$('[data-finance-segment]').forEach(button => {
     const active = button.dataset.financeSegment === financeSegment;
     button.classList.toggle('active', active);
-    button.setAttribute('aria-selected', String(active));
+    button.setAttribute('aria-pressed', String(active));
   });
   $$('[data-finance-panel]').forEach(panel => { panel.hidden = panel.dataset.financePanel !== financeSegment; });
 
@@ -359,7 +372,7 @@ function renderFinance() {
     $('#managerCashList').innerHTML = newestTransactions(selected).length
       ? newestTransactions(selected).map(tx => transactionCard(tx, true)).join('')
       : '<p class="admin-empty">এই filter-এ কোনো Cash Counter entry নেই।</p>';
-    $$('[data-cash-scope]').forEach(button => button.classList.toggle('active', button.dataset.cashScope === cashScope));
+    pressTiles('[data-cash-scope]', button => button.dataset.cashScope === cashScope);
   }
 
   if (financeSegment === 'due') {
@@ -428,15 +441,43 @@ function renderNotices() {
     return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.title)}</h2><p class="manager-meta"><span class="notice-category-admin" data-notice-category="${category.id}">${category.label}</span> • ${escapeHtml(noticeScopeText(item))} • ${escapeHtml(item.audience || 'সকল শিক্ষার্থী')} • ${escapeHtml(item.date || '')}</p></div><div class="manager-actions"><button class="mini-btn" data-manager-action="edit-notice" data-id="${escapeHtml(item.id)}" type="button">Edit</button><button class="mini-btn reject" data-manager-action="delete-notice" data-id="${escapeHtml(item.id)}" type="button">Delete</button></div></div><p>${escapeHtml(item.body)}</p></article>`;
   }).join('') : '<p class="admin-empty">কোনো operational notice নেই।</p>';
 }
+function routineTodayKey(offset = 0) {
+  return WEEK_DAYS[(new Date().getDay() + 1 + offset) % 7];
+}
+function routineRowsFor(day) {
+  return routine[day]?.classes || [];
+}
+function routineCardHtml(rows, empty) {
+  if (!rows.length) return `<p class="admin-empty">${empty}</p>`;
+  return rows.map(item => `<article class="manager-record"><div class="manager-record-head"><h2>${escapeHtml(item.subject || 'বিষয় নেই')}</h2><span class="badge badge-approved">${escapeHtml(item.time || 'সময় নেই')}</span></div><p>${escapeHtml([item.className, item.teacher, item.room].filter(Boolean).join(' • '))}</p></article>`).join('');
+}
+function routineBlob(item) {
+  return `${item.tag || ''} ${item.status || ''} ${item.subject || ''}`.toLowerCase();
+}
 function renderRoutine() {
   // This route is reachable directly from Home/More: required class choices
   // must not depend on visiting the unrelated Classes screen first.
   renderRoutineClassOptions();
-  $('#managerRoutineDays').innerHTML = WEEK_DAYS.map(day => `<button type="button" class="chip ${day === routineDay ? 'active' : ''}" data-routine-day="${day}">${dayLabel[day] || day}</button>`).join('');
-  $('#managerRoutineDayTitle').textContent = `${dayLabel[routineDay] || routineDay} — রুটিনে ক্লাস যোগ করুন`;
+  if ($('#managerRoutineDays')) {
+    $('#managerRoutineDays').innerHTML = WEEK_DAYS.map(day => `<button type="button" class="pay-tile" data-routine-day="${day}" aria-pressed="${day === routineDay ? 'true' : 'false'}"><span class="pay-tile-label">${dayLabel[day] || day}</span></button>`).join('');
+  }
+  if ($('#managerRoutineDayTitle')) $('#managerRoutineDayTitle').textContent = `${dayLabel[routineDay] || routineDay} — রুটিনে ক্লাস যোগ করুন`;
   const rows = routine[routineDay]?.classes || [];
-  $('#managerRoutineList').innerHTML = rows.length ? rows.map((item, index) => `<article class="manager-record"><div class="manager-record-head"><h2>${escapeHtml(item.subject || 'বিষয় নেই')}</h2><span class="badge badge-approved">${escapeHtml(item.time || 'সময় নেই')}</span></div><p>${escapeHtml(item.className || '')} • ${escapeHtml(item.teacher || '')} • ${escapeHtml(item.room || '')}</p><div class="manager-actions"><button type="button" class="mini-btn" data-manager-action="edit-routine" data-index="${index}">Edit</button><button type="button" class="mini-btn reject" data-manager-action="delete-routine" data-index="${index}">Delete</button></div></article>`).join('') : '<p class="admin-empty">এই দিনের routine record নেই।</p>';
-  $('#managerRoutineForm [name=className]').value ||= '';
+  if ($('#managerRoutineList')) {
+    $('#managerRoutineList').innerHTML = rows.length ? rows.map((item, index) => `<article class="manager-record"><div class="manager-record-head"><h2>${escapeHtml(item.subject || 'বিষয় নেই')}</h2><span class="badge badge-approved">${escapeHtml(item.time || 'সময় নেই')}</span></div><p>${escapeHtml(item.className || '')} • ${escapeHtml(item.teacher || '')} • ${escapeHtml(item.room || '')}</p><div class="manager-actions"><button type="button" class="mini-btn" data-manager-action="edit-routine" data-index="${index}">Edit</button><button type="button" class="mini-btn reject" data-manager-action="delete-routine" data-index="${index}">Delete</button></div></article>`).join('') : '<p class="admin-empty">এই দিনের routine record নেই।</p>';
+  }
+  const classField = $('#managerRoutineForm [name=className]');
+  if (classField) classField.value ||= '';
+  const all = WEEK_DAYS.flatMap(day => routineRowsFor(day).map(item => ({ ...item, day })));
+  const fill = (id, html) => { const node = document.getElementById(id); if (node) node.innerHTML = html; };
+  fill('managerRoutineTodayList', routineCardHtml(routineRowsFor(routineTodayKey()), 'আজ কোনো ক্লাস নেই।'));
+  fill('managerRoutineTomorrowList', routineCardHtml(routineRowsFor(routineTodayKey(1)), 'আগামীকাল কোনো ক্লাস নেই।'));
+  fill('managerRoutineWeeklyList', WEEK_DAYS.map(day => `<section class="exam-card"><h3>${escapeHtml(dayLabel[day] || day)}</h3>${routineCardHtml(routineRowsFor(day), 'ক্লাস নেই।')}</section>`).join(''));
+  fill('managerRoutineExamList', routineCardHtml(all.filter(item => /পরীক্ষা|exam/.test(routineBlob(item))), 'পরীক্ষা রুটিন এখনও নেই।'));
+  fill('managerRoutineChangedList', routineCardHtml(all.filter(item => /পরিবর্ত|changed/.test(routineBlob(item))), 'পরিবর্তিত রুটিন নেই।'));
+  fill('managerRoutineHolidayList', routineCardHtml(all.filter(item => /ছুটি|holiday/.test(routineBlob(item))), 'ছুটির তালিকা খালি।'));
+  fill('managerRoutineImportantList', routineCardHtml(all.filter(item => /গুরুত্বপূর্ণ|important/.test(routineBlob(item))), 'গুরুত্বপূর্ণ সময়সূচি নেই।'));
+  fill('managerRoutineOtherList', routineCardHtml(all.filter(item => !/পরীক্ষা|exam|পরিবর্ত|changed|ছুটি|holiday|গুরুত্বপূর্ণ|important/.test(routineBlob(item))), 'অন্যান্য রুটিন নেই।'));
 }
 function renderResults() {
   const completed = exams.exams.filter(exam => isLiveExam(exam)).sort((a, b) => Number(b.endAt || 0) - Number(a.endAt || 0));
@@ -593,54 +634,30 @@ async function changeRoutine(index) {
   void loadOperationalData(); toast('Routine assignment আপডেট হয়েছে।');
 }
 
-/* Manager's menu is an explicit allow-list. No Admin-only route/view exists here. */
-function moreMenuItem({ icon, label, hint }) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'admin-more-item';
-  const iconHost = document.createElement('span');
-  iconHost.className = 'admin-more-icon';
-  iconHost.setAttribute('aria-hidden', 'true');
-  iconHost.append(iconElement(icon, 'admin-more-icon-svg apc-icon-svg'));
-  const copy = document.createElement('span');
-  copy.className = 'admin-more-copy';
-  const title = document.createElement('strong');
-  title.textContent = label;
-  const note = document.createElement('small');
-  note.textContent = hint;
-  copy.append(title, note);
-  button.append(iconHost, copy, iconElement('arrow-right', 'admin-menu-arrow apc-icon-svg'));
-  return button;
-}
-const moreMenu = $('#managerMoreMenu');
-MORE_MODULES.forEach(module => {
-  const button = moreMenuItem(module);
-  button.dataset.managerView = module.view;
-  button.addEventListener('click', () => renderView(module.view));
-  moreMenu.append(button);
+/* আরও markup is static in manager.html (#managerMoreHub). Do not inject rows. */
+document.addEventListener('click', event => {
+  const examTile = event.target.closest('[data-manager-exam]');
+  if (!examTile) return;
+  managerExamScreen = EXAM_SCREENS[examTile.dataset.managerExam] || 'home';
+  renderView('exams');
 });
-/* Logging out is one deliberate row here too, the way the Admin panel ends its
-   own More menu — phones reach it without hunting for the top-bar icon. */
-const moreLogout = moreMenuItem({ icon: 'logout', label: 'লগআউট', hint: 'সেশন শেষ করে লগইন পেইজে যান' });
-moreLogout.classList.add('is-logout');
-moreLogout.addEventListener('click', () => { clearStaffSession('manager'); goToLoginPage(); });
-moreMenu.append(moreLogout);
 $$('[data-manager-view]').forEach(button => button.addEventListener('click', () => {
   const view = button.dataset.managerView;
+  if (view === 'exams') managerExamScreen = '';
   if (!normalizeView(view)) return;
   /* A shortcut may carry its own filter (dashboard → অনুমোদন opens শিক্ষার্থী
      already filtered to the pending queue). */
   if (button.dataset.studentScope) studentScope = button.dataset.studentScope;
   if (button.dataset.financeSegment) financeSegment = button.dataset.financeSegment;
   renderView(view);
-  $$('[data-student-scope]').forEach(item => item.classList.toggle('active', item.dataset.studentScope === studentScope));
-  $$('[data-finance-segment]').forEach(item => item.classList.toggle('active', item.dataset.financeSegment === financeSegment));
+  pressTiles('[data-student-scope]', item => item.dataset.studentScope === studentScope);
+  pressTiles('[data-finance-segment]', item => item.dataset.financeSegment === financeSegment);
 }));
 $('#managerStudentSearch').addEventListener('input', renderStudents);
 $('#managerStudentSearch').addEventListener('search', renderStudents);
 $$('[data-student-scope]').forEach(button => button.addEventListener('click', () => {
   studentScope = button.dataset.studentScope;
-  $$('[data-student-scope]').forEach(item => item.classList.toggle('active', item === button)); renderStudents();
+  pressTiles('[data-student-scope]', item => item === button); renderStudents();
 }));
 function handleStudentAction(button) {
   const student = students.find(row => row.id === button.dataset.id); if (!student) return;
@@ -725,9 +742,9 @@ document.addEventListener('click', event => {
     const target = ACADEMIC_SECTIONS[card.dataset.academicSection];
     if (target) {
       if (target.scope) academicScope = target.scope;
+      managerExamScreen = target.screen || (target.view === 'exams' ? '' : managerExamScreen);
       renderView(target.view);
-      if (target.screen) examWorkspaceOpen?.(target.screen);
-      $$('[data-academic-scope]').forEach(item => item.classList.toggle('active', item.dataset.academicScope === academicScope));
+      pressTiles('[data-academic-scope]', item => item.dataset.academicScope === academicScope);
     }
     return;
   }
@@ -736,7 +753,7 @@ document.addEventListener('click', event => {
 $('#managerAcademicFilters').addEventListener('click', event => {
   const chip = event.target.closest('[data-academic-scope]'); if (!chip) return;
   academicScope = chip.dataset.academicScope;
-  $$('[data-academic-scope]').forEach(item => item.classList.toggle('active', item === chip));
+  pressTiles('[data-academic-scope]', item => item === chip);
   renderAcademicRecords();
 });
 ['managerAcademicSearch', 'managerAcademicClass'].forEach(id => $('#' + id).addEventListener(id.includes('Search') ? 'input' : 'change', renderAcademicRecords));
@@ -813,8 +830,10 @@ async function enterManager() {
     await lockPanel({ role: 'manager.html', clear: 'manager', reason: 'এই ডিভাইসে ম্যানেজার অ্যাকাউন্টের রেকর্ড নেই — লগইন পেজ থেকে আবার প্রবেশ করুন।' });
     return;
   }
+  $('#managerBootLink')?.remove();
+  document.getElementById('appEntryError')?.remove();
   $('#managerShell').hidden = false;
-  if (!examStarted) { const workspace = initExamManager('#managerExamWorkspace', 'manager'); examWorkspaceOpen = screen => workspace?.open?.(screen); examStarted = true; }
+  ensureExamWorkspace();
   // A refresh (or a shared link) reopens the page that was open, when it is a
   // page this panel knows.
   const wanted = routeName();

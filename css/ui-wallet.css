@@ -76,6 +76,18 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .pay-hero-name { font-size: 20px; font-weight: 700; color: var(--pay-on-hero); letter-spacing: -.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pay-hero-meta { font-size: 13px; color: var(--pay-on-hero-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.birthday-banner { margin: 8px 0 0; padding: 8px 12px; border-radius: 14px; background: linear-gradient(90deg, #ffd36a, #ff8aa0); color: #3b2410; font-size: 13px; font-weight: 650; }
+html[data-birthday] .app-shell {
+  background:
+    radial-gradient(520px 280px at 12% -8%, rgba(255, 180, 80, .35), transparent 70%),
+    radial-gradient(480px 260px at 110% 8%, rgba(255, 110, 150, .28), transparent 68%),
+    var(--color-bg);
+}
+html[data-birthday] .app-topbar { background: linear-gradient(90deg, rgba(255, 196, 90, .35), rgba(255, 130, 160, .22)); }
+html[data-birthday] .pay-hero { background: linear-gradient(135deg, #f6c15a 0%, #ff8a7a 48%, #c084fc 100%); }
+html[data-birthday] .pay-tile-icon { box-shadow: 0 0 0 2px rgba(255, 196, 90, .45); }
+.notice-detail.is-birthday { border-color: #f3bd53; background: linear-gradient(180deg, #fff8e8, var(--color-surface)); }
+.notice-detail-icon.is-birthday { background: #fff0c4; }
 .pay-hero-link {
   display: grid; place-items: center; flex: none; width: 40px; height: 40px; min-height: 40px; min-width: 40px;
   padding: 0; border-radius: 50%; color: var(--pay-on-hero);
@@ -125,6 +137,7 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 22px; box-shadow: var(--pay-shadow);
 }
+.pay-grid.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pay-grid.is-3, .admin-feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pay-tile, .admin-feature-tile {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
@@ -142,7 +155,7 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 }
 .pay-tile-icon svg, .admin-feature-icon svg { width: 25px; height: 25px; stroke-width: 1.7; animation: none; }
 .pay-tile-label, .admin-feature-label { display: block; max-width: 100%; font-size: 12.5px; font-weight: 600; line-height: 1.4;
-  overflow-wrap: anywhere; }
+  overflow-wrap: break-word; word-break: keep-all; }
 .admin-feature-tile::before { display: none; }
 
 /* 5 ── Bottom bar: wallet-style, with a raised centre action ──────────────
@@ -578,9 +591,10 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 .teacher-record-list, .exam-list, .exam-results { margin: 10px 0; gap: 10px; }
 .teacher-record-list .teaching-card { padding: 14px; border-radius: 18px; box-shadow: var(--pay-shadow); }
 .teacher-record-list h3 { margin: 7px 0 2px; font-size: 15px; font-weight: 700; }
-.teacher-type-tabs { gap: 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
-.teacher-type-tabs > button { flex: none; border-radius: 999px; min-height: 40px; font-size: 13px; }
-.teacher-type-tabs > button.active { background: var(--color-primary); color: var(--color-surface); border-color: var(--color-primary); }
+.teacher-type-tabs.pay-grid,
+#teacherStatusFilter.pay-grid { display: grid; overflow: visible; flex-wrap: unset; }
+.teacher-type-tabs.pay-grid > .pay-tile.active,
+#teacherStatusFilter.pay-grid > .pay-tile.active { outline: 2px solid var(--color-primary); }
 .tab-count { opacity: .8; margin-left: 2px; }
 .teacher-list-more { width: 100%; border-radius: 999px; margin: 12px 0; color: var(--color-primary); }
 .teacher-menu-label { font-size: 12px; font-weight: 700; color: var(--color-text-secondary); padding: 16px 16px 4px; margin: 0; }
@@ -797,18 +811,61 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 }
 
 /* 13 ── Login and registration: a brand header and a clean form sheet ───── */
-.auth-screen { background: var(--color-bg); padding: 24px 16px calc(32px + var(--safe-bottom)); }
-.auth-screen::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 240px;
-  background: linear-gradient(145deg, var(--pay-hero-a), var(--pay-hero-b)); border-radius: 0 0 36px 36px; pointer-events: none; }
+.auth-screen { background: var(--color-bg); padding: 24px 16px calc(32px + var(--safe-bottom)); transition: background 600ms ease; }
+.auth-sky { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.auth-card { position: relative; z-index: 1; }
+.auth-orb { position: absolute; top: 28px; right: 18%; width: 72px; height: 72px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8d6, #ffd36a 55%, #f4b942); box-shadow: 0 0 40px 12px rgba(255, 210, 90, .45); }
+.auth-cloud { position: absolute; top: 56px; height: 28px; width: 86px; border-radius: 40px; background: rgba(255,255,255,.72); filter: blur(.2px); }
+.auth-cloud::before, .auth-cloud::after { content: ''; position: absolute; background: inherit; border-radius: 50%; }
+.auth-cloud::before { width: 36px; height: 36px; left: 14px; top: -16px; }
+.auth-cloud::after { width: 48px; height: 48px; right: 10px; top: -22px; }
+.auth-cloud.c1 { left: 8%; animation: apc-cloud-drift 18s linear infinite; }
+.auth-cloud.c2 { left: 42%; top: 88px; width: 110px; opacity: .85; animation: apc-cloud-drift 24s linear infinite reverse; }
+.auth-cloud.c3 { right: 6%; left: auto; top: 40px; width: 70px; opacity: .6; animation: apc-cloud-drift 20s linear infinite; }
+@keyframes apc-cloud-drift { from { transform: translateX(0); } to { transform: translateX(28px); } }
+.auth-screen[data-sky=clear-night] .auth-orb,
+.auth-screen[data-sky=storm] .auth-orb { background: radial-gradient(circle at 35% 30%, #f4f7ff, #c9d4ea 50%, #8ea0c4); box-shadow: 0 0 28px 8px rgba(180, 200, 255, .35); }
+.auth-screen[data-sky=dusk] .auth-orb { background: radial-gradient(circle at 35% 30%, #ffe7c2, #ff9b62 60%, #e06a3a); }
+.auth-screen[data-sky=rain] .auth-cloud,
+.auth-screen[data-sky=storm] .auth-cloud,
+.auth-screen[data-sky=cloudy] .auth-cloud { background: rgba(210, 218, 228, .9); }
+.auth-screen[data-sky=heat] .auth-orb { box-shadow: 0 0 56px 18px rgba(255, 160, 40, .55); }
+@media (prefers-reduced-motion: reduce) {
+  .auth-cloud { animation: none; }
+}
+/* Unified wallet look: a clean light page, the brand centred on the sheet and a
+   soft blue wash at the foot (the mockup's wave), not a hero band. */
+.auth-screen::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 240px;
+  background: radial-gradient(560px 260px at 50% 118%, var(--tone-blue-soft), transparent 72%); pointer-events: none; }
+.auth-screen[data-sky=clear-day] { background: linear-gradient(180deg, #cfe8ff 0%, #f4f7fb 42%, var(--color-bg) 100%); }
+.auth-screen[data-sky=dusk] { background: linear-gradient(180deg, #f3c9a4 0%, #ead4c4 38%, var(--color-bg) 100%); }
+.auth-screen[data-sky=clear-night] { background: linear-gradient(180deg, #1c2744 0%, #2c3548 40%, var(--color-bg) 100%); }
+.auth-screen[data-sky=cloudy] { background: linear-gradient(180deg, #c5cdd6 0%, #e8edf2 45%, var(--color-bg) 100%); }
+.auth-screen[data-sky=rain] { background: linear-gradient(180deg, #6e849c 0%, #c5d2de 48%, var(--color-bg) 100%); }
+.auth-screen[data-sky=storm] { background: linear-gradient(180deg, #3d4a5c 0%, #8b97a8 50%, var(--color-bg) 100%); }
+.auth-screen[data-sky=fog] { background: linear-gradient(180deg, #d5d2cc 0%, #eceae6 50%, var(--color-bg) 100%); }
+.auth-screen[data-sky=heat] { background: linear-gradient(180deg, #ffd18a 0%, #f7e7d2 42%, var(--color-bg) 100%); }
+.auth-screen[data-sky=clear-night] .auth-brand h1,
+.auth-screen[data-sky=storm] .auth-brand h1 { color: #e8eef8; }
+.auth-screen[data-sky=clear-night] .auth-brand p,
+.auth-screen[data-sky=storm] .auth-brand p,
+.auth-screen[data-sky=rain] .auth-brand p { color: #d5deea; }
 .auth-card { position: relative; width: 100%; max-width: 460px; margin: 0 auto; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .auth-brand { text-align: center; margin-bottom: 22px; }
-.auth-brand img { display: block; width: 68px; height: 68px; padding: 6px; margin: 0 auto 10px; border-radius: 20px;
-  background: var(--pay-on-hero); box-shadow: var(--pay-shadow); }
-.auth-brand h1 { color: var(--pay-on-hero); font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -.025em; }
-.auth-brand p { color: var(--pay-on-hero-soft); font-size: 14px; font-weight: 500; }
-.auth-tabs { margin: 0 0 12px; padding: 5px; border: 1px solid var(--color-border); border-radius: 18px; gap: 5px; background: var(--color-surface); box-shadow: var(--pay-shadow); }
-.auth-tab { min-height: 44px; border: 0; border-radius: 13px; background: transparent; color: var(--color-text-secondary); font-weight: 600; }
-.auth-tab.active { background: var(--pay-disc); color: var(--color-primary); border: 0; box-shadow: none; font-weight: 700; }
+.auth-brand img { display: block; width: 76px; height: 76px; padding: 8px; margin: 0 auto 12px; border-radius: 22px;
+  background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--pay-shadow); }
+.auth-brand h1 { color: var(--color-primary); font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -.025em; }
+.auth-brand p { color: var(--color-text-secondary); font-size: 14px; font-weight: 500; display: inline-block; animation: apc-tagline-drift 4.8s ease-in-out infinite; }
+@keyframes apc-tagline-drift {
+  0%, 100% { transform: translateY(0); letter-spacing: 0; opacity: .82; }
+  50% { transform: translateY(-4px); letter-spacing: .06em; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-brand p { animation: none; }
+}
+.auth-tabs { margin: 0 0 12px; padding: 5px; border: 0; border-radius: 16px; gap: 5px; background: var(--color-surface-muted); box-shadow: none; }
+.auth-tab { min-height: 44px; border: 0; border-radius: 12px; background: transparent; color: var(--color-text-secondary); font-weight: 600; }
+.auth-tab.active { background: var(--color-surface); color: var(--color-primary); border: 0; box-shadow: var(--pay-shadow); font-weight: 700; }
 .auth-panel.active { padding: 20px; border: 1px solid var(--color-border); border-radius: 24px; background: var(--color-surface); box-shadow: var(--pay-shadow); }
 .auth-panel-heading { text-align: left; margin: 0 0 16px; }
 .auth-panel-heading h2 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
@@ -999,6 +1056,7 @@ html[data-theme="dark"] .pay-toast { background: var(--color-surface-muted); col
   .pay-tile-icon, .admin-feature-icon { width: 64px; height: 64px; }
   .pay-tile-label, .admin-feature-label { font-size: 14px; }
   .pay-tile, .admin-feature-tile { gap: 12px; padding-block: 10px; }
+  .pay-grid.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pay-grid.is-3, .admin-feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .admin-hero-stats, .teacher-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 12px; }
   .manager-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -1030,7 +1088,7 @@ html[data-theme="dark"] .pay-toast { background: var(--color-surface-muted); col
   .study-progress-note { grid-column: 1 / -1; }
   .admin-feature-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .admin-feature-tile.is-wide { grid-column: auto; }
-  .teacher-shell .pay-grid, .manager-shell .pay-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .teacher-shell [aria-label="দ্রুত অ্যাক্সেস"].pay-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .pay-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
   .pay-pulse, .pay-flow { grid-column: 1 / -1; }
   .pay-pulse { margin-bottom: 0; }
@@ -1060,6 +1118,23 @@ html[data-theme="dark"] .pay-toast { background: var(--color-surface-muted); col
    same objects simplified for small navigation/controls. Paint is inherited
    from foundation; no icon font, remote image or JS recolouring is required. */
 svg.apc-color-icon, svg.apc-glyph-icon { flex-shrink: 0; pointer-events: none; }
+svg.apc-color-icon {
+  transform-origin: center;
+  animation: apc-icon-live 5.2s ease-in-out infinite;
+}
+.pay-grid .pay-tile:nth-child(3n+2) svg.apc-color-icon { animation-duration: 5.8s; animation-delay: .35s; }
+.pay-grid .pay-tile:nth-child(3n+3) svg.apc-color-icon { animation-duration: 4.6s; animation-delay: .7s; }
+svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
+@keyframes apc-icon-live {
+  0%, 100% { filter: saturate(1.08) hue-rotate(0deg); transform: translateY(0) rotate(0deg) scale(1); }
+  50% { filter: saturate(1.4) hue-rotate(14deg); transform: translateY(-2px) rotate(-3deg) scale(1.05); }
+}
+@keyframes apc-glyph-live {
+  0%, 100% { opacity: .88; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-1px); }
+}
+.admin-bottom-item.active svg.apc-glyph-icon,
+.nav-chip svg.apc-glyph-icon { animation-duration: 3.6s; }
 .pay-tile-icon, .admin-feature-icon { width: 60px; height: 60px; background: var(--icon-plate-blue); }
 .pay-tile-icon svg.apc-color-icon, .admin-feature-icon svg.apc-color-icon { width: 38px; height: 38px; }
 :is(.pay-tile-icon,.admin-feature-icon,.admin-more-icon):has(svg:is([data-icon="book"],[data-icon="classes"],[data-icon="teacher"],[data-icon="teachers"],[data-icon="attendance"],[data-icon="wallet"],[data-icon="notice"],[data-icon="backup"])) { background: var(--icon-plate-green); }
@@ -1165,4 +1240,12 @@ svg.apc-color-icon, svg.apc-glyph-icon { flex-shrink: 0; pointer-events: none; }
 .student-fee-row small{font-size:var(--font-xs);color:var(--color-text-secondary)}
 .student-fee-receipt{flex:none;font-size:var(--font-xs);color:var(--color-text-muted)}
 @media(max-width:380px){.student-fee-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Exam list: the refresh action reads as a quiet pill, not a full-width block. */
+[data-student-exam-action="refresh"]{width:auto;min-height:40px;margin-inline:auto;padding:0 16px;border:1px solid var(--color-border);border-radius:999px;background:var(--color-surface);color:var(--color-text-secondary);font-size:var(--font-sm);font-weight:600;box-shadow:none}
+/* পড়াশোনা / পরীক্ষা / রুটিন are icon-tile hubs like Home: the open section
+   wears the brand ring on its disc and a primary label. */
+.pay-grid .pay-tile .pay-tile-label strong{font-weight:700}
+.pay-grid .pay-tile[aria-pressed="true"] .pay-tile-label,.pay-grid .day-tab.active .pay-tile-label{color:var(--color-primary)}
+.pay-grid .pay-tile[aria-pressed="true"] .pay-tile-icon,.pay-grid .day-tab.active .pay-tile-icon{box-shadow:0 0 0 2px var(--color-primary),var(--pay-shadow);transform:scale(1.05)}
+.pay-grid .pay-tile[aria-pressed="true"] .learning-filter-count{color:var(--color-primary);opacity:1}
 }

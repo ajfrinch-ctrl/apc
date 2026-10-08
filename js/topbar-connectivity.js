@@ -45,6 +45,8 @@
       live.className = 'apc-sync-announce';
       live.setAttribute('role', 'status');
       live.setAttribute('aria-live', 'polite');
+      live.setAttribute('aria-hidden', 'true');
+      live.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;padding:0;margin:-1px';
       document.body.append(live);
     }
     if (live.textContent !== text) live.textContent = text;

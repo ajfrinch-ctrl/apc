@@ -48,8 +48,8 @@ function renderRoutine(student, teachingActivities) {
   $('#homeView')?.classList.toggle('is-empty-routine', cards.length === 0);
   root.dataset.state = cards.length ? 'ready' : 'empty';
   root.innerHTML = cards.length
-    ? cards.slice(0, 4).join('')
-    : `<article class="challenge-card dashboard-empty-card"><span class="challenge-icon dashboard-empty-icon" aria-hidden="true">${iconMarkup("calendar")}</span><span class="challenge-copy dashboard-empty-copy"><strong>আজ কোনো ক্লাস নেই</strong><small>সময়সূচি দেখতে রুটিন খুলুন।</small></span><button class="challenge-open" type="button" data-view="routine" aria-label="রুটিন খুলুন">${iconMarkup("chevron-right", "apc-icon-svg", { variant: "glyph" })}</button></article>`;
+    ? cards.join('')
+    : `<article class="challenge-card dashboard-empty-card"><span class="challenge-icon dashboard-empty-icon" aria-hidden="true">${iconMarkup("calendar")}</span><span class="challenge-copy dashboard-empty-copy"><strong>আজ কোনো ক্লাস নেই</strong><small>সব রুটিন দেখতে রুটিন খুলুন।</small></span><button class="challenge-open" type="button" data-view="routine" aria-label="সব রুটিন দেখুন">${iconMarkup("chevron-right", "apc-icon-svg", { variant: "glyph" })}</button></article>`;
 }
 
 function renderProgress(activities, exams, studentId) {

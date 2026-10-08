@@ -36,6 +36,8 @@ export function accountToRosterStudent(account) {
     mobile: account.registrationMobile || account.mobile || student.studentMobile || '',
     guardianMobile: student.guardianMobile || '',
     address: student.address || '',
+    birthDate: student.birthDate || '',
+    gender: student.gender || '',
     status: rosterStatus(account.status),
     attendance: Number(student.attendance) || 0,
     average: Number(student.average) || 0,
@@ -60,6 +62,7 @@ function mergeAccount(list) {
     nameEn: current.nameEn || incoming.nameEn,
     mobile: current.mobile || incoming.mobile,
     className: current.className || incoming.className,
+    birthDate: current.birthDate || incoming.birthDate,
     status: current.status || incoming.status
   } : student));
 }
@@ -136,6 +139,8 @@ export function upsertStudentRosterRow() {
     mobile: fresh.mobile || stored.mobile,
     guardianMobile: fresh.guardianMobile || stored.guardianMobile,
     address: fresh.address || stored.address,
+    birthDate: fresh.birthDate || stored.birthDate,
+    gender: fresh.gender || stored.gender,
     updatedAt: new Date().toISOString()
   };
   return saveRoster(list.map((student, i) => (i === index ? row : student)));

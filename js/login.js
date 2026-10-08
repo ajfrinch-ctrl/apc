@@ -151,12 +151,10 @@ async function handleDirectoryStaffLogin(directory, remember) {
    login button hostage: the import and the hydrate each get a short budget and
    the device's own records are used either way. */
 const ONLINE_BRIDGE_BUDGET_MS = 2500;
-/* The identity hydrate pays for the CDN import, anonymous sign-in and the cloud
-   reads in one go, so on a slow mobile network 2.5s cuts the first cross-device
-   login short — the account that exists on the other phone would then be
-   reported as "not on this device". A wider budget only extends this one wait;
-   login still proceeds either way. */
-const LOGIN_IDENTITY_BUDGET_MS = 8000;
+const LOGIN_BRIDGE_IMPORT_MS = 15000;
+/* Slow phones pay for Firebase + App Check + the student lookup. 8s was
+   cutting a real account short and showing “ক্লাউড থেকে অ্যাকাউন্ট আনা যায়নি”. */
+const LOGIN_IDENTITY_BUDGET_MS = 25000;
 function withinBudget(promise, what, budget = ONLINE_BRIDGE_BUDGET_MS) {
   let timer;
   return Promise.race([
@@ -184,16 +182,32 @@ async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS
    untouched — they stay the authoritative credentials on it.
    Returns true only when the cloud lookup ran and finished; false when the
    device is offline, the budget ran out, or the cloud refused the request. */
+async function loadSyncBridge(budget = LOGIN_BRIDGE_IMPORT_MS) {
+  return withinBudget(import('../sync/sync-core.js?v=20260929-protected'), 'online identity import', budget);
+}
+
+function warmCloudBridge() {
+  if (!LEGACY_CLOUD_ENABLED || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
+  void import('../sync/sync-core.js?v=20260929-protected').catch(() => {});
+}
+
 async function hydrateUserIdentifiersOnline(what, identifier = '', password = '', budget = LOGIN_IDENTITY_BUDGET_MS) {
   if (!LEGACY_CLOUD_ENABLED) return cloudPausedResult();
   if (!navigator.onLine) return false;
+  const run = async () => {
+    const bridge = await loadSyncBridge();
+    return withinBudget(bridge.hydrateUserIdentifiers({ identifier, password }), 'online identity hydrate', budget);
+  };
   try {
-    const bridge = await withinBudget(import('../sync/sync-core.js?v=20260929-protected'), 'online identity import', budget);
-    const result = await withinBudget(bridge.hydrateUserIdentifiers({ identifier, password }), 'online identity hydrate', budget);
-    return result;
+    return await run();
   } catch (error) {
     console.warn(`[Active Plus] user id sync unavailable during ${what}:`, error.message);
-    return false;
+    try {
+      return await run();
+    } catch (retryError) {
+      console.warn(`[Active Plus] user id sync retry failed during ${what}:`, retryError.message);
+      return false;
+    }
   }
 }
 
@@ -440,6 +454,55 @@ export function initLogin({ state, onAuthenticated }) {
   // The one-time Admin gate is checked in the background: the login form is
   // usable immediately, and only a verified cloud answer opens creation.
   void initFirstAdminSetup().catch(() => {});
+  void paintAuthWeather();
+  warmCloudBridge();
+}
+
+const KANUNGOPARA = Object.freeze({ lat: 22.35803, lon: 92.12380 });
+const WEATHER_CACHE_KEY = 'activePlus.authWeather.kanungopara.v1';
+
+function skyFromClock(date = new Date()) {
+  const hour = date.getHours();
+  if (hour >= 19 || hour < 5) return 'clear-night';
+  if (hour >= 17) return 'dusk';
+  return 'clear-day';
+}
+
+function skyFromWeather(code, isDay, tempC) {
+  const n = Number(code);
+  if (Number(tempC) >= 34 && isDay && n <= 2) return 'heat';
+  if (n >= 95) return 'storm';
+  if ((n >= 51 && n <= 67) || (n >= 80 && n <= 82)) return 'rain';
+  if (n === 45 || n === 48) return 'fog';
+  if (n >= 2) return isDay ? 'cloudy' : 'clear-night';
+  return isDay ? 'clear-day' : 'clear-night';
+}
+
+function applyAuthSky(sky) {
+  const screen = $('#authScreen');
+  if (!screen) return;
+  screen.dataset.sky = sky;
+}
+
+async function paintAuthWeather() {
+  applyAuthSky(skyFromClock());
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(WEATHER_CACHE_KEY) || 'null');
+    if (cached?.sky && Date.now() - Number(cached.at || 0) < 30 * 60 * 1000) {
+      applyAuthSky(cached.sky);
+      return;
+    }
+  } catch { /* ignore bad cache */ }
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${KANUNGOPARA.lat}&longitude=${KANUNGOPARA.lon}&current=weather_code,is_day,temperature_2m`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return;
+    const data = await response.json();
+    const current = data?.current || {};
+    const sky = skyFromWeather(current.weather_code, Number(current.is_day) === 1, current.temperature_2m);
+    applyAuthSky(sky);
+    try { sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ sky, at: Date.now() })); } catch { /* quota */ }
+  } catch { /* offline: clock sky stays */ }
 }
 
 /* ---------------------------------------------------------------------------

@@ -11,9 +11,12 @@
    The teaching board is a single DOM instance that is moved into the open
    section's slot, never duplicated. */
 import { toBanglaNumber as bn } from './ui.js';
+import { setView } from './shell.js';
 import { classByName, subjectsForClass, listChapters } from './academics.js';
 import { listCourseContent, typeOf as courseTypeOf } from './course-content.js';
-import { listQuestionsForStudent, QUESTION_TYPES } from './question-bank.js';
+import { listQuestionsForStudent, questionRowsFromPastExams, QUESTION_TYPES } from './question-bank.js';
+import { examRepository as examRepo, examMatchesStudent, isStudentVisibleExam, watchExams, examResults, totalMarks, gradeFor } from './exam-data.js';
+import { downloadExamPDF } from './exam-pdf.js';
 
 const SELECTORS = {
   bar: '#studySections',
@@ -21,7 +24,13 @@ const SELECTORS = {
   suggestion: { subject: '#studySuggestionSubject', chapter: '#studySuggestionChapter', list: '#studySuggestionList', count: '#studySuggestionCount', error: '#studySuggestionError' },
   materials: { subject: '#studyMaterialSubject', chapter: '#studyMaterialChapter', list: '#studyMaterialsList', count: '#studyMaterialsCount', error: '#studyMaterialsError' }
 };
-const SECTIONS = Object.freeze(['courses', 'homework', 'suggestion', 'bank', 'materials']);
+const SECTIONS = Object.freeze(['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
+const SECTION_VIEWS = Object.freeze({
+  courses: 'my-courses', homework: 'homework', suggestion: 'suggestion', bank: 'question-bank',
+  materials: 'materials', 'model-test': 'model-test', practice: 'study-practice', results: 'study-results', other: 'study-other'
+});
+const VIEW_SECTIONS = Object.freeze(Object.fromEntries(Object.entries(SECTION_VIEWS).map(([section, view]) => [view, section])));
+const OTHER_TYPES = Object.freeze(['previous_question', 'video', 'lesson']);
 const BANK_TYPES = Object.freeze({ mcq: ['mcq'], short: ['short_answer', 'true_false'], written: ['written'] });
 const SUGGESTION_TYPES = Object.freeze({
   important: record => courseTypeOf(record) === 'important_question',
@@ -49,9 +58,11 @@ const chapterLabel = record => text(record.chapterName) || '';
 export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   const bar = $(SELECTORS.bar);
   if (!bar) return () => {};
-  let section = 'courses';
+  let section = 'hub';
+  let examDb = { exams: [], attempts: [] };
   let bankTypes = new Set();
-  let bankSubject = '', bankChapter = '', bankRows = [], bankReady = false, bankError = '';
+  let bankSubject = '', bankChapter = '', bankRows = [], bankPapers = [], bankReady = false, bankError = '';
+  let bankPdfBusy = false;
   let suggestionTypes = new Set();
   let suggestionSubject = '', suggestionChapter = '', suggestionRecords = [], suggestionReady = false, suggestionError = '';
   let materialType = 'all';
@@ -150,6 +161,21 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
 
   /* ---- shelves ------------------------------------------------------------- */
 
+  function paperCard(exam) {
+    const when = exam.endAt ? new Date(exam.endAt).toLocaleDateString('bn-BD') : '';
+    const solutions = exam.type === 'mcq'
+      ? `<button type="button" class="primary" data-bank-pdf="solutions" data-id="${esc(exam.id)}">সঠিক উত্তরসহ PDF</button>`
+      : '';
+    return `<article class="exam-card course-item" data-bank-paper="${esc(exam.id)}">
+      <header class="course-item-head"><span class="course-item-type">বিগত পরীক্ষা PDF</span>
+        <div><h3>${esc(exam.title)}</h3><small>${esc([text(exam.subject), when].filter(Boolean).join(' • '))}</small></div></header>
+      <div class="exam-actions">
+        <button type="button" class="primary" data-bank-pdf="paper" data-id="${esc(exam.id)}">প্রশ্নপত্র PDF</button>
+        ${solutions}
+      </div>
+    </article>`;
+  }
+
   function renderBank() {
     const list = $(SELECTORS.bank.list);
     if (!list) return;
@@ -161,13 +187,26 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       if (chapterName && !(norm(row.chapterName) === norm(chapterName) || row.chapterId === chapterName)) return false;
       return true;
     });
-    list.innerHTML = !bankReady
+    const papers = bankPapers.filter(exam => {
+      if (bankSubject && text(exam.subject) !== bankSubject) return false;
+      if (wanted.size) {
+        if (wanted.has('mcq') && exam.type === 'mcq') return true;
+        if ((wanted.has('short') || wanted.has('written')) && exam.type !== 'mcq') return true;
+        return false;
+      }
+      return true;
+    });
+    const body = papers.map(paperCard).join('') + rows.map(questionCard).join('');
+    const markup = !bankReady
       ? '<p class="teacher-empty">প্রশ্নব্যাংক লোড হচ্ছে…</p>'
-      : rows.length
-        ? rows.map(questionCard).join('')
+      : body
+        ? body
         : `<p class="teacher-empty">${bankError || 'এই ফিল্টারে কোনো প্রশ্ন পাওয়া যায়নি।'}</p>`;
+    list.innerHTML = markup;
+    const examBank = document.getElementById('examBankList');
+    if (examBank) examBank.innerHTML = markup;
     const count = $(SELECTORS.bank.count);
-    if (count) count.textContent = `${num(rows.length)}টি প্রশ্ন • ${text(student().className) || 'শ্রেণি'}`;
+    if (count) count.textContent = `${num(rows.length)}টি প্রশ্ন • ${num(papers.length)}টি PDF • ${text(student().className) || 'শ্রেণি'}`;
   }
 
   function renderSuggestion() {
@@ -218,7 +257,6 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   }
 
   function paintPanels() {
-    document.querySelectorAll('[data-study-panel]').forEach(panel => { panel.hidden = panel.dataset.studyPanel !== section; });
     const board = $('#learningBoard');
     const slot = document.querySelector(`[data-study-panel="${section}"] [data-study-slot="board"]`);
     if (board && slot && board.parentElement !== slot) slot.appendChild(board);
@@ -226,19 +264,72 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       teaching?.setScope?.(section);
       teaching?.setSubject?.(section === 'suggestion' ? suggestionSubject : '');
     }
+    const workspace = $('#studentPracticeWorkspace');
+    const practiceSlot = $('#studyPracticeSlot');
+    if (section === 'practice' && workspace && practiceSlot && workspace.parentElement !== practiceSlot) {
+      practiceSlot.appendChild(workspace);
+      workspace.hidden = false;
+      window.apcStudentPractice?.setMode?.('all');
+      window.apcStudentPractice?.refresh?.();
+    }
   }
 
-  function open(next, { history = 'push' } = {}) {
+  function renderModelTest() {
+    const list = $('#studyModelList');
+    if (!list) return;
+    const rows = materialRecords.filter(record => courseTypeOf(record) === 'model_test');
+    list.innerHTML = rows.length ? rows.map(contentCard).join('') : '<p class="teacher-empty">এখনও কোনো মডেল টেস্ট নেই।</p>';
+    const count = $('#studyModelCount');
+    if (count) count.textContent = `${num(rows.length)}টি মডেল টেস্ট`;
+  }
+
+  function renderOther() {
+    const list = $('#studyOtherList');
+    if (!list) return;
+    const rows = materialRecords.filter(record => OTHER_TYPES.includes(courseTypeOf(record)));
+    list.innerHTML = rows.length ? rows.map(contentCard).join('') : '<p class="teacher-empty">এখনও অন্যান্য উপকরণ নেই।</p>';
+    const count = $('#studyOtherCount');
+    if (count) count.textContent = `${num(rows.length)}টি আইটেম`;
+  }
+
+  function renderStudyResults() {
+    const list = $('#studyResultsList');
+    if (!list) return;
+    const studentId = student().id;
+    const now = Date.now();
+    const rows = (examDb.exams || []).filter(exam => isStudentVisibleExam(exam) && examMatchesStudent(exam, student()) && exam.resultsPublished)
+      .map(exam => {
+        const row = examResults(examDb, exam).find(item => item.studentId === studentId);
+        if (!row) return null;
+        const total = totalMarks(exam);
+        const percent = total ? row.score / total * 100 : 0;
+        return { exam, row, total, percent, grade: row.grade || gradeFor(row.score, total, exam.passPercent) };
+      }).filter(Boolean);
+    list.innerHTML = rows.length
+      ? rows.map(item => `<article class="exam-card"><span class="exam-tag">${esc(item.exam.subject || 'পরীক্ষা')}</span><h3>${esc(item.exam.title)}</h3><p><strong>${num(item.row.score)} / ${num(item.total)}</strong> • ${num(item.percent.toFixed(1))}% • গ্রেড ${esc(item.grade)}</p></article>`).join('')
+      : '<p class="teacher-empty">এখনও কোনো ফলাফল প্রকাশ করা হয়নি।</p>';
+    const count = $('#studyResultsCount');
+    if (count) count.textContent = `${num(rows.length)}টি ফলাফল`;
+    void now;
+  }
+
+  function open(next, { history = 'push', skipView = false } = {}) {
+    if (next === 'hub') {
+      section = 'hub';
+      if (!skipView) setView('courses', { history });
+      return;
+    }
     if (!SECTIONS.includes(next)) return;
     section = next;
-    bar.querySelectorAll('[data-study-section]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.studySection === next)));
+    bar.querySelectorAll('[data-study-section]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.studySection === section)));
     paintPanels();
-    /* A load that ran before sign-in (or while offline) must not freeze an
-       empty shelf: opening the section retries it. */
     if (next === 'bank') { if (bankError) void loadBank(); else renderBank(); }
     if (next === 'suggestion') renderSuggestion();
     if (next === 'materials') renderMaterials();
-    void history;
+    if (next === 'model-test') renderModelTest();
+    if (next === 'other') renderOther();
+    if (next === 'results') { void loadBank().then(renderStudyResults); renderStudyResults(); }
+    if (!skipView && SECTION_VIEWS[next]) setView(SECTION_VIEWS[next], { history });
   }
 
   /* ---- data ---------------------------------------------------------------- */
@@ -246,13 +337,25 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   async function loadBank() {
     const current = ++request;
     try {
-      const rows = await listQuestionsForStudent(student().id);
+      const [rows, db] = await Promise.all([
+        listQuestionsForStudent(student().id),
+        examRepo.listForStudent(student().id).catch(() => ({ exams: [] }))
+      ]);
       if (current !== request) return;
-      bankRows = Array.isArray(rows) ? rows : [];
+      const now = Date.now();
+      const exams = Array.isArray(db?.exams) ? db.exams : [];
+      examDb = db && Array.isArray(db.exams) ? db : { exams, attempts: db?.attempts || [] };
+      const visible = exams.filter(exam => isStudentVisibleExam(exam) && examMatchesStudent(exam, student()));
+      const past = questionRowsFromPastExams(visible, now);
+      const known = new Set((rows || []).map(row => `${text(row.type)}|${text(row.text)}`));
+      bankRows = [...(Array.isArray(rows) ? rows : []), ...past.filter(row => !known.has(`${text(row.type)}|${text(row.text)}`))];
+      bankPapers = visible.filter(exam => Number(exam.endAt) > 0 && Number(exam.endAt) < now
+        && ['published', 'completed', 'archived'].includes(exam.status)
+        && (exam.questions || []).length);
       bankReady = true; bankError = '';
     } catch (error) {
       if (current !== request) return;
-      bankRows = []; bankReady = true;
+      bankRows = []; bankPapers = []; bankReady = true;
       bankError = 'প্রশ্নব্যাংক লোড হয়নি। আবার চেষ্টা করো।';
       const node = $(SELECTORS.bank.error);
       if (node) { node.hidden = false; node.textContent = bankError; }
@@ -293,6 +396,12 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     const button = event.target.closest('[data-study-section]');
     if (button) open(button.dataset.studySection);
   });
+  window.addEventListener('apc-view-change', event => {
+    const view = event.detail?.view;
+    if (view === 'courses') { section = 'hub'; return; }
+    const next = VIEW_SECTIONS[view];
+    if (next) open(next, { skipView: true });
+  });
 
   /* The student app announces a finished sign-in; the sections load their own
      shelves then, so a pre-login attempt can never leave a section empty. */
@@ -312,6 +421,28 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     button.setAttribute('aria-pressed', String(bankTypes.has(key)));
     renderBank();
   });
+  $(SELECTORS.bank.list)?.addEventListener('click', async event => {
+    const button = event.target.closest('[data-bank-pdf]');
+    if (!button || bankPdfBusy) return;
+    const exam = bankPapers.find(item => item.id === button.dataset.id);
+    if (!exam) return;
+    bankPdfBusy = true;
+    button.disabled = true;
+    const errorNode = $(SELECTORS.bank.error);
+    try {
+      if (errorNode) { errorNode.hidden = true; errorNode.textContent = ''; }
+      await downloadExamPDF(exam, { solutions: button.dataset.bankPdf === 'solutions' });
+    } catch (error) {
+      if (errorNode) {
+        errorNode.hidden = false;
+        errorNode.textContent = error.message || 'PDF তৈরি হয়নি। আবার চেষ্টা করো।';
+      }
+    } finally {
+      bankPdfBusy = false;
+      button.disabled = false;
+    }
+  });
+  watchExams(() => { if (section === 'bank') void loadBank(); });
   $('#studySuggestionFilters')?.addEventListener('click', event => {
     const button = event.target.closest('[data-suggestion-filter]');
     if (!button) return;
@@ -343,7 +474,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     if (event.key === null || /activePlus\.(courseContent|academics|teaching)/.test(event.key || '')) void refresh();
   });
 
-  open('courses');
+  section = 'hub';
   void refresh();
   const api = () => refresh();
   api.open = open;

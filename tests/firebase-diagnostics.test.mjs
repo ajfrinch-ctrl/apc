@@ -1,17 +1,19 @@
 /* The login-page sync diagnostic (js/firebase-diagnostics.js) exists for the
-   exact device that has NO app account yet — a regression here hides the one
-   tool that explains "sync হচ্ছে না" and its cure. */
+   exact device that has NO app account yet. On owner request (2026-10-08) the
+   «সিঙ্ক সংযোগ পরীক্ষা» button was removed from the login page — the module
+   stays in the repo for debugging, but the page must no longer show it. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('the diagnostic tool is wired into the login page (it used to be dead code)', () => {
+test('the login page no longer shows the sync diagnostic button (owner decision 2026-10-08)', () => {
   const html = read('../index.html');
-  assert.match(html, /<script src="js\/firebase-diagnostic-ui\.js\?v=[^"]+"/,
-    'index.html loads firebase-diagnostic-ui.js — the button users press when sync fails');
-  assert.ok(html.includes('auth-card'), 'the button mounts under the auth card');
+  assert.doesNotMatch(html, /firebase-diagnostic-ui/, 'the button is gone from the login page');
+  assert.ok(html.includes('auth-card'), 'the login card itself is untouched');
+  const sw = read('../sw.js');
+  assert.equal(sw.includes('./js/firebase-diagnostic-ui.js'), false, 'and out of the precache list');
 });
 
 test('the diagnostic never depends on an app login (fresh-device diagnosis is its job)', () => {

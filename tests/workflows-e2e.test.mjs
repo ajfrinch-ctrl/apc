@@ -286,6 +286,8 @@ test('workflow 4 + 5 — the student sits the published exam from পরীক�
   const student = await openStudent(liveStorage);
   student.click(student.$('.bottom-link[data-view="exams"]'));
   await student.flush(6);
+  student.click(student.$('#examTabs [data-exam-tab="live"]'));
+  await student.flush(4);
   const startSelector = `[data-student-exam="${id}"] [data-student-exam-action="start"]`;
   await student.waitFor(() => Boolean(student.$(startSelector)), 15000);
   const start = student.$(startSelector);
@@ -365,7 +367,7 @@ test('workflow 7 — a counter payment shows on the student ফি screen, which
 });
 
 /* ------------------------------- 8. Teacher → Notice → Student Notification */
-test('workflow 8 — a teacher notice reaches its own class only: board, Home preview and notification feed', async () => {
+test('workflow 8 — a teacher notice reaches its own class only: board and notification feed', async () => {
   const base = await seedAcademics();
   const teacher = await openStaff('teacher.html', 'teacher', base);
   /* The teacher writes it in the panel itself: একাডেমিক → নোটিশ → নতুন নোটিশ,
@@ -398,8 +400,10 @@ test('workflow 8 — a teacher notice reaches its own class only: board, Home pr
   assert.equal(saved.audience, 'সকল শিক্ষার্থী');
 
   const student = await openStudent(storage);
-  assert.match(student.$('#homeNoticeList').textContent, /আগামীকাল ক্লাস বন্ধ \(ওয়ার্কফ্লো\)/, 'Home previews the newest notice');
-  student.click(student.$('#homeNoticeList [data-notice-home-open]'));
+  student.click(student.$('#studentServices [data-view="notice-board"]'));
+  await student.flush(8);
+  assert.match(student.$('#noticeBoardList').textContent, /আগামীকাল ক্লাস বন্ধ \(ওয়ার্কফ্লো\)/, 'the Notice Board lists the newest notice');
+  student.click(student.$('#noticeBoardList [data-notice-board-open]'));
   await student.flush(8);
   assert.equal(student.$('#notice-boardView').classList.contains('active'), true, 'the notice opens its own board');
   assert.match(student.$('#noticeBoardDetail').textContent, /আগামীকাল ক্লাস বন্ধ/);
@@ -413,7 +417,9 @@ test('workflow 8 — a teacher notice reaches its own class only: board, Home pr
   roster.push({ ...STUDENT, id: 'AP-WF-2001', name: 'নবম শ্রেণির শিক্ষার্থী', className: 'নবম শ্রেণি' });
   const ninth = await openStudent({ ...storage, [ROSTER_KEY]: JSON.stringify(roster) },
     { student: { ...STUDENT, id: 'AP-WF-2001', name: 'নবম শ্রেণির শিক্ষার্থী', className: 'নবম শ্রেণি' }, username: 'workflow.ninth' });
-  assert.doesNotMatch(ninth.$('#homeNoticeList').textContent, /আগামীকাল ক্লাস বন্ধ/,
+  ninth.click(ninth.$('#studentServices [data-view="notice-board"]'));
+  await ninth.flush(6);
+  assert.doesNotMatch(ninth.$('#noticeBoardList').textContent, /আগামীকাল ক্লাস বন্ধ/,
     'another class never receives this notice');
 });
 
@@ -475,12 +481,16 @@ test('workflow 8b — a Manager-written notice carries its class scope and stays
   assert.ok(saved.createdBy && saved.author, 'the notice keeps its author fields');
 
   const student = await openStudent(storage);
-  assert.match(student.$('#homeNoticeList').textContent, /মাসিক পরীক্ষার রুটিন/);
+  student.click(student.$('#studentServices [data-view="notice-board"]'));
+  await student.flush(6);
+  assert.match(student.$('#noticeBoardList').textContent, /মাসিক পরীক্ষার রুটিন/);
 
   const roster = JSON.parse(storage[ROSTER_KEY]);
   roster.push({ ...STUDENT, id: 'AP-WF-3001', name: 'অন্য শ্রেণির শিক্ষার্থী', className: 'নবম শ্রেণি' });
   const other = await openStudent({ ...storage, [ROSTER_KEY]: JSON.stringify(roster) },
     { student: { ...STUDENT, id: 'AP-WF-3001', name: 'অন্য শ্রেণির শিক্ষার্থী', className: 'নবম শ্রেণি' }, username: 'workflow.other' });
-  assert.doesNotMatch(other.$('#homeNoticeList').textContent, /মাসিক পরীক্ষার রুটিন/,
+  other.click(other.$('#studentServices [data-view="notice-board"]'));
+  await other.flush(6);
+  assert.doesNotMatch(other.$('#noticeBoardList').textContent, /মাসিক পরীক্ষার রুটিন/,
     'the scoped Manager notice stays off another class');
 });

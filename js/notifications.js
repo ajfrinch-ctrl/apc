@@ -19,11 +19,12 @@ import { mountStatusNotice } from './status-surface.js';
 import { readJSON, writeJSON, loadAppConfig, loadAccount } from './storage.js';
 import { KEYS, STAFF_KEYS, listDocuments } from './database.js';
 import { loadNotices, loadRoster } from './office-data.js';
+import { listTeacherAssignments } from './teacher-assignments.js';
 import { getDeviceId } from './session.js';
 import {
   BOOT_KEY_PREFIX, CLEARED_KEY_PREFIX, LOCAL_WRITE_KEY, NOTICE_BOARD_READ_PREFIX, PROMPT_HIDDEN_KEY, REGISTRATION_REVIEWERS,
   SEEN_KEY_PREFIX, SHOWN_KEY, INAPP_KEY_PREFIX, claimDelivery, planInAppAlerts, clearedRecord,
-  nextExamBoundary, nextHomeworkBoundary, notificationFeed,
+  nextExamBoundary, nextHomeworkBoundary, nextBirthdayBoundary, notificationFeed,
   planDeliveries, pushPayload, seenRecord, viewerKeyOf
 } from './notification-rules.js';
 import {
@@ -66,12 +67,12 @@ const NEEDS = Object.freeze({
   student: { students: true, transactions: true, exams: true, teaching: true },
   admin: { students: true },
   manager: { students: true, transactions: true, exams: true },
-  teacher: { exams: true },
+  teacher: { exams: true, students: true },
   payment: { transactions: true }
 });
 /* Where a tapped item goes when the payload does not name a view. */
 const KIND_TARGET = Object.freeze({
-  exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'exams', homework: 'courses',
+  exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'exams', homework: 'courses', birthday: 'home', 'birthday-soon': 'students',
   notice: 'notice-board', broadcast: 'notice-board',
   approved: 'home', rejected: 'home',
   'payment-review': 'cash-counter', 'payment-rejected': 'home', 'exam-review': 'exams',
@@ -167,11 +168,16 @@ export function currentViewer() {
   const role = pageRole();
   if (role) {
     const account = readStaffAccount(ROLE_ACCOUNT_KEYS[role]);
+    const username = String(account?.username || ROLE_USERNAMES[role] || role);
+    const assignedClasses = role === 'teacher'
+      ? [...new Set(listTeacherAssignments(username).map(row => String(row.className || '').trim()).filter(Boolean))]
+      : [];
     return {
       kind: 'staff',
       role,
-      username: String(account?.username || ROLE_USERNAMES[role] || role),
-      name: String(account?.fullName || '')
+      username,
+      name: String(account?.fullName || ''),
+      assignedClasses
     };
   }
   const account = loadAccount();
@@ -183,7 +189,8 @@ export function currentViewer() {
     username: String(account?.username || student.username || ''),
     name: String(student.name || student.nameBn || ''),
     className: String(student.className || ''),
-    group: String(student.group || '')
+    group: String(student.group || ''),
+    birthDate: String(student.birthDate || '')
   };
 }
 
@@ -251,11 +258,14 @@ function rawFeed(cleared = null) {
    the app is open and refreshed again when it becomes visible. */
 function scheduleActionBoundary() {
   clearTimeout(boundaryTimer);
-  if (viewer?.kind !== 'student') return;
+  if (!viewer) return;
   const now = Date.now();
   const boundaries = [];
-  if (needs().exams) boundaries.push(nextExamBoundary(readJSON(KEYS.exams, null), viewer, now));
-  if (needs().teaching) boundaries.push(nextHomeworkBoundary(readJSON(KEYS.teaching, null), viewer, now));
+  if (viewer.kind === 'student') {
+    if (needs().exams) boundaries.push(nextExamBoundary(readJSON(KEYS.exams, null), viewer, now));
+    if (needs().teaching) boundaries.push(nextHomeworkBoundary(readJSON(KEYS.teaching, null), viewer, now));
+  }
+  boundaries.push(nextBirthdayBoundary(now));
   const next = boundaries.filter(value => Number.isFinite(value) && value > now).sort((a, b) => a - b)[0];
   if (!next) return;
   const delay = Math.min(MAX_TIMER_MS, Math.max(1000, next - now + 500));

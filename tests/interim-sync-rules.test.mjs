@@ -61,9 +61,21 @@ test('the app nodes work for the signed-in device', () => {
   ok('settings', { broadcast: 'কাল ছুটি', allowTeacherRegistration: true });
   ok('examDb/exams/E1', { id: 'E1', teacherId: 'T1', status: 'draft', participants: ['S1'] });
   ok('examDb/exams/E1', null);
+  ok('examDb/exams', null); // factory reset clears the whole exam group
+  ok('examDb/attempts', null);
   ok('examDb/attempts/A1', { id: 'A1', examId: 'E1', studentId: 'S1', status: 'active' });
   ok('pushTokens/dev2', { token: 'y'.repeat(40), role: 'student' });
   ok('pushTokens/dev1', null);
+  // Factory reset (docs/FACTORY-RESET.md): every node the reset clears.
+  ok('staffAccounts/admin', null);
+  ok('staffAccounts/manager', null);
+  ok('staffAccounts/teacher', null);
+  ok('staffAccounts/payment', null);
+  ok('staffDirectory', null);
+  ok('usernames', null);
+  ok('studentAccounts/dolon', null);
+  ok('system/adminInitialized', null);
+  ok('system/adminInitialized', false);
   // Diagnostic probe (js/firebase-diagnostics.js): write {at}, then delete it.
   ok('system/connectivityProbe/diag-abc123', { at: 1728432000000 });
   ok('system/connectivityProbe/diag-abc123', null);
@@ -92,17 +104,18 @@ test('what the interim rules refuse even for a signed-in device', () => {
   no('', null, 'no root wipe');
   no('activePlusSync', null, 'no bridge wipe');
   no(V1(''), {}, 'no v1 replace');
+  no(V1(''), null, 'no v1 wipe — the factory reset deletes node by node');
   no(V1('unknownNode'), { a: 1 }, 'no free storage outside the app nodes');
   no('somethingElse/x', { a: 1 }, 'nothing outside activePlusSync');
-  no(V1('staffAccounts/admin'), null, 'a role account cannot be deleted');
-  no(V1('staffAccounts'), null, 'staff accounts cannot be wiped');
+  no(V1('staffAccounts'), null, 'the staffAccounts parent cannot be wiped in one write');
+  no(V1('studentAccounts'), null, 'the studentAccounts parent cannot be wiped in one write');
   no(V1('staffAccounts/hacker'), { username: 'x', password: hash }, 'only the four staff roles');
+  no(V1('staffAccounts/hacker'), null, 'unknown roles cannot be written or deleted');
   no(V1('staffAccounts/admin'), { username: 'x' }, 'a role account needs a password hash');
-  no(V1('studentAccounts/dolon'), null, 'a student login cannot be deleted');
   no(V1('studentAccounts/dolon'), { username: 'dolon', pin: '1234' }, 'plaintext-only record refused');
-  no(V1('usernames'), null, 'registry cannot be wiped');
-  no(V1('staffDirectory'), null, 'directory cannot be wiped');
   no(V1('studentAccount'), { username: 'x' }, 'legacy node is read-only');
+  no(V1('studentAccount'), null, 'legacy node is read-only even for deletes');
+  no(V1('system/adminInitialized'), 'yes', 'the marker must stay a boolean');
   no(V1('students/STU-9'), 'junk', 'records are objects');
   no(V1('examDb/exams/E2'), { id: 'OTHER', teacherId: 'T', status: 'draft' }, 'exam id must match its key');
   no(V1('pushTokens/dev3'), { token: 'short' }, 'token shape checked');

@@ -74,7 +74,7 @@
 // v181: precache the Admin-only Staff Management stylesheet.
 // v182: precache the authenticated Question Bank V2 sync modules.
 // v183: precache the Admin V2 staged-cutover migration console.
-const CACHE_VERSION = 184;
+const CACHE_VERSION = 240;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -121,8 +121,6 @@ const APP_SHELL = [
   './sync/question-bank-v2-sync.js',
   './js/firebase-config.js',
   './js/firebase-online-test.js',
-  './js/firebase-diagnostic-ui.js',
-  './js/firebase-diagnostics.js',
   './js/realtime-sync-entry.js',
   './js/realtime-sync.js',
   './js/sync-session.js',
@@ -224,6 +222,7 @@ const APP_SHELL = [
   './js/main.js',
   './js/panel-route.js',
   './js/admin.js',
+  './js/factory-reset.js',
   './js/manager.js',
   './js/payment.js',
   './js/teacher.js',

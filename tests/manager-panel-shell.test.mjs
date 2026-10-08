@@ -24,12 +24,12 @@ before(async () => {
 test('Manager boots on the operational dashboard with only its allow-listed sections', () => {
   assert.deepEqual(ctx.jsdomErrors, []);
   const views = ctx.$$('.manager-view').map(view => view.dataset.viewPanel);
-  assert.deepEqual(views, ['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
+  assert.deepEqual(views, ['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other', 'exams', 'courses', 'results', 'reports', 'profile', 'settings', 'more']);
   const routes = ctx.$$('[data-manager-view]').map(button => button.dataset.managerView);
-  for (const forbidden of ['staff', 'roles', 'permissions', 'security', 'backup', 'restore', 'settings', 'admin']) assert.equal(routes.includes(forbidden), false);
+  for (const forbidden of ['staff', 'roles', 'permissions', 'security', 'backup', 'restore', 'admin']) assert.equal(routes.includes(forbidden), false);
   assert.equal(ctx.$('#managerMain a[href*="admin"]'), null);
   assert.equal(ctx.$('#mgrActiveStudents').textContent, '১');
-  assert.equal(ctx.$('#mgrPendingStudents').textContent, '১ / ১');
+  assert.equal(ctx.$('#mgrTotalStudents').textContent, '২');
 });
 
 test('Manager student approval updates only the pending registration through the Manager flow', async () => {
@@ -131,29 +131,22 @@ test('the আরও page lists every module as a real page, not a floating drawe
   assert.equal(ctx.$('#managerMoreTitle').textContent.trim(), 'আরও');
   assert.equal(ctx.window.location.hash, '#more', 'the open page lives in the URL');
 
-  /* Academic work lives in একাডেমিক and money in হিসাব, so আরও keeps only the
-     structural modules: ক্লাস ও ব্যাচ and the Manager's own profile. */
-  const rows = ctx.$$('#managerMoreMenu .admin-more-item');
-  const expected = ['classes', 'profile'];
-  assert.deepEqual(rows.slice(0, expected.length).map(row => row.dataset.managerView), expected);
-  assert.equal(rows.length, expected.length + 1, 'the log-out row is the last one');
-  assert.ok(rows[rows.length - 1].classList.contains('is-logout'));
+  const rows = ctx.$$('#managerMoreHub .pay-tile');
+  assert.deepEqual(rows.map(row => row.dataset.managerView), ['profile', 'settings']);
+  assert.equal(rows.some(row => row.dataset.managerView === 'classes'), false, 'ক্লাস পরিচালনা is not in আরও');
   for (const row of rows) {
-    assert.ok(row.querySelector('.admin-more-icon svg'), 'every row keeps its icon');
-    assert.ok(row.querySelector('.admin-more-copy strong').textContent.trim(), 'every row has a title');
-    assert.ok(row.querySelector('.admin-more-copy small').textContent.trim(), 'every row explains what is inside');
-    assert.ok(row.querySelector('.admin-menu-arrow'), 'every row keeps the arrow');
+    assert.ok(row.querySelector('.pay-tile-icon svg'), 'every tile keeps its icon');
+    assert.ok(row.querySelector('.pay-tile-label').textContent.trim(), 'every tile has a title');
   }
-  // A row opens its module, and the page is reachable after a reload.
   ctx.click(rows[0]);
-  await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'classes');
-  assert.equal(ctx.window.location.hash, '#classes');
+  await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'profile');
+  assert.equal(ctx.window.location.hash, '#profile');
 });
 
 test('every আরও row opens its own page without an error', async () => {
   ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]'));
   await ctx.flush();
-  for (const row of ctx.$$('#managerMoreMenu .admin-more-item')) {
+  for (const row of ctx.$$('#managerMoreHub .pay-tile')) {
     if (row.classList.contains('is-logout')) continue;
     const view = row.dataset.managerView;
     ctx.click(row);

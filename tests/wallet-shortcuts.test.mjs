@@ -26,8 +26,8 @@ test('every student service tile opens its original view or truthful existing ac
   const { $, click, window } = ctx;
   /* The five quick academic cards open a section of পড়াশোনা or the পরীক্ষা section. */
   const cards = [
-    ['homework', 'homework', 'courses'], ['suggestion', 'suggestion', 'courses'],
-    ['question-bank', 'bank', 'courses'], ['exams', null, 'exams'], ['results', null, 'exams']
+    ['homework', 'homework', 'homework'], ['suggestion', 'suggestion', 'suggestion'],
+    ['question-bank', 'bank', 'question-bank'], ['exams', null, 'exams'], ['results', null, 'exam-results']
   ];
   for (const [action, section, view] of cards) {
     const tile = action === 'exams' || action === 'results'
@@ -41,15 +41,17 @@ test('every student service tile opens its original view or truthful existing ac
       assert.equal($(`[data-study-panel="${section}"]`).hidden, false, action + ' panel');
     }
     if (action === 'results') {
-      assert.equal($('#examTabs [data-exam-tab="results"]').getAttribute('aria-pressed'), 'true', 'ফলাফল opens its tab');
-      assert.equal($('[data-exam-panel="results"]').hidden, false, 'the result panel is shown');
+      assert.equal($('#examResultsView').classList.contains('active'), true, 'ফলাফল opens its page');
+      assert.ok($('#examResultsView #studentResultOverview'), 'the result panel is on that page');
     }
     click($('.bottom-link[data-view="home"]'));
   }
   click($('#studentServices [data-action="homework"]'));
   await ctx.flush();
-  assert.equal($('#coursesView').classList.contains('active'), true);
+  assert.equal($('#homeworkView').classList.contains('active'), true);
   assert.equal($('#learningFilters [data-learning-filter="homework"]').getAttribute('aria-pressed') === 'true', true);
+  click($('#homeworkView .pay-back'));
+  assert.equal($('#coursesView').classList.contains('active'), true, 'feature back returns to the পড়াশোনা grid');
   click($('#coursesView .pay-back'));
   assert.equal($('#homeView').classList.contains('active'), true, 'inner-page back must be wired');
 

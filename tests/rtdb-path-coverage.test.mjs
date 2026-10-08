@@ -9,8 +9,9 @@
      • a path the app LISTENS on must be readable (a permission-denied listener
        is what silently stops realtime updates);
      • a path the app WRITES must be writable with the shape the app writes;
-     • the wholesale dump, an unknown node and a staff-account deletion must
-       stay refused.
+     • every node the factory reset clears must be deletable;
+     • the wholesale dump, an unknown node and whole-parent wipes must stay
+       refused.
 
    This is the machine-checked form of audit items 5 and 12. The real Firebase
    engine is still authoritative — functions/test/rtdb-rules.test.js (emulator)
@@ -123,13 +124,33 @@ test('every path the app writes is writable with the shape it writes', () => {
   console.log(`# [rules] writers allowed: ${WRITTEN.length}/${WRITTEN.length}`);
 });
 
+test('the factory reset can delete every node it clears (docs/FACTORY-RESET.md)', () => {
+  const state = cloud();
+  for (const name of RECORD_COLLECTIONS) {
+    assert.equal(sim.canWrite(device, V1(name), null, state), true, `collection ${name} can be cleared`);
+  }
+  for (const role of Object.keys(STAFF_ACCOUNTS)) {
+    assert.equal(sim.canWrite(device, V1(`staffAccounts/${role}`), null, state), true, `${role} account can be cleared`);
+  }
+  const ok = (path, why) => assert.equal(sim.canWrite(device, V1(path), null, state), true, why);
+  ok('staffDirectory', 'the staff directory can be cleared');
+  ok('usernames', 'the login-id registry can be cleared');
+  ok('studentAccounts/dolon', 'a student login can be cleared');
+  ok('system/adminInitialized', 'the initialization marker can be cleared');
+  ok('examDb/exams', 'the exam group can be cleared in one write');
+  ok('examDb/attempts', 'the attempts group can be cleared in one write');
+  ok('pushTokens/device-1', 'a push token registration can be cleared');
+});
+
 test('what the deployed rules must still refuse', () => {
   const state = cloud();
   assert.equal(sim.canRead(device, '', state), false, 'the root is not readable');
   assert.equal(sim.canRead(device, 'activePlusSync/v1', state), false, 'the bridge cannot be dumped in one read');
   assert.equal(sim.canRead(device, V1('activePlusV2'), state), false, 'a future tree is not readable today');
   assert.equal(sim.canRead(device, V1('pushTokens/device-1'), state), false, 'push tokens are write-only');
-  assert.equal(sim.canWrite(device, V1('staffAccounts/admin'), null, state), false, 'a staff account cannot be deleted');
+  assert.equal(sim.canWrite(device, V1(''), null, state), false, 'the whole bridge cannot be wiped in one write');
+  assert.equal(sim.canWrite(device, V1('staffAccounts'), null, state), false, 'the staffAccounts parent cannot be wiped in one write');
+  assert.equal(sim.canWrite(device, V1('studentAccounts'), null, state), false, 'the studentAccounts parent cannot be wiped in one write');
   assert.equal(sim.canWrite(device, V1('system/adminInitialized'), 'yes', state), false, 'the marker must be a boolean');
   assert.equal(sim.canWrite(device, V1('students'), { 'REC-1': { id: 'REC-1' } }, {
     activePlusSync: { v1: { students: { 'REC-1': { id: 'REC-1', updatedAt: 1 } } } }

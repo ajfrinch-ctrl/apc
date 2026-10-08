@@ -5,13 +5,14 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=158" data-entry="payment"></script>
-  <script src="js/topbar-connectivity.js?v=20261005-syncborder"></script>
+  <script src="js/app-entry.js?v=240" data-entry="payment"></script>
+  <script type="module" src="js/payment.js?v=240"></script>
+  <script src="js/topbar-connectivity.js?v=24061005-syncborder"></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
   <script src="js/theme-logos.js?v=158"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <meta name="theme-color" content="#f3f6fb">
+  <meta name="theme-color" content="#f7f8fc">
   <meta name="description" content="Active Plus Coaching পেমেন্ট রিসিভ প্যানেল — আজকের লেনদেন, সীমিত পরিচয়ের সার্চ ও সহজ পেমেন্ট গ্রহণ।">
   <meta name="robots" content="noindex">
   <title>Active Plus | পেমেন্ট রিসিভ প্যানেল</title>
@@ -22,7 +23,7 @@
   <!-- Shared Active Plus design system; no separate dashboard skin. -->
   <link rel="preload" href="assets/fonts/NotoSansBengali-Variable.ttf" as="font" type="font/ttf" crossorigin>
 
-  <link rel="stylesheet" href="css/design-system.css?v=184">
+  <link rel="stylesheet" href="css/design-system.css?v=240">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -30,14 +31,14 @@
   <div class="pay-shell" id="payShell" hidden>
     <header class="app-topbar"><div class="app-topbar-inner"><div class="app-brand"><img class="app-brand-logo" src="assets/icons/logo-128.png" alt="Active Plus Coaching" width="38" height="38"><span class="app-brand-text"><strong class="app-brand-institute">Active Plus Coaching</strong><small class="app-brand-slogan" data-fixed-tagline>শিখতে থাকো, এগিয়ে যাও</small></span></div><div class="app-topbar-actions"><button class="app-topbar-icon notification-button" id="notificationButton" type="button" aria-label="নোটিফিকেশন দেখুন" aria-haspopup="dialog"><svg class="apc-glyph-icon" data-icon="bell" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.5 16V9a6.5 6.5 0 0 1 13 0v7l2 2h-17Zm4 5a3 3 0 0 0 5 0"/></svg><span class="notification-dot" hidden aria-hidden="true"></span></button><button class="app-topbar-icon app-topbar-exit" id="payExitButton" type="button" title="লগআউট" aria-label="লগআউট"><svg class="apc-glyph-icon" data-icon="logout" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5M8 12h13m-5-5 5 5-5 5"/></svg></button></div></div></header>
     <main class="pay-main pay-counter-minimal" id="paymentMain">
-      <div class="counter-page-title"><div><p class="eyebrow">পেমেন্ট কাউন্টার</p><h1 id="counterViewTitle">আজকের লেনদেন</h1></div><p id="payCurrentDate" class="finance-hint"></p></div>
+      <div class="counter-page-title"><div><h1 id="counterViewTitle">আজকের লেনদেন</h1></div><p id="payCurrentDate" class="finance-hint"></p></div>
       <p id="payLoadError" class="finance-error" role="alert" hidden></p>
 
       <!-- হোম — the counter&rsquo;s own day: today&rsquo;s entries and the closing shortcut. -->
       <section class="pay-panel" data-pay-panel="home" id="payCounterHome" aria-labelledby="payHomeTitle">
         <section class="admin-card pay-home-card" id="payHomeCard">
           <h2 id="payHomeTitle">আজকের কাউন্টার</h2>
-          <p class="finance-hint">আজকের নিজের আদায় ও রসিদ। পেমেন্ট নিতে শিক্ষার্থী সার্চ করে যাচাই করুন।</p>
+          
           <div class="pay-home-actions">
             <button class="admin-btn primary" type="button" data-pay-section="students">নতুন পেমেন্ট নিন</button>
             <button class="admin-btn ghost" type="button" id="payClosingShortcut">আজকের ক্লোজিং</button>
@@ -61,7 +62,7 @@
                       </section>
         <section class="admin-card" id="payProfileCard" aria-labelledby="paySelectedTitle" hidden>
                         <h2 id="paySelectedTitle">নির্বাচিত শিক্ষার্থী</h2>
-                        <p class="finance-hint">পরিচয় মিলিয়ে দেখে পেমেন্ট এন্ট্রিতে যান — এই সার্চে বকেয়া, ক্লাস বা মোবাইল দেখানো হয় না।</p>
+                        
                         <div id="payQuickProfile" class="counter-student-brief"></div>
                               </section>
       </section>
@@ -92,7 +93,7 @@
       <section class="pay-panel" data-pay-panel="reports" id="payReportsPanel" aria-label="পেমেন্ট রিপোর্ট" hidden>
         <section class="admin-card counter-reports-card" id="payReportsCard" aria-labelledby="counterReportsTitle" hidden>
                         <h2 id="counterReportsTitle">পেমেন্ট-সংক্রান্ত রিপোর্ট</h2>
-                        <p class="finance-hint">ব্যক্তিগত তথ্য সীমিত থাকে। প্রয়োজনীয় মোবাইলের মাঝের তিন অঙ্ক *** দিয়ে ঢাকা হবে।</p>
+                        
                         <div id="paymentReports"></div>
                       </section>
       </section>
@@ -100,11 +101,11 @@
       <section class="pay-panel" data-pay-panel="more" id="payMorePanel" aria-labelledby="payMoreTitle" hidden>
                     <section class="admin-card" id="payMoreCard">
                       <h2 id="payMoreTitle">আরও</h2>
-                      <p class="finance-hint">কাউন্টারের নিজের Settings — অ্যাকাউন্ট, নোটিফিকেশন, অ্যাপ, নিরাপত্তা ও ডেটা। কাউন্টার শুধু নিজের আদায় ও ফি রিপোর্ট দেখে — শিক্ষার্থীর বকেয়া, ফলাফল বা ক্লাস তালিকা এখানে নেই।</p>
+                      
                     </section>
                     <div class="settings-hub" data-settings-hub="payment">
                       <div class="profile-section" data-settings-group="account">
-                        <p class="eyebrow">অ্যাকাউন্ট</p>
+                        
                         <div class="settings-list">
                           <div class="settings-info" data-settings-row="profile"><span class="settings-copy"><strong>কাউন্টার</strong><small id="payMoreUser">—</small></span></div>
                           <button type="button" class="settings-row-link" data-settings-row="logout" id="payMoreLogout"><span class="settings-icon danger" aria-hidden="true"></span><span class="settings-copy"><strong>লগআউট</strong><small>এই ডিভাইস থেকে সেশন শেষ করুন</small></span></button>

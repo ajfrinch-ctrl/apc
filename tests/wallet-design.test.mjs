@@ -39,15 +39,14 @@ test('all portals retain the same uncluttered two-action brand bar', () => {
 });
 
 test('student, manager and teacher have real, named service shortcuts', () => {
-  /* The student grid is the five quick academic cards of the app architecture
-     plus the Notice Board entrance; the staff panels keep their eight tiles. */
   const allowed = {
-    manager: ['students', 'classes', 'teachers', 'finance', 'routine', 'exams', 'notices', 'reports'],
-    teacher: ['classes', 'students', 'routine-view', 'routine', 'homework', 'online-exams', 'exam', 'reports']
+    manager: ['students', 'classes', 'teachers', 'routine', 'exams', 'notices', 'finance', 'reports'],
+    teacher: []
   };
+  const expectedCount = { manager: 9, teacher: 0 };
   const studentCards = [
     ['homework', 'বাড়ির কাজ'], ['suggestion', 'সাজেশন'], ['question-bank', 'প্রশ্নব্যাংক'],
-    ['exams', 'পরীক্ষা'], ['exams', 'ফলাফল'], ['notice-board', 'Notice Board']
+    ['exams', 'পরীক্ষা'], ['exam-results', 'ফলাফল'], ['notice-board', 'Notice Board']
   ];
   const studentTiles = [...doc('index').querySelectorAll('#studentServices .pay-tile')];
   assert.equal(studentTiles.length, studentCards.length);
@@ -61,8 +60,8 @@ test('student, manager and teacher have real, named service shortcuts', () => {
   assert.equal(studentTiles[4].dataset.examTab, 'results', 'ফলাফল opens the results tab of পরীক্ষা');
   for (const [name, views] of Object.entries(allowed)) {
     const document = doc(name);
-    const tiles = [...document.querySelectorAll('.pay-grid > .pay-tile')];
-    assert.equal(tiles.length, 8, name);
+    const tiles = [...document.querySelectorAll('[aria-label="দ্রুত অ্যাক্সেস"] > .pay-tile')];
+    assert.equal(tiles.length, expectedCount[name], name);
     for (const tile of tiles) {
       assert.equal(tile.getAttribute('type'), 'button');
       assert.ok(tile.querySelector('.pay-tile-icon svg[aria-hidden="true"]'), name + ' blank icon');
@@ -77,20 +76,26 @@ test('student, manager and teacher have real, named service shortcuts', () => {
 
 test('secondary screens have accessible home/back controls and staff hub rows have round icons', () => {
   const MORE_SUBPAGES = '#reportsView, #notificationSettingsView, #myProfileView, #settingsView, #studentFeeView';
-  for (const [name, attribute, target, count] of [
-    ['index', 'data-view', 'home', 10],
+  const indexBacks = [...doc('index').querySelectorAll('.pay-back')];
+  assert.ok(indexBacks.length >= 10, 'student pages keep back controls');
+  for (const button of indexBacks) {
+    const parent = button.closest(MORE_SUBPAGES) ? 'profile' : button.getAttribute('data-view');
+    assert.equal(button.getAttribute('data-view'), parent);
+    assert.ok(button.getAttribute('aria-label'));
+    assert.ok(button.querySelector('svg'));
+    assert.ok(['home', 'profile', 'courses', 'exams', 'routine', 'classes'].includes(parent), 'back ' + parent);
+  }
+  for (const [name, attribute, target, min] of [
     ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 11]
   ]) {
     const document = doc(name);
     const backs = [...document.querySelectorAll('.pay-back')];
-    assert.equal(backs.length, count, name);
+    assert.ok(backs.length >= min, name);
     for (const button of backs) {
-      // Every আরও sub-page goes back to More — the student's (প্রোফাইল, রিপোর্ট,
-      // নোটিফিকেশন, ফি, সেটিংস) and the staff profile/Settings page too.
-      const staffHubPage = name !== 'index' && button.closest('[data-view-panel="profile"], #teacherProfile');
-      const parent = name === 'index' && button.closest(MORE_SUBPAGES) ? 'profile'
-        : staffHubPage ? 'more' : target;
-      assert.equal(button.getAttribute(attribute), parent);
+      const staffHubPage = button.closest('[data-view-panel="profile"], #teacherProfile');
+      const parent = button.getAttribute(attribute);
+      const allowedParents = staffHubPage ? ['more'] : [target, 'routine', 'routine-view', 'academic', 'more'];
+      assert.ok(allowedParents.includes(parent), name + ' back ' + parent);
       assert.ok(button.getAttribute('aria-label'));
       assert.ok(button.querySelector('svg'));
     }

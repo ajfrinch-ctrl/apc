@@ -6,7 +6,10 @@
      • allow only signed-in Firebase identities (anonymous included);
      • expose only the exact nodes js/realtime-sync.js and
        js/push-notifications.js use, nothing else in the database;
-     • forbid wiping the whole tree / v1 / credential nodes in one write;
+     • forbid wiping the whole tree / v1 / staffAccounts parent in one write —
+       single nodes CAN be deleted, so the Admin panel's factory reset
+       (docs/FACTORY-RESET.md) can clear the database node by node and the
+       login page can offer the first-use Admin Account setup again;
      • check basic record shape, so the database can't be used as free storage;
      • keep push tokens write-only (only Cloud Functions read them).
 
@@ -26,46 +29,55 @@ const idMatches = variable => `newData.child('id').val() === ${variable}`;
 
 export function buildInterimRules() {
   const v1 = {
-    // Fixed staff role accounts (PBKDF2 hash records). Create/replace only:
-    // a role account can never be deleted from a client.
+    // Fixed staff role accounts (PBKDF2 hash records). Create, replace or
+    // delete: the factory reset removes the Admin account so a new one can be
+    // claimed from the login page. Whole-parent wipes stay refused (there is
+    // no write rule on `staffAccounts` itself) — one role at a time only.
     staffAccounts: {
       '.read': AUTH,
       $role: {
-        '.write': `${AUTH} && newData.exists() && (${STAFF_ROLES.map(role => `$role === '${role}'`).join(' || ')})`,
+        '.write': `${AUTH} && (${STAFF_ROLES.map(role => `$role === '${role}'`).join(' || ')})`,
         '.validate': "newData.hasChildren(['username', 'password']) && newData.child('username').isString()"
       }
     },
     // Staff Management directory: one document merged by transaction.
+    // Deletion is allowed for the factory reset.
     staffDirectory: {
       '.read': AUTH,
-      '.write': `${AUTH} && newData.exists()`,
+      '.write': AUTH,
       '.validate': "newData.hasChild('version')"
     },
     // Claimed Login User IDs: the client only ever adds (merge transaction).
+    // The factory reset may clear the whole registry.
     usernames: {
       '.read': AUTH,
-      '.write': `${AUTH} && newData.exists()`
+      '.write': AUTH
     },
     // Old single-student node: read-only migration source.
     studentAccount: { '.read': AUTH },
-    // One login record per student; never deleted from a client.
+    // One login record per student. Deletions happen per login key (the
+    // factory reset enumerates children); the parent has no write rule.
     studentAccounts: {
       '.read': AUTH,
       $loginKey: {
-        '.write': `${AUTH} && newData.exists()`,
+        '.write': AUTH,
         '.validate': "newData.hasChild('pinHash')"
       }
     },
-    // Exam database: per-id mirror (deletions are legitimate).
+    // Exam database: per-id mirror (deletions are legitimate). The two group
+    // nodes may also be dropped in one write so the factory reset can clear
+    // the exam database without enumerating every id.
     examDb: {
       '.read': AUTH,
       exams: {
+        '.write': AUTH,
         $examId: {
           '.write': AUTH,
           '.validate': `${idMatches('$examId')} && newData.child('teacherId').isString() && newData.child('status').isString()`
         }
       },
       attempts: {
+        '.write': AUTH,
         $attemptId: {
           '.write': AUTH,
           '.validate': `${idMatches('$attemptId')} && newData.child('examId').isString() && newData.child('studentId').isString()`
@@ -75,11 +87,12 @@ export function buildInterimRules() {
     // Institution-wide markers. `system/adminInitialized` records that the
     // one-time global Admin initialization happened, so a device with an empty
     // localStorage can never mistake itself for a fresh installation. It is a
-    // marker, never the evidence: the Admin record above is what really decides.
+    // marker, never the evidence: the Admin record above is what really
+    // decides. The factory reset may delete it to reopen first-use setup.
     system: {
       '.read': AUTH,
       adminInitialized: {
-        '.write': `${AUTH} && newData.isBoolean()`,
+        '.write': `${AUTH} && (!newData.exists() || newData.isBoolean())`,
         '.validate': 'newData.isBoolean()'
       },
       /* Login-page diagnostic (js/firebase-diagnostics.js): a signed-in device

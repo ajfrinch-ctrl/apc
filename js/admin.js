@@ -19,7 +19,8 @@ import { toBanglaNumber } from './ui.js';
 import { classCodes } from './admin-data.js';
 import { loadAppConfig, saveAppConfig, loadAccount, saveAccount } from './storage.js';
 import { loadRoster, saveRoster, loadNotices, loadRoutine } from './office-data.js';
-import { changeStaffPassword, updateStaffProfile, ensureBootstrapStaffAccounts, readStaffAccount, hasStaffSession, clearStaffSession, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
+import { changeStaffPassword, updateStaffProfile, ensureBootstrapStaffAccounts, readStaffAccount, authenticateStaff, hasStaffSession, clearStaffSession, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
+import { clearLocalAppData } from './factory-reset.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
 import { dateLabel } from './finance-data.js';
 import { KEYS, readJSON, writeJSON } from './database.js';
@@ -732,7 +733,7 @@ function storageNote() {
     }
   } catch { return 'স্টোরেজ হিসাব করা যায়নি।'; }
   const kb = Math.round(bytes / 1024);
-  return `আনুমানিক ব্যবহৃত স্টোরেজ: ${bn(kb)} KB • সব তথ্য শুধু এই ডিভাইসে থাকে (কোনো সার্ভার নয়)।`;
+  return `আনুমানিক ব্যবহৃত স্টোরেজ: ${bn(kb)} KB`;
 }
 
 function renderDataManagement() {
@@ -800,10 +801,73 @@ function clearSelectedCollection() {
   });
 }
 
-function resetAllLocalData() {
-  // Destructive reset is intentionally unavailable while offline records and
-  // pending operations are the primary durable copy. No storage is cleared.
-  toast('ডেটা সুরক্ষার জন্য সম্পূর্ণ রিসেট বন্ধ আছে। আগে ব্যাকআপ এক্সপোর্ট করুন।');
+/* ---------- Factory reset (docs/FACTORY-RESET.md) ----------
+   One deliberate sweep: the cloud database node by node, then this device.
+   Afterwards the login page offers the first-use Admin Account setup again.
+   Gated by the Admin password so a stray tap can never erase the institution. */
+
+let factoryResetRunning = false;
+
+function openFactoryReset() {
+  if (!access.has(CAPABILITIES.DATA_MANAGE)) {
+    toast('এই কাজটি শুধু Admin করতে পারবেন।');
+    return;
+  }
+  openModal('ডেটা', 'সম্পূর্ণ ডাটাবেজ রিসেট করবেন?', `
+    <p class="staff-confirm-copy">ক্লাউড ডাটাবেজ ও এই ডিভাইসের <strong>সব ডেটা</strong> স্থায়ীভাবে মুছে যাবে — শিক্ষার্থী, লেনদেন, রুটিন, নোটিশ, পরীক্ষা ও সব স্টাফ অ্যাকাউন্ট। এরপর লগইন পেজ থেকে নতুন এডমিন অ্যাকাউন্ট তৈরি করা যাবে।</p>
+    <p class="staff-confirm-copy">অন্য কোনো ডিভাইসে পুরোনো ডেটা থেকে গেলে তা পরে আবার ক্লাউডে ফিরে আসতে পারে — রিসেটের পর ওই ডিভাইসগুলো থেকেও ডেটা মুছে ফেলুন।</p>
+    <div class="staff-field">
+      <label for="factoryResetPassword">নিশ্চিত করতে এডমিন পাসওয়ার্ড লিখুন</label>
+      <input id="factoryResetPassword" type="password" autocomplete="current-password" placeholder="এডমিন পাসওয়ার্ড">
+    </div>
+    <p class="finance-error" id="factoryResetError" role="alert" hidden></p>
+    <div class="modal-actions">
+      <button class="admin-btn ghost" type="button" data-modal-action="close">বাতিল</button>
+      <button class="admin-btn danger" type="button" id="factoryResetConfirm">রিসেট করুন</button>
+    </div>`);
+  $('#factoryResetConfirm')?.addEventListener('click', () => void runFactoryReset());
+  $('#factoryResetPassword')?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); void runFactoryReset(); }
+  });
+  window.setTimeout(() => $('#factoryResetPassword')?.focus(), 60);
+}
+
+async function runFactoryReset() {
+  if (factoryResetRunning) return;
+  const errorBox = $('#factoryResetError');
+  const button = $('#factoryResetConfirm');
+  const show = text => { if (errorBox) { errorBox.textContent = text; errorBox.hidden = !text; } };
+  const password = String($('#factoryResetPassword')?.value || '');
+  if (!password) { show('পাসওয়ার্ড লিখুন।'); return; }
+  const account = await readStaffAccount('admin');
+  const check = await authenticateStaff('admin', account?.username || 'admin.apc', password);
+  if (!check.ok) { show('এডমিন পাসওয়ার্ড সঠিক নয়।'); return; }
+  if (!navigator.onLine) { show('রিসেটের জন্য ইন্টারনেট সংযোগ দরকার — ক্লাউড ডেটা মুছতে হবে।'); return; }
+  factoryResetRunning = true;
+  if (button) { button.disabled = true; button.textContent = 'মোছা হচ্ছে…'; }
+  show('');
+  try {
+    const { resetCloudDatabase } = await import('../sync/sync-core.js');
+    const result = await resetCloudDatabase();
+    if (!result?.ok) {
+      if (result?.reason === 'offline') {
+        show('ইন্টারনেট সংযোগ দরকার।');
+      } else {
+        const denied = (result?.failed || []).filter(item => /permission/i.test(String(item.reason)));
+        show(denied.length
+          ? 'ক্লাউডের কিছু অংশ মোছা যায়নি — ডাটাবেজ রুলের নতুন সংস্করণ ডিপ্লয় করেছেন কি না দেখুন (টার্মিনালে: `firebase deploy --only database`)। কোনো লোকাল ডেটা মোছা হয়নি।'
+          : 'ক্লাউড ডেটা মোছা যায়নি — ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন। কোনো লোকাল ডেটা মোছা হয়নি।');
+      }
+      return;
+    }
+    clearLocalAppData();
+    window.location.replace('index.html');
+  } catch {
+    show('রিসেট সম্পন্ন করা যায়নি — আবার চেষ্টা করুন।');
+  } finally {
+    factoryResetRunning = false;
+    if (button) { button.disabled = false; button.textContent = 'রিসেট করুন'; }
+  }
 }
 
 function renderBackup() {
@@ -1210,7 +1274,7 @@ $('#backupFileInput')?.addEventListener('change', event => {
   restoreBackup(event.target.files?.[0]);
 });
 
-$('#resetAllLocalDataButton')?.addEventListener('click', resetAllLocalData);
+$('#factoryResetButton')?.addEventListener('click', openFactoryReset);
 
 $('#adminAccountLogout')?.addEventListener('click', exitPanel);
 

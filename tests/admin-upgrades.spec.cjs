@@ -18,7 +18,7 @@ const bottom = (page, role, view) => page.locator(`.admin-bottom [data-${role}-v
 test('manager dashboard summarises the coaching, money included', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-09-22T12:00:00Z'));
   await enter(page, 'manager');
-  for (const id of ['#mgrTotalStudents', '#mgrActiveStudents', '#mgrPendingStudents', '#mgrTodayCollection', '#mgrPendingPayments']) {
+  for (const id of ['#mgrTotalStudents', '#mgrActiveStudents', '#mgrTodayCollection', '#mgrTodayClasses']) {
     await expect(page.locator(id)).not.toHaveText('—');
   }
   // One tap from the dashboard into hisab; the Admin panel keeps no such tile.

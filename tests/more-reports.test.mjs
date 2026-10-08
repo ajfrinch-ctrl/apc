@@ -28,7 +28,7 @@ test('student More contains a report menu row, never an always-open report build
   const ctx = await studentPage();
   const more = ctx.$('#profileView');
   assert.equal(more.querySelector('#studentReports'), null);
-  const menu = more.querySelector('.settings-list [data-view="reports"]');
+  const menu = more.querySelector('.pay-grid [data-view="reports"]');
   assert.ok(menu, 'reports is a named More menu entry');
   assert.match(menu.textContent, /আমার রিপোর্ট/);
   assert.equal(ctx.$('#studentReports').closest('[data-view-panel]').dataset.viewPanel, 'reports');

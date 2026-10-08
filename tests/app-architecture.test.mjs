@@ -61,11 +61,13 @@ test('ফলাফল is a tab of পরীক্ষা, and #results stays only
   assert.equal(ctx.$$('[data-view="results"]').length, 0, 'no control may route to a results view of its own');
   const tabs = ctx.$$('#examTabs [data-exam-tab]');
   assert.deepEqual(tabs.map(tab => tab.dataset.examTab), ['upcoming', 'live', 'done', 'results']);
+  assert.deepEqual(ctx.$$('#examTabs [data-practice-mode]').map(tile => tile.dataset.practiceMode),
+    ['instant', 'papers', 'recent']);
   assert.equal(ctx.$('[data-exam-panel="results"]').contains(ctx.$('#teacherResultsBoard')), true,
     'teacher-given marks live in the ফলাফল tab');
   assert.ok(ctx.$('#studentResultOverview'));
   setView('results', { history: 'replace' });
-  assert.equal(ctx.$('#examsView').classList.contains('active'), true, 'the old name opens the পরীক্ষা section');
+  assert.equal(ctx.$('#examResultsView').classList.contains('active'), true, 'the old name opens the ফলাফল page');
   assert.equal(viewRouteFromHash('#results'), 'results', 'old links still resolve');
   ctx.window.close();
 });
@@ -73,9 +75,9 @@ test('ফলাফল is a tab of পরীক্ষা, and #results stays only
 test('পড়াশোনা has five sections and one movable teaching board', async () => {
   const ctx = await loadPage('index.html');
   assert.deepEqual(ctx.$$('#studySections [data-study-section]').map(tab => tab.dataset.studySection),
-    ['courses', 'homework', 'suggestion', 'bank', 'materials']);
+    ['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
   assert.deepEqual(ctx.$$('[data-study-panel]').map(panel => panel.dataset.studyPanel),
-    ['courses', 'homework', 'suggestion', 'bank', 'materials']);
+    ['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
   assert.equal(ctx.$$('#learningBoard').length, 1, 'the teacher board is never duplicated');
   assert.equal(ctx.$$('[data-study-slot="board"]').length, 2, 'বাড়ির কাজ and সাজেশন share the one board');
   assert.equal(ctx.$('#courseHub')?.closest('[data-study-panel]').dataset.studyPanel, 'courses');
@@ -89,7 +91,7 @@ test('পড়াশোনা has five sections and one movable teaching board'
 test('আরও holds only প্রোফাইল / রিপোর্ট / নোটিফিকেশন / ফি / সেটিংস / সহায়তা', async () => {
   const ctx = await loadPage('index.html');
   const more = ctx.$('#profileView');
-  assert.deepEqual(ctx.$$('#profileView .settings-list button').map(button => button.dataset.view).filter(Boolean),
+  assert.deepEqual(ctx.$$('#profileView .pay-grid button').map(button => button.dataset.view).filter(Boolean),
     ['my-profile', 'reports', 'notification-settings', 'student-fee', 'settings']);
   assert.ok(more.querySelector('.help-card'), 'সহায়তা stays the sixth entry');
   const academic = [...more.querySelectorAll('[data-view],[data-action]')]
@@ -130,15 +132,16 @@ test('the ফি screen is read-only and reads the one finance store', async () 
   ctx.window.close();
 });
 
-test('Home keeps the five quick academic cards and the latest-notice preview', async () => {
+test('Home keeps the five quick academic cards and the Notice Board tile', async () => {
   const ctx = await loadPage('index.html');
   assert.deepEqual(ctx.$$('#studentServices .pay-tile-label').map(node => node.textContent.trim()),
     ['বাড়ির কাজ', 'সাজেশন', 'প্রশ্নব্যাংক', 'পরীক্ষা', 'ফলাফল', 'Notice Board']);
   assert.deepEqual(ctx.$$('#studentServices [data-action]').map(node => node.dataset.action),
     ['homework', 'suggestion', 'question-bank']);
-  assert.deepEqual(ctx.$$('#studentServices [data-view]').map(node => node.dataset.view), ['exams', 'exams', 'notice-board']);
-  assert.equal(ctx.$('#studentServices [data-exam-tab="results"]').dataset.view, 'exams');
-  assert.ok(ctx.$('#homeNoticeList'), 'Home previews the newest notices');
+  assert.deepEqual(ctx.$$('#studentServices [data-view]').map(node => node.dataset.view), ['exams', 'exam-results', 'notice-board']);
+  assert.equal(ctx.$('#studentServices [data-exam-tab="results"]').dataset.view, 'exam-results');
+  assert.equal(ctx.$('#homeNoticeList'), null, 'the bottom নতুন Notice preview is gone');
+  assert.ok(ctx.$('#studentServices [data-view="notice-board"]'), 'Notice Board stays on Home as a tile');
   assert.ok(ctx.$('#noticeBoardList'), 'the full Notice Board still owns the categorized list');
   ctx.window.close();
 });
@@ -182,12 +185,12 @@ test('the retired results route has no leftover button anywhere in the app', () 
 
 const teacherHtml = read('teacher.html');
 
-test('the teacher bottom bar is exactly হোম / একাডেমিক / রুটিন / ফলাফল / আরও', () => {
+test('the teacher bottom bar is exactly হোম / কাজ দিন / রুটিন / পরীক্ষা / আরও', () => {
   const nav = teacherHtml.slice(teacherHtml.indexOf('<nav class="admin-bottom"'), teacherHtml.indexOf('</nav>', teacherHtml.indexOf('<nav class="admin-bottom"')));
   assert.deepEqual([...nav.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
     ['home', 'academic', 'routine-view', 'exam', 'more']);
   assert.deepEqual([...nav.matchAll(/<span>([^<]+)<\/span>/g)].map(match => nfc(match[1])),
-    ['হোম', 'একাডেমিক', 'রুটিন', 'ফলাফল', 'আরও'].map(nfc));
+    ['হোম', 'কাজ দিন', 'রুটিন', 'পরীক্ষা', 'আরও'].map(nfc));
   for (const item of nav.split('<button').slice(1)) assert.match(item, /<svg/, 'every bottom-bar item keeps its icon');
 });
 
@@ -208,13 +211,14 @@ test('একাডেমিক is one hub whose six cards open the screens that 
   assert.match(read('js/exam-manager.js'), /return \{\s*open\(screen = ''\)/, 'the workspace exposes a deep link');
 });
 
-test('teacher Home puts the four create actions in front of the teacher', () => {
-  const quick = teacherHtml.slice(teacherHtml.indexOf('id="teacherQuickActions"'), teacherHtml.indexOf('id="teacherAttention"'));
-  assert.deepEqual([...quick.matchAll(/data-new-activity="([a-z]+)"/g)].map(match => match[1]), ['homework', 'suggestion']);
-  assert.deepEqual([...quick.matchAll(/data-academic-section="([a-z]+)"/g)].map(match => match[1]), ['bank', 'exams']);
-  assert.deepEqual([...quick.matchAll(/>([^<]*\+\s*[^<]+)</g)].map(match => nfc(match[1].trim())),
-    ['+ বাড়ির কাজ', '+ সাজেশন', '+ প্রশ্ন', '+ পরীক্ষা'].map(nfc));
-  /* The teacher's own pending work stays visible from every screen. */
+test('teacher Home is a snapshot; work tiles live once on কাজ দিন / রুটিন / পরীক্ষা / আরও', () => {
+  const home = teacherHtml.slice(teacherHtml.indexOf('id="teacherHome"'), teacherHtml.indexOf('id="teacherRecords"'));
+  assert.equal((home.match(/class="pay-tile"/g) || []).length, 0, 'home must not copy কাজ দিন tiles');
+  assert.equal(home.includes('teacherQuickActions'), false, 'home must not duplicate create tiles');
+  const hub = teacherHtml.slice(teacherHtml.indexOf('id="teacherAcademic"'), teacherHtml.indexOf('id="teacherNotice"'));
+  assert.match(hub, /data-new-activity="homework"/);
+  assert.match(hub, /data-new-activity="suggestion"/);
+  assert.match(teacherHtml, /id="teacherNewActivity"/);
   for (const dot of ['academic', 'routine', 'exam']) assert.match(teacherHtml, new RegExp(`id="navDot-${dot}"`));
 });
 
@@ -303,7 +307,7 @@ test('Manager একাডেমিক is one hub over the eight sections plus t
   /* Nothing academic is duplicated in আরও. */
   const more = read('js/manager.js').slice(read('js/manager.js').indexOf('const MORE_MODULES'));
   const rows = [...more.slice(0, more.indexOf(']')).matchAll(/view: '([a-z-]+)'/g)].map(match => match[1]);
-  assert.deepEqual(rows, ['classes', 'profile'], 'আরও keeps only the structural modules');
+  assert.deepEqual(rows, ['profile', 'settings'], 'আরও keeps only the structural modules');
 });
 
 test('Manager হিসাব owns four segments: collection, approval, due and history', () => {

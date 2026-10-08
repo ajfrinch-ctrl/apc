@@ -35,6 +35,8 @@ const KIND_ICON = Object.freeze({
   'exam-review': 'icon-clipboard',
   'exam-returned': 'icon-clipboard',
   'exam-approved': 'icon-clipboard',
+  birthday: 'icon-award',
+  'birthday-soon': 'icon-award',
   approved: 'icon-award',
   rejected: 'icon-bell',
   payment: 'icon-bell',
@@ -255,9 +257,9 @@ export function mountNoticeCenter(api) {
     const action = label
       ? '<button type="button" class="mini-btn primary notice-action" data-apc-notice-open="' + escapeHtml(item.key) + '" aria-label="' + escapeHtml(`${label}: ${item.title}`) + '">' + escapeHtml(label) + '</button>'
       : '';
-    return '<article class="notice-detail' + (unread ? ' unread' : '') + (rowOpens ? ' actionable' : '') + (label ? ' has-action' : '') + '"' +
+    return '<article class="notice-detail' + (unread ? ' unread' : '') + (rowOpens ? ' actionable' : '') + (label ? ' has-action' : '') + (item.kind === 'birthday' || item.kind === 'birthday-soon' ? ' is-birthday' : '') + '"' +
       (rowOpens ? ' data-apc-notice-open="' + escapeHtml(item.key) + '" role="button" tabindex="0"' : '') + '>' +
-      '<span class="notice-detail-icon' + (item.kind === 'broadcast' ? ' light' : '') + '">' + iconMarkup(item.kind) + '</span>' +
+      '<span class="notice-detail-icon' + (item.kind === 'broadcast' ? ' light' : '') + (item.kind === 'birthday' || item.kind === 'birthday-soon' ? ' is-birthday' : '') + '">' + iconMarkup(item.kind) + '</span>' +
       '<div class="notice-detail-copy"><span class="notice-time">' + escapeHtml(whenText(item)) + '</span>' +
       '<span class="notice-section-chip">' + escapeHtml(sectionOf(item)) + '</span>' +
       '<h3>' + escapeHtml(item.title) + '</h3>' +

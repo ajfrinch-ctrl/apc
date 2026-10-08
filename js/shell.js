@@ -1,6 +1,7 @@
 /* App shell lifecycle and student identity rendering. */
 import { loadAccount } from './storage.js';
 import { $, $$, scrollToTop, toBanglaNumber } from './ui.js';
+import { isStudentBirthday } from './notification-rules.js';
 
 export function renderStudent(student) {
   const fullName = String(student.name || student.nameBn || 'শিক্ষার্থী').trim() || 'শিক্ষার্থী';
@@ -32,6 +33,22 @@ export function renderStudent(student) {
     additional.hidden = !numbers.length;
   }
   if ($('#editStudentId')) $('#editStudentId').value = student.id || '';
+  paintBirthdayLook(student);
+}
+
+function paintBirthdayLook(student) {
+  const on = isStudentBirthday(student?.birthDate);
+  document.documentElement.toggleAttribute('data-birthday', on);
+  $('#appShell')?.classList.toggle('is-birthday', on);
+  const greeting = $('#dayGreeting');
+  if (greeting && on) greeting.textContent = 'শুভ জন্মদিন';
+  const banner = $('#birthdayBanner');
+  if (banner) {
+    banner.hidden = !on;
+    const first = String(student?.name || student?.nameBn || 'শিক্ষার্থী').trim().split(/\s+/)[0] || 'শিক্ষার্থী';
+    const copy = banner.querySelector('[data-birthday-name]');
+    if (copy) copy.textContent = first;
+  }
 }
 
 export function openStudentApp(state) {
@@ -53,8 +70,11 @@ export function showAuthScreen() {
   const app = $('#appShell');
   if (app) {
     app.hidden = true;
-    app.classList.remove('is-pending');
+    app.classList.remove('is-pending', 'is-birthday');
   }
+  document.documentElement.removeAttribute('data-birthday');
+  const banner = $('#birthdayBanner');
+  if (banner) banner.hidden = true;
   scrollToTop();
 }
 
@@ -65,19 +85,104 @@ export function showAuthScreen() {
    the পরীক্ষা section, so #results is kept only as an inbound alias
    (docs/APP-ARCHITECTURE.md §2–§3). Browser and system Back walk the visited
    views; refresh and shared links reopen the exact view (hash router + back). */
-const VIEW_ROUTES = Object.freeze(['home', 'routine', 'courses', 'exams', 'results', 'profile', 'my-profile', 'settings', 'student-fee', 'reports', 'notification-settings', 'notice-board']);
+const VIEW_ROUTES = Object.freeze([
+  'home', 'routine', 'routine-day', 'routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class',
+  'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other',
+  'classes', 'class-today', 'class-upcoming', 'class-record', 'class-subjects', 'class-teachers',
+  'class-notes', 'class-materials', 'class-attendance', 'class-other',
+  'courses', 'my-courses', 'homework', 'suggestion', 'question-bank',
+  'materials', 'model-test', 'study-practice', 'study-results', 'study-other',
+  'exams', 'exam-upcoming', 'exam-live', 'exam-done', 'exam-results', 'exam-practice',
+  'exam-instant', 'exam-papers', 'exam-recent', 'exam-bank', 'exam-other', 'results',
+  'profile', 'my-profile', 'settings', 'student-fee', 'reports', 'notification-settings', 'notice-board'
+]);
 /* Views whose id does not follow the `<route>View` rule. */
 const VIEW_ID_OVERRIDES = Object.freeze({
   'notification-settings': 'notificationSettingsView',
   'my-profile': 'myProfileView',
-  'student-fee': 'studentFeeView'
+  'student-fee': 'studentFeeView',
+  'my-courses': 'myCoursesView',
+  'question-bank': 'questionBankView',
+  'model-test': 'modelTestView',
+  'study-practice': 'studyPracticeView',
+  'study-results': 'studyResultsView',
+  'study-other': 'studyOtherView',
+  'exam-upcoming': 'examUpcomingView',
+  'exam-live': 'examLiveView',
+  'exam-done': 'examDoneView',
+  'exam-results': 'examResultsView',
+  'exam-practice': 'examPracticeView',
+  'exam-instant': 'examInstantView',
+  'exam-papers': 'examPapersView',
+  'exam-recent': 'examRecentView',
+  'exam-bank': 'examBankView',
+  'exam-other': 'examOtherView',
+  'routine-day': 'routineDayView',
+  'routine-today': 'routineTodayView',
+  'routine-tomorrow': 'routineTomorrowView',
+  'routine-weekly': 'routineWeeklyView',
+  'routine-class': 'routineClassView',
+  'routine-exam': 'routineExamView',
+  'routine-changed': 'routineChangedView',
+  'routine-holiday': 'routineHolidayView',
+  'routine-important': 'routineImportantView',
+  'routine-other': 'routineOtherView',
+  classes: 'classesView',
+  'class-today': 'classTodayView',
+  'class-upcoming': 'classUpcomingView',
+  'class-record': 'classRecordView',
+  'class-subjects': 'classSubjectsView',
+  'class-teachers': 'classTeachersView',
+  'class-notes': 'classNotesView',
+  'class-materials': 'classMaterialsView',
+  'class-attendance': 'classAttendanceView',
+  'class-other': 'classOtherView'
 });
 /* Old/bookmarked names that now live inside another section. */
-const VIEW_ALIASES = Object.freeze({ results: 'exams' });
+const VIEW_ALIASES = Object.freeze({ results: 'exam-results' });
 /* Which bottom-bar item owns a view that is not itself a bottom-bar item. */
 const NAV_PARENTS = Object.freeze({
   exams: 'exams',
   results: 'exams',
+  'exam-upcoming': 'exams',
+  'exam-live': 'exams',
+  'exam-done': 'exams',
+  'exam-results': 'exams',
+  'exam-practice': 'exams',
+  'exam-instant': 'exams',
+  'exam-papers': 'exams',
+  'exam-recent': 'exams',
+  'exam-bank': 'exams',
+  'exam-other': 'exams',
+  'routine-today': 'routine',
+  'routine-tomorrow': 'routine',
+  'routine-weekly': 'routine',
+  'routine-class': 'routine',
+  'routine-exam': 'routine',
+  'routine-changed': 'routine',
+  'routine-holiday': 'routine',
+  'routine-important': 'routine',
+  'routine-other': 'routine',
+  classes: 'home',
+  'class-today': 'home',
+  'class-upcoming': 'home',
+  'class-record': 'home',
+  'class-subjects': 'home',
+  'class-teachers': 'home',
+  'class-notes': 'home',
+  'class-materials': 'home',
+  'class-attendance': 'home',
+  'class-other': 'home',
+  'my-courses': 'courses',
+  homework: 'courses',
+  suggestion: 'courses',
+  'question-bank': 'courses',
+  materials: 'courses',
+  'model-test': 'courses',
+  'study-practice': 'courses',
+  'study-results': 'courses',
+  'study-other': 'courses',
+  'routine-day': 'routine',
   reports: 'profile',
   'notification-settings': 'profile',
   'my-profile': 'profile',
@@ -121,4 +226,5 @@ export function setView(viewName, { history: historyMode = 'push' } = {}) {
   });
   scrollToTop();
   syncViewHash(name, historyMode);
+  window.dispatchEvent(new CustomEvent('apc-view-change', { detail: { view: name } }));
 }

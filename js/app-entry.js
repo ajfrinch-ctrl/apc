@@ -2,14 +2,14 @@
  * A failed module must never turn the login form into a native GET request,
  * or leave a staff shell hidden with no explanation. */
 (() => {
-  const script = document.currentScript;
+  const script = document.currentScript || document.querySelector('script[data-entry]');
   const entries = {
     student: './main.js', admin: './admin.js', manager: './manager.js',
     teacher: './teacher.js', payment: './payment.js'
   };
   const entry = entries[script?.dataset.entry];
   if (!entry) return;
-  const moduleUrl = new URL(entry, script.src).href;
+  const moduleUrl = new URL(entry, script.src || document.baseURI || location.href).href;
   let failed = false;
   let timer;
   function message(text) {
@@ -23,8 +23,20 @@
     event.stopImmediatePropagation();
     message(failed ? 'লগইন লোড হয়নি। নিচের আবার চেষ্টা করুন বাটন চাপুন।' : 'লগইন প্রস্তুত হচ্ছে — একটু পরে আবার চেষ্টা করুন।');
   }, true);
+  function panelReady() {
+    if (document.getElementById('appEntryError') && document.querySelector('.manager-shell:not([hidden]), .admin-shell:not([hidden]), .app-shell:not([hidden]), .pay-shell:not([hidden]), .teacher-shell:not([hidden])')) return true;
+    if (document.getElementById('apcPanelLock')) return true;
+    if (document.querySelector('#loginForm')?.dataset.loginReady === 'true') return true;
+    if (document.getElementById('managerShell')?.hidden === false) return true;
+    return false;
+  }
   function showFailure() {
     clearTimeout(timer);
+    if (panelReady()) {
+      document.getElementById('appEntryError')?.remove();
+      failed = false;
+      return;
+    }
     failed = true;
     document.querySelector('.launch-screen')?.remove();
     const loginButton = document.querySelector('#loginForm [type=submit]');
@@ -57,15 +69,23 @@
     (document.getElementById('authScreen') || document.body).append(panel);
   }
   function start() {
+    const file = entry.replace('./', '');
+    const existing = document.querySelector(`script[type="module"][src*="${file}"]`);
+    if (existing) {
+      existing.addEventListener('error', showFailure);
+      return;
+    }
     timer = setTimeout(showFailure, 12000);
-    import(moduleUrl).then(() => {
+    const el = document.createElement('script');
+    el.type = 'module';
+    el.src = moduleUrl;
+    el.addEventListener('error', showFailure);
+    el.addEventListener('load', () => {
       clearTimeout(timer);
       document.getElementById('appEntryError')?.remove();
       failed = false;
-    }).catch(error => {
-      console.warn('[Active Plus] entry module unavailable:', error?.name || 'unknown');
-      showFailure();
     });
+    document.head.append(el);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true});
   else start();
