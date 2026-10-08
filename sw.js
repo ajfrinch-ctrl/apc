@@ -74,7 +74,7 @@
 // v181: precache the Admin-only Staff Management stylesheet.
 // v182: precache the authenticated Question Bank V2 sync modules.
 // v183: precache the Admin V2 staged-cutover migration console.
-const CACHE_VERSION = 219;
+const CACHE_VERSION = 220;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

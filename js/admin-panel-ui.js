@@ -107,7 +107,7 @@ function renderFeatureGrid(container, entries, onNavigate) {
   const tiles = entries.map((entry, index) => {
     const tile = document.createElement('button');
     tile.type = 'button';
-    tile.className = 'admin-feature-tile';
+    tile.className = 'pay-tile admin-feature-tile';
     tile.dataset.adminView = entry.view;
     if (entry.capability) tile.dataset.adminCap = entry.capability;
     if (entry.action) tile.dataset.adminAction = entry.action;
@@ -115,11 +115,11 @@ function renderFeatureGrid(container, entries, onNavigate) {
     tile.style.setProperty('--tile-index', String(index));
 
     const iconWrap = document.createElement('span');
-    iconWrap.className = 'admin-feature-icon';
+    iconWrap.className = 'pay-tile-icon admin-feature-icon';
     iconWrap.append(iconElement(ADMIN_BOTTOM_ICONS[entry.icon] || entry.icon, 'admin-feature-icon-svg apc-icon-svg'));
 
     const label = document.createElement('span');
-    label.className = 'admin-feature-label';
+    label.className = 'pay-tile-label admin-feature-label';
     label.textContent = entry.label;
 
     tile.append(iconWrap, label);

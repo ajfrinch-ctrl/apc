@@ -5,9 +5,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=219" data-entry="admin"></script>
-  <script type="module" src="js/admin.js?v=219"></script>
-  <script src="js/topbar-connectivity.js?v=21961005-syncborder"></script>
+  <script src="js/app-entry.js?v=220" data-entry="admin"></script>
+  <script type="module" src="js/admin.js?v=220"></script>
+  <script src="js/topbar-connectivity.js?v=22061005-syncborder"></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
   <script src="js/theme-logos.js?v=158"></script>
@@ -27,7 +27,7 @@
   <!-- Icon geometry + staff management: loaded last so one fixed container
        per icon is the final word (no overlap, no double painting). -->
 
-  <link rel="stylesheet" href="css/design-system.css?v=219">
+  <link rel="stylesheet" href="css/design-system.css?v=220">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -84,7 +84,7 @@
           <div class="admin-hero-head">
             <div class="admin-hero-title">
               <span class="admin-hero-icon" aria-hidden="true"><svg class="apc-glyph-icon" data-icon="home" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10.5 9-7.7 9 7.7M5.2 9.3v10a1.7 1.7 0 0 0 1.7 1.7h10.2a1.7 1.7 0 0 0 1.7-1.7v-10M9.5 21v-6.5h5V21"/></svg></span>
-              <div class="pay-portal-heading"><div class="admin-welcome" id="adminWelcome" hidden role="status" aria-live="polite"></div><h1 id="dashTitle">সিস্টেম ড্যাশবোর্ড</h1></div>
+              <div class="pay-portal-heading"><p class="pay-portal-kicker">সিস্টেম তদারকি</p><div class="admin-welcome" id="adminWelcome" hidden role="status" aria-live="polite"></div><h1 id="dashTitle">এক নজরে ইনস্টিটিউট</h1></div>
             </div>
             <time class="admin-date-pill" id="adminTodayDate"></time>
           </div>
@@ -114,8 +114,8 @@
         </article>
         <!-- Permission-driven section grid: one large icon + one clear label per
              section, rendered only for the capabilities this role holds. -->
-        <p class="pay-section-label">সব সেবা</p>
-        <div class="admin-feature-grid" id="adminFeatureGrid" aria-label="অনুমোদিত বিভাগসমূহ"></div>
+        <p class="pay-section-label">দ্রুত অ্যাক্সেস</p>
+        <div class="pay-grid is-2 admin-feature-grid" id="adminFeatureGrid" aria-label="হোম শর্টকাট"></div>
       </section>
 
       <!-- ================= Staff Management =================

@@ -168,16 +168,9 @@ export const VIEW_SEAT = Object.freeze({
 
 /** Dashboard tiles show system sections only, generated from the capabilities
  *  the signed-in role holds. No daily cash/fee entry tile. */
+/* Home keeps only work that is not already a bottom tab or a সিস্টেম/ডেটা hub card. */
 export const ADMIN_FEATURE_TILES = Object.freeze([
-  { view: 'staff', label: 'স্টাফ ম্যানেজমেন্ট', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 1 },
-  { view: 'students', label: 'নিবন্ধন অনুমোদন', icon: 'approval', capability: CAPABILITIES.STUDENTS_VIEW, order: 2 },
-  { view: 'reports', label: 'রিপোর্ট', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 3 },
-  { view: 'roles', label: 'Roles & Permissions', icon: 'roles', capability: CAPABILITIES.ROLES_MANAGE, order: 4 },
-  { view: 'security', label: 'সিকিউরিটি', icon: 'security', capability: CAPABILITIES.SECURITY_MANAGE, order: 5 },
-  { view: 'settings', label: 'সিস্টেম সেটিংস', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 6 },
-  { view: 'data', label: 'Data Management', icon: 'data', capability: CAPABILITIES.DATA_MANAGE, order: 7 },
-  { view: 'backup', label: 'Backup & Restore', icon: 'backup', capability: CAPABILITIES.BACKUP_MANAGE, order: 8 },
-  { view: 'profile', label: 'Admin Profile', icon: 'profile', capability: CAPABILITIES.PROFILE_VIEW, order: 9 }
+  { view: 'students', label: 'নিবন্ধন অনুমোদন', icon: 'approval', capability: CAPABILITIES.STUDENTS_VIEW, order: 1 }
 ]);
 
 export function capabilitiesForRole(role) {
