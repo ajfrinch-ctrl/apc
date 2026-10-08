@@ -214,7 +214,9 @@ test('একাডেমিক is one hub whose six cards open the screens that 
 test('teacher Home opens one kind of work per tile; new work is created on that page', () => {
   const home = teacherHtml.slice(teacherHtml.indexOf('id="teacherHome"'), teacherHtml.indexOf('id="teacherRecords"'));
   assert.match(home, /data-teacher-view="homework"/);
+  assert.match(home, /data-new-activity="homework"/);
   assert.match(home, /data-teacher-view="suggestion"/);
+  assert.match(home, /data-new-activity="suggestion"/);
   assert.match(home, /data-teacher-view="online-exams"/);
   assert.equal(home.includes('teacherQuickActions'), false, 'home must not duplicate create tiles');
   assert.match(teacherHtml, /id="teacherNewActivity"/);

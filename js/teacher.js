@@ -485,7 +485,7 @@ const ACADEMIC_SECTIONS = Object.freeze({
   suggestion: { view: 'suggestion' },
   bank: { view: 'online-exams', screen: 'bank' },
   materials: { view: 'courses' },
-  exams: { view: 'online-exams' },
+  exams: { view: 'online-exams', screen: 'new-mcq' },
   notice: { view: 'notice' }
 });
 
@@ -715,6 +715,7 @@ document.addEventListener('click', event => {
     setView(nav.dataset.teacherView);
   }
   const create = event.target.closest('[data-new-activity]'); if (create) showEditor(create.dataset.newActivity);
+  if (event.target.closest('[data-new-notice]')) showNoticeEditor();
   const section = event.target.closest('[data-academic-section]');
   if (section) {
     const target = ACADEMIC_SECTIONS[section.dataset.academicSection];

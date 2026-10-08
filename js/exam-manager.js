@@ -723,6 +723,10 @@ export function initExamManager(container, role) {
       /* Only screens this workspace already renders can be opened; anything
          else lands on its own home, never on a new copy of a screen. */
       const target = String(screen || '').trim();
+      if (target.startsWith('new-')) {
+        const type = target.slice(4);
+        if (Object.hasOwn(EXAM_TYPES, type)) { editor(type); scrollTop(); return; }
+      }
       view = { bank: 'bank', exams: 'home', archive: 'archive', upcoming: 'upcoming' }[target] || 'home';
       selected = null; openQuestion = null;
       paint();
