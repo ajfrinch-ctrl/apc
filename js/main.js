@@ -350,7 +350,7 @@ initNotificationSettings({ mount: '#notificationSettings' });
 // so it runs only when explicitly asked (index.html?fbtest=1) — never on a
 // normal boot, and never as an unhandled rejection that can take the page down.
 if (navigator.onLine && new URLSearchParams(location.search).get('fbtest') === '1') {
-  import('./firebase-online-test.js?v=20260929-fbaudit')
+  import('./firebase-online-test.js?v=20261008-syncfix')
     .then(({ testFirebaseOnlineConnection }) => testFirebaseOnlineConnection())
     .catch(() => {});
 }

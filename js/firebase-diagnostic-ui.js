@@ -18,17 +18,25 @@
       output.hidden = false;
       output.textContent = 'Firebase connection পরীক্ষা চলছে...';
       try {
-        const { diagnoseFirebaseSync } = await import('./firebase-diagnostics.js?v=20260929-login');
+        const { diagnoseFirebaseSync } = await import('./firebase-diagnostics.js?v=20261008-syncfix');
         const r = await diagnoseFirebaseSync();
-        output.textContent =
-          'SDK: ' + (r.sdk ? 'PASS' : 'FAIL') + '\n' +
-          'Database URL: ' + r.databaseURL + '\n' +
-          'Authentication: ' + (r.authentication ? 'PASS' : 'FAIL') + '\n' +
-          'Firebase Connection: ' + (r.firebaseConnection ? 'PASS' : 'FAIL') + '\n' +
-          'Database Read: ' + (r.databaseRead ? 'PASS' : 'FAIL') + '\n' +
-          'Database Write: ' + r.databaseWrite + '\n' +
-          'LocalStorage Protected: ' + (r.localStorageProtected ? 'PASS' : 'FAIL') + '\n' +
-          'Error: ' + (r.error || 'None');
+        const mark = value => value ? 'PASS' : 'FAIL';
+        const lines = [
+          'SDK: ' + mark(r.sdk),
+          'Database URL: ' + r.databaseURL,
+          'Anonymous Authentication: ' + mark(r.authentication),
+          'Firebase Connection: ' + mark(r.firebaseConnection),
+          'Database Read (Rules): ' + mark(r.databaseRead),
+          'Database Write (Rules): ' + r.databaseWrite,
+          'LocalStorage Protected: ' + mark(r.localStorageProtected)
+        ];
+        if (Array.isArray(r.stages) && r.stages.length) {
+          lines.push('', '— ধাপে ধাপে —');
+          for (const item of r.stages) lines.push(`${item.ok ? '✓' : '✗'} ${item.id}${item.detail ? ': ' + item.detail : ''}`);
+        }
+        lines.push('', 'Error: ' + (r.error || 'None'));
+        if (r.guidance) lines.push('', 'কী করবেন: ' + r.guidance);
+        output.textContent = lines.join('\n');
       } catch (error) {
         output.textContent = 'Diagnostic error: ' + (error?.message || error);
       } finally {

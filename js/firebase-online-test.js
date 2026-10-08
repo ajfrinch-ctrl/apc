@@ -8,8 +8,9 @@ export async function testFirebaseOnlineConnection(timeout = 8000) {
   if (!LEGACY_CLOUD_ENABLED) return cloudPausedResult();
   if (!navigator.onLine) return { ok: false, reason: 'offline' };
   try {
-    const { hasSyncSession } = await import('./sync-session.js');
-    if (!(await hasSyncSession())) throw new Error('authentication-required');
+    /* Diagnostic-only: the transport must be testable on a device with NO app
+       login yet — that is exactly when a broken bridge needs diagnosing. The
+       sync engine itself still requires an app session (sync-session.js). */
     const { firebaseApp, appCheckReady } = await import('../firebase/firebase-init.js');
     const { getAuth, signInAnonymously, getDatabase, ref, onValue, get } = await import('../firebase/firebase-services.js');
     await appCheckReady;
