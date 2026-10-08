@@ -40,7 +40,7 @@ test('empty Today uses the shared Today-study card/icon/copy/action layout and c
   assert.ok(card.querySelector('.challenge-copy.dashboard-empty-copy'));
   assert.ok(card.querySelector('button.challenge-open[data-view="routine"]'));
   assert.equal(card.querySelector('strong').textContent, 'আজ কোনো ক্লাস নেই');
-  assert.equal(card.querySelector('small').textContent, 'সময়সূচি দেখতে রুটিন খুলুন।');
+  assert.equal(card.querySelector('small').textContent, 'সব রুটিন দেখতে রুটিন খুলুন।');
   assert.equal(ctx.$('#dashboardRoutineList').dataset.state, 'empty');
   assert.equal(ctx.$$('#studentServices .pay-tile').length, 6);
   assert.ok(ctx.$('#dashboardChallengeCard'), 'do not remove or hide Today study');
@@ -50,7 +50,7 @@ test('the empty entry is view-only: one existing routine action, no fabricated c
   const ctx = await render();
   const root = ctx.$('#dashboardRoutineList');
   assert.equal(root.querySelectorAll('button').length, 1);
-  assert.equal(root.querySelector('button').getAttribute('aria-label'), 'রুটিন খুলুন');
+  assert.equal(root.querySelector('button').getAttribute('aria-label'), 'সব রুটিন দেখুন');
   assert.equal(root.querySelector('[data-action], input, form, .challenge-progress-track, [data-dashboard-class]'), null);
   for (const key of [ROUTINE_KEY, TEACHING_KEY, TRANSACTIONS_KEY]) assert.equal(ctx.window.localStorage.getItem(key), ctx.seed[key]);
 });
