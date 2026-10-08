@@ -13,7 +13,9 @@
 import { toBanglaNumber as bn } from './ui.js';
 import { classByName, subjectsForClass, listChapters } from './academics.js';
 import { listCourseContent, typeOf as courseTypeOf } from './course-content.js';
-import { listQuestionsForStudent, QUESTION_TYPES } from './question-bank.js';
+import { listQuestionsForStudent, questionRowsFromPastExams, QUESTION_TYPES } from './question-bank.js';
+import { examRepository as examRepo, examMatchesStudent, isStudentVisibleExam, watchExams } from './exam-data.js';
+import { downloadExamPDF } from './exam-pdf.js';
 
 const SELECTORS = {
   bar: '#studySections',
@@ -51,7 +53,8 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   if (!bar) return () => {};
   let section = 'courses';
   let bankTypes = new Set();
-  let bankSubject = '', bankChapter = '', bankRows = [], bankReady = false, bankError = '';
+  let bankSubject = '', bankChapter = '', bankRows = [], bankPapers = [], bankReady = false, bankError = '';
+  let bankPdfBusy = false;
   let suggestionTypes = new Set();
   let suggestionSubject = '', suggestionChapter = '', suggestionRecords = [], suggestionReady = false, suggestionError = '';
   let materialType = 'all';
@@ -150,6 +153,21 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
 
   /* ---- shelves ------------------------------------------------------------- */
 
+  function paperCard(exam) {
+    const when = exam.endAt ? new Date(exam.endAt).toLocaleDateString('bn-BD') : '';
+    const solutions = exam.type === 'mcq'
+      ? `<button type="button" class="primary" data-bank-pdf="solutions" data-id="${esc(exam.id)}">সঠিক উত্তরসহ PDF</button>`
+      : '';
+    return `<article class="exam-card course-item" data-bank-paper="${esc(exam.id)}">
+      <header class="course-item-head"><span class="course-item-type">বিগত পরীক্ষা PDF</span>
+        <div><h3>${esc(exam.title)}</h3><small>${esc([text(exam.subject), when].filter(Boolean).join(' • '))}</small></div></header>
+      <div class="exam-actions">
+        <button type="button" class="primary" data-bank-pdf="paper" data-id="${esc(exam.id)}">প্রশ্নপত্র PDF</button>
+        ${solutions}
+      </div>
+    </article>`;
+  }
+
   function renderBank() {
     const list = $(SELECTORS.bank.list);
     if (!list) return;
@@ -161,13 +179,23 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       if (chapterName && !(norm(row.chapterName) === norm(chapterName) || row.chapterId === chapterName)) return false;
       return true;
     });
+    const papers = bankPapers.filter(exam => {
+      if (bankSubject && text(exam.subject) !== bankSubject) return false;
+      if (wanted.size) {
+        if (wanted.has('mcq') && exam.type === 'mcq') return true;
+        if ((wanted.has('short') || wanted.has('written')) && exam.type !== 'mcq') return true;
+        return false;
+      }
+      return true;
+    });
+    const body = papers.map(paperCard).join('') + rows.map(questionCard).join('');
     list.innerHTML = !bankReady
       ? '<p class="teacher-empty">প্রশ্নব্যাংক লোড হচ্ছে…</p>'
-      : rows.length
-        ? rows.map(questionCard).join('')
+      : body
+        ? body
         : `<p class="teacher-empty">${bankError || 'এই ফিল্টারে কোনো প্রশ্ন পাওয়া যায়নি।'}</p>`;
     const count = $(SELECTORS.bank.count);
-    if (count) count.textContent = `${num(rows.length)}টি প্রশ্ন • ${text(student().className) || 'শ্রেণি'}`;
+    if (count) count.textContent = `${num(rows.length)}টি প্রশ্ন • ${num(papers.length)}টি PDF • ${text(student().className) || 'শ্রেণি'}`;
   }
 
   function renderSuggestion() {
@@ -246,13 +274,24 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   async function loadBank() {
     const current = ++request;
     try {
-      const rows = await listQuestionsForStudent(student().id);
+      const [rows, db] = await Promise.all([
+        listQuestionsForStudent(student().id),
+        examRepo.listForStudent(student().id).catch(() => ({ exams: [] }))
+      ]);
       if (current !== request) return;
-      bankRows = Array.isArray(rows) ? rows : [];
+      const now = Date.now();
+      const exams = Array.isArray(db?.exams) ? db.exams : [];
+      const visible = exams.filter(exam => isStudentVisibleExam(exam) && examMatchesStudent(exam, student()));
+      const past = questionRowsFromPastExams(visible, now);
+      const known = new Set((rows || []).map(row => `${text(row.type)}|${text(row.text)}`));
+      bankRows = [...(Array.isArray(rows) ? rows : []), ...past.filter(row => !known.has(`${text(row.type)}|${text(row.text)}`))];
+      bankPapers = visible.filter(exam => Number(exam.endAt) > 0 && Number(exam.endAt) < now
+        && ['published', 'completed', 'archived'].includes(exam.status)
+        && (exam.questions || []).length);
       bankReady = true; bankError = '';
     } catch (error) {
       if (current !== request) return;
-      bankRows = []; bankReady = true;
+      bankRows = []; bankPapers = []; bankReady = true;
       bankError = 'প্রশ্নব্যাংক লোড হয়নি। আবার চেষ্টা করো।';
       const node = $(SELECTORS.bank.error);
       if (node) { node.hidden = false; node.textContent = bankError; }
@@ -312,6 +351,28 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     button.setAttribute('aria-pressed', String(bankTypes.has(key)));
     renderBank();
   });
+  $(SELECTORS.bank.list)?.addEventListener('click', async event => {
+    const button = event.target.closest('[data-bank-pdf]');
+    if (!button || bankPdfBusy) return;
+    const exam = bankPapers.find(item => item.id === button.dataset.id);
+    if (!exam) return;
+    bankPdfBusy = true;
+    button.disabled = true;
+    const errorNode = $(SELECTORS.bank.error);
+    try {
+      if (errorNode) { errorNode.hidden = true; errorNode.textContent = ''; }
+      await downloadExamPDF(exam, { solutions: button.dataset.bankPdf === 'solutions' });
+    } catch (error) {
+      if (errorNode) {
+        errorNode.hidden = false;
+        errorNode.textContent = error.message || 'PDF তৈরি হয়নি। আবার চেষ্টা করো।';
+      }
+    } finally {
+      bankPdfBusy = false;
+      button.disabled = false;
+    }
+  });
+  watchExams(() => { if (section === 'bank') void loadBank(); });
   $('#studySuggestionFilters')?.addEventListener('click', event => {
     const button = event.target.closest('[data-suggestion-filter]');
     if (!button) return;
