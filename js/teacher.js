@@ -142,7 +142,7 @@ function renderTypeCounts() {
 function renderHome() {
   const hasAssignments = state.assignments.length > 0;
   $('#teacherAssignmentNotice').hidden = hasAssignments;
-  $('#teacherQuickActions').hidden = !hasAssignments;
+  if ($('#teacherQuickActions')) $('#teacherQuickActions').hidden = !hasAssignments;
   const today = todayISO();
   $('#teacherToday').textContent = displayDate(today);
   const scope = state.homeClass;
@@ -169,7 +169,12 @@ function renderHome() {
 function renderRecords() {
   if (!ACTIVITY_TYPES[state.view]) return;
   $('#teacherRecordsTitle').textContent = ACTIVITY_TYPES[state.view].plural;
+  const status = $('#teacherStatusFilter');
+  if (status && status.tagName === 'SELECT') status.value = state.status;
   $('#teacherNewActivity').hidden = state.view === 'exam';
+  if ($('#teacherNewActivity') && ACTIVITY_TYPES[state.view]) {
+    $('#teacherNewActivity').textContent = `+ ${ACTIVITY_TYPES[state.view].label}`;
+  }
   $('#teacherOnlineExamHint').hidden = state.view !== 'exam';
   const query = $('#teacherRecordSearch').value.trim().toLocaleLowerCase();
   const className = $('#teacherClassFilter').value;
@@ -681,21 +686,21 @@ $('#teacherRetry').addEventListener('click', reload);
 $('#teacherNewNotice')?.addEventListener('click', () => showNoticeEditor());
 $('#teacherNoticeClass')?.addEventListener('change', renderNotices);
 $('#teacherNewActivity').addEventListener('click', () => showEditor(state.view));
-['teacherRecordSearch', 'teacherClassFilter'].forEach(id => $('#' + id).addEventListener(id.includes('Search') ? 'input' : 'change', () => { state.recordLimit = 15; renderRecords(); }));
+['teacherRecordSearch', 'teacherClassFilter', 'teacherStatusFilter'].forEach(id => {
+  const node = $('#' + id); if (!node) return;
+  node.addEventListener(id.includes('Search') ? 'input' : 'change', () => {
+    if (id === 'teacherStatusFilter') state.status = node.value;
+    state.recordLimit = 15; renderRecords();
+  });
+});
 $('#teacherHomeClass').addEventListener('change', () => { state.homeClass = $('#teacherHomeClass').value; renderHome(); });
 /* Type tabs above the list: switch record type without going back to the nav. */
-$('.teacher-type-tabs').addEventListener('click', event => {
+$('.teacher-type-tabs')?.addEventListener('click', event => {
   const tab = event.target.closest('[data-type-tab]'); if (!tab) return;
   state.recordLimit = 15; setView(tab.dataset.typeTab);
 });
 $('#teacherRecordMore').addEventListener('click', () => { state.recordLimit += 15; renderRecords(); });
 ['teacherStudentSearch', 'teacherStudentClass'].forEach(id => $('#' + id).addEventListener(id.includes('Search') ? 'input' : 'change', renderStudents));
-$('#teacherStatusFilter').addEventListener('click', event => {
-  const button = event.target.closest('[data-status]'); if (!button) return;
-  state.status = button.dataset.status;
-  $$('#teacherStatusFilter button').forEach(el => { el.classList.toggle('active', el === button); el.setAttribute('aria-pressed', String(el === button)); });
-  state.recordLimit = 15; renderRecords();
-});
 document.addEventListener('click', event => {
   if (state.busy) return;
   const examTile = event.target.closest('[data-teacher-exam]');

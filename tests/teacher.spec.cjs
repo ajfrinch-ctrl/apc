@@ -107,7 +107,7 @@ test('suggestions, subject links, class/group scope, draft filter and escaped co
   await create(page, 'suggestion', 'অন্য শ্রেণির সাজেশন', { className: 'নবম শ্রেণি' });
   await create(page, 'suggestion', 'অন্য বিভাগের সাজেশন', { group: 'মানবিক' });
   await create(page, 'suggestion', 'খসড়া সাজেশন', { status: 'draft' });
-  await page.locator('[data-status=draft]').click(); await expect(page.locator('#teacherRecordList .teaching-card')).toHaveCount(1);
+  await page.locator('#teacherStatusFilter').selectOption('draft'); await expect(page.locator('#teacherRecordList .teaching-card')).toHaveCount(1);
   const student = await studentPage(context); await student.locator('[data-learning-filter=suggestion]').click();
   await expect(student.locator('#learningList .teaching-card')).toHaveCount(1); await expect(student.locator('#learningList img')).toHaveCount(0);
   await expect(student.locator('.teaching-resource')).toHaveAttribute('href', 'https://example.com/notes');
