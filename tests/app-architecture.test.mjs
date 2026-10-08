@@ -132,7 +132,7 @@ test('the ফি screen is read-only and reads the one finance store', async () 
   ctx.window.close();
 });
 
-test('Home keeps the five quick academic cards and the latest-notice preview', async () => {
+test('Home keeps the five quick academic cards and the Notice Board tile', async () => {
   const ctx = await loadPage('index.html');
   assert.deepEqual(ctx.$$('#studentServices .pay-tile-label').map(node => node.textContent.trim()),
     ['বাড়ির কাজ', 'সাজেশন', 'প্রশ্নব্যাংক', 'পরীক্ষা', 'ফলাফল', 'Notice Board']);
@@ -140,7 +140,8 @@ test('Home keeps the five quick academic cards and the latest-notice preview', a
     ['homework', 'suggestion', 'question-bank']);
   assert.deepEqual(ctx.$$('#studentServices [data-view]').map(node => node.dataset.view), ['exams', 'exams', 'notice-board']);
   assert.equal(ctx.$('#studentServices [data-exam-tab="results"]').dataset.view, 'exams');
-  assert.ok(ctx.$('#homeNoticeList'), 'Home previews the newest notices');
+  assert.equal(ctx.$('#homeNoticeList'), null, 'the bottom নতুন Notice preview is gone');
+  assert.ok(ctx.$('#studentServices [data-view="notice-board"]'), 'Notice Board stays on Home as a tile');
   assert.ok(ctx.$('#noticeBoardList'), 'the full Notice Board still owns the categorized list');
   ctx.window.close();
 });
