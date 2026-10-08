@@ -25,6 +25,11 @@ const {
   entriesOfLegacyAssignments,
   v2IdentityClaims
 } = require('./teacher-assignment-migration.js');
+const {
+  legacyStudentRows,
+  mobileProposals,
+  v2StudentRecord
+} = require('./v2-roster-migration.js');
 
 initializeApp();
 const auth = getAuth();
@@ -628,6 +633,75 @@ exports.adminProvisionV2Identities = onCall(async request => {
     unresolved: migration.unresolved,
     applied: applyAssignments
   };
+});
+
+/**
+ * Staged-migration roster step. Legacy roster rows live under
+ * `activePlusSync/v1/students/{recordId}` with local record ids and no link to
+ * any Firebase Auth account; V2 addresses a student's own paths by the claim
+ * `studentId` (=== Auth uid). Each legacy row must therefore be re-keyed under
+ * the matching account's uid by an explicit Admin decision — a wrong match is a
+ * privacy breach, so the callable only PROPOSES candidates by normalized
+ * mobile and never auto-links.
+ *
+ * • `{ preview: true }`: legacy rows with candidate accounts per row.
+ * • `{ studentId, uid }`: validates both sides, returns the proposed V2 row.
+ * • `{ studentId, uid, apply: true }`: additionally writes
+ *   `activePlusV2/students/{uid}` (additive; a row created by the new account
+ *   flow is never overwritten) and backfills the `studentId` claim. The legacy
+ *   bridge row is never modified or deleted.
+ */
+exports.adminMigrateStudentToV2 = onCall(async request => {
+  requireCaller(request, 'admin');
+  const preview = request.data?.preview === true;
+  const studentId = String(request.data?.studentId || '');
+  const uid = String(request.data?.uid || '');
+  const apply = request.data?.apply === true;
+  const database = getDatabase();
+  const legacySnapshot = await database.ref(`${BRIDGE_ROOT}/students`).get();
+  const legacyValue = legacySnapshot.val();
+
+  if (preview) {
+    const accountsSnapshot = await db.collection('users').where('role', '==', 'student').get();
+    const accounts = accountsSnapshot.docs.map(docSnap => docSnap.data());
+    return { ok: true, preview: true, proposals: mobileProposals(legacyValue, accounts) };
+  }
+
+  if (!safeQuestionKey(studentId) || !safeQuestionKey(uid)) {
+    throw new HttpsError('invalid-argument', 'studentId এবং uid যাচাই করুন।');
+  }
+  const rows = new Map(legacyStudentRows(legacyValue));
+  const legacyRow = rows.get(studentId);
+  if (!legacyRow) throw new HttpsError('not-found', 'এই লেগাসি শিক্ষার্থী রেকর্ড পাওয়া যায়নি।');
+  const profileSnapshot = await db.doc(`users/${uid}`).get();
+  const profile = profileSnapshot.exists ? profileSnapshot.data() : null;
+  const record = await auth.getUser(uid).catch(() => null);
+  if (!profile || !record || profile.role !== 'student') {
+    throw new HttpsError('failed-precondition', 'এই uid-এর যাচাইযোগ্য শিক্ষার্থী অ্যাকাউন্ট পাওয়া যায়নি।');
+  }
+  let migrationRecord;
+  try {
+    migrationRecord = v2StudentRecord(legacyRow, { uid, accountStatus: String(profile.status || 'pending') });
+  } catch (error) {
+    throw new HttpsError('failed-precondition', `মাইগ্রেশন রো তৈরি করা যায়নি: ${error.message}`);
+  }
+  if (!apply) return { ok: true, proposed: migrationRecord };
+
+  const targetRef = database.ref(`${V2_ROOT}/students/${uid}`);
+  const result = await targetRef.transaction(current => {
+    // Never overwrite a row the new account flow created; re-running the same
+    // confirmed migration is allowed (idempotent).
+    if (current && current.migratedFromLegacy !== true) return;
+    return migrationRecord;
+  }, undefined, false);
+  if (!result.committed) {
+    throw new HttpsError('failed-precondition', 'এই শিক্ষার্থীর রো আগে থেকেই নতুন অ্যাকাউন্ট ফ্লোতে তৈরি — ওভাররাইট করা হয়নি।');
+  }
+  const claims = record.customClaims || {};
+  if (claims.studentId !== uid) {
+    await auth.setCustomUserClaims(uid, { ...claims, ...v2IdentityClaims('student', uid) });
+  }
+  return { ok: true, applied: true, migrated: migrationRecord };
 });
 
 async function tokenEntries() {

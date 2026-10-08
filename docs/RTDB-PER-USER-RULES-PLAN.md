@@ -366,6 +366,11 @@ Done (client + functions, tested by `npm test`):
       (`buildTeacherAssignmentMigration`, `migrationForTeacher`) and the
       Admin-only retro-link callable `adminProvisionV2Identities`
       (dry-run preview by default; never modifies legacy bridge rows).
+- [x] Legacy roster → uid migration helper (`functions/v2-roster-migration.js`)
+      and the Admin-only callable `adminMigrateStudentToV2` (mobile-based
+      PROPOSALS only; applying a match is always an explicit decision; the
+      re-keyed row preserves the legacy record id as provenance and never
+      overwrites a row the new account flow created).
 
 ### Retro-link runbook (`adminProvisionV2Identities`)
 
@@ -392,9 +397,34 @@ The Admin SDK bypasses RTDB rules, so `applyAssignments` is safe before the v2
 rules deploy; the written rows are simply unreadable until cutover. Claims take
 effect on the account's next ID-token refresh (≤ 1 h).
 
+### Roster-migration runbook (`adminMigrateStudentToV2`)
+
+A wrong student↔account match is a privacy breach, so this callable only
+*proposes* matches by normalized mobile; the Admin confirms each one.
+
+    firebase functions:shell
+    > adminMigrateStudentToV2({ preview: true })
+    // → proposals: [{ studentId, name, className, mobile, candidates: [{ uid, username, status }] }]
+
+For each legacy row, pick the correct candidate account (create the account
+first via Staff Management if it does not exist), then validate and apply:
+
+    > adminMigrateStudentToV2({ studentId: 'STU-1', uid: 'uid-rahim' })
+    // → { proposed: {...} }   (validates both sides, writes nothing)
+    > adminMigrateStudentToV2({ studentId: 'STU-1', uid: 'uid-rahim', apply: true })
+
+On `apply` the callable writes `activePlusV2/students/{uid}` additively (the
+row's `id` becomes the uid; `legacyStudentId` keeps the old record id) and
+backfills the `studentId` claim. It refuses to overwrite a row created by the
+new account flow, and it never modifies the legacy `activePlusSync/v1/students`
+row. Rows whose account is still `pending` migrate as `pending` and stay out of
+the practice lane until the Manager approves them.
+
 Still required before cutover (owner-gated, in order):
 - [ ] Run `adminProvisionV2Identities` dry-run, review unresolved rows, then
       link each active Teacher (`applyAssignments: true`).
+- [ ] Run `adminMigrateStudentToV2` preview, confirm each student↔account match,
+      then apply.
 - [ ] Deploy Functions (`cd functions && npm run deploy`) after emulator tests.
 - [ ] Pass the emulator gate `npm run test:rtdb-rules` (needs Java + emulator).
 - [ ] Staging rehearsal with real accounts for every role, including negative
