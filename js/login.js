@@ -444,7 +444,7 @@ export function initLogin({ state, onAuthenticated }) {
 }
 
 const KANUNGOPARA = Object.freeze({ lat: 22.35803, lon: 92.12380 });
-const WEATHER_CACHE_KEY = 'activePlus.authWeather.v1';
+const WEATHER_CACHE_KEY = 'activePlus.authWeather.kanungopara.v1';
 
 function skyFromClock(date = new Date()) {
   const hour = date.getHours();
@@ -479,7 +479,7 @@ async function paintAuthWeather() {
     }
   } catch { /* ignore bad cache */ }
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${DHAKA.lat}&longitude=${DHAKA.lon}&current=weather_code,is_day,temperature_2m`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${KANUNGOPARA.lat}&longitude=${KANUNGOPARA.lon}&current=weather_code,is_day,temperature_2m`;
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!response.ok) return;
     const data = await response.json();

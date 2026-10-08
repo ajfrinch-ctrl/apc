@@ -812,6 +812,27 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 
 /* 13 ── Login and registration: a brand header and a clean form sheet ───── */
 .auth-screen { background: var(--color-bg); padding: 24px 16px calc(32px + var(--safe-bottom)); transition: background 600ms ease; }
+.auth-sky { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.auth-card { position: relative; z-index: 1; }
+.auth-orb { position: absolute; top: 28px; right: 18%; width: 72px; height: 72px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8d6, #ffd36a 55%, #f4b942); box-shadow: 0 0 40px 12px rgba(255, 210, 90, .45); }
+.auth-cloud { position: absolute; top: 56px; height: 28px; width: 86px; border-radius: 40px; background: rgba(255,255,255,.72); filter: blur(.2px); }
+.auth-cloud::before, .auth-cloud::after { content: ''; position: absolute; background: inherit; border-radius: 50%; }
+.auth-cloud::before { width: 36px; height: 36px; left: 14px; top: -16px; }
+.auth-cloud::after { width: 48px; height: 48px; right: 10px; top: -22px; }
+.auth-cloud.c1 { left: 8%; animation: apc-cloud-drift 18s linear infinite; }
+.auth-cloud.c2 { left: 42%; top: 88px; width: 110px; opacity: .85; animation: apc-cloud-drift 24s linear infinite reverse; }
+.auth-cloud.c3 { right: 6%; left: auto; top: 40px; width: 70px; opacity: .6; animation: apc-cloud-drift 20s linear infinite; }
+@keyframes apc-cloud-drift { from { transform: translateX(0); } to { transform: translateX(28px); } }
+.auth-screen[data-sky=clear-night] .auth-orb,
+.auth-screen[data-sky=storm] .auth-orb { background: radial-gradient(circle at 35% 30%, #f4f7ff, #c9d4ea 50%, #8ea0c4); box-shadow: 0 0 28px 8px rgba(180, 200, 255, .35); }
+.auth-screen[data-sky=dusk] .auth-orb { background: radial-gradient(circle at 35% 30%, #ffe7c2, #ff9b62 60%, #e06a3a); }
+.auth-screen[data-sky=rain] .auth-cloud,
+.auth-screen[data-sky=storm] .auth-cloud,
+.auth-screen[data-sky=cloudy] .auth-cloud { background: rgba(210, 218, 228, .9); }
+.auth-screen[data-sky=heat] .auth-orb { box-shadow: 0 0 56px 18px rgba(255, 160, 40, .55); }
+@media (prefers-reduced-motion: reduce) {
+  .auth-cloud { animation: none; }
+}
 /* Unified wallet look: a clean light page, the brand centred on the sheet and a
    soft blue wash at the foot (the mockup's wave), not a hero band. */
 .auth-screen::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 240px;
