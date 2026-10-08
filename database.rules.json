@@ -7,18 +7,18 @@
         "staffAccounts": {
           ".read": "auth != null",
           "$role": {
-            ".write": "auth != null && newData.exists() && ($role === 'admin' || $role === 'manager' || $role === 'teacher' || $role === 'payment')",
+            ".write": "auth != null && ($role === 'admin' || $role === 'manager' || $role === 'teacher' || $role === 'payment')",
             ".validate": "newData.hasChildren(['username', 'password']) && newData.child('username').isString()"
           }
         },
         "staffDirectory": {
           ".read": "auth != null",
-          ".write": "auth != null && newData.exists()",
+          ".write": "auth != null",
           ".validate": "newData.hasChild('version')"
         },
         "usernames": {
           ".read": "auth != null",
-          ".write": "auth != null && newData.exists()"
+          ".write": "auth != null"
         },
         "studentAccount": {
           ".read": "auth != null"
@@ -26,19 +26,21 @@
         "studentAccounts": {
           ".read": "auth != null",
           "$loginKey": {
-            ".write": "auth != null && newData.exists()",
+            ".write": "auth != null",
             ".validate": "newData.hasChild('pinHash')"
           }
         },
         "examDb": {
           ".read": "auth != null",
           "exams": {
+            ".write": "auth != null",
             "$examId": {
               ".write": "auth != null",
               ".validate": "newData.child('id').val() === $examId && newData.child('teacherId').isString() && newData.child('status').isString()"
             }
           },
           "attempts": {
+            ".write": "auth != null",
             "$attemptId": {
               ".write": "auth != null",
               ".validate": "newData.child('id').val() === $attemptId && newData.child('examId').isString() && newData.child('studentId').isString()"
@@ -48,7 +50,7 @@
         "system": {
           ".read": "auth != null",
           "adminInitialized": {
-            ".write": "auth != null && newData.isBoolean()",
+            ".write": "auth != null && (!newData.exists() || newData.isBoolean())",
             ".validate": "newData.isBoolean()"
           },
           "connectivityProbe": {

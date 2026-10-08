@@ -61,6 +61,17 @@ function claimFirstAdminAccountOnce(...args) {
   return adminClaimFlight;
 }
 
+/* The factory reset is one destructive sweep: a double click must never start
+   a second wipe while the first one is still running. */
+let resetFlight = null;
+function resetCloudDatabaseOnce(...args) {
+  if (resetFlight) return resetFlight;
+  resetFlight = implementation()
+    .then(m => m.resetCloudDatabase(...args))
+    .finally(() => { resetFlight = null; });
+  return resetFlight;
+}
+
 export const SyncService = Object.freeze({
   start: (...args) => implementation().then(m => m.startRealtimeSync(...args)),
   syncNow: (...args) => implementation().then(m => m.startRealtimeSync(...args)),
@@ -69,6 +80,7 @@ export const SyncService = Object.freeze({
   firstAdminExistsOnline: (...args) => implementation().then(m => m.firstAdminExistsOnline(...args)),
   adminInitializationState: (...args) => adminInitializationStateOnce(...args),
   claimFirstAdminAccount: (...args) => claimFirstAdminAccountOnce(...args),
+  resetCloudDatabase: (...args) => resetCloudDatabaseOnce(...args),
   hydrateUserIdentifiers: (...args) => hydrateUserIdentifiersOnce(...args),
   usernameTakenOnline: (...args) => implementation().then(m => m.usernameTakenOnline(...args)),
   getStatus: () => ({ ...document.documentElement.dataset })
@@ -80,4 +92,5 @@ export const hydrateStaffAccounts = (...args) => hydrateStaffAccountsOnce(...arg
 export const firstAdminExistsOnline = (...args) => implementation().then(m => m.firstAdminExistsOnline(...args));
 export const adminInitializationState = (...args) => adminInitializationStateOnce(...args);
 export const claimFirstAdminAccount = (...args) => claimFirstAdminAccountOnce(...args);
+export const resetCloudDatabase = (...args) => resetCloudDatabaseOnce(...args);
 export const hydrateUserIdentifiers = (...args) => hydrateUserIdentifiersOnce(...args);

@@ -26,7 +26,7 @@
   <!-- Icon geometry + staff management: loaded last so one fixed container
        per icon is the final word (no overlap, no double painting). -->
 
-  <link rel="stylesheet" href="css/design-system.css?v=184">
+  <link rel="stylesheet" href="css/design-system.css?v=185">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -122,9 +122,9 @@
            unique, permanent and never mixed with a Student ID. -->
       <section class="admin-view" data-view-panel="staff" aria-labelledby="staffTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Staff Management</p><h1 id="staffTitle">স্টাফ ম্যানেজমেন্ট</h1></div>
+          <div><h1 id="staffTitle">স্টাফ ম্যানেজমেন্ট</h1></div>
         </div>
-        <p class="finance-hint">নিচের সার্চ বক্সে Staff ID, নাম, ইউজারনেম, মোবাইল বা রোল লিখে খুঁজুন — খালি রাখলে সব স্টাফ দেখা যাবে।</p>
+        
         <p class="finance-error" id="staffReadonlyNote" role="status" hidden>শুধুমাত্র Admin স্টাফ অ্যাকাউন্ট তৈরি, সম্পাদনা বা মুছতে পারবেন।</p>
         <div class="staff-toolbar">
           <label class="staff-search" for="staffSearch">
@@ -156,9 +156,9 @@
       <!-- Roles & Permissions: read-only projection of the existing role tree -->
       <section class="admin-view" data-view-panel="system" aria-labelledby="systemTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">System control</p><h1 id="systemTitle">সিস্টেম</h1></div>
+          <div><h1 id="systemTitle">সিস্টেম</h1></div>
         </div>
-        <p class="finance-hint">Admin-এর সিস্টেম নিয়ন্ত্রণ — প্রতিটি কার্ড আগের screen-ই খোলে, কোনো কাজের দ্বিতীয় কপি নেই। দৈনন্দিন শিক্ষার্থী, একাডেমিক ও হিসাবের কাজ এখানে নেই; তা Manager/Teacher/Cash Counter-এর নিজের প্যানেলে।</p>
+        
         <nav class="admin-more-menu admin-card" id="adminSystemMenu" aria-label="সিস্টেম division">
           <button class="admin-more-item admin-system-item" type="button" data-admin-view="roles" data-admin-cap="roles.manage">
             <span class="admin-more-icon" aria-hidden="true"></span>
@@ -190,24 +190,24 @@
 
       <section class="admin-view" data-view-panel="migration" aria-labelledby="migrationTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="system" aria-label="ফিরে যান"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Staged cutover</p><h1 id="migrationTitle">ভি-টু সিংক মাইগ্রেশন</h1></div>
+          <div><h1 id="migrationTitle">ভি-টু সিংক মাইগ্রেশন</h1></div>
         </div>
-        <p class="finance-hint">লাইভ রুলস বদলানোর আগে পুরনো ডেটাকে সুরক্ষিত ক্লেম-ভিত্তিক কাঠামোর সঙ্গে লিংক করার কেন্দ্র। প্রতিটি ম্যাচ আপনার নিশ্চিতকরণ ছাড়া প্রয়োগ হয় না; লেগাসি ডেটা কখনো মুছে না।</p>
+        
         <div id="adminV2Migration"></div>
       </section>
 
       <section class="admin-view" data-view-panel="roles" aria-labelledby="rolesTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="system" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Roles &amp; Permissions</p><h1 id="rolesTitle">রোল ও অনুমতি</h1></div>
+          <div><h1 id="rolesTitle">রোল ও অনুমতি</h1></div>
         </div>
-        <p class="finance-hint">Admin → Manager → Teacher → Cash Counter → Student — এই রোল কাঠামো অপরিবর্তিত। নিচে দেখানো হলো কোন রোল কোন কাজ করতে পারে। নতুন স্টাফ তৈরির সময় রোল অনুযায়ী অনুমতি স্বয়ংক্রিয়ভাবে নির্ধারিত হয়; রোলের বাইরে কোনো অনুমতি দেওয়া হয় না।</p>
+        
         <div class="app-control-grid" id="rolesMatrix"></div>
       </section>
 
       <!-- Student Management / Student Overview -->
       <section class="admin-view" data-view-panel="students" aria-labelledby="studentsTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Student Management</p><h1 id="studentsTitle">শিক্ষার্থী ব্যবস্থাপনা</h1></div>
+          <div><h1 id="studentsTitle">শিক্ষার্থী ব্যবস্থাপনা</h1></div>
         </div>
         <div class="student-toolbar">
           <div class="student-search-box">
@@ -254,14 +254,14 @@
       <!-- Report Center: every downloadable report lives here. -->
       <section class="admin-view" data-view-panel="reports" aria-labelledby="reportsTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Report Center</p><h1 id="reportsTitle">রিপোর্ট সেন্টার</h1></div>
+          <div><h1 id="reportsTitle">রিপোর্ট সেন্টার</h1></div>
         </div>
-        <p class="finance-hint reports-intro-hint">ক্যাটাগরি থেকে রিপোর্ট বেছে নিন, প্রয়োজনীয় ফিল্টার দিন, তারপর রিপোর্ট তৈরি করে প্রিভিউ দেখুন — একই রিপোর্ট থেকে PDF ও CSV ডাউনলোড করা যায়।</p>
+        
 
         <!-- Reports Module: type → filters → preview → PDF, on every role. -->
         <section class="rp-section" aria-labelledby="adminReportsTitle">
           <div class="page-intro">
-            <div><p class="eyebrow">Report builder</p><h2 id="adminReportsTitle">রিপোর্ট তৈরি, প্রিভিউ ও ডাউনলোড</h2></div>
+            <div><h2 id="adminReportsTitle">রিপোর্ট তৈরি, প্রিভিউ ও ডাউনলোড</h2></div>
           </div>
           <div id="adminReports" class="rp-mount"></div>
         </section>
@@ -271,7 +271,7 @@
       <!-- Data Management -->
       <section class="admin-view" data-view-panel="data" aria-labelledby="dataTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Data Management</p><h1 id="dataTitle">ডেটা ম্যানেজমেন্ট</h1></div>
+          <div><h1 id="dataTitle">ডেটা ম্যানেজমেন্ট</h1></div>
         </div>
         <nav class="admin-more-menu admin-card" id="adminDataMenu" aria-label="ডেটা division">
           <button class="admin-more-item admin-system-item" type="button" data-admin-view="backup" data-admin-cap="backup.manage">
@@ -282,7 +282,7 @@
         </nav>
         <article class="admin-card">
           <header class="admin-card-head">
-            <div><p class="eyebrow">Collections</p><h2>সংরক্ষিত ডেটা ও পরিসংখ্যান</h2></div>
+            <div><h2>সংরক্ষিত ডেটা ও পরিসংখ্যান</h2></div>
             <button class="mini-btn" type="button" id="dataRefreshButton">রিফ্রেশ</button>
           </header>
           <div class="data-collection-list" id="dataCollectionList"></div>
@@ -290,7 +290,7 @@
         </article>
         <article class="admin-card">
           <header class="admin-card-head">
-            <div><p class="eyebrow">Danger Zone</p><h2>নির্বাচিত ডেটা মুছুন</h2></div>
+            <div><h2>নির্বাচিত ডেটা মুছুন</h2></div>
           </header>
           <div class="staff-field">
             <label for="dataClearSelect">সংগ্রহ নির্বাচন করুন</label>
@@ -301,24 +301,24 @@
         </article>
         <article class="admin-card">
           <header class="admin-card-head">
-            <div><p class="eyebrow">Reset Application</p><h2>সব লোকাল ডেটা রিসেট</h2></div>
+            <div><h2>সম্পূর্ণ ডাটাবেজ রিসেট</h2></div>
           </header>
-          <p class="finance-error">সতর্কতা: এটি এই ডিভাইসের সমস্ত লোকাল স্টোরেজ ও সংরক্ষিত ডেটা স্থায়ীভাবে মুছে ফেলবে। সাধারণ লগআউট বা অ্যাপ আপডেটের সাথে এটি সম্পূর্ণ পৃথক।</p>
-          <button class="admin-btn danger" type="button" id="resetAllLocalDataButton">Reset All Local Data</button>
+          <p class="finance-error">সতর্কতা: ক্লাউড ও এই ডিভাইসের সব ডেটা স্থায়ীভাবে মুছে যাবে। রিসেটের পর লগইন পেজ থেকে নতুন এডমিন অ্যাকাউন্ট তৈরি করতে হবে।</p>
+          <button class="admin-btn danger" type="button" id="factoryResetButton">সম্পূর্ণ ডাটাবেজ রিসেট করুন</button>
         </article>
       </section>
 
       <!-- Backup & Restore -->
       <section class="admin-view" data-view-panel="backup" aria-labelledby="backupTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="data" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Backup &amp; Restore</p><h1 id="backupTitle">ব্যাকআপ ও রিস্টোর</h1></div>
+          <div><h1 id="backupTitle">ব্যাকআপ ও রিস্টোর</h1></div>
         </div>
         <article class="admin-card">
           <header class="admin-card-head">
-            <div><p class="eyebrow">Export</p><h2>সম্পূর্ণ ব্যাকআপ ডাউনলোড</h2></div>
+            <div><h2>সম্পূর্ণ ব্যাকআপ ডাউনলোড</h2></div>
             <span class="badge badge-approved" id="backupLastBadge">—</span>
           </header>
-          <p class="finance-hint">শিক্ষার্থী, লেনদেন, রুটিন, নোটিশ, পরীক্ষা, সেটিংস ও স্টাফ ডিরেক্টরি — সবকিছু একটি JSON ফাইলে সংরক্ষিত হয়। পাসওয়ার্ড হ্যাশ আকারে থাকে, সাধারণ পাসওয়ার্ড কখনো ব্যাকআপে লেখা হয় না।</p>
+          
           <div class="modal-actions">
             <button class="admin-btn primary" type="button" id="backupExportButton">
               <span class="apc-icon" aria-hidden="true"></span><span>ব্যাকআপ ডাউনলোড</span>
@@ -327,7 +327,7 @@
         </article>
         <article class="admin-card">
           <header class="admin-card-head">
-            <div><p class="eyebrow">Restore</p><h2>ব্যাকআপ ফাইল থেকে ফিরিয়ে আনুন</h2></div>
+            <div><h2>ব্যাকআপ ফাইল থেকে ফিরিয়ে আনুন</h2></div>
           </header>
           <div class="staff-field">
             <label for="backupFileInput">ব্যাকআপ ফাইল (.json)</label>
@@ -343,7 +343,7 @@
       <!-- Security -->
       <section class="admin-view" data-view-panel="security" aria-labelledby="securityTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="system" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Security</p><h1 id="securityTitle">সিকিউরিটি</h1></div>
+          <div><h1 id="securityTitle">সিকিউরিটি</h1></div>
         </div>
         <div class="app-control-grid" id="securityPanels"></div>
       </section>
@@ -351,7 +351,7 @@
       <!-- Academic Setup: the single source of truth for classes and subjects -->
       <section class="admin-view" data-view-panel="academics" aria-labelledby="academicSetupTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="system" aria-label="ফিরে যান"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Academic Setup</p><h1 id="academicSetupTitle">ক্লাসের বিষয় ঠিক করুন</h1><p>এখানে ঠিক করা তালিকা থেকেই পরীক্ষা, রুটিন, শিক্ষক বরাদ্দ, নোটিশ ও পড়াশোনার বিষয় আসবে।</p></div>
+          <div><h1 id="academicSetupTitle">ক্লাসের বিষয় ঠিক করুন</h1></div>
         </div>
         <div id="adminAcademics"></div>
       </section>
@@ -359,12 +359,12 @@
       <!-- System Settings -->
       <section class="admin-view" data-view-panel="settings" aria-labelledby="appManagementTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="system" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">System Settings</p><h1 id="appManagementTitle">সিস্টেম সেটিংস</h1></div>
+          <div><h1 id="appManagementTitle">সিস্টেম সেটিংস</h1></div>
         </div>
 
         <div class="app-control-grid">
           <article class="admin-card">
-            <header class="admin-card-head"><div><p class="eyebrow">Branding &amp; Contacts</p><h2>ব্র্যান্ডিং ও যোগাযোগ তথ্য</h2></div></header>
+            <header class="admin-card-head"><div><h2>ব্র্যান্ডিং ও যোগাযোগ তথ্য</h2></div></header>
             <div class="app-setting-group">
               <div class="app-field"><label for="cfgTagline">অ্যাপ ট্যাগলাইন / মূল স্লোগান</label><input type="text" id="cfgTagline"></div>
               <div class="app-field-row">
@@ -378,13 +378,13 @@
             </div>
           </article>
           <article class="admin-card">
-            <header class="admin-card-head"><div><p class="eyebrow">Class Management</p><h2>চলমান ক্লাস</h2></div><span class="classes-count" id="classesCount"></span></header>
+            <header class="admin-card-head"><div><h2>চলমান ক্লাস</h2></div><span class="classes-count" id="classesCount"></span></header>
             <div class="class-list" id="classList"></div>
           </article>
           <article class="admin-card">
-            <header class="admin-card-head"><div><p class="eyebrow">Urgent Announcement</p><h2>জরুরি ঘোষণা (নোটিফিকেশন)</h2></div></header>
+            <header class="admin-card-head"><div><h2>জরুরি ঘোষণা (নোটিফিকেশন)</h2></div></header>
             <div class="app-setting-group">
-              <p class="finance-hint">চালু করলে এই লেখাটি সাথে সাথে সব ডিভাইসে নোটিফিকেশন ও নোটিশ তালিকার উপরে দেখা যাবে। যেকোনো সময় বন্ধ করা যাবে।</p>
+              
               <label class="admin-check"><input type="checkbox" id="cfgPushNotifications"> সব ডিভাইসে নোটিফিকেশন চালু রাখুন</label>
               <label class="admin-check"><input type="checkbox" id="cfgBroadcastAlert"> জরুরি ঘোষণা চালু রাখুন</label>
               <div class="app-field"><label for="cfgBroadcastMessage">ঘোষণার লেখা</label><textarea id="cfgBroadcastMessage" rows="3" maxlength="500" placeholder="যেমন: আজ বিকেল ৩টায় ক্লাস বন্ধ থাকবে।"></textarea></div>
@@ -393,9 +393,9 @@
             </div>
           </article>
           <article class="admin-card">
-            <header class="admin-card-head"><div><p class="eyebrow">Maintenance</p><h2>রক্ষণাবেক্ষণ মোড</h2></div></header>
+            <header class="admin-card-head"><div><h2>রক্ষণাবেক্ষণ মোড</h2></div></header>
             <div class="app-setting-group">
-              <p class="finance-hint">চালু করলে শিক্ষার্থী অ্যাপে লগইন স্ক্রিন ও হোমের উপরে একটি সতর্কতা ব্যানার দেখা যাবে। কাজ শেষ হলে টিক চিহ্ন সরিয়ে <strong>সংরক্ষণ</strong> চাপুন — ব্যানার সাথে সাথে সব ডিভাইস থেকে সরে যাবে।</p>
+              
               <label class="admin-check"><input type="checkbox" id="cfgMaintenanceMode"> রক্ষণাবেক্ষণ মোড চালু রাখুন</label>
               <div class="app-field"><label for="cfgMaintenanceMessage">বার্তা (ঐচ্ছিক)</label><textarea id="cfgMaintenanceMessage" rows="3" maxlength="500" placeholder="সম্মানিত শিক্ষার্থী, অ্যাপটিতে বর্তমানে সিস্টেম আপডেট চলছে। সাময়িক অসুবিধার জন্য আন্তরিকভাবে দুঃখিত।"></textarea></div>
               <button class="admin-btn primary" type="button" id="btnSaveMaintenance">সংরক্ষণ করুন</button>
@@ -403,9 +403,9 @@
             </div>
           </article>
           <article class="admin-card">
-            <header class="admin-card-head"><div><p class="eyebrow">Save</p><h2>সংরক্ষণ</h2></div></header>
+            <header class="admin-card-head"><div><h2>সংরক্ষণ</h2></div></header>
             <div class="app-setting-group">
-              <p class="finance-hint">ব্র্যান্ডিং তথ্য সংরক্ষণ করুন।</p>
+              
               <button class="admin-btn primary" type="button" id="btnSaveAppSettings">সেটিংস সংরক্ষণ করুন</button>
             </div>
           </article>
@@ -415,17 +415,17 @@
       <!-- Admin Profile -->
       <section class="admin-view" data-view-panel="profile" aria-labelledby="adminProfileTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
-          <div><p class="eyebrow">Admin Profile</p><h1 id="adminProfileTitle">আমার প্রোফাইল</h1></div>
+          <div><h1 id="adminProfileTitle">আমার প্রোফাইল</h1></div>
         </div>
-        <p class="finance-hint">Admin-এর নিজের Settings — অ্যাকাউন্ট, নোটিফিকেশন, অ্যাপ, নিরাপত্তা ও ডেটা। সিস্টেম-স্তরের নিয়ন্ত্রণ (roles, security policy, app settings, backup) সিস্টেম ও ডেটা seat-এ থাকে।</p>
+        
         <div class="settings-hub" data-settings-hub="admin">
           <div class="profile-section" data-settings-group="account">
-            <p class="eyebrow">অ্যাকাউন্ট</p>
+            
             <article class="admin-card" id="adminProfileCard" data-settings-row="profile" aria-live="polite"></article>
-            <article class="admin-card"><h2>সেশন</h2><p class="finance-hint">এই ডিভাইসে Admin-এর সেশন শেষ করুন। সেশন শেষ হলে প্যানেল লক হয় এবং লগইন পেইজ খোলে।</p><button class="admin-btn ghost" type="button" data-settings-row="logout" id="adminAccountLogout"><span class="settings-icon danger" aria-hidden="true"></span> লগআউট</button></article>
+            <article class="admin-card"><h2>সেশন</h2><button class="admin-btn ghost" type="button" data-settings-row="logout" id="adminAccountLogout"><span class="settings-icon danger" aria-hidden="true"></span> লগআউট</button></article>
             <article class="admin-card">
           <header class="admin-card-head">
-            <div><p class="eyebrow">Profile</p><h2>আমার তথ্য হালনাগাদ</h2></div>
+            <div><h2>আমার তথ্য হালনাগাদ</h2></div>
           </header>
           <form id="adminProfileForm" class="staff-form" novalidate autocomplete="off">
             <div class="staff-form-grid">
@@ -453,7 +453,7 @@
         </article>
             <article class="admin-card">
           <header class="admin-card-head">
-            <div><p class="eyebrow">Password</p><h2>নিজের পাসওয়ার্ড বদল</h2></div>
+            <div><h2>নিজের পাসওয়ার্ড বদল</h2></div>
           </header>
           <form id="adminPasswordForm" data-settings-row="password" class="staff-form" novalidate autocomplete="off">
             <div class="staff-form-grid">
@@ -478,7 +478,7 @@
           </div>
           <div class="profile-section" data-settings-group="notification"><div id="notificationSettings" class="notification-settings-mount"></div></div>
           <div class="profile-section" data-settings-group="app">
-            <p class="eyebrow">অ্যাপ</p>
+            
             <div class="settings-list"><article class="admin-card theme-card"><label class="settings-toggle theme-switch"><span class="settings-icon purple theme-switch-icon" aria-hidden="true"><svg class="icon-sun apc-glyph-icon" data-icon="sun" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></svg><svg class="icon-moon apc-glyph-icon" data-icon="moon" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.5 14.6a9 9 0 0 1-11.1-11A9 9 0 1 0 20.5 14.6Z"/></svg></span><span class="settings-copy"><strong>গাঢ় থিম</strong><small>AMOLED কালো — চোখের আরাম ও ব্যাটারি সাশ্রয়</small></span><span class="toggle-switch"><input type="checkbox" id="darkModeToggle"><i></i></span></label></article></div>
           </div>
           <div class="profile-section" data-settings-group="security"></div>

@@ -997,6 +997,74 @@ export async function claimFirstAdminAccount(record) {
   }
 }
 
+/* ---- Factory reset ---------------------------------------------------------
+   The Admin panel's «সম্পূর্ণ ডাটাবেজ রিসেট» (docs/FACTORY-RESET.md) returns the
+   institution's database to a genuine fresh start, so the login screen offers
+   the first-use Admin Account setup again. The rules refuse one big wipe of
+   the bridge, so every node is removed individually. Push-token registrations
+   are write-only and cannot be enumerated; orphaned tokens are harmless (FCM
+   deliveries to them simply fail) and are left in place. */
+
+/* Same set as the rules generator's record collections
+   (tools/rtdb-rules/build-interim-rules.mjs): every collection mirrored at
+   the collection level, except `exams`, which travels through the examDb
+   mirror. */
+const RESET_COLLECTIONS = Object.freeze([...SYNCABLE.filter(name => name !== 'exams'), 'teacherAssignments']);
+
+/**
+ * Delete everything the institution owns under the v1 bridge.
+ *
+ * Resolves to
+ *   { ok: true,  cleared: [path…], failed: [] }
+ *   { ok: false, reason: 'offline' | 'reset-failed', … }
+ *   { ok: false, failed: [{ path, reason }…] }  — partial wipe; the caller
+ *                                                  must keep local data intact
+ */
+export async function resetCloudDatabase() {
+  if (!navigator.onLine) return { ok: false, reason: 'offline' };
+  const cleared = [];
+  const failed = [];
+  // No listener may stay attached while the database is emptied: an empty
+  // snapshot would be merged back into this device, and an outbox retry could
+  // re-push a local record mid-wipe.
+  stopRealtimeSync();
+  try {
+    await ensureCloudAuth();
+    const db = getDatabase(firebaseApp);
+    const drop = async path => {
+      try {
+        await set(ref(db, path), null);
+        cleared.push(path);
+      } catch (error) {
+        failed.push({ path, reason: error?.code || error?.message || 'write-failed' });
+      }
+    };
+    for (const name of RESET_COLLECTIONS) await drop(`${DB_ROOT}/${name}`);
+    await drop(`${EXAMDB_ROOT}/exams`);
+    await drop(`${EXAMDB_ROOT}/attempts`);
+    await drop(USERNAMES_ROOT);
+    await drop(DIRECTORY_ROOT);
+    /* Student login records: the rules allow deletion per login key, not of
+       the parent — enumerate, then remove one by one. */
+    try {
+      const snapshot = await get(ref(db, STUDENTS_ROOT));
+      const children = snapshot.exists() ? Object.keys(snapshot.val() || {}) : [];
+      for (const key of children) await drop(`${STUDENTS_ROOT}/${key}`);
+    } catch (error) {
+      failed.push({ path: STUDENTS_ROOT, reason: error?.code || error?.message || 'read-failed' });
+    }
+    for (const role of Object.keys(STAFF_ACCOUNTS)) await drop(`${STAFF_ROOT}/${role}`);
+    // The marker goes last: while the Admin record still exists the system
+    // still counts as initialized, so no device misreads the gap in between.
+    await drop(`${SYSTEM_ROOT}/adminInitialized`);
+    if (failed.length) return { ok: false, cleared, failed };
+    return { ok: true, cleared, failed };
+  } catch (error) {
+    syncError(error);
+    return { ok: false, reason: 'reset-failed', error, cleared, failed };
+  }
+}
+
 export async function hydrateStaffAccounts({ preserveLocalAdmin = false } = {}) {
   if (!navigator.onLine) return { ok: false, reason: 'offline' };
   try {
