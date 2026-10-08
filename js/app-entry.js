@@ -23,8 +23,20 @@
     event.stopImmediatePropagation();
     message(failed ? 'লগইন লোড হয়নি। নিচের আবার চেষ্টা করুন বাটন চাপুন।' : 'লগইন প্রস্তুত হচ্ছে — একটু পরে আবার চেষ্টা করুন।');
   }, true);
+  function panelReady() {
+    if (document.getElementById('appEntryError') && document.querySelector('.manager-shell:not([hidden]), .admin-shell:not([hidden]), .app-shell:not([hidden]), .pay-shell:not([hidden]), .teacher-shell:not([hidden])')) return true;
+    if (document.getElementById('apcPanelLock')) return true;
+    if (document.querySelector('#loginForm')?.dataset.loginReady === 'true') return true;
+    if (document.getElementById('managerShell')?.hidden === false) return true;
+    return false;
+  }
   function showFailure() {
     clearTimeout(timer);
+    if (panelReady()) {
+      document.getElementById('appEntryError')?.remove();
+      failed = false;
+      return;
+    }
     failed = true;
     document.querySelector('.launch-screen')?.remove();
     const loginButton = document.querySelector('#loginForm [type=submit]');
@@ -57,24 +69,23 @@
     (document.getElementById('authScreen') || document.body).append(panel);
   }
   function start() {
-    timer = setTimeout(showFailure, 12000);
     const file = entry.replace('./', '');
-    let el = document.querySelector(`script[type="module"][src*="${file}"]`);
-    if (!el) {
-      el = document.createElement('script');
-      el.type = 'module';
-      el.src = moduleUrl;
-      document.head.append(el);
+    const existing = document.querySelector(`script[type="module"][src*="${file}"]`);
+    if (existing) {
+      existing.addEventListener('error', showFailure);
+      return;
     }
-    el.addEventListener('error', () => {
-      console.warn('[Active Plus] entry module unavailable');
-      showFailure();
-    });
+    timer = setTimeout(showFailure, 12000);
+    const el = document.createElement('script');
+    el.type = 'module';
+    el.src = moduleUrl;
+    el.addEventListener('error', showFailure);
     el.addEventListener('load', () => {
       clearTimeout(timer);
       document.getElementById('appEntryError')?.remove();
       failed = false;
     });
+    document.head.append(el);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true});
   else start();

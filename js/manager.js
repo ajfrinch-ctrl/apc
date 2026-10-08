@@ -849,6 +849,7 @@ async function enterManager() {
     return;
   }
   $('#managerBootLink')?.remove();
+  document.getElementById('appEntryError')?.remove();
   $('#managerShell').hidden = false;
   ensureExamWorkspace();
   // A refresh (or a shared link) reopens the page that was open, when it is a
