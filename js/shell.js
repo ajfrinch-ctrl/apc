@@ -65,19 +65,51 @@ export function showAuthScreen() {
    the পরীক্ষা section, so #results is kept only as an inbound alias
    (docs/APP-ARCHITECTURE.md §2–§3). Browser and system Back walk the visited
    views; refresh and shared links reopen the exact view (hash router + back). */
-const VIEW_ROUTES = Object.freeze(['home', 'routine', 'courses', 'exams', 'results', 'profile', 'my-profile', 'settings', 'student-fee', 'reports', 'notification-settings', 'notice-board']);
+const VIEW_ROUTES = Object.freeze([
+  'home', 'routine', 'routine-day', 'courses', 'my-courses', 'homework', 'suggestion', 'question-bank',
+  'materials', 'model-test', 'study-practice', 'study-results', 'study-other',
+  'exams', 'exam-upcoming', 'exam-live', 'exam-done', 'exam-results', 'exam-practice', 'results',
+  'profile', 'my-profile', 'settings', 'student-fee', 'reports', 'notification-settings', 'notice-board'
+]);
 /* Views whose id does not follow the `<route>View` rule. */
 const VIEW_ID_OVERRIDES = Object.freeze({
   'notification-settings': 'notificationSettingsView',
   'my-profile': 'myProfileView',
-  'student-fee': 'studentFeeView'
+  'student-fee': 'studentFeeView',
+  'my-courses': 'myCoursesView',
+  'question-bank': 'questionBankView',
+  'model-test': 'modelTestView',
+  'study-practice': 'studyPracticeView',
+  'study-results': 'studyResultsView',
+  'study-other': 'studyOtherView',
+  'exam-upcoming': 'examUpcomingView',
+  'exam-live': 'examLiveView',
+  'exam-done': 'examDoneView',
+  'exam-results': 'examResultsView',
+  'exam-practice': 'examPracticeView',
+  'routine-day': 'routineDayView'
 });
 /* Old/bookmarked names that now live inside another section. */
-const VIEW_ALIASES = Object.freeze({ results: 'exams' });
+const VIEW_ALIASES = Object.freeze({ results: 'exam-results' });
 /* Which bottom-bar item owns a view that is not itself a bottom-bar item. */
 const NAV_PARENTS = Object.freeze({
   exams: 'exams',
   results: 'exams',
+  'exam-upcoming': 'exams',
+  'exam-live': 'exams',
+  'exam-done': 'exams',
+  'exam-results': 'exams',
+  'exam-practice': 'exams',
+  'my-courses': 'courses',
+  homework: 'courses',
+  suggestion: 'courses',
+  'question-bank': 'courses',
+  materials: 'courses',
+  'model-test': 'courses',
+  'study-practice': 'courses',
+  'study-results': 'courses',
+  'study-other': 'courses',
+  'routine-day': 'routine',
   reports: 'profile',
   'notification-settings': 'profile',
   'my-profile': 'profile',
@@ -121,4 +153,5 @@ export function setView(viewName, { history: historyMode = 'push' } = {}) {
   });
   scrollToTop();
   syncViewHash(name, historyMode);
+  window.dispatchEvent(new CustomEvent('apc-view-change', { detail: { view: name } }));
 }

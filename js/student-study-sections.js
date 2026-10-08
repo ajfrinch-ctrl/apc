@@ -11,6 +11,7 @@
    The teaching board is a single DOM instance that is moved into the open
    section's slot, never duplicated. */
 import { toBanglaNumber as bn } from './ui.js';
+import { setView } from './shell.js';
 import { classByName, subjectsForClass, listChapters } from './academics.js';
 import { listCourseContent, typeOf as courseTypeOf } from './course-content.js';
 import { listQuestionsForStudent, questionRowsFromPastExams, QUESTION_TYPES } from './question-bank.js';
@@ -24,6 +25,11 @@ const SELECTORS = {
   materials: { subject: '#studyMaterialSubject', chapter: '#studyMaterialChapter', list: '#studyMaterialsList', count: '#studyMaterialsCount', error: '#studyMaterialsError' }
 };
 const SECTIONS = Object.freeze(['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
+const SECTION_VIEWS = Object.freeze({
+  courses: 'my-courses', homework: 'homework', suggestion: 'suggestion', bank: 'question-bank',
+  materials: 'materials', 'model-test': 'model-test', practice: 'study-practice', results: 'study-results', other: 'study-other'
+});
+const VIEW_SECTIONS = Object.freeze(Object.fromEntries(Object.entries(SECTION_VIEWS).map(([section, view]) => [view, section])));
 const OTHER_TYPES = Object.freeze(['previous_question', 'video', 'lesson']);
 const BANK_TYPES = Object.freeze({ mcq: ['mcq'], short: ['short_answer', 'true_false'], written: ['written'] });
 const SUGGESTION_TYPES = Object.freeze({
@@ -247,25 +253,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     set('materials', materialRecords.length);
   }
 
-  function parkPracticeWorkspace() {
-    const workspace = $('#studentPracticeWorkspace');
-    const home = $('#examsView');
-    if (workspace && home && workspace.closest('#coursesView')) {
-      const anchor = $('#studentExamWorkspace');
-      if (anchor?.parentElement) anchor.parentElement.insertBefore(workspace, anchor.nextSibling);
-      else home.appendChild(workspace);
-      workspace.hidden = true;
-    }
-  }
-
   function paintPanels() {
-    const onHub = section === 'hub';
-    if (bar) bar.hidden = !onHub;
-    const hubBack = $('#studyHubBack');
-    if (hubBack) hubBack.hidden = onHub;
-    document.querySelectorAll('#coursesView [data-study-panel]').forEach(panel => {
-      panel.hidden = onHub || panel.dataset.studyPanel !== section;
-    });
     const board = $('#learningBoard');
     const slot = document.querySelector(`[data-study-panel="${section}"] [data-study-slot="board"]`);
     if (board && slot && board.parentElement !== slot) slot.appendChild(board);
@@ -280,8 +268,6 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       workspace.hidden = false;
       window.apcStudentPractice?.setMode?.('all');
       window.apcStudentPractice?.refresh?.();
-    } else if (section !== 'practice') {
-      parkPracticeWorkspace();
     }
   }
 
@@ -324,9 +310,14 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     void now;
   }
 
-  function open(next, { history = 'push' } = {}) {
-    if (next === 'hub' || SECTIONS.includes(next)) section = next;
-    else return;
+  function open(next, { history = 'push', skipView = false } = {}) {
+    if (next === 'hub') {
+      section = 'hub';
+      if (!skipView) setView('courses', { history });
+      return;
+    }
+    if (!SECTIONS.includes(next)) return;
+    section = next;
     bar.querySelectorAll('[data-study-section]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.studySection === section)));
     paintPanels();
     if (next === 'bank') { if (bankError) void loadBank(); else renderBank(); }
@@ -335,7 +326,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     if (next === 'model-test') renderModelTest();
     if (next === 'other') renderOther();
     if (next === 'results') { void loadBank().then(renderStudyResults); renderStudyResults(); }
-    void history;
+    if (!skipView && SECTION_VIEWS[next]) setView(SECTION_VIEWS[next], { history });
   }
 
   /* ---- data ---------------------------------------------------------------- */
@@ -402,9 +393,11 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     const button = event.target.closest('[data-study-section]');
     if (button) open(button.dataset.studySection);
   });
-  document.addEventListener('click', event => {
-    if (!event.target.closest('#coursesView')) return;
-    if (event.target.closest('[data-study-hub-back]')) { open('hub'); return; }
+  window.addEventListener('apc-view-change', event => {
+    const view = event.detail?.view;
+    if (view === 'courses') { section = 'hub'; return; }
+    const next = VIEW_SECTIONS[view];
+    if (next) open(next, { skipView: true });
   });
 
   /* The student app announces a finished sign-in; the sections load their own
@@ -478,7 +471,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     if (event.key === null || /activePlus\.(courseContent|academics|teaching)/.test(event.key || '')) void refresh();
   });
 
-  open('hub');
+  section = 'hub';
   void refresh();
   const api = () => refresh();
   api.open = open;

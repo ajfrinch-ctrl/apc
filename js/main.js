@@ -209,7 +209,6 @@ const dailyQuote = initDailyQuote({ mount: '#dailyQuoteCard' });
 document.addEventListener('click', event => {
   const trigger = event.target.closest('[data-exam-tab]');
   if (!trigger || trigger.closest('#examTabs')) return;
-  setView('exams');
   refreshExams.setTab?.(trigger.dataset.examTab);
 });
 
@@ -247,7 +246,6 @@ function handleAction(action) {
     case 'suggestion':
     case 'question-bank': {
       const section = action === 'homework' ? 'homework' : action === 'suggestion' ? 'suggestion' : 'bank';
-      setView('courses');
       window.dispatchEvent(new CustomEvent('apc-open-study-section', { detail: { section } }));
       break;
     }

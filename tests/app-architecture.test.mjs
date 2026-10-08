@@ -67,7 +67,7 @@ test('ফলাফল is a tab of পরীক্ষা, and #results stays only
     'teacher-given marks live in the ফলাফল tab');
   assert.ok(ctx.$('#studentResultOverview'));
   setView('results', { history: 'replace' });
-  assert.equal(ctx.$('#examsView').classList.contains('active'), true, 'the old name opens the পরীক্ষা section');
+  assert.equal(ctx.$('#examResultsView').classList.contains('active'), true, 'the old name opens the ফলাফল page');
   assert.equal(viewRouteFromHash('#results'), 'results', 'old links still resolve');
   ctx.window.close();
 });
@@ -76,7 +76,7 @@ test('পড়াশোনা has five sections and one movable teaching board'
   const ctx = await loadPage('index.html');
   assert.deepEqual(ctx.$$('#studySections [data-study-section]').map(tab => tab.dataset.studySection),
     ['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
-  assert.deepEqual(ctx.$$('#coursesView [data-study-panel]').map(panel => panel.dataset.studyPanel),
+  assert.deepEqual(ctx.$$('[data-study-panel]').map(panel => panel.dataset.studyPanel),
     ['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
   assert.equal(ctx.$$('#learningBoard').length, 1, 'the teacher board is never duplicated');
   assert.equal(ctx.$$('[data-study-slot="board"]').length, 2, 'বাড়ির কাজ and সাজেশন share the one board');
@@ -138,8 +138,8 @@ test('Home keeps the five quick academic cards and the Notice Board tile', async
     ['বাড়ির কাজ', 'সাজেশন', 'প্রশ্নব্যাংক', 'পরীক্ষা', 'ফলাফল', 'Notice Board']);
   assert.deepEqual(ctx.$$('#studentServices [data-action]').map(node => node.dataset.action),
     ['homework', 'suggestion', 'question-bank']);
-  assert.deepEqual(ctx.$$('#studentServices [data-view]').map(node => node.dataset.view), ['exams', 'exams', 'notice-board']);
-  assert.equal(ctx.$('#studentServices [data-exam-tab="results"]').dataset.view, 'exams');
+  assert.deepEqual(ctx.$$('#studentServices [data-view]').map(node => node.dataset.view), ['exams', 'exam-results', 'notice-board']);
+  assert.equal(ctx.$('#studentServices [data-exam-tab="results"]').dataset.view, 'exam-results');
   assert.equal(ctx.$('#homeNoticeList'), null, 'the bottom নতুন Notice preview is gone');
   assert.ok(ctx.$('#studentServices [data-view="notice-board"]'), 'Notice Board stays on Home as a tile');
   assert.ok(ctx.$('#noticeBoardList'), 'the full Notice Board still owns the categorized list');

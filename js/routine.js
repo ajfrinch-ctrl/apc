@@ -1,5 +1,6 @@
 /* Routine feature: day tabs and the office weekly schedule. */
 import { $, $$, toBanglaNumber } from './ui.js';
+import { setView } from './shell.js';
 import { subjectInitials } from './config.js';
 import { loadRoutine, WEEK_DAYS, ROUTINE_KEY } from './office-data.js';
 
@@ -58,6 +59,9 @@ export function initRoutine({ getStudent } = {}) {
       $$('.day-tab').forEach(item => item.classList.remove('active'));
       tab.classList.add('active');
       renderCurrent(tab.dataset.day);
+      const title = document.querySelector('#routineDayTitle');
+      if (title) title.textContent = DAY_LABELS[tab.dataset.day] || 'ক্লাস রুটিন';
+      setView('routine-day');
     });
   });
   window.addEventListener('storage', event => {

@@ -1,6 +1,7 @@
 import { examRepository as repo, examMatchesStudent, retryEligibility, firstAttemptMean, examResults, totalMarks, watchExams, isStudentVisibleExam, gradeFor } from './exam-data.js';
 import { examMeta, resultMarkup, attemptStage, stageTag, codeTag, esc, num } from './exam-ui.js';
 import { downloadExamPDF } from './exam-pdf.js';
+import { setView } from './shell.js';
 
 export function initStudentExams({ getStudent, getAccount }) {
   const root = document.querySelector('#studentExamWorkspace'); if (!root) return () => {};
@@ -9,6 +10,10 @@ export function initStudentExams({ getStudent, getAccount }) {
      belongs to exactly one tab: a live attempt or a running window is চলমান, a
      future paper is আসন্ন, a published paper is ফলাফল, the rest is সম্পন্ন. */
   const TABS = ['upcoming', 'live', 'done', 'results'];
+  const TAB_VIEWS = Object.freeze({
+    upcoming: 'exam-upcoming', live: 'exam-live', done: 'exam-done', results: 'exam-results', practice: 'exam-practice'
+  });
+  const VIEW_TABS = Object.freeze(Object.fromEntries(Object.entries(TAB_VIEWS).map(([tab, view]) => [view, tab])));
   const EMPTY_TAB_TEXT = Object.freeze({
     upcoming: 'এই মুহূর্তে কোনো আসন্ন পরীক্ষা নেই।',
     live: 'এখন কোনো পরীক্ষা চলছে না।',
@@ -67,10 +72,7 @@ export function initStudentExams({ getStudent, getAccount }) {
     const exams = activeAccount() ? visibleExams() : [];
     const counts = { upcoming: 0, live: 0, done: 0, results: 0 };
     exams.forEach(exam => { counts[tabOf(exam, now)] += 1; });
-    const onHub = tab === 'hub';
-    const onPractice = tab === 'practice';
     if (bar) {
-      bar.hidden = !onHub;
       bar.querySelectorAll('[data-exam-tab]').forEach(item => {
         const key = item.dataset.examTab;
         item.setAttribute('aria-pressed', String(key === tab));
@@ -78,21 +80,15 @@ export function initStudentExams({ getStudent, getAccount }) {
         if (badge) badge.textContent = num(counts[key] || 0);
       });
     }
-    if (practiceMenu) {
-      practiceMenu.hidden = !onHub;
-      practiceMenu.querySelectorAll('[data-practice-mode]').forEach(item => {
-        item.setAttribute('aria-pressed', 'false');
-      });
-    }
-    if (hubBack) hubBack.hidden = onHub || view === 'active';
-    const panel = document.querySelector('[data-exam-panel="results"]');
-    if (panel) panel.hidden = tab !== 'results';
     const examWorkspace = document.querySelector('#studentExamWorkspace');
-    if (examWorkspace) examWorkspace.hidden = onHub || tab === 'results' || onPractice;
+    const listSlot = document.querySelector(`[data-exam-list-slot="${TAB_VIEWS[tab] || ''}"]`);
+    if (examWorkspace && listSlot && examWorkspace.parentElement !== listSlot) listSlot.appendChild(examWorkspace);
+    if (examWorkspace) examWorkspace.hidden = !['upcoming', 'live', 'done'].includes(tab);
     const practiceWorkspace = document.querySelector('#studentPracticeWorkspace');
     if (practiceWorkspace) {
-      if (practiceWorkspace.closest('#coursesView')) practiceWorkspace.hidden = false;
-      else practiceWorkspace.hidden = !onPractice;
+      const inStudy = practiceWorkspace.closest('#studyPracticeView');
+      if (inStudy) practiceWorkspace.hidden = false;
+      else practiceWorkspace.hidden = tab !== 'practice';
     }
     if (tab === 'results') paintResultOverview();
   }
@@ -104,12 +100,16 @@ export function initStudentExams({ getStudent, getAccount }) {
     for (const key of ['live', 'upcoming', 'done', 'results']) if (counts[key]) return key;
     return 'upcoming';
   }
-  function setTab(next) {
+  function setTab(next, { skipView = false } = {}) {
     if (view === 'active') return;
     if (next === 'hub' || next === 'practice' || TABS.includes(next)) {
       tab = next;
       tabChosen = true;
       list();
+      if (!skipView) {
+        if (next === 'hub') setView('exams');
+        else if (TAB_VIEWS[next]) setView(TAB_VIEWS[next]);
+      }
     }
   }
   function list() {
@@ -132,6 +132,7 @@ export function initStudentExams({ getStudent, getAccount }) {
   }
   function activeExam(e, a) {
     view = 'active'; examId = e.id; attemptId = a.id;
+    if (!document.querySelector('#examLiveView')?.classList.contains('active')) setView('exam-live', { history: 'push' });
     content.innerHTML = `<div class="exam-actions">${button('list', '← তালিকা (উত্তর সংরক্ষিত থাকবে)')}</div><div class="exam-timer"><span>সবার জন্য একই শেষ সময় • চেষ্টা ${num(a.number)}</span><strong data-exam-clock aria-live="off"></strong><em class="exam-timer-hint" data-low-hint hidden></em><small data-answer-status>উত্তর এই ফোনে সংরক্ষিত হচ্ছে।</small></div><h2>${esc(e.title)}</h2><p class="exam-note">সব প্রশ্ন একসঙ্গে দেখানো হয়েছে — খুঁজতে স্ক্রল করো। সময় শেষ হলে উত্তরপত্র <strong>স্বয়ংক্রিয়ভাবে জমা</strong> হবে; ততক্ষণ যেকোনো উত্তরের অপশন বদলাতে পারবে। নেট না থাকলেও উত্তর এই ফোনে সংরক্ষিত থাকবে, সংযোগ ফিরলে জমা হবে।</p>
       <div class="exam-question-list">${a.order.map((item, i) => {
         const q = e.questions.find(q => q.id === item.id);
@@ -254,23 +255,21 @@ export function initStudentExams({ getStudent, getAccount }) {
     });
   });
   document.addEventListener('click', event => {
-    if (event.target.closest('[data-exam-hub-back]')) {
-      if (view === 'active') return;
-      window.apcStudentPractice?.setMode?.('all');
-      setTab('hub');
-      return;
-    }
     const practiceTile = event.target.closest('#practiceMenu [data-practice-mode]');
     if (practiceTile) {
       if (view === 'active') return;
-      const mode = practiceTile.dataset.practiceMode;
-      window.apcStudentPractice?.setMode?.(mode);
+      window.apcStudentPractice?.setMode?.(practiceTile.dataset.practiceMode);
       setTab('practice');
       return;
     }
     const trigger = event.target.closest('#examTabs [data-exam-tab]');
     if (!trigger) return;
-    setTab(trigger.dataset.examTab); // an open answer sheet ignores tab taps
+    setTab(trigger.dataset.examTab);
+  });
+  window.addEventListener('apc-view-change', event => {
+    const next = VIEW_TABS[event.detail?.view];
+    if (next) setTab(next, { skipView: true });
+    if (event.detail?.view === 'exams') { tab = 'hub'; list(); }
   });
   watchExams(() => { if (!busy) refresh(); });
   window.addEventListener('online', () => refresh().then(sync));
