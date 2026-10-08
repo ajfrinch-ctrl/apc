@@ -1167,4 +1167,6 @@ svg.apc-color-icon, svg.apc-glyph-icon { flex-shrink: 0; pointer-events: none; }
 .student-fee-row small{font-size:var(--font-xs);color:var(--color-text-secondary)}
 .student-fee-receipt{flex:none;font-size:var(--font-xs);color:var(--color-text-muted)}
 @media(max-width:380px){.student-fee-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Exam list: the refresh action reads as a quiet pill, not a full-width block. */
+[data-student-exam-action="refresh"]{width:auto;min-height:40px;margin-inline:auto;padding:0 16px;border:1px solid var(--color-border);border-radius:999px;background:var(--color-surface);color:var(--color-text-secondary);font-size:var(--font-sm);font-weight:600;box-shadow:none}
 }

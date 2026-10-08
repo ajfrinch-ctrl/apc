@@ -215,10 +215,8 @@ export function initStudentPractice({ getStudent, getAccount }) {
       ${chapterCard}
       <section class="exam-card practice-card" aria-label="ইনস্ট্যান্ট MCQ অনুশীলন">
         <h2>ইনস্ট্যান্ট MCQ অনুশীলন</h2>
-        <p class="exam-note">যেকোনো মুহূর্তে শুরু করো — প্রতিটি প্রশ্নের জন্য ${num(PRACTICE_MINUTES_PER_QUESTION)} মিনিট করে সময়সীমা থাকে। সময় শেষ হলে উত্তরপত্র নিজে থেকেই জমা হয়ে পরীক্ষা শেষে ফলাফল দেখাবে। এটি নিজের অনুশীলন; আনুষ্ঠানিক পরীক্ষার ফলাফলে এর কোনো প্রভাব পড়ে না।</p>
         ${entry.active ? `<div class="exam-actions">${button('resume-active', 'চলন্ত অনুশীলনে ফিরে যাও', entry.active.id, 'primary')}</div>` : ''}
         <div class="exam-actions">${poolSize ? button('start-random', `র‍্যান্ডম অনুশীলন (${num(poolSize)}টি প্রশ্ন • ${num(poolSize * PRACTICE_MINUTES_PER_QUESTION)} মিনিট)`, '', 'primary') : '<small>অনুশীলনের জন্য এখনও প্রশ্ন নেই — MCQ পরীক্ষার সময় শেষ হলে তার প্রশ্নগুলো নিজে থেকেই এখানে আসবে।</small>'}</div>
-        <p class="exam-note">র‍্যান্ডম ড্রিলে প্রতি প্রশ্নে ${num(PRACTICE_MINUTES_PER_QUESTION)} মিনিট।</p>
       </section>
       <section aria-label="গত পরীক্ষা অনুশীলন"><h3>গত পরীক্ষা অনুশীলন</h3>
         <div class="exam-list">${papers.map(paper => {

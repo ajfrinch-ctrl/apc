@@ -18,7 +18,7 @@ export function initStudentExams({ getStudent, getAccount }) {
   let tab = 'upcoming';
   let tabChosen = false; // the student's own tap wins over the first-paint default
   root.classList.add('exam-workspace');
-  root.innerHTML = '<p class="exam-note">নিজের শ্রেণির অনলাইন পরীক্ষা • এটি একই ব্রাউজারে চলা লোকাল ডেমো।</p><p class="exam-error" data-exam-error role="alert" hidden></p><p class="exam-message" data-exam-message role="status" hidden></p><div data-exam-content></div>';
+  root.innerHTML = '<p class="exam-error" data-exam-error role="alert" hidden></p><p class="exam-message" data-exam-message role="status" hidden></p><div data-exam-content></div>';
   const $ = selector => root.querySelector(selector), content = $('[data-exam-content]');
   const activeAccount = () => getAccount()?.status === 'active';
   const button = (action, label, id = '', cls = '') => `<button type="button" class="${cls}" data-student-exam-action="${action}" data-id="${esc(id)}">${label}</button>`;
