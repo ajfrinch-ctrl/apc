@@ -211,14 +211,13 @@ test('একাডেমিক is one hub whose six cards open the screens that 
   assert.match(read('js/exam-manager.js'), /return \{\s*open\(screen = ''\)/, 'the workspace exposes a deep link');
 });
 
-test('teacher Home opens one kind of work per tile; new work is created on that page', () => {
+test('teacher Home is a snapshot; work tiles live once on কাজ দিন / রুটিন / পরীক্ষা / আরও', () => {
   const home = teacherHtml.slice(teacherHtml.indexOf('id="teacherHome"'), teacherHtml.indexOf('id="teacherRecords"'));
-  assert.match(home, /data-teacher-view="homework"/);
-  assert.match(home, /data-new-activity="homework"/);
-  assert.match(home, /data-teacher-view="suggestion"/);
-  assert.match(home, /data-new-activity="suggestion"/);
-  assert.match(home, /data-teacher-view="online-exams"/);
+  assert.equal((home.match(/class="pay-tile"/g) || []).length, 0, 'home must not copy কাজ দিন tiles');
   assert.equal(home.includes('teacherQuickActions'), false, 'home must not duplicate create tiles');
+  const hub = teacherHtml.slice(teacherHtml.indexOf('id="teacherAcademic"'), teacherHtml.indexOf('id="teacherNotice"'));
+  assert.match(hub, /data-new-activity="homework"/);
+  assert.match(hub, /data-new-activity="suggestion"/);
   assert.match(teacherHtml, /id="teacherNewActivity"/);
   for (const dot of ['academic', 'routine', 'exam']) assert.match(teacherHtml, new RegExp(`id="navDot-${dot}"`));
 });
