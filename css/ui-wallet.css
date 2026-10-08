@@ -125,6 +125,7 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 22px; box-shadow: var(--pay-shadow);
 }
+.pay-grid.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pay-grid.is-3, .admin-feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pay-tile, .admin-feature-tile {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
@@ -142,7 +143,7 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 }
 .pay-tile-icon svg, .admin-feature-icon svg { width: 25px; height: 25px; stroke-width: 1.7; animation: none; }
 .pay-tile-label, .admin-feature-label { display: block; max-width: 100%; font-size: 12.5px; font-weight: 600; line-height: 1.4;
-  overflow-wrap: anywhere; }
+  overflow-wrap: break-word; word-break: keep-all; }
 .admin-feature-tile::before { display: none; }
 
 /* 5 ── Bottom bar: wallet-style, with a raised centre action ──────────────
@@ -1001,6 +1002,7 @@ html[data-theme="dark"] .pay-toast { background: var(--color-surface-muted); col
   .pay-tile-icon, .admin-feature-icon { width: 64px; height: 64px; }
   .pay-tile-label, .admin-feature-label { font-size: 14px; }
   .pay-tile, .admin-feature-tile { gap: 12px; padding-block: 10px; }
+  .pay-grid.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pay-grid.is-3, .admin-feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .admin-hero-stats, .teacher-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 12px; }
   .manager-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -1032,7 +1034,7 @@ html[data-theme="dark"] .pay-toast { background: var(--color-surface-muted); col
   .study-progress-note { grid-column: 1 / -1; }
   .admin-feature-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .admin-feature-tile.is-wide { grid-column: auto; }
-  .teacher-shell .pay-grid, .manager-shell .pay-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .teacher-shell [aria-label="দ্রুত অ্যাক্সেস"].pay-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .pay-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
   .pay-pulse, .pay-flow { grid-column: 1 / -1; }
   .pay-pulse { margin-bottom: 0; }
