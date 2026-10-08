@@ -53,9 +53,9 @@
  --pay-paper:#fff;--pay-paper-ink:#213047;--pay-paper-muted:#56677e;--pay-paper-line:#dce5f0;--pay-paper-tint:#edf3fc;--pay-paper-success:#187346;
  /* Active Plus Color: the illustration paints, centrally themed like every
     other surface. Blue/green remain the brand; warm accents distinguish services. */
- --icon-outline:#1e3a8a;--icon-on-color:#fff;
- --icon-blue:#3b82f6;--icon-blue-back:#c7dbff;--icon-mint:#179775;--icon-mint-back:#bde8d6;
- --icon-gold:#f3bd53;--icon-coral:#eb9b6f;--icon-violet:#8675d1;
+ --icon-outline:#1a3480;--icon-on-color:#fff;
+ --icon-blue:#3d8bff;--icon-blue-back:#b9d6ff;--icon-mint:#0fbf86;--icon-mint-back:#9eecc9;
+ --icon-gold:#ffc107;--icon-coral:#ff7a4d;--icon-violet:#9a7dff;
  --icon-paper:#fff;--icon-paper-back:#e3edf7;
  --icon-plate-blue:#eaf2ff;--icon-plate-green:#e9f7f0;--icon-plate-gold:#fff4dc;--icon-plate-violet:#f0edfc;
  /* Fixed student viewport: JS measures the actual bars/status inset. */
@@ -106,9 +106,9 @@ html[data-theme=dark]{
  --pay-shadow:none;--pay-nav-shadow:rgba(0,0,0,0);--pay-logo-shadow:none;--pay-fab-shadow:none;
  --pay-success:#5cd68f;--pay-success-soft:rgba(92,214,143,.14);
  /* The same illustrations on AMOLED: lifted colours, navy paper and no glow. */
- --icon-outline:#d7e8ff;--icon-on-color:#102b44;
- --icon-blue:#70b4ff;--icon-blue-back:#244670;--icon-mint:#56d9a8;--icon-mint-back:#194e3e;
- --icon-gold:#f0c76f;--icon-coral:#eaa788;--icon-violet:#baabef;
+ --icon-outline:#e4f0ff;--icon-on-color:#0c243c;
+ --icon-blue:#7ec0ff;--icon-blue-back:#1c3f6c;--icon-mint:#4eecc0;--icon-mint-back:#145244;
+ --icon-gold:#ffd56a;--icon-coral:#ff9a6a;--icon-violet:#c9b4ff;
  --icon-paper:#1d2b40;--icon-paper-back:#293d58;
  --icon-plate-blue:#0f2036;--icon-plate-green:#112b24;--icon-plate-gold:#2c2619;--icon-plate-violet:#232039;
 }
