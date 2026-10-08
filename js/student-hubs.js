@@ -69,13 +69,22 @@ export function initStudentHubs({ getStudent } = {}) {
     const materials = content.filter(row => ['pdf', 'video', 'previous_question'].includes(courseTypeOf(row)));
     renderList('classNotesList', notes.length ? notes.map(row => `<article class="exam-card"><h3>${esc(row.title)}</h3></article>`).join('') : '<p class="teacher-empty">ক্লাস নোট এখনও নেই।</p>');
     renderList('classMaterialsList', materials.length ? materials.map(row => `<article class="exam-card"><h3>${esc(row.title)}</h3></article>`).join('') : '<p class="teacher-empty">ক্লাস উপকরণ এখনও নেই।</p>');
+    const blob = item => `${item.tag || ''} ${item.status || ''} ${item.subject || ''}`.toLowerCase();
+    renderList('routineChangedList', classCards(week.filter(item => /পরিবর্ত|changed/.test(blob(item))), 'পরিবর্তিত রুটিন নেই।'));
+    renderList('routineHolidayList', classCards(week.filter(item => /ছুটি|holiday/.test(blob(item))), 'ছুটির তালিকা খালি।'));
+    renderList('routineImportantList', classCards(week.filter(item => /গুরুত্বপূর্ণ|important/.test(blob(item))), 'গুরুত্বপূর্ণ সময়সূচি নেই।'));
+    renderList('routineOtherList', classCards(week.filter(item => !/পরীক্ষা|exam|পরিবর্ত|changed|ছুটি|holiday|গুরুত্বপূর্ণ|important/.test(blob(item))), 'অন্যান্য রুটিন নেই।'));
+    renderList('classAttendanceList', '<p class="teacher-empty">উপস্থিতি শিক্ষক নথিভুক্ত করলে এখানে দেখা যাবে।</p>');
+    renderList('classOtherList', classCards(week, 'অন্যান্য ক্লাসের তথ্য নেই।'));
     void examRepo.listForStudent(me.id).then(db => {
       const now = Date.now();
       const exams = (db.exams || []).filter(exam => isStudentVisibleExam(exam) && examMatchesStudent(exam, me) && exam.startAt > now)
         .sort((a, b) => a.startAt - b.startAt);
-      renderList('routineExamList', exams.length
+      const examHtml = exams.length
         ? exams.map(exam => `<article class="exam-card"><h3>${esc(exam.title)}</h3><p class="exam-note">${esc(exam.subject || '')} • ${new Date(exam.startAt).toLocaleString('bn-BD')}</p></article>`).join('')
-        : '<p class="teacher-empty">আসন্ন পরীক্ষার সময়সূচি নেই।</p>');
+        : '<p class="teacher-empty">আসন্ন পরীক্ষার সময়সূচি নেই।</p>';
+      renderList('routineExamList', examHtml);
+      renderList('examOtherList', examHtml);
     }).catch(() => {});
     void bn;
   }
