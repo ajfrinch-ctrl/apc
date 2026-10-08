@@ -62,8 +62,7 @@ const FINANCE_SEGMENTS = Object.freeze(['collection', 'approval', 'due', 'histor
    what actually happens inside. Academic work lives in একাডেমিক, money in হিসাব. */
 const MORE_MODULES = Object.freeze([
   { view: 'profile', icon: 'user', label: 'আমার প্রোফাইল' },
-  { view: 'settings', icon: 'settings', label: 'সেটিংস' },
-  { view: 'classes', icon: 'classes', label: 'ক্লাস পরিচালনা' }
+  { view: 'settings', icon: 'settings', label: 'সেটিংস' }
 ]);
 const dayLabel = Object.freeze({ sat: 'শনিবার', sun: 'রবিবার', mon: 'সোমবার', tue: 'মঙ্গলবার', wed: 'বুধবার', thu: 'বৃহস্পতিবার' });
 const statusLabel = Object.freeze({ approved: 'সক্রিয়', pending: 'অপেক্ষমাণ', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });

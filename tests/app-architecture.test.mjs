@@ -306,7 +306,7 @@ test('Manager একাডেমিক is one hub over the eight sections plus t
   /* Nothing academic is duplicated in আরও. */
   const more = read('js/manager.js').slice(read('js/manager.js').indexOf('const MORE_MODULES'));
   const rows = [...more.slice(0, more.indexOf(']')).matchAll(/view: '([a-z-]+)'/g)].map(match => match[1]);
-  assert.deepEqual(rows, ['profile', 'settings', 'classes'], 'আরও keeps only the structural modules');
+  assert.deepEqual(rows, ['profile', 'settings'], 'আরও keeps only the structural modules');
 });
 
 test('Manager হিসাব owns four segments: collection, approval, due and history', () => {
