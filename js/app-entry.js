@@ -2,13 +2,13 @@
  * A failed module must never turn the login form into a native GET request,
  * or leave a staff shell hidden with no explanation. */
 (() => {
-  const script = document.currentScript;
+  const script = document.currentScript || document.querySelector('script[data-entry]');
   const entries = {
     student: './main.js', admin: './admin.js', manager: './manager.js',
     teacher: './teacher.js', payment: './payment.js'
   };
   const entry = entries[script?.dataset.entry];
-  if (!entry) return;
+  if (!entry || !script?.src) return;
   const moduleUrl = new URL(entry, script.src).href;
   let failed = false;
   let timer;
