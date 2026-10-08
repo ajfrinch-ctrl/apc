@@ -49,6 +49,7 @@ test('registration writes the student into the shared roster', async () => {
   const row = roster().find(student => student.id === account().student.id);
   assert.ok(row, 'the roster row exists — this is what the cloud syncs');
   assert.equal(row.name, 'রাইসা ইসলাম');
+  assert.equal(row.birthDate, '2010-03-15', 'staff devices read birthdays from the roster');
   assert.equal(row.status, 'pending');
 });
 

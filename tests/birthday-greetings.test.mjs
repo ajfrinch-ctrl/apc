@@ -45,4 +45,6 @@ test('Admin, Manager and Teacher are told the day before, with class and name', 
   const teacherOther = birthdayAdvanceItems(roster, { kind: 'staff', role: 'teacher', assignedClasses: ['একাদশ শ্রেণি'] }, now);
   assert.equal(teacherOther.length, 0);
   assert.equal(birthdayAdvanceItems(roster, { kind: 'staff', role: 'payment' }, now).length, 0);
+  const feed = notificationFeed({ students: roster, viewer: { kind: 'staff', role: 'manager' }, now });
+  assert.ok(feed.some(item => item.kind === 'birthday-soon' && item.sourceId === 'S-BD'));
 });
