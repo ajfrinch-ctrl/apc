@@ -440,6 +440,54 @@ export function initLogin({ state, onAuthenticated }) {
   // The one-time Admin gate is checked in the background: the login form is
   // usable immediately, and only a verified cloud answer opens creation.
   void initFirstAdminSetup().catch(() => {});
+  void paintAuthWeather();
+}
+
+const DHAKA = Object.freeze({ lat: 23.81, lon: 90.41 });
+const WEATHER_CACHE_KEY = 'activePlus.authWeather.v1';
+
+function skyFromClock(date = new Date()) {
+  const hour = date.getHours();
+  if (hour >= 19 || hour < 5) return 'clear-night';
+  if (hour >= 17) return 'dusk';
+  return 'clear-day';
+}
+
+function skyFromWeather(code, isDay, tempC) {
+  const n = Number(code);
+  if (Number(tempC) >= 34 && isDay && n <= 2) return 'heat';
+  if (n >= 95) return 'storm';
+  if ((n >= 51 && n <= 67) || (n >= 80 && n <= 82)) return 'rain';
+  if (n === 45 || n === 48) return 'fog';
+  if (n >= 2) return isDay ? 'cloudy' : 'clear-night';
+  return isDay ? 'clear-day' : 'clear-night';
+}
+
+function applyAuthSky(sky) {
+  const screen = $('#authScreen');
+  if (!screen) return;
+  screen.dataset.sky = sky;
+}
+
+async function paintAuthWeather() {
+  applyAuthSky(skyFromClock());
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(WEATHER_CACHE_KEY) || 'null');
+    if (cached?.sky && Date.now() - Number(cached.at || 0) < 30 * 60 * 1000) {
+      applyAuthSky(cached.sky);
+      return;
+    }
+  } catch { /* ignore bad cache */ }
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${DHAKA.lat}&longitude=${DHAKA.lon}&current=weather_code,is_day,temperature_2m`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return;
+    const data = await response.json();
+    const current = data?.current || {};
+    const sky = skyFromWeather(current.weather_code, Number(current.is_day) === 1, current.temperature_2m);
+    applyAuthSky(sky);
+    try { sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ sky, at: Date.now() })); } catch { /* quota */ }
+  } catch { /* offline: clock sky stays */ }
 }
 
 /* ---------------------------------------------------------------------------
