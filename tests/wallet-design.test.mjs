@@ -95,7 +95,7 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
     for (const button of backs) {
       const staffHubPage = button.closest('[data-view-panel="profile"], #teacherProfile');
       const parent = button.getAttribute(attribute);
-      const allowedParents = staffHubPage ? ['more'] : [target, 'routine', 'routine-view', 'academic'];
+      const allowedParents = staffHubPage ? ['more'] : [target, 'routine', 'routine-view', 'academic', 'more'];
       assert.ok(allowedParents.includes(parent), name + ' back ' + parent);
       assert.ok(button.getAttribute('aria-label'));
       assert.ok(button.querySelector('svg'));

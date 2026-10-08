@@ -24,9 +24,9 @@ before(async () => {
 test('Manager boots on the operational dashboard with only its allow-listed sections', () => {
   assert.deepEqual(ctx.jsdomErrors, []);
   const views = ctx.$$('.manager-view').map(view => view.dataset.viewPanel);
-  assert.deepEqual(views, ['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
+  assert.deepEqual(views, ['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other', 'exams', 'courses', 'results', 'reports', 'profile', 'settings', 'more']);
   const routes = ctx.$$('[data-manager-view]').map(button => button.dataset.managerView);
-  for (const forbidden of ['staff', 'roles', 'permissions', 'security', 'backup', 'restore', 'settings', 'admin']) assert.equal(routes.includes(forbidden), false);
+  for (const forbidden of ['staff', 'roles', 'permissions', 'security', 'backup', 'restore', 'admin']) assert.equal(routes.includes(forbidden), false);
   assert.equal(ctx.$('#managerMain a[href*="admin"]'), null);
   assert.equal(ctx.$('#mgrActiveStudents').textContent, '১');
   assert.equal(ctx.$('#mgrPendingStudents').textContent, '১ / ১');

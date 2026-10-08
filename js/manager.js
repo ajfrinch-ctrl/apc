@@ -37,7 +37,7 @@ const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
    have its own seat keeps exactly one home; the two old names still resolve so
    a bookmark or a saved refresh never lands nowhere. */
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
+const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'profile', 'settings', 'more']);
 const LEGACY_VIEWS = Object.freeze({
   approvals: { view: 'students', scope: 'pending' },
   'cash-counter': { view: 'finance', segment: 'approval' }
@@ -61,8 +61,9 @@ const FINANCE_SEGMENTS = Object.freeze(['collection', 'approval', 'due', 'histor
    it is reached from. Labels stay Bangla like the bottom bar; the hint names
    what actually happens inside. Academic work lives in একাডেমিক, money in হিসাব. */
 const MORE_MODULES = Object.freeze([
-  { view: 'classes', icon: 'book', label: 'ক্লাস পরিচালনা করুন', hint: 'শ্রেণি, ব্যাচ ও বিষয় তালিকা' },
-  { view: 'profile', icon: 'user', label: 'ম্যানেজার প্রোফাইল', hint: 'নিজের পরিচয়, থিম, নোটিফিকেশন ও পাসওয়ার্ড' }
+  { view: 'profile', icon: 'user', label: 'আমার প্রোফাইল' },
+  { view: 'settings', icon: 'settings', label: 'সেটিংস' },
+  { view: 'classes', icon: 'classes', label: 'ক্লাস পরিচালনা' }
 ]);
 const dayLabel = Object.freeze({ sat: 'শনিবার', sun: 'রবিবার', mon: 'সোমবার', tue: 'মঙ্গলবার', wed: 'বুধবার', thu: 'বৃহস্পতিবার' });
 const statusLabel = Object.freeze({ approved: 'সক্রিয়', pending: 'অপেক্ষমাণ', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });
