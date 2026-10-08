@@ -72,7 +72,9 @@
 //       creation is a single atomic claim that a second device can only lose, and a
 //       device that cannot verify the cloud never creates an Admin at all.
 // v181: precache the Admin-only Staff Management stylesheet.
-const CACHE_VERSION = 182;
+// v182: precache the authenticated Question Bank V2 sync modules.
+// v183: precache the Admin V2 staged-cutover migration console.
+const CACHE_VERSION = 183;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -182,6 +184,7 @@ const APP_SHELL = [
   './js/academics.js',
   './js/brand.js',
   './js/admin-academics.js',
+  './js/admin-migration.js',
   './js/exam-data.js',
   './js/exam-ui.js',
   './js/exam-core.js',

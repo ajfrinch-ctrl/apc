@@ -405,7 +405,7 @@ test('Admin সিস্টেম and ডেটা are hubs over the screens tha
   const html = read('admin.html');
   const system = ctxSection(html, 'system');
   assert.deepEqual([...system.matchAll(/data-admin-view="([a-z-]+)"/g)].map(match => match[1]).slice(1),
-    ['roles', 'security', 'settings', 'academics'], 'সিস্টেম holds exactly its four cards');
+    ['roles', 'security', 'settings', 'academics', 'migration'], 'সিস্টেম holds exactly its five cards');
   const data = ctxSection(html, 'data');
   assert.match(data, /id="adminDataMenu"/);
   assert.match(data, /data-admin-view="backup"/, 'ব্যাকআপ ও রিস্টোর is reached from ডেটা');
@@ -450,5 +450,5 @@ test('the Admin slot is the only one with staff CRUD, and its hub cards are capa
   for (const match of system.matchAll(/data-admin-view="([a-z-]+)" data-admin-cap="([a-z.]+)"/g)) {
     assert.match(match[2], /\.(manage)$/, `${match[1]} names a management capability`);
   }
-  assert.equal((system.match(/data-admin-cap=/g) || []).length, 4, 'all four cards are gated');
+  assert.equal((system.match(/data-admin-cap=/g) || []).length, 5, 'all five cards are gated');
 });

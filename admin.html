@@ -26,7 +26,7 @@
   <!-- Icon geometry + staff management: loaded last so one fixed container
        per icon is the final word (no overlap, no double painting). -->
 
-  <link rel="stylesheet" href="css/design-system.css?v=182">
+  <link rel="stylesheet" href="css/design-system.css?v=183">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -180,7 +180,20 @@
             <span class="admin-more-copy"><strong>ক্লাস ও বিষয়</strong><small>ক্লাস, বিষয় ও শিক্ষক ম্যাপিংয়ের একক কেন্দ্র</small></span>
             <span aria-hidden="true">→</span>
           </button>
+          <button class="admin-more-item admin-system-item" type="button" data-admin-view="migration" data-admin-cap="security.manage">
+            <span class="admin-more-icon" aria-hidden="true"></span>
+            <span class="admin-more-copy"><strong>ভি-টু সিংক মাইগ্রেশন</strong><small>টিচার লিংক ও রোস্টার — কাটওভারের প্রস্তুতি</small></span>
+            <span aria-hidden="true">→</span>
+          </button>
         </nav>
+      </section>
+
+      <section class="admin-view" data-view-panel="migration" aria-labelledby="migrationTitle">
+        <div class="page-intro"><button class="pay-back" type="button" data-admin-view="system" aria-label="ফিরে যান"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
+          <div><p class="eyebrow">Staged cutover</p><h1 id="migrationTitle">ভি-টু সিংক মাইগ্রেশন</h1></div>
+        </div>
+        <p class="finance-hint">লাইভ রুলস বদলানোর আগে পুরনো ডেটাকে সুরক্ষিত ক্লেম-ভিত্তিক কাঠামোর সঙ্গে লিংক করার কেন্দ্র। প্রতিটি ম্যাচ আপনার নিশ্চিতকরণ ছাড়া প্রয়োগ হয় না; লেগাসি ডেটা কখনো মুছে না।</p>
+        <div id="adminV2Migration"></div>
       </section>
 
       <section class="admin-view" data-view-panel="roles" aria-labelledby="rolesTitle">
