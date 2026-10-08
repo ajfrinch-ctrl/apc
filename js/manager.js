@@ -36,7 +36,8 @@ const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
    হোম · শিক্ষার্থী · একাডেমিক · হিসাব · রিপোর্ট · আরও. Every screen that used to
    have its own seat keeps exactly one home; the two old names still resolve so
    a bookmark or a saved refresh never lands nowhere. */
-const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
+const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
+const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'profile', 'more']);
 const LEGACY_VIEWS = Object.freeze({
   approvals: { view: 'students', scope: 'pending' },
   'cash-counter': { view: 'finance', segment: 'approval' }
@@ -94,7 +95,7 @@ function renderView(view) {
   $$('.manager-view').forEach(panel => { const active = panel.dataset.viewPanel === view; panel.classList.toggle('active', active); panel.hidden = !active; });
   const seat = view === 'dashboard' ? 'dashboard'
     : view === 'students' ? 'students'
-      : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'teachers'].includes(view) ? 'academic'
+      : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
         : view === 'finance' ? 'finance'
           : view === 'reports' ? 'reports' : 'more';
   $$('.manager-bottom [data-manager-view]').forEach(button => {
@@ -115,7 +116,7 @@ function renderView(view) {
   if (view === 'finance') renderFinance();
   if (view === 'notices') renderNotices();
   if (view === 'courses') mountCourseEditor();
-  if (view === 'routine') renderRoutine();
+  if (view === 'routine' || ROUTINE_CHILD_VIEWS.includes(view)) renderRoutine();
   if (view === 'results') renderResults();
   if (view === 'reports') void refreshReports($('#managerReports'));
   if (view === 'profile') renderProfile();
@@ -428,15 +429,43 @@ function renderNotices() {
     return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.title)}</h2><p class="manager-meta"><span class="notice-category-admin" data-notice-category="${category.id}">${category.label}</span> • ${escapeHtml(noticeScopeText(item))} • ${escapeHtml(item.audience || 'সকল শিক্ষার্থী')} • ${escapeHtml(item.date || '')}</p></div><div class="manager-actions"><button class="mini-btn" data-manager-action="edit-notice" data-id="${escapeHtml(item.id)}" type="button">Edit</button><button class="mini-btn reject" data-manager-action="delete-notice" data-id="${escapeHtml(item.id)}" type="button">Delete</button></div></div><p>${escapeHtml(item.body)}</p></article>`;
   }).join('') : '<p class="admin-empty">কোনো operational notice নেই।</p>';
 }
+function routineTodayKey(offset = 0) {
+  return WEEK_DAYS[(new Date().getDay() + 1 + offset) % 7];
+}
+function routineRowsFor(day) {
+  return routine[day]?.classes || [];
+}
+function routineCardHtml(rows, empty) {
+  if (!rows.length) return `<p class="admin-empty">${empty}</p>`;
+  return rows.map(item => `<article class="manager-record"><div class="manager-record-head"><h2>${escapeHtml(item.subject || 'বিষয় নেই')}</h2><span class="badge badge-approved">${escapeHtml(item.time || 'সময় নেই')}</span></div><p>${escapeHtml([item.className, item.teacher, item.room].filter(Boolean).join(' • '))}</p></article>`).join('');
+}
+function routineBlob(item) {
+  return `${item.tag || ''} ${item.status || ''} ${item.subject || ''}`.toLowerCase();
+}
 function renderRoutine() {
   // This route is reachable directly from Home/More: required class choices
   // must not depend on visiting the unrelated Classes screen first.
   renderRoutineClassOptions();
-  $('#managerRoutineDays').innerHTML = WEEK_DAYS.map(day => `<button type="button" class="chip ${day === routineDay ? 'active' : ''}" data-routine-day="${day}">${dayLabel[day] || day}</button>`).join('');
-  $('#managerRoutineDayTitle').textContent = `${dayLabel[routineDay] || routineDay} — রুটিনে ক্লাস যোগ করুন`;
+  if ($('#managerRoutineDays')) {
+    $('#managerRoutineDays').innerHTML = WEEK_DAYS.map(day => `<button type="button" class="chip ${day === routineDay ? 'active' : ''}" data-routine-day="${day}">${dayLabel[day] || day}</button>`).join('');
+  }
+  if ($('#managerRoutineDayTitle')) $('#managerRoutineDayTitle').textContent = `${dayLabel[routineDay] || routineDay} — রুটিনে ক্লাস যোগ করুন`;
   const rows = routine[routineDay]?.classes || [];
-  $('#managerRoutineList').innerHTML = rows.length ? rows.map((item, index) => `<article class="manager-record"><div class="manager-record-head"><h2>${escapeHtml(item.subject || 'বিষয় নেই')}</h2><span class="badge badge-approved">${escapeHtml(item.time || 'সময় নেই')}</span></div><p>${escapeHtml(item.className || '')} • ${escapeHtml(item.teacher || '')} • ${escapeHtml(item.room || '')}</p><div class="manager-actions"><button type="button" class="mini-btn" data-manager-action="edit-routine" data-index="${index}">Edit</button><button type="button" class="mini-btn reject" data-manager-action="delete-routine" data-index="${index}">Delete</button></div></article>`).join('') : '<p class="admin-empty">এই দিনের routine record নেই।</p>';
-  $('#managerRoutineForm [name=className]').value ||= '';
+  if ($('#managerRoutineList')) {
+    $('#managerRoutineList').innerHTML = rows.length ? rows.map((item, index) => `<article class="manager-record"><div class="manager-record-head"><h2>${escapeHtml(item.subject || 'বিষয় নেই')}</h2><span class="badge badge-approved">${escapeHtml(item.time || 'সময় নেই')}</span></div><p>${escapeHtml(item.className || '')} • ${escapeHtml(item.teacher || '')} • ${escapeHtml(item.room || '')}</p><div class="manager-actions"><button type="button" class="mini-btn" data-manager-action="edit-routine" data-index="${index}">Edit</button><button type="button" class="mini-btn reject" data-manager-action="delete-routine" data-index="${index}">Delete</button></div></article>`).join('') : '<p class="admin-empty">এই দিনের routine record নেই।</p>';
+  }
+  const classField = $('#managerRoutineForm [name=className]');
+  if (classField) classField.value ||= '';
+  const all = WEEK_DAYS.flatMap(day => routineRowsFor(day).map(item => ({ ...item, day })));
+  const fill = (id, html) => { const node = document.getElementById(id); if (node) node.innerHTML = html; };
+  fill('managerRoutineTodayList', routineCardHtml(routineRowsFor(routineTodayKey()), 'আজ কোনো ক্লাস নেই।'));
+  fill('managerRoutineTomorrowList', routineCardHtml(routineRowsFor(routineTodayKey(1)), 'আগামীকাল কোনো ক্লাস নেই।'));
+  fill('managerRoutineWeeklyList', WEEK_DAYS.map(day => `<section class="exam-card"><h3>${escapeHtml(dayLabel[day] || day)}</h3>${routineCardHtml(routineRowsFor(day), 'ক্লাস নেই।')}</section>`).join(''));
+  fill('managerRoutineExamList', routineCardHtml(all.filter(item => /পরীক্ষা|exam/.test(routineBlob(item))), 'পরীক্ষা রুটিন এখনও নেই।'));
+  fill('managerRoutineChangedList', routineCardHtml(all.filter(item => /পরিবর্ত|changed/.test(routineBlob(item))), 'পরিবর্তিত রুটিন নেই।'));
+  fill('managerRoutineHolidayList', routineCardHtml(all.filter(item => /ছুটি|holiday/.test(routineBlob(item))), 'ছুটির তালিকা খালি।'));
+  fill('managerRoutineImportantList', routineCardHtml(all.filter(item => /গুরুত্বপূর্ণ|important/.test(routineBlob(item))), 'গুরুত্বপূর্ণ সময়সূচি নেই।'));
+  fill('managerRoutineOtherList', routineCardHtml(all.filter(item => !/পরীক্ষা|exam|পরিবর্ত|changed|ছুটি|holiday|গুরুত্বপূর্ণ|important/.test(routineBlob(item))), 'অন্যান্য রুটিন নেই।'));
 }
 function renderResults() {
   const completed = exams.exams.filter(exam => isLiveExam(exam)).sort((a, b) => Number(b.endAt || 0) - Number(a.endAt || 0));

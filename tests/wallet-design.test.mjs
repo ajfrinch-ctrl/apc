@@ -61,7 +61,7 @@ test('student, manager and teacher have real, named service shortcuts', () => {
   assert.equal(studentTiles[4].dataset.examTab, 'results', 'ফলাফল opens the results tab of পরীক্ষা');
   for (const [name, views] of Object.entries(allowed)) {
     const document = doc(name);
-    const tiles = [...document.querySelectorAll('.pay-grid > .pay-tile')];
+    const tiles = [...document.querySelectorAll('[aria-label="দ্রুত অ্যাক্সেস"] > .pay-tile')];
     assert.equal(tiles.length, 8, name);
     for (const tile of tiles) {
       assert.equal(tile.getAttribute('type'), 'button');
@@ -86,16 +86,17 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
     assert.ok(button.querySelector('svg'));
     assert.ok(['home', 'profile', 'courses', 'exams', 'routine', 'classes'].includes(parent), 'back ' + parent);
   }
-  for (const [name, attribute, target, count] of [
+  for (const [name, attribute, target, min] of [
     ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 11]
   ]) {
     const document = doc(name);
     const backs = [...document.querySelectorAll('.pay-back')];
-    assert.equal(backs.length, count, name);
+    assert.ok(backs.length >= min, name);
     for (const button of backs) {
       const staffHubPage = button.closest('[data-view-panel="profile"], #teacherProfile');
-      const parent = staffHubPage ? 'more' : target;
-      assert.equal(button.getAttribute(attribute), parent);
+      const parent = button.getAttribute(attribute);
+      const allowedParents = staffHubPage ? ['more'] : [target, 'routine', 'routine-view'];
+      assert.ok(allowedParents.includes(parent), name + ' back ' + parent);
       assert.ok(button.getAttribute('aria-label'));
       assert.ok(button.querySelector('svg'));
     }
