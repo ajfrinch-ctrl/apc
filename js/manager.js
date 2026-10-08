@@ -669,18 +669,14 @@ function moreMenuItem({ icon, label }) {
   return button;
 }
 const moreMenu = $('#managerMoreMenu');
-if (moreMenu && !moreMenu.querySelector('.pay-tile')) {
+if (moreMenu) {
+  moreMenu.replaceChildren();
   MORE_MODULES.forEach(module => {
     const button = moreMenuItem(module);
     button.dataset.managerView = module.view;
     moreMenu.append(button);
   });
-  const moreLogout = moreMenuItem({ icon: 'logout', label: 'লগআউট' });
-  moreLogout.classList.add('is-logout');
-  moreLogout.id = 'managerMoreLogout';
-  moreMenu.append(moreLogout);
 }
-$('#managerMoreLogout')?.addEventListener('click', () => { clearStaffSession('manager'); goToLoginPage(); });
 document.addEventListener('click', event => {
   const examTile = event.target.closest('[data-manager-exam]');
   if (!examTile) return;
