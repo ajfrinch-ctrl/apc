@@ -8,7 +8,7 @@ export function initStudentExams({ getStudent, getAccount }) {
   /* The four states of the পরীক্ষা section (docs/APP-ARCHITECTURE.md §3). An exam
      belongs to exactly one tab: a live attempt or a running window is চলমান, a
      future paper is আসন্ন, a published paper is ফলাফল, the rest is সম্পন্ন. */
-  const TABS = ['upcoming', 'live', 'done', 'results'];
+  const TABS = ['upcoming', 'live', 'done', 'results', 'practice'];
   const EMPTY_TAB_TEXT = Object.freeze({
     upcoming: 'এই মুহূর্তে কোনো আসন্ন পরীক্ষা নেই।',
     live: 'এখন কোনো পরীক্ষা চলছে না।',
@@ -73,11 +73,11 @@ export function initStudentExams({ getStudent, getAccount }) {
     const panel = document.querySelector('[data-exam-panel="results"]');
     if (panel) panel.hidden = tab !== 'results';
     /* Tile rule: a tab shows only its own content — ফলাফল keeps the overview
-       panel alone, অনুশীলন lives with the completed papers on সম্পন্ন. */
+       panel alone, and ইনস্ট্যান্ট অনুশীলন gets a tile of its own. */
     const examWorkspace = document.querySelector('#studentExamWorkspace');
-    if (examWorkspace) examWorkspace.hidden = tab === 'results';
+    if (examWorkspace) examWorkspace.hidden = tab === 'results' || tab === 'practice';
     const practiceWorkspace = document.querySelector('#studentPracticeWorkspace');
-    if (practiceWorkspace) practiceWorkspace.hidden = tab !== 'done';
+    if (practiceWorkspace) practiceWorkspace.hidden = tab !== 'practice';
     if (tab === 'results') paintResultOverview();
   }
   /* Which tab a student lands on: the first one that actually has something to
@@ -97,6 +97,7 @@ export function initStudentExams({ getStudent, getAccount }) {
   function list() {
     view = 'list'; examId = null; attemptId = null;
     if (!activeAccount()) { content.innerHTML = '<p class="exam-card">অনুমোদিত অ্যাকাউন্ট দিয়ে লগইন করতে হবে।</p>'; return; }
+    if (tab === 'practice') { content.innerHTML = ''; paintTabs(); return; }
     /* Draft / review / approved / archived papers are staff-only: a student
     never sees a question before its exam is published. */
     const visible = visibleExams(), now = Date.now();
