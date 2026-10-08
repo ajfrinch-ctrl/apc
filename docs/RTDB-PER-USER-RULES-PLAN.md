@@ -371,8 +371,17 @@ Done (client + functions, tested by `npm test`):
       PROPOSALS only; applying a match is always an explicit decision; the
       re-keyed row preserves the legacy record id as provenance and never
       overwrites a row the new account flow created).
+- [x] Admin panel console for both migration callables
+      (সিস্টেম → ভি-টু সিংক মাইগ্রেশন, `security.manage`-gated): teacher
+      dry-run → verify → apply and roster proposals → select → validate →
+      apply, every write behind an explicit confirmation.
 
 ### Retro-link runbook (`adminProvisionV2Identities`)
+
+The Admin panel ships a console for this (সিস্টেম → ভি-টু সিংক মাইগ্রেশন):
+dry-run → verify a single teacher → apply, with unresolved rows labelled and
+nothing applied without an explicit click. It calls the same callable below,
+so the CLI steps remain the fallback for scripted runs.
 
 Run from an Admin session. From a Firebase CLI checkout:
 
@@ -401,6 +410,9 @@ effect on the account's next ID-token refresh (≤ 1 h).
 
 A wrong student↔account match is a privacy breach, so this callable only
 *proposes* matches by normalized mobile; the Admin confirms each one.
+The Admin console (সিস্টেম → ভি-টু সিংক মাইগ্রেশন) enforces the same
+sequence in the UI: preview proposals → pick exactly one candidate per
+student → validate → apply. The CLI steps below are the scripted fallback.
 
     firebase functions:shell
     > adminMigrateStudentToV2({ preview: true })
