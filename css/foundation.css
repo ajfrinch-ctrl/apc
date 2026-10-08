@@ -7,9 +7,9 @@
    Component-level dark tuning lives in css/app-polish.css; neither file may
    define a second palette (§ AMOLED block there is strict overrides only). */
 :root{
- --color-bg:#f3f6fb;--color-surface:#fff;--color-surface-muted:#edf3fc;--color-border:#dce5f0;
- --color-text:#213047;--color-text-secondary:#56677e;--color-text-muted:#65748a;
- --color-primary:#2864bd;--color-primary-hover:#194f9d;--color-success:#187346;--color-warning:#875b0c;--color-danger:#b83239;
+ --color-bg:#f7f8fc;--color-surface:#fff;--color-surface-muted:#edf1fa;--color-border:#dfe6f3;
+ --color-text:#1f2a44;--color-text-secondary:#51607a;--color-text-muted:#61708b;
+ --color-primary:#1e3a8a;--color-primary-hover:#182f74;--color-success:#0e7a55;--color-warning:#875b0c;--color-danger:#b91c1c;
  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;--space-7:48px;
  --radius-sm:9px;--radius-md:14px;--radius-lg:18px;
  --font-xs:12px;--font-sm:14px;--font-md:16px;--font-lg:20px;--font-xl:28px;--font-2xl:36px;
@@ -23,38 +23,38 @@
  --glass-border:rgba(32,54,83,.10);--glass-edge:rgba(255,255,255,.9);
  --glass-shadow:0 10px 30px rgba(23,42,71,.10);--glass-shadow-strong:0 24px 60px rgba(23,42,71,.20);
  --glass-blur-thin:6px;
- --ambient-1:rgba(64,131,255,.22);--ambient-2:rgba(146,110,255,.19);--ambient-3:rgba(69,201,161,.14);
+ --ambient-1:rgba(59,130,246,.20);--ambient-2:rgba(30,58,138,.14);--ambient-3:rgba(69,201,161,.14);
  --ambient-4:rgba(255,138,110,.13);
  /* Modern colour: one second brand hue for gradients, and the five tints the
     dashboard tiles carry in their class names. They never replace the palette
     above — they are the colour that keeps the flat baseline from looking like a
     form on paper. Tints sit on top of a surface as a wash, never as a new one. */
- --brand-2:#6b5bff;
- --tone-blue:#2b6fe0;--tone-blue-soft:rgba(43,111,224,.13);
- --tone-mint:#0e9f6e;--tone-mint-soft:rgba(14,159,110,.14);
- --tone-amber:#c0800c;--tone-amber-soft:rgba(200,133,15,.16);
+ --brand-2:#3b82f6;
+ --tone-blue:#3b82f6;--tone-blue-soft:rgba(59,130,246,.14);
+ --tone-mint:#0e9f6e;--tone-mint-soft:rgba(16,185,129,.14);
+ --tone-amber:#d97706;--tone-amber-soft:rgba(245,158,11,.16);
  --tone-violet:#6d4dfa;--tone-violet-soft:rgba(122,92,255,.14);
  --tone-rose:#d6415d;--tone-rose-soft:rgba(219,77,103,.14);
- --ring-track:rgba(43,111,224,.16);
- --accent-glow:0 12px 28px rgba(43,111,224,.28);--card-glow:0 14px 34px rgba(37,84,161,.10);
+ --ring-track:rgba(30,58,138,.16);
+ --accent-glow:0 12px 28px rgba(30,58,138,.26);--card-glow:0 14px 34px rgba(23,42,110,.10);
  /* Pay skin (css/ui-wallet.css): the hero band, icon discs and the floating
     action of the wallet-style layout. Colours only — the skin arranges them.
     Same blue/green brand as before; nothing here is a second palette, it is the
     brand blue stepped into a band, a disc tint and a lift. */
- --pay-hero-a:#2a69cc;--pay-hero-b:#1b4b98;--pay-on-hero:#fff;--pay-on-hero-soft:#eef4ff;
- --pay-hero-chip:rgba(255,255,255,.16);--pay-hero-line:rgba(255,255,255,.32);
- --pay-disc:#e6effc;--pay-disc-ink:#2864bd;
- --pay-fab-a:#3f89f0;--pay-fab-b:#2459b3;--pay-on-fab:#fff;
- --pay-shadow:0 1px 2px rgba(20,44,88,.06),0 8px 22px rgba(20,44,88,.07);--pay-nav-shadow:rgba(20,44,88,.16);
- --pay-success:#137a50;--pay-success-soft:#e2f6ee;
+ --pay-hero-a:#1e3a8a;--pay-hero-b:#16296b;--pay-on-hero:#fff;--pay-on-hero-soft:#dbe4ff;
+ --pay-hero-chip:rgba(255,255,255,.14);--pay-hero-line:rgba(255,255,255,.30);
+ --pay-disc:#e7ecfa;--pay-disc-ink:#1e3a8a;
+ --pay-fab-a:#3b82f6;--pay-fab-b:#1e3a8a;--pay-on-fab:#fff;
+ --pay-shadow:0 1px 2px rgba(15,28,72,.06),0 8px 22px rgba(15,28,72,.08);--pay-nav-shadow:rgba(15,28,72,.16);
+ --pay-success:#0e7a55;--pay-success-soft:#e2f6ee;
  --pay-logo-shadow:0 2px 8px rgba(6,24,58,.20);--pay-fab-shadow:0 8px 18px rgba(36,89,179,.28);
  /* Paper is deliberately invariant: the receipt preview mirrors a printable
     document even when the surrounding app is AMOLED. */
  --pay-paper:#fff;--pay-paper-ink:#213047;--pay-paper-muted:#56677e;--pay-paper-line:#dce5f0;--pay-paper-tint:#edf3fc;--pay-paper-success:#187346;
  /* Active Plus Color: the illustration paints, centrally themed like every
     other surface. Blue/green remain the brand; warm accents distinguish services. */
- --icon-outline:#194267;--icon-on-color:#fff;
- --icon-blue:#347cda;--icon-blue-back:#b8d7ff;--icon-mint:#179775;--icon-mint-back:#bde8d6;
+ --icon-outline:#1e3a8a;--icon-on-color:#fff;
+ --icon-blue:#3b82f6;--icon-blue-back:#c7dbff;--icon-mint:#179775;--icon-mint-back:#bde8d6;
  --icon-gold:#f3bd53;--icon-coral:#eb9b6f;--icon-violet:#8675d1;
  --icon-paper:#fff;--icon-paper-back:#e3edf7;
  --icon-plate-blue:#eaf2ff;--icon-plate-green:#e9f7f0;--icon-plate-gold:#fff4dc;--icon-plate-violet:#f0edfc;
