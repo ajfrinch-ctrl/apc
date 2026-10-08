@@ -443,7 +443,7 @@ export function initLogin({ state, onAuthenticated }) {
   void paintAuthWeather();
 }
 
-const KANUNGOPARA = Object.freeze({ lat: 22.4075, lon: 91.9783 });
+const KANUNGOPARA = Object.freeze({ lat: 22.35803, lon: 92.12380 });
 const WEATHER_CACHE_KEY = 'activePlus.authWeather.v1';
 
 function skyFromClock(date = new Date()) {
