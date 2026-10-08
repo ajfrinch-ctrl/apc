@@ -90,7 +90,10 @@ export function initStudentExams({ getStudent, getAccount }) {
     const examWorkspace = document.querySelector('#studentExamWorkspace');
     if (examWorkspace) examWorkspace.hidden = onHub || tab === 'results' || onPractice;
     const practiceWorkspace = document.querySelector('#studentPracticeWorkspace');
-    if (practiceWorkspace) practiceWorkspace.hidden = !onPractice;
+    if (practiceWorkspace) {
+      if (practiceWorkspace.closest('#coursesView')) practiceWorkspace.hidden = false;
+      else practiceWorkspace.hidden = !onPractice;
+    }
     if (tab === 'results') paintResultOverview();
   }
   /* Which tab a student lands on: the first one that actually has something to

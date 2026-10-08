@@ -75,9 +75,9 @@ test('ফলাফল is a tab of পরীক্ষা, and #results stays only
 test('পড়াশোনা has five sections and one movable teaching board', async () => {
   const ctx = await loadPage('index.html');
   assert.deepEqual(ctx.$$('#studySections [data-study-section]').map(tab => tab.dataset.studySection),
-    ['courses', 'homework', 'suggestion', 'bank', 'materials']);
-  assert.deepEqual(ctx.$$('[data-study-panel]').map(panel => panel.dataset.studyPanel),
-    ['courses', 'homework', 'suggestion', 'bank', 'materials']);
+    ['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
+  assert.deepEqual(ctx.$$('#coursesView [data-study-panel]').map(panel => panel.dataset.studyPanel),
+    ['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
   assert.equal(ctx.$$('#learningBoard').length, 1, 'the teacher board is never duplicated');
   assert.equal(ctx.$$('[data-study-slot="board"]').length, 2, 'বাড়ির কাজ and সাজেশন share the one board');
   assert.equal(ctx.$('#courseHub')?.closest('[data-study-panel]').dataset.studyPanel, 'courses');

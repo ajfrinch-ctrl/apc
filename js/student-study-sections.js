@@ -14,7 +14,7 @@ import { toBanglaNumber as bn } from './ui.js';
 import { classByName, subjectsForClass, listChapters } from './academics.js';
 import { listCourseContent, typeOf as courseTypeOf } from './course-content.js';
 import { listQuestionsForStudent, questionRowsFromPastExams, QUESTION_TYPES } from './question-bank.js';
-import { examRepository as examRepo, examMatchesStudent, isStudentVisibleExam, watchExams } from './exam-data.js';
+import { examRepository as examRepo, examMatchesStudent, isStudentVisibleExam, watchExams, examResults, totalMarks, gradeFor } from './exam-data.js';
 import { downloadExamPDF } from './exam-pdf.js';
 
 const SELECTORS = {
@@ -23,7 +23,8 @@ const SELECTORS = {
   suggestion: { subject: '#studySuggestionSubject', chapter: '#studySuggestionChapter', list: '#studySuggestionList', count: '#studySuggestionCount', error: '#studySuggestionError' },
   materials: { subject: '#studyMaterialSubject', chapter: '#studyMaterialChapter', list: '#studyMaterialsList', count: '#studyMaterialsCount', error: '#studyMaterialsError' }
 };
-const SECTIONS = Object.freeze(['courses', 'homework', 'suggestion', 'bank', 'materials']);
+const SECTIONS = Object.freeze(['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
+const OTHER_TYPES = Object.freeze(['previous_question', 'video', 'lesson']);
 const BANK_TYPES = Object.freeze({ mcq: ['mcq'], short: ['short_answer', 'true_false'], written: ['written'] });
 const SUGGESTION_TYPES = Object.freeze({
   important: record => courseTypeOf(record) === 'important_question',
@@ -51,7 +52,8 @@ const chapterLabel = record => text(record.chapterName) || '';
 export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   const bar = $(SELECTORS.bar);
   if (!bar) return () => {};
-  let section = 'courses';
+  let section = 'hub';
+  let examDb = { exams: [], attempts: [] };
   let bankTypes = new Set();
   let bankSubject = '', bankChapter = '', bankRows = [], bankPapers = [], bankReady = false, bankError = '';
   let bankPdfBusy = false;
@@ -245,8 +247,25 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     set('materials', materialRecords.length);
   }
 
+  function parkPracticeWorkspace() {
+    const workspace = $('#studentPracticeWorkspace');
+    const home = $('#examsView');
+    if (workspace && home && workspace.closest('#coursesView')) {
+      const anchor = $('#studentExamWorkspace');
+      if (anchor?.parentElement) anchor.parentElement.insertBefore(workspace, anchor.nextSibling);
+      else home.appendChild(workspace);
+      workspace.hidden = true;
+    }
+  }
+
   function paintPanels() {
-    document.querySelectorAll('[data-study-panel]').forEach(panel => { panel.hidden = panel.dataset.studyPanel !== section; });
+    const onHub = section === 'hub';
+    if (bar) bar.hidden = !onHub;
+    const hubBack = $('#studyHubBack');
+    if (hubBack) hubBack.hidden = onHub;
+    document.querySelectorAll('#coursesView [data-study-panel]').forEach(panel => {
+      panel.hidden = onHub || panel.dataset.studyPanel !== section;
+    });
     const board = $('#learningBoard');
     const slot = document.querySelector(`[data-study-panel="${section}"] [data-study-slot="board"]`);
     if (board && slot && board.parentElement !== slot) slot.appendChild(board);
@@ -254,18 +273,68 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       teaching?.setScope?.(section);
       teaching?.setSubject?.(section === 'suggestion' ? suggestionSubject : '');
     }
+    const workspace = $('#studentPracticeWorkspace');
+    const practiceSlot = $('#studyPracticeSlot');
+    if (section === 'practice' && workspace && practiceSlot && workspace.parentElement !== practiceSlot) {
+      practiceSlot.appendChild(workspace);
+      workspace.hidden = false;
+      window.apcStudentPractice?.setMode?.('all');
+      window.apcStudentPractice?.refresh?.();
+    } else if (section !== 'practice') {
+      parkPracticeWorkspace();
+    }
+  }
+
+  function renderModelTest() {
+    const list = $('#studyModelList');
+    if (!list) return;
+    const rows = materialRecords.filter(record => courseTypeOf(record) === 'model_test');
+    list.innerHTML = rows.length ? rows.map(contentCard).join('') : '<p class="teacher-empty">এখনও কোনো মডেল টেস্ট নেই।</p>';
+    const count = $('#studyModelCount');
+    if (count) count.textContent = `${num(rows.length)}টি মডেল টেস্ট`;
+  }
+
+  function renderOther() {
+    const list = $('#studyOtherList');
+    if (!list) return;
+    const rows = materialRecords.filter(record => OTHER_TYPES.includes(courseTypeOf(record)));
+    list.innerHTML = rows.length ? rows.map(contentCard).join('') : '<p class="teacher-empty">এখনও অন্যান্য উপকরণ নেই।</p>';
+    const count = $('#studyOtherCount');
+    if (count) count.textContent = `${num(rows.length)}টি আইটেম`;
+  }
+
+  function renderStudyResults() {
+    const list = $('#studyResultsList');
+    if (!list) return;
+    const studentId = student().id;
+    const now = Date.now();
+    const rows = (examDb.exams || []).filter(exam => isStudentVisibleExam(exam) && examMatchesStudent(exam, student()) && exam.resultsPublished)
+      .map(exam => {
+        const row = examResults(examDb, exam).find(item => item.studentId === studentId);
+        if (!row) return null;
+        const total = totalMarks(exam);
+        const percent = total ? row.score / total * 100 : 0;
+        return { exam, row, total, percent, grade: row.grade || gradeFor(row.score, total, exam.passPercent) };
+      }).filter(Boolean);
+    list.innerHTML = rows.length
+      ? rows.map(item => `<article class="exam-card"><span class="exam-tag">${esc(item.exam.subject || 'পরীক্ষা')}</span><h3>${esc(item.exam.title)}</h3><p><strong>${num(item.row.score)} / ${num(item.total)}</strong> • ${num(item.percent.toFixed(1))}% • গ্রেড ${esc(item.grade)}</p></article>`).join('')
+      : '<p class="teacher-empty">এখনও কোনো ফলাফল প্রকাশ করা হয়নি।</p>';
+    const count = $('#studyResultsCount');
+    if (count) count.textContent = `${num(rows.length)}টি ফলাফল`;
+    void now;
   }
 
   function open(next, { history = 'push' } = {}) {
-    if (!SECTIONS.includes(next)) return;
-    section = next;
-    bar.querySelectorAll('[data-study-section]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.studySection === next)));
+    if (next === 'hub' || SECTIONS.includes(next)) section = next;
+    else return;
+    bar.querySelectorAll('[data-study-section]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.studySection === section)));
     paintPanels();
-    /* A load that ran before sign-in (or while offline) must not freeze an
-       empty shelf: opening the section retries it. */
     if (next === 'bank') { if (bankError) void loadBank(); else renderBank(); }
     if (next === 'suggestion') renderSuggestion();
     if (next === 'materials') renderMaterials();
+    if (next === 'model-test') renderModelTest();
+    if (next === 'other') renderOther();
+    if (next === 'results') { void loadBank().then(renderStudyResults); renderStudyResults(); }
     void history;
   }
 
@@ -281,6 +350,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       if (current !== request) return;
       const now = Date.now();
       const exams = Array.isArray(db?.exams) ? db.exams : [];
+      examDb = db && Array.isArray(db.exams) ? db : { exams, attempts: db?.attempts || [] };
       const visible = exams.filter(exam => isStudentVisibleExam(exam) && examMatchesStudent(exam, student()));
       const past = questionRowsFromPastExams(visible, now);
       const known = new Set((rows || []).map(row => `${text(row.type)}|${text(row.text)}`));
@@ -331,6 +401,10 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   bar.addEventListener('click', event => {
     const button = event.target.closest('[data-study-section]');
     if (button) open(button.dataset.studySection);
+  });
+  document.addEventListener('click', event => {
+    if (!event.target.closest('#coursesView')) return;
+    if (event.target.closest('[data-study-hub-back]')) { open('hub'); return; }
   });
 
   /* The student app announces a finished sign-in; the sections load their own
@@ -404,7 +478,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     if (event.key === null || /activePlus\.(courseContent|academics|teaching)/.test(event.key || '')) void refresh();
   });
 
-  open('courses');
+  open('hub');
   void refresh();
   const api = () => refresh();
   api.open = open;
