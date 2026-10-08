@@ -166,31 +166,13 @@ function attendanceSummary() {
 function renderDashboard() {
   const today = dateLabel(new Date());
   const approved = students.filter(student => student.status === 'approved');
-  const pendingStudents = students.filter(student => student.status === 'pending');
-  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-  const newToday = students.filter(student => Date.parse(student.createdAt || '') >= startOfToday.getTime()).length;
   const todayPayments = transactions.filter(tx => isFinalizedTransaction(tx) && tx.date === today);
   const totalToday = todayPayments.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const pendingTx = transactions.filter(tx => tx.status === 'pending');
   const todayKey = routineDayForToday();
   const todaysClasses = Object.hasOwn(routine, todayKey) ? (routine[todayKey]?.classes?.length || 0) : null;
   safeSetText('#managerToday', today);
   safeSetText('#mgrTotalStudents', bn(students.length)); safeSetText('#mgrActiveStudents', bn(approved.length));
-  safeSetText('#mgrPendingStudents', `${bn(newToday)} / ${bn(pendingStudents.length)}`);
-  safeSetText('#mgrTodayCollection', money(totalToday)); safeSetText('#mgrPendingPayments', bn(pendingTx.length)); safeSetText('#mgrTodayClasses', todaysClasses == null ? '—' : bn(todaysClasses));
-  safeSetText('#mgrCounterStatus', pendingTx.length ? `${bn(pendingTx.length)}টি এন্ট্রি পর্যালোচনার অপেক্ষায়` : 'অপেক্ষমাণ এন্ট্রি নেই');
-  safeSetText('#mgrAttendanceSummary', attendanceSummary());
-  const upcoming = exams.exams.filter(exam => isLiveExam(exam) && Number(exam.startAt) >= Date.now()).sort((a, b) => a.startAt - b.startAt).slice(0, 3);
-  $('#mgrUpcomingExams').innerHTML = upcoming.length ? upcoming.map(exam => compactRow(exam.title, `${exam.className || '—'} • ${new Date(exam.startAt).toLocaleDateString('bn-BD')}`)).join('') : '<p class="finance-hint">কোনো প্রকাশিত আসন্ন পরীক্ষা নেই।</p>';
-  const pendingResults = exams.exams.filter(exam => isLiveExam(exam) && exam.type !== 'mcq' && exam.endAt < Date.now()).map(exam => ({ exam, remaining: (exam.participants || []).filter(person => !exams.attempts.some(a => a.examId === exam.id && a.studentId === person.id && (a.questionScores || a.status === 'absent'))).length })).filter(item => item.remaining > 0);
-  $('#mgrPendingResults').innerHTML = pendingResults.length ? pendingResults.slice(0, 3).map(({ exam, remaining }) => compactRow(exam.title, `${bn(remaining)} শিক্ষার্থীর written marks/absence বাকি`)).join('') : '<p class="finance-hint">কোনো অপেক্ষমাণ ফলাফল record নেই।</p>';
-  $('#mgrRecentNotices').innerHTML = notices.length ? notices.slice(0, 2).map(item => compactRow(item.title, item.date || '')).join('') : '<p class="finance-hint">এখনো কোনো নোটিশ নেই।</p>';
-  const activity = [
-    ...students.filter(s => s.reviewedAt).map(s => ({ at: s.reviewedAt, text: `নিবন্ধন ${statusLabel[s.status] || s.status}: ${s.name}` })),
-    ...transactions.filter(tx => tx.reviewedAt).map(tx => ({ at: tx.reviewedAt, text: `পেমেন্ট ${statusLabel[tx.status] || tx.status}: ${tx.studentName} • ${money(tx.amount)}` })),
-    ...notices.filter(n => n.createdAt).map(n => ({ at: n.createdAt, text: `নোটিশ: ${n.title}` }))
-  ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 5);
-  $('#mgrRecentActivity').innerHTML = activity.length ? activity.map(item => compactRow(item.text, new Date(item.at).toLocaleString('bn-BD'))).join('') : '<p class="finance-hint">কোনো operational activity log সংরক্ষিত নেই।</p>';
+  safeSetText('#mgrTodayCollection', money(totalToday)); safeSetText('#mgrTodayClasses', todaysClasses == null ? '—' : bn(todaysClasses));
 }
 function routineDayForToday(date = new Date()) { return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()]; }
 function searchValue() { return String($('#managerStudentSearch')?.value || '').trim().toLocaleLowerCase(); }

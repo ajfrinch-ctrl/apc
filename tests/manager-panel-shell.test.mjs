@@ -29,7 +29,7 @@ test('Manager boots on the operational dashboard with only its allow-listed sect
   for (const forbidden of ['staff', 'roles', 'permissions', 'security', 'backup', 'restore', 'admin']) assert.equal(routes.includes(forbidden), false);
   assert.equal(ctx.$('#managerMain a[href*="admin"]'), null);
   assert.equal(ctx.$('#mgrActiveStudents').textContent, '১');
-  assert.equal(ctx.$('#mgrPendingStudents').textContent, '১ / ১');
+  assert.equal(ctx.$('#mgrTotalStudents').textContent, '২');
 });
 
 test('Manager student approval updates only the pending registration through the Manager flow', async () => {
