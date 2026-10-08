@@ -443,7 +443,7 @@ export function initLogin({ state, onAuthenticated }) {
   void paintAuthWeather();
 }
 
-const DHAKA = Object.freeze({ lat: 23.81, lon: 90.41 });
+const KANUNGOPARA = Object.freeze({ lat: 22.4075, lon: 91.9783 });
 const WEATHER_CACHE_KEY = 'activePlus.authWeather.v1';
 
 function skyFromClock(date = new Date()) {
