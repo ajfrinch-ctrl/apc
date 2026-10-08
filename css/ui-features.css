@@ -92,6 +92,10 @@
 .settings-list>.settings-info{display:flex;align-items:center;gap:var(--space-3);width:100%;padding:var(--space-4)}
 .settings-value{margin-left:auto;flex:none;color:var(--color-text-secondary);font-size:var(--font-sm);text-align:right}
 .profile-section[data-settings-owner]{padding:0;border:0;background:transparent;margin-bottom:0;box-shadow:none}
+.settings-group-head{display:flex;align-items:center;gap:var(--space-3);margin:0 0 var(--space-3)}
+.settings-group-title{margin:0;font-size:var(--font-md)}
+.settings-hub [data-settings-group][hidden]{display:none}
+.settings-group-grid{margin-top:8px}
 /* An empty report mount must not leave a hollow card behind. */
 .profile-section:has(.rp-mount:empty){display:none}
 @media(max-width:360px){

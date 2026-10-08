@@ -231,5 +231,65 @@ export function mountSettingsHub({ mount, role = 'student', actions = {}, sessio
     }
   }
 
-    return { groups: SETTINGS_GROUPS.map(group => group.key), mounted: true };
+  paintGroupHub(root);
+  return { groups: SETTINGS_GROUPS.map(group => group.key), mounted: true };
+}
+
+const GROUP_ICONS = Object.freeze({
+  account: 'user', notification: 'bell', app: 'smartphone', security: 'lock', data: 'reports'
+});
+
+function paintGroupHub(root) {
+  if (root.dataset.settingsGrouped === '1') return;
+  root.dataset.settingsGrouped = '1';
+  SETTINGS_GROUPS.forEach(group => {
+    const section = root.querySelector(`[data-settings-group="${group.key}"]`);
+    if (!section) return;
+    if (!section.querySelector('.settings-group-title')) {
+      const head = element('div', 'settings-group-head');
+      const back = document.createElement('button');
+      back.type = 'button';
+      back.className = 'pay-back';
+      back.dataset.settingsHubBack = '1';
+      back.setAttribute('aria-label', 'সেটিংস গ্রুপে ফিরুন');
+      back.textContent = '←';
+      const title = element('h2', 'settings-group-title', group.label);
+      head.append(back, title);
+      section.prepend(head);
+    }
+    root.append(section);
+    section.hidden = true;
+  });
+  let nav = root.querySelector('[data-settings-groups]');
+  if (!nav) {
+    nav = element('nav', 'pay-grid is-2 settings-group-grid');
+    nav.dataset.settingsGroups = 'true';
+    nav.setAttribute('aria-label', 'সেটিংস গ্রুপ');
+    SETTINGS_GROUPS.forEach(group => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'pay-tile';
+      button.dataset.settingsOpen = group.key;
+      const iconHost = element('span', 'pay-tile-icon');
+      iconHost.setAttribute('aria-hidden', 'true');
+      iconHost.append(iconElement(GROUP_ICONS[group.key] || 'settings', 'apc-icon-svg'));
+      button.append(iconHost, element('span', 'pay-tile-label', group.label));
+      nav.append(button);
+    });
+    root.prepend(nav);
+  }
+  const showGroup = key => {
+    nav.hidden = Boolean(key);
+    root.querySelectorAll('[data-settings-group]').forEach(section => {
+      section.hidden = section.dataset.settingsGroup !== key;
+    });
+  };
+  root.addEventListener('click', event => {
+    const open = event.target.closest('[data-settings-open]');
+    if (open) {
+      showGroup(open.dataset.settingsOpen);
+      return;
+    }
+    if (event.target.closest('[data-settings-hub-back]')) showGroup('');
+  });
 }
