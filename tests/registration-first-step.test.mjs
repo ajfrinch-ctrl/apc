@@ -30,10 +30,10 @@ test('registration asks for the student name in the first step', async () => {
 test('a login-page message can be dismissed', async () => {
   const ctx = await loadPage('index.html', { seed: { 'activePlus.demo.autofill.v1': 'off' } });
   const { setAuthMessage } = await import('../js/ui.js');
-  setAuthMessage('লগআউট হয়েছে। আবার প্রবেশ করতে মোবাইল নম্বর ও পাসওয়ার্ড দিন।');
+  setAuthMessage('পাসওয়ার্ড ভুল।');
   const message = ctx.$('#authMessage');
   assert.equal(message.hidden, false);
-  assert.match(message.textContent, /লগআউট হয়েছে/);
+  assert.match(message.textContent, /পাসওয়ার্ড ভুল/);
   const dismiss = message.querySelector('.auth-message-close');
   assert.ok(dismiss, 'every message carries a dismiss control');
   ctx.click(dismiss);

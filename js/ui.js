@@ -27,7 +27,7 @@ export function showFeedback(message) {
 
 /**
  * Show (or clear) the message line above the auth form. Every message carries a
- * small dismiss control: a status line such as "লগআউট হয়েছে…" must never stay
+ * small dismiss control: a status line must never stay
  * fixed on screen after the reader has seen it.
  */
 export function setAuthMessage(message, success = false) {
