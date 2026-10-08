@@ -44,7 +44,7 @@ for (const scene of SCENES) {
     await expect(page.locator('#profileView')).toBeVisible();
     await expect(page.locator('#studentReports')).toBeHidden();
     await expect(page.locator('#profileView .rc-form')).toHaveCount(0);
-    await expect(page.locator('#profileView .settings-list [data-view="reports"]')).toBeVisible();
+    await expect(page.locator('#profileView .pay-grid [data-view="reports"]')).toBeVisible();
     await fits(page, '#profileView');
     await page.locator('#profileView [data-view="reports"]').click();
     await expect(page).toHaveURL(/#reports$/);

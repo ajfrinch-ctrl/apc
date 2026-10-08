@@ -89,7 +89,7 @@ test('পড়াশোনা has five sections and one movable teaching board'
 test('আরও holds only প্রোফাইল / রিপোর্ট / নোটিফিকেশন / ফি / সেটিংস / সহায়তা', async () => {
   const ctx = await loadPage('index.html');
   const more = ctx.$('#profileView');
-  assert.deepEqual(ctx.$$('#profileView .settings-list button').map(button => button.dataset.view).filter(Boolean),
+  assert.deepEqual(ctx.$$('#profileView .pay-grid button').map(button => button.dataset.view).filter(Boolean),
     ['my-profile', 'reports', 'notification-settings', 'student-fee', 'settings']);
   assert.ok(more.querySelector('.help-card'), 'সহায়তা stays the sixth entry');
   const academic = [...more.querySelectorAll('[data-view],[data-action]')]
