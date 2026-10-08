@@ -197,11 +197,14 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       return true;
     });
     const body = papers.map(paperCard).join('') + rows.map(questionCard).join('');
-    list.innerHTML = !bankReady
+    const markup = !bankReady
       ? '<p class="teacher-empty">প্রশ্নব্যাংক লোড হচ্ছে…</p>'
       : body
         ? body
         : `<p class="teacher-empty">${bankError || 'এই ফিল্টারে কোনো প্রশ্ন পাওয়া যায়নি।'}</p>`;
+    list.innerHTML = markup;
+    const examBank = document.getElementById('examBankList');
+    if (examBank) examBank.innerHTML = markup;
     const count = $(SELECTORS.bank.count);
     if (count) count.textContent = `${num(rows.length)}টি প্রশ্ন • ${num(papers.length)}টি PDF • ${text(student().className) || 'শ্রেণি'}`;
   }

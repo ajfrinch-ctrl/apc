@@ -47,7 +47,7 @@ test('student, manager and teacher have real, named service shortcuts', () => {
   };
   const studentCards = [
     ['homework', 'বাড়ির কাজ'], ['suggestion', 'সাজেশন'], ['question-bank', 'প্রশ্নব্যাংক'],
-    ['exams', 'পরীক্ষা'], ['exams', 'ফলাফল'], ['notice-board', 'Notice Board']
+    ['exams', 'পরীক্ষা'], ['exam-results', 'ফলাফল'], ['notice-board', 'Notice Board']
   ];
   const studentTiles = [...doc('index').querySelectorAll('#studentServices .pay-tile')];
   assert.equal(studentTiles.length, studentCards.length);
@@ -77,19 +77,24 @@ test('student, manager and teacher have real, named service shortcuts', () => {
 
 test('secondary screens have accessible home/back controls and staff hub rows have round icons', () => {
   const MORE_SUBPAGES = '#reportsView, #notificationSettingsView, #myProfileView, #settingsView, #studentFeeView';
+  const indexBacks = [...doc('index').querySelectorAll('.pay-back')];
+  assert.ok(indexBacks.length >= 10, 'student pages keep back controls');
+  for (const button of indexBacks) {
+    const parent = button.closest(MORE_SUBPAGES) ? 'profile' : button.getAttribute('data-view');
+    assert.equal(button.getAttribute('data-view'), parent);
+    assert.ok(button.getAttribute('aria-label'));
+    assert.ok(button.querySelector('svg'));
+    assert.ok(['home', 'profile', 'courses', 'exams', 'routine', 'classes'].includes(parent), 'back ' + parent);
+  }
   for (const [name, attribute, target, count] of [
-    ['index', 'data-view', 'home', 10],
     ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 11]
   ]) {
     const document = doc(name);
     const backs = [...document.querySelectorAll('.pay-back')];
     assert.equal(backs.length, count, name);
     for (const button of backs) {
-      // Every আরও sub-page goes back to More — the student's (প্রোফাইল, রিপোর্ট,
-      // নোটিফিকেশন, ফি, সেটিংস) and the staff profile/Settings page too.
-      const staffHubPage = name !== 'index' && button.closest('[data-view-panel="profile"], #teacherProfile');
-      const parent = name === 'index' && button.closest(MORE_SUBPAGES) ? 'profile'
-        : staffHubPage ? 'more' : target;
+      const staffHubPage = button.closest('[data-view-panel="profile"], #teacherProfile');
+      const parent = staffHubPage ? 'more' : target;
       assert.equal(button.getAttribute(attribute), parent);
       assert.ok(button.getAttribute('aria-label'));
       assert.ok(button.querySelector('svg'));

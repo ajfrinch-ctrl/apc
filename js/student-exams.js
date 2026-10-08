@@ -11,7 +11,8 @@ export function initStudentExams({ getStudent, getAccount }) {
      future paper is আসন্ন, a published paper is ফলাফল, the rest is সম্পন্ন. */
   const TABS = ['upcoming', 'live', 'done', 'results'];
   const TAB_VIEWS = Object.freeze({
-    upcoming: 'exam-upcoming', live: 'exam-live', done: 'exam-done', results: 'exam-results', practice: 'exam-practice'
+    upcoming: 'exam-upcoming', live: 'exam-live', done: 'exam-done', results: 'exam-results',
+    practice: 'exam-practice', instant: 'exam-instant', papers: 'exam-papers', recent: 'exam-recent'
   });
   const VIEW_TABS = Object.freeze(Object.fromEntries(Object.entries(TAB_VIEWS).map(([tab, view]) => [view, tab])));
   const EMPTY_TAB_TEXT = Object.freeze({
@@ -85,10 +86,14 @@ export function initStudentExams({ getStudent, getAccount }) {
     if (examWorkspace && listSlot && examWorkspace.parentElement !== listSlot) listSlot.appendChild(examWorkspace);
     if (examWorkspace) examWorkspace.hidden = !['upcoming', 'live', 'done'].includes(tab);
     const practiceWorkspace = document.querySelector('#studentPracticeWorkspace');
-    if (practiceWorkspace) {
-      const inStudy = practiceWorkspace.closest('#studyPracticeView');
-      if (inStudy) practiceWorkspace.hidden = false;
-      else practiceWorkspace.hidden = tab !== 'practice';
+    const practiceSlot = document.querySelector(`[data-practice-slot="${tab}"]`) || document.querySelector('#examPracticeView');
+    if (practiceWorkspace && ['instant', 'papers', 'recent', 'practice'].includes(tab)) {
+      if (practiceSlot && practiceWorkspace.parentElement !== practiceSlot) practiceSlot.appendChild(practiceWorkspace);
+      practiceWorkspace.hidden = false;
+      const mode = tab === 'practice' ? 'all' : tab;
+      window.apcStudentPractice?.setMode?.(mode);
+    } else if (practiceWorkspace && !practiceWorkspace.closest('#studyPracticeView')) {
+      practiceWorkspace.hidden = true;
     }
     if (tab === 'results') paintResultOverview();
   }
@@ -102,7 +107,7 @@ export function initStudentExams({ getStudent, getAccount }) {
   }
   function setTab(next, { skipView = false } = {}) {
     if (view === 'active') return;
-    if (next === 'hub' || next === 'practice' || TABS.includes(next)) {
+    if (next === 'hub' || next === 'practice' || next === 'instant' || next === 'papers' || next === 'recent' || TABS.includes(next)) {
       tab = next;
       tabChosen = true;
       list();
@@ -114,7 +119,7 @@ export function initStudentExams({ getStudent, getAccount }) {
   }
   function list() {
     view = 'list'; examId = null; attemptId = null;
-    if (tab === 'hub' || tab === 'practice') { content.innerHTML = ''; paintTabs(); return; }
+    if (tab === 'hub' || tab === 'practice' || tab === 'instant' || tab === 'papers' || tab === 'recent') { content.innerHTML = ''; paintTabs(); return; }
     if (!activeAccount()) { content.innerHTML = '<p class="exam-card">অনুমোদিত অ্যাকাউন্ট দিয়ে লগইন করতে হবে।</p>'; paintTabs(); return; }
     /* Draft / review / approved / archived papers are staff-only: a student
     never sees a question before its exam is published. */
@@ -255,11 +260,12 @@ export function initStudentExams({ getStudent, getAccount }) {
     });
   });
   document.addEventListener('click', event => {
-    const practiceTile = event.target.closest('#practiceMenu [data-practice-mode]');
+    const practiceTile = event.target.closest('#examTabs [data-practice-mode]');
     if (practiceTile) {
       if (view === 'active') return;
-      window.apcStudentPractice?.setMode?.(practiceTile.dataset.practiceMode);
-      setTab('practice');
+      const mode = practiceTile.dataset.practiceMode;
+      window.apcStudentPractice?.setMode?.(mode);
+      setTab(mode === 'instant' || mode === 'papers' || mode === 'recent' ? mode : 'practice');
       return;
     }
     const trigger = event.target.closest('#examTabs [data-exam-tab]');

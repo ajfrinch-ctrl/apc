@@ -33,6 +33,7 @@ import { initNotificationSettings } from './notification-settings.js';
 import { mountSettingsHub } from './settings-hub.js';
 import { initCourseHub } from './course-hub.js';
 import { initStudentStudySections } from './student-study-sections.js';
+import { initStudentHubs } from './student-hubs.js';
 import { initStudentFee } from './student-more.js';
 import { initDailyQuote } from './daily-quote.js';
 
@@ -309,6 +310,7 @@ initNavigation({ onAction: handleAction });
    (js/notifications.js) so every panel shares one receipt list. */
 const refreshNotices = () => { window.apcNoticeCenter?.paint?.(); noticeBoard.refresh(); };
 const refreshRoutine = initRoutine({ getStudent: () => state.student });
+initStudentHubs({ getStudent: () => state.student });
 initProfile({
   state,
   onStudentChange: student => { renderStudent(student); noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshStudentSections(); refreshReports($('#studentReports')); }
