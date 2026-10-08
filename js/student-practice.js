@@ -168,6 +168,7 @@ export function initStudentPractice({ getStudent, getAccount }) {
   let view = 'list', activeSession = null, lastRecord = null, busy = false;
   let chapterContext = null;
   let practiceQuestionRows = [];
+  let practiceMode = 'all';
   root.classList.add('exam-workspace', 'practice-workspace');
   root.innerHTML = '<p class="exam-error" data-practice-error role="alert" hidden></p><p class="exam-message" data-practice-message role="status" hidden></p><div data-practice-content></div>';
   const $ = selector => root.querySelector(selector), content = $('[data-practice-content]');
@@ -211,14 +212,14 @@ export function initStudentPractice({ getStudent, getAccount }) {
       }
     }
     const poolSize = pool.length ? Math.min(RANDOM_SIZE, pool.length) : 0;
-    content.innerHTML = `
+    const instantMarkup = `
       ${chapterCard}
       <section class="exam-card practice-card" aria-label="ইনস্ট্যান্ট MCQ অনুশীলন">
         <h2>ইনস্ট্যান্ট MCQ অনুশীলন</h2>
         ${entry.active ? `<div class="exam-actions">${button('resume-active', 'চলন্ত অনুশীলনে ফিরে যাও', entry.active.id, 'primary')}</div>` : ''}
         <div class="exam-actions">${poolSize ? button('start-random', `র‍্যান্ডম অনুশীলন (${num(poolSize)}টি প্রশ্ন • ${num(poolSize * PRACTICE_MINUTES_PER_QUESTION)} মিনিট)`, '', 'primary') : '<small>অনুশীলনের জন্য এখনও প্রশ্ন নেই — MCQ পরীক্ষার সময় শেষ হলে তার প্রশ্নগুলো নিজে থেকেই এখানে আসবে।</small>'}</div>
-      </section>
-      <section aria-label="গত পরীক্ষা অনুশীলন"><h3>গত পরীক্ষা অনুশীলন</h3>
+      </section>`;
+    const papersMarkup = `<section aria-label="গত পরীক্ষা অনুশীলন"><h3>গত পরীক্ষা অনুশীলন</h3>
         <div class="exam-list">${papers.map(paper => {
           const best = bestScore(entry.sessions, paper.examId);
           return `<article class="exam-card">
@@ -228,8 +229,12 @@ export function initStudentPractice({ getStudent, getAccount }) {
             <div class="exam-actions">${button('start-paper', 'অনুশীলন শুরু করুন', paper.examId, 'primary')}</div>
           </article>`;
         }).join('') || '<p class="exam-card">এখনও কোনো গত MCQ পরীক্ষার প্রশ্ন ব্যাংকে নেই।</p>'}</div>
-      </section>
-      ${historyMarkup(entry.sessions)}`;
+      </section>`;
+    const recentMarkup = historyMarkup(entry.sessions) || '<p class="exam-card">এখনও কোনো অনুশীলন করা হয়নি।</p>';
+    const showInstant = practiceMode === 'all' || practiceMode === 'instant';
+    const showPapers = practiceMode === 'all' || practiceMode === 'papers';
+    const showRecent = practiceMode === 'all' || practiceMode === 'recent';
+    content.innerHTML = `${showInstant ? instantMarkup : ''}${showPapers ? papersMarkup : ''}${showRecent ? recentMarkup : ''}`;
   }
   function updateStatus() {
     const node = $('[data-practice-status]');
@@ -347,7 +352,11 @@ export function initStudentPractice({ getStudent, getAccount }) {
       $('[data-chapter-practice-heading]')?.focus?.({ preventScroll: true });
     });
   }
-  window.apcStudentPractice = { openChapter, refresh };
+  function setMode(mode) {
+    practiceMode = ['instant', 'papers', 'recent', 'all'].includes(mode) ? mode : 'all';
+    if (view === 'list') list();
+  }
+  window.apcStudentPractice = { openChapter, refresh, setMode };
   root.addEventListener('change', event => {
     const input = event.target.closest('[data-practice-answer]');
     if (!input || !activeSession) return;

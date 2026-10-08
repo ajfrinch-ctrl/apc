@@ -33,6 +33,7 @@ test('the notification action starts and resumes the exact exam it names', async
 
   const { initStudentExams } = await import('../js/student-exams.js?notification-action');
   initStudentExams({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
+  ctx.click(ctx.$('#examTabs [data-exam-tab="live"]'));
   await ctx.waitFor(() => Boolean(ctx.$(`[data-student-exam="${target.id}"]`)));
 
   const notify = action => ctx.window.dispatchEvent(new ctx.window.CustomEvent('apc-notification-action', {

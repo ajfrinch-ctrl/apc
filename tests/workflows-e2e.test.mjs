@@ -286,6 +286,8 @@ test('workflow 4 + 5 — the student sits the published exam from পরীক�
   const student = await openStudent(liveStorage);
   student.click(student.$('.bottom-link[data-view="exams"]'));
   await student.flush(6);
+  student.click(student.$('#examTabs [data-exam-tab="live"]'));
+  await student.flush(4);
   const startSelector = `[data-student-exam="${id}"] [data-student-exam-action="start"]`;
   await student.waitFor(() => Boolean(student.$(startSelector)), 15000);
   const start = student.$(startSelector);

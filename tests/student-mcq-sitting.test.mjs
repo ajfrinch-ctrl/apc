@@ -56,6 +56,7 @@ before(async () => {
   ctx.window.sessionStorage.setItem(STORAGE_KEYS.session, '1');
   ctx.window.localStorage.setItem(EXAM_KEY, JSON.stringify({ version: 1, exams: [exam], attempts: [] }));
   initStudentExams({ getStudent: () => student, getAccount: () => ({ status: 'active' }) });
+  ctx.click(ctx.$('#examTabs [data-exam-tab="live"]'));
   await ctx.waitFor(() => ctx.$$('[data-student-exam-action="start"]').length > 0);
   ctx.click($('[data-student-exam-action="start"]'));
   await ctx.waitFor(() => Boolean($('[data-answer-question]')));

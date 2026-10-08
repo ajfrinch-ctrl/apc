@@ -60,7 +60,9 @@ test('ফলাফল is a tab of পরীক্ষা, and #results stays only
   assert.equal(ctx.$('#resultsView'), null, 'the separate results view is gone');
   assert.equal(ctx.$$('[data-view="results"]').length, 0, 'no control may route to a results view of its own');
   const tabs = ctx.$$('#examTabs [data-exam-tab]');
-  assert.deepEqual(tabs.map(tab => tab.dataset.examTab), ['upcoming', 'live', 'done', 'results', 'practice']);
+  assert.deepEqual(tabs.map(tab => tab.dataset.examTab), ['upcoming', 'live', 'done', 'results']);
+  assert.deepEqual(ctx.$$('#practiceMenu [data-practice-mode]').map(tile => tile.dataset.practiceMode),
+    ['instant', 'papers', 'recent']);
   assert.equal(ctx.$('[data-exam-panel="results"]').contains(ctx.$('#teacherResultsBoard')), true,
     'teacher-given marks live in the ফলাফল tab');
   assert.ok(ctx.$('#studentResultOverview'));

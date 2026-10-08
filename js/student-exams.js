@@ -8,15 +8,17 @@ export function initStudentExams({ getStudent, getAccount }) {
   /* The four states of the পরীক্ষা section (docs/APP-ARCHITECTURE.md §3). An exam
      belongs to exactly one tab: a live attempt or a running window is চলমান, a
      future paper is আসন্ন, a published paper is ফলাফল, the rest is সম্পন্ন. */
-  const TABS = ['upcoming', 'live', 'done', 'results', 'practice'];
+  const TABS = ['upcoming', 'live', 'done', 'results'];
   const EMPTY_TAB_TEXT = Object.freeze({
     upcoming: 'এই মুহূর্তে কোনো আসন্ন পরীক্ষা নেই।',
     live: 'এখন কোনো পরীক্ষা চলছে না।',
     done: 'সম্পন্ন হওয়া কোনো পরীক্ষা এখনও নেই।',
     results: 'এখনও কোনো ফলাফল প্রকাশ করা হয়নি।'
   });
-  let tab = 'upcoming';
-  let tabChosen = false; // the student's own tap wins over the first-paint default
+  /* Hub first: the পরীক্ষা page opens on the category + practice grids, with
+     no list painted until the student picks one tile. */
+  let tab = 'hub';
+  let tabChosen = true;
   root.classList.add('exam-workspace');
   root.innerHTML = '<p class="exam-error" data-exam-error role="alert" hidden></p><p class="exam-message" data-exam-message role="status" hidden></p><div data-exam-content></div>';
   const $ = selector => root.querySelector(selector), content = $('[data-exam-content]');
@@ -59,25 +61,36 @@ export function initStudentExams({ getStudent, getAccount }) {
   }
   function paintTabs() {
     const bar = document.querySelector('#examTabs');
-    if (!bar) return;
+    const practiceMenu = document.querySelector('#practiceMenu');
+    const hubBack = document.querySelector('#examHubBack');
     const now = Date.now();
     const exams = activeAccount() ? visibleExams() : [];
     const counts = { upcoming: 0, live: 0, done: 0, results: 0 };
     exams.forEach(exam => { counts[tabOf(exam, now)] += 1; });
-    bar.querySelectorAll('[data-exam-tab]').forEach(item => {
-      const key = item.dataset.examTab;
-      item.setAttribute('aria-pressed', String(key === tab));
-      const badge = item.querySelector('[data-exam-tab-count]');
-      if (badge) badge.textContent = num(counts[key] || 0);
-    });
+    const onHub = tab === 'hub';
+    const onPractice = tab === 'practice';
+    if (bar) {
+      bar.hidden = !onHub;
+      bar.querySelectorAll('[data-exam-tab]').forEach(item => {
+        const key = item.dataset.examTab;
+        item.setAttribute('aria-pressed', String(key === tab));
+        const badge = item.querySelector('[data-exam-tab-count]');
+        if (badge) badge.textContent = num(counts[key] || 0);
+      });
+    }
+    if (practiceMenu) {
+      practiceMenu.hidden = !onHub;
+      practiceMenu.querySelectorAll('[data-practice-mode]').forEach(item => {
+        item.setAttribute('aria-pressed', 'false');
+      });
+    }
+    if (hubBack) hubBack.hidden = onHub || view === 'active';
     const panel = document.querySelector('[data-exam-panel="results"]');
     if (panel) panel.hidden = tab !== 'results';
-    /* Tile rule: a tab shows only its own content — ফলাফল keeps the overview
-       panel alone, and ইনস্ট্যান্ট অনুশীলন gets a tile of its own. */
     const examWorkspace = document.querySelector('#studentExamWorkspace');
-    if (examWorkspace) examWorkspace.hidden = tab === 'results' || tab === 'practice';
+    if (examWorkspace) examWorkspace.hidden = onHub || tab === 'results' || onPractice;
     const practiceWorkspace = document.querySelector('#studentPracticeWorkspace');
-    if (practiceWorkspace) practiceWorkspace.hidden = tab !== 'practice';
+    if (practiceWorkspace) practiceWorkspace.hidden = !onPractice;
     if (tab === 'results') paintResultOverview();
   }
   /* Which tab a student lands on: the first one that actually has something to
@@ -89,15 +102,17 @@ export function initStudentExams({ getStudent, getAccount }) {
     return 'upcoming';
   }
   function setTab(next) {
-    if (!TABS.includes(next) || view === 'active') return;
-    tab = next;
-    tabChosen = true;
-    list();
+    if (view === 'active') return;
+    if (next === 'hub' || next === 'practice' || TABS.includes(next)) {
+      tab = next;
+      tabChosen = true;
+      list();
+    }
   }
   function list() {
     view = 'list'; examId = null; attemptId = null;
-    if (!activeAccount()) { content.innerHTML = '<p class="exam-card">অনুমোদিত অ্যাকাউন্ট দিয়ে লগইন করতে হবে।</p>'; return; }
-    if (tab === 'practice') { content.innerHTML = ''; paintTabs(); return; }
+    if (tab === 'hub' || tab === 'practice') { content.innerHTML = ''; paintTabs(); return; }
+    if (!activeAccount()) { content.innerHTML = '<p class="exam-card">অনুমোদিত অ্যাকাউন্ট দিয়ে লগইন করতে হবে।</p>'; paintTabs(); return; }
     /* Draft / review / approved / archived papers are staff-only: a student
     never sees a question before its exam is published. */
     const visible = visibleExams(), now = Date.now();
@@ -236,9 +251,22 @@ export function initStudentExams({ getStudent, getAccount }) {
     });
   });
   document.addEventListener('click', event => {
-    const trigger = event.target.closest('[data-exam-tab]');
+    if (event.target.closest('[data-exam-hub-back]')) {
+      if (view === 'active') return;
+      window.apcStudentPractice?.setMode?.('all');
+      setTab('hub');
+      return;
+    }
+    const practiceTile = event.target.closest('#practiceMenu [data-practice-mode]');
+    if (practiceTile) {
+      if (view === 'active') return;
+      const mode = practiceTile.dataset.practiceMode;
+      window.apcStudentPractice?.setMode?.(mode);
+      setTab('practice');
+      return;
+    }
+    const trigger = event.target.closest('#examTabs [data-exam-tab]');
     if (!trigger) return;
-    if (!document.querySelector('#examsView')?.classList.contains('active')) return;
     setTab(trigger.dataset.examTab); // an open answer sheet ignores tab taps
   });
   watchExams(() => { if (!busy) refresh(); });

@@ -188,6 +188,8 @@ const refreshCourses = initCourseHub({
   onAction: action => {
     if (action.kind === 'chapter-mcq-practice') {
       setView('exams');
+      window.apcStudentPractice?.setMode?.('instant');
+      refreshExams.setTab?.('practice');
       if (window.apcStudentPractice?.openChapter) window.apcStudentPractice.openChapter(action);
       else refreshPractice();
     } else if (action.kind === 'chapter-model-test') {
