@@ -125,6 +125,7 @@ export const VIEW_CAPABILITIES = Object.freeze({
   reports: CAPABILITIES.REPORTS_VIEW,
   system: CAPABILITIES.SETTINGS_MANAGE,
   data: CAPABILITIES.DATA_MANAGE,
+  migration: CAPABILITIES.SECURITY_MANAGE,
   backup: CAPABILITIES.BACKUP_MANAGE,
   security: CAPABILITIES.SECURITY_MANAGE,
   academics: CAPABILITIES.SETTINGS_MANAGE,
@@ -149,7 +150,8 @@ export const ADMIN_SYSTEM_NAV = Object.freeze([
   { view: 'roles', label: 'Roles & Permissions', hint: 'রোলভিত্তিক অনুমতির ম্যাট্রিক্স', icon: 'roles', capability: CAPABILITIES.ROLES_MANAGE, order: 1 },
   { view: 'security', label: 'সিকিউরিটি', hint: 'সেশন, পাসওয়ার্ড নীতি ও সুরক্ষিত অ্যাকাউন্ট', icon: 'security', capability: CAPABILITIES.SECURITY_MANAGE, order: 2 },
   { view: 'settings', label: 'সিস্টেম সেটিংস', hint: 'অ্যাপ কন্ট্রোল, ব্র্যান্ডিং ও নোটিশ', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 3 },
-  { view: 'academics', label: 'ক্লাস ও বিষয়', hint: 'ক্লাস, বিষয় ও শিক্ষক ম্যাপিংয়ের একক কেন্দ্র', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 }
+  { view: 'academics', label: 'ক্লাস ও বিষয়', hint: 'ক্লাস, বিষয় ও শিক্ষক ম্যাপিংয়ের একক কেন্দ্র', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 },
+  { view: 'migration', label: 'ভি-টু সিংক মাইগ্রেশন', hint: 'টিচার লিংক ও রোস্টার — কাটওভারের প্রস্তুতি', icon: 'security', capability: CAPABILITIES.SECURITY_MANAGE, order: 5 }
 ]);
 
 /** ডেটা hub cards — data management, then the one backup screen. */
@@ -159,7 +161,7 @@ export const ADMIN_DATA_NAV = Object.freeze([
 
 /** Which seat lights up for a view that lives inside a hub. */
 export const VIEW_SEAT = Object.freeze({
-  roles: 'system', security: 'system', settings: 'system', academics: 'system',
+  roles: 'system', security: 'system', settings: 'system', academics: 'system', migration: 'system',
   backup: 'data',
   students: 'dashboard'
 });

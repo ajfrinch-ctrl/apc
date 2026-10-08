@@ -4,7 +4,8 @@
   "scripts": {
     "test": "node --experimental-default-type=module --test --test-force-exit tests/*.test.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:local": "node tools/e2e-run.mjs"
+    "test:e2e:local": "node tools/e2e-run.mjs",
+    "rehearse:cutover": "node --experimental-default-type=module --test --test-force-exit tests/v2-cutover-rehearsal.test.mjs tests/rtdb-v2-draft-rules.test.mjs tests/teacher-assignment-migration.test.mjs tests/v2-roster-migration.test.mjs tests/question-bank-v2-policy.test.mjs tests/question-bank-v2-projection.test.mjs tests/admin-v2-migration.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

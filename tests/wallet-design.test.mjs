@@ -97,7 +97,7 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
   }
   /* Admin: a screen inside a hub returns to that hub; the rest go home. */
   const adminBacks = [...doc('admin').querySelectorAll('.pay-back')].map(button => button.getAttribute('data-admin-view'));
-  assert.deepEqual(adminBacks, ['dashboard', 'dashboard', 'system', 'dashboard', 'dashboard', 'dashboard', 'data', 'system', 'system', 'system', 'dashboard']);
+  assert.deepEqual(adminBacks, ['dashboard', 'dashboard', 'system', 'system', 'dashboard', 'dashboard', 'dashboard', 'data', 'system', 'system', 'system', 'dashboard']);
   for (const name of ['admin', 'manager', 'teacher']) {
     for (const row of doc(name).querySelectorAll('.admin-more-item')) {
       assert.ok(row.querySelector('.admin-more-icon, .admin-more-copy'), name + ' hub row has no icon slot');

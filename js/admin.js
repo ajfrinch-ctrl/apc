@@ -1,5 +1,6 @@
 import { studentRecordMarkup } from './student-record.js';
 import { initAdminAcademics } from './admin-academics.js';
+import { mountV2Migration } from './admin-migration.js';
 import { mountSettingsHub } from './settings-hub.js';
 import { iconMarkup } from './icons.js';
 /* Admin panel — System Control + Staff Management + Permissions + Security +
@@ -1043,6 +1044,17 @@ function renderAcademics() {
   });
 }
 
+/* ---------- V2 staged-cutover migration console ---------- */
+let migrationMounted = false;
+function renderMigration() {
+  if (migrationMounted) return;
+  migrationMounted = true;
+  mountV2Migration({
+    mount: '#adminV2Migration',
+    onToast: (text, isError) => toast(text, isError)
+  });
+}
+
 function renderAll() {
   if (viewExists('dashboard')) renderDashboard();
   if (viewExists('students')) renderStudents();
@@ -1053,6 +1065,7 @@ function renderAll() {
   if (viewExists('backup')) renderBackup();
   if (viewExists('security')) renderSecurity();
   if (viewExists('academics')) renderAcademics();
+  if (viewExists('migration')) renderMigration();
   if (viewExists('profile')) renderAdminProfile();
   if (viewExists('staff')) void renderStaff();
 }

@@ -1,5 +1,6 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onValueWritten } = require('firebase-functions/v2/database');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -8,6 +9,27 @@ const { getMessaging } = require('firebase-admin/messaging');
 const { noticePush, broadcastPush, examPushes, chunkTokens, tokensToPrune, messageFor } =
   require('./notification-payload.js');
 const crypto = require('node:crypto');
+const {
+  safeKey: safeQuestionKey,
+  normalizeQuestionRecord,
+  questionMatchesTeacher,
+  questionMatchesExamPaper,
+  buildStudentQuestionProjection,
+  advanceDraftAfterPublish,
+  buildTeacherQuestionProjection,
+  buildQuestionBankFanout
+} = require('./question-bank-projection.js');
+const {
+  linkedTeacherClaims,
+  migrationForTeacher,
+  entriesOfLegacyAssignments,
+  v2IdentityClaims
+} = require('./teacher-assignment-migration.js');
+const {
+  legacyStudentRows,
+  mobileProposals,
+  v2StudentRecord
+} = require('./v2-roster-migration.js');
 
 initializeApp();
 const auth = getAuth();
@@ -138,7 +160,7 @@ exports.adminCreateAccount = onCall(async request => {
   try {
     user = await auth.createUser({ email: authEmail(profile.username), password: profile.password, displayName: profile.fullName, disabled: false });
     const status = role === 'student' ? 'pending' : 'active';
-    await auth.setCustomUserClaims(user.uid, { role, status, mustChangePassword: role !== 'student' });
+    await auth.setCustomUserClaims(user.uid, { role, status, mustChangePassword: role !== 'student', ...v2IdentityClaims(role, user.uid) });
     await db.runTransaction(async tx => {
       const current = await tx.get(ref);
       if (!current.exists || current.data().reservation !== lockId) throw new HttpsError('aborted', 'Username reservation বদলে গেছে।');
@@ -208,7 +230,9 @@ exports.managerReviewStudent = onCall(async request => {
     tx.update(userRef, { status, reviewedBy: request.auth.uid, reviewedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
   });
   const user = await auth.getUser(uid);
-  await auth.setCustomUserClaims(uid, { ...user.customClaims, role: 'student', status: decision });
+  // Force the V2 link on approval so accounts created before the staged
+  // migration (no studentId claim) still reach their own projection node.
+  await auth.setCustomUserClaims(uid, { ...user.customClaims, role: 'student', status: decision, ...v2IdentityClaims('student', uid) });
   return { ok: true, uid, status: decision };
 });
 
@@ -242,15 +266,19 @@ exports.adminSetAccountStatus = onCall(async request => {
   const status = String(request.data.status || '');
   if (!uid || !['active', 'suspended'].includes(status)) throw new HttpsError('invalid-argument', 'Account status সঠিক নয়।');
   const ref = db.doc(`users/${uid}`);
+  let accountRole = '';
   await db.runTransaction(async tx => {
     const doc = await tx.get(ref);
     if (!doc.exists || doc.data().role === 'admin' || doc.data().role === 'student') {
       throw new HttpsError('failed-precondition', 'এই Account status Admin-এর মাধ্যমে বদলানো যাবে না।');
     }
+    accountRole = String(doc.data().role || '');
     tx.update(ref, { status, updatedAt: FieldValue.serverTimestamp() });
   });
   const user = await auth.getUser(uid);
-  await auth.setCustomUserClaims(uid, { ...user.customClaims, status });
+  // Backfill the V2 link for accounts created before the staged migration:
+  // teacherId/studentId always equal the account's own Auth uid.
+  await auth.setCustomUserClaims(uid, { ...user.customClaims, status, ...v2IdentityClaims(accountRole || String(user.customClaims?.role || ''), uid) });
   await auth.updateUser(uid, { disabled: status !== 'active' });
   return { ok: true, uid, status };
 });
@@ -282,6 +310,399 @@ exports.adminSetAccountStatus = onCall(async request => {
 const BRIDGE_ROOT = 'activePlusSync/v1';
 const PUSH_TOKENS_PATH = `${BRIDGE_ROOT}/pushTokens`;
 const DB_REGION = 'asia-southeast1';
+const V2_ROOT = 'activePlusV2';
+const mapObject = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const valuesOf = value => Object.values(mapObject(value)).filter(item => item && typeof item === 'object' && !Array.isArray(item));
+const jsonEqual = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+
+async function applyV2Updates(updates) {
+  const patch = {};
+  for (const [path, value] of Object.entries(updates || {})) patch[`${V2_ROOT}/${path}`] = value;
+  if (Object.keys(patch).length) await getDatabase().ref().update(patch);
+}
+
+function questionHasFutureExamWindow(question, now = Date.now()) {
+  return Boolean(question?.active === true && question?.source?.examId && Number(question.endAt) > now);
+}
+
+/** Teacher-authoring entry point. The draft is private and its scope is checked
+ * again against the live Manager assignment before the canonical answer key is
+ * written. The client never chooses its teacherId or publication role. */
+exports.publishQuestionBankDraft = onCall(async request => {
+  requireCaller(request, 'teacher');
+  const teacherId = String(request.auth.token.teacherId || '');
+  const questionId = String(request.data?.questionId || '');
+  if (!safeQuestionKey(teacherId) || !safeQuestionKey(questionId)) {
+    throw new HttpsError('permission-denied', 'সক্রিয় Teacher identity প্রয়োজন।');
+  }
+  const database = getDatabase();
+  const [draftSnapshot, assignmentsSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/questionBankDraftsByTeacher/${teacherId}/${questionId}`).get(),
+    database.ref(`${V2_ROOT}/teacherAssignments`).get()
+  ]);
+  const draft = draftSnapshot.val();
+  if (!draft || draft.id !== questionId || draft.teacherId !== teacherId || draft.status !== 'draft' || draft.question?.id !== questionId) {
+    throw new HttpsError('not-found', 'নিজের অপেক্ষমাণ প্রশ্ন Draft পাওয়া যায়নি।');
+  }
+  let question;
+  try { question = normalizeQuestionRecord(draft.question, { id: questionId }); }
+  catch { throw new HttpsError('invalid-argument', 'প্রশ্নের তথ্য সঠিক নয়।'); }
+  const assignmentRows = valuesOf(assignmentsSnapshot.val());
+  const now = Date.now();
+  if (question.source?.examId) {
+    if (!safeQuestionKey(question.source.examId)) {
+      throw new HttpsError('invalid-argument', 'পরীক্ষার Question Bank source সঠিক নয়।');
+    }
+    const examSnapshot = await database.ref(`${V2_ROOT}/exams/${question.source.examId}`).get();
+    const exam = examSnapshot.val();
+    if (!questionMatchesExamPaper(question, exam, teacherId) || !(Number(exam.endAt) > 0)) {
+      throw new HttpsError('permission-denied', 'পরীক্ষার Question Bank source যাচাই করা যায়নি।');
+    }
+    question = {
+      ...question,
+      className: String(exam.className || ''),
+      subject: String(exam.subject || ''),
+      group: String(exam.group || ''),
+      startAt: Number(exam.startAt) || 0,
+      endAt: Number(exam.endAt) || 0,
+      source: {
+        examId: String(exam.id),
+        examCode: String(exam.code || ''),
+        examTitle: String(exam.title || ''),
+        at: Number(exam.createdAt) || now
+      }
+    };
+  }
+  if (!questionMatchesTeacher(question, teacherId, assignmentRows)) {
+    throw new HttpsError('permission-denied', 'এই class/group/subject-এ আপনার সক্রিয় assignment নেই।');
+  }
+
+  const profileSnapshot = await db.doc(`users/${request.auth.uid}`).get();
+  const profile = profileSnapshot.exists ? profileSnapshot.data() : {};
+  const displayName = String(profile.fullName || profile.username || request.auth.token.name || 'Teacher').trim().slice(0, 100);
+  const canonicalRef = database.ref(`${V2_ROOT}/questionBank/${questionId}`);
+  const result = await canonicalRef.transaction(current => {
+    if (current) {
+      // Assigned teachers may maintain assigned shared questions, but an ID
+      // cannot be moved to a different class/subject/group or stripped of its
+      // authoritative exam provenance.
+      if (!questionMatchesTeacher(current, teacherId, assignmentRows)) return;
+      const sameScope = value => String(value || '').normalize('NFC').trim().toLocaleLowerCase('en-US');
+      if (sameScope(current.className) !== sameScope(question.className)
+          || sameScope(current.subject) !== sameScope(question.subject)
+          || sameScope(current.group).replace(/\s*বিভাগ$/, '') !== sameScope(question.group).replace(/\s*বিভাগ$/, '')) return;
+      if ((current.source?.examId || '') !== (question.source?.examId || '')) return;
+    }
+    return {
+      ...question,
+      createdBy: current?.createdBy || displayName,
+      createdAt: Number(current?.createdAt) || now,
+      updatedBy: displayName,
+      updatedAt: now,
+      createdByUid: current?.createdByUid || request.auth.uid,
+      updatedByUid: request.auth.uid,
+      teacherId: current?.teacherId || teacherId
+    };
+  }, undefined, false);
+  if (!result.committed) {
+    throw new HttpsError('permission-denied', 'এই প্রশ্নের assignment scope বা authoritative exam source মিলছে না।');
+  }
+  const publishedAt = Date.now();
+  // Draft flips to published ONLY if its content still equals the exact
+  // question that was just promoted. If the Teacher kept editing while the
+  // publish was in flight, the draft stays 'draft' and republishes the new
+  // content instead of being silently marked released (see
+  // advanceDraftAfterPublish in question-bank-projection.js).
+  await database.ref(`${V2_ROOT}/questionBankDraftsByTeacher/${teacherId}/${questionId}`)
+    .transaction(current => advanceDraftAfterPublish(current, {
+      teacherId, questionId, publishedQuestion: draft.question, publishedAt
+    }), undefined, false);
+  return { ok: true, questionId, updatedAt: now };
+});
+
+/** Canonical Question Bank edits are mirrored in real time to assignment- and
+ * student-scoped trees. Admin/Manager SDK writes are authoritative; all client
+ * paths remain role-checked by RTDB rules. */
+exports.projectQuestionBankRecord = onValueWritten({ ref: `${V2_ROOT}/questionBank/{questionId}`, region: DB_REGION }, async event => {
+  const questionId = String(event.params.questionId || '');
+  if (!safeQuestionKey(questionId)) return;
+  const before = event.data.before.val();
+  const after = event.data.after.val();
+  if (after) {
+    try { normalizeQuestionRecord(after, { id: questionId }); }
+    catch (error) { throw new Error(`Invalid canonical Question Bank row ${questionId}: ${error.message}`); }
+  }
+  const database = getDatabase();
+  const [studentsSnapshot, assignmentsSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/students`).get(),
+    database.ref(`${V2_ROOT}/teacherAssignments`).get()
+  ]);
+  const now = Date.now();
+  const updates = buildQuestionBankFanout({
+    questionId,
+    before,
+    after,
+    students: studentsSnapshot.val() || {},
+    assignments: assignmentsSnapshot.val() || {},
+    now
+  });
+  updates[`questionBankReleaseQueue/${questionId}`] = questionHasFutureExamWindow(after, now)
+    ? { endAt: Number(after.endAt), queuedAt: now }
+    : null;
+  await applyV2Updates(updates);
+});
+
+/** Rebuild one student's projection if their approval or class/group changes.
+ * Removing approval clears only their copy, never the canonical bank. */
+exports.rebuildStudentQuestionBank = onValueWritten({ ref: `${V2_ROOT}/students/{studentId}`, region: DB_REGION }, async event => {
+  const studentId = String(event.params.studentId || '');
+  if (!safeQuestionKey(studentId)) return;
+  const student = event.data.after.val();
+  const database = getDatabase();
+  const projectionRef = database.ref(`${V2_ROOT}/studentQuestionBank/${studentId}`);
+  if (!student || student.id !== studentId || student.status !== 'approved') {
+    await projectionRef.set(null);
+    return;
+  }
+  const [bankSnapshot, existingSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/questionBank`).get(),
+    projectionRef.get()
+  ]);
+  const projection = buildStudentQuestionProjection(bankSnapshot.val() || {}, student, Date.now());
+  const existing = mapObject(existingSnapshot.val());
+  const updates = {};
+  for (const questionId of new Set([...Object.keys(existing), ...Object.keys(projection)])) {
+    if (!safeQuestionKey(questionId)) continue;
+    const next = projection[questionId] || null;
+    if (!jsonEqual(existing[questionId] ?? null, next)) updates[`studentQuestionBank/${studentId}/${questionId}`] = next;
+  }
+  await applyV2Updates(updates);
+});
+
+/** Assignment edits rebuild only the affected Teacher's projection, including
+ * removals, so a revoked class/subject cannot leave an old answer-key copy. */
+exports.rebuildTeacherQuestionBank = onValueWritten({ ref: `${V2_ROOT}/teacherAssignments/{assignmentId}`, region: DB_REGION }, async event => {
+  const before = event.data.before.val();
+  const after = event.data.after.val();
+  const teacherIds = new Set([before?.teacherId, after?.teacherId].map(value => String(value || '')).filter(safeQuestionKey));
+  if (!teacherIds.size) return;
+  const database = getDatabase();
+  const [assignmentsSnapshot, bankSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/teacherAssignments`).get(),
+    database.ref(`${V2_ROOT}/questionBank`).get()
+  ]);
+  const assignments = valuesOf(assignmentsSnapshot.val());
+  const questions = mapObject(bankSnapshot.val());
+  const updates = {};
+  for (const teacherId of teacherIds) {
+    const projection = buildTeacherQuestionProjection(questions, teacherId, assignments);
+    const existingSnapshot = await database.ref(`${V2_ROOT}/teacherQuestionBank/${teacherId}`).get();
+    const existing = mapObject(existingSnapshot.val());
+    for (const questionId of new Set([...Object.keys(existing), ...Object.keys(projection)])) {
+      if (!safeQuestionKey(questionId)) continue;
+      const next = projection[questionId] || null;
+      if (!jsonEqual(existing[questionId] ?? null, next)) updates[`teacherQuestionBank/${teacherId}/${questionId}`] = next;
+    }
+  }
+  await applyV2Updates(updates);
+});
+
+/** One-minute server release queue: exam-sourced answers are inserted in each
+ * student's own bank only after the official endAt, even if no client reconnects. */
+exports.releaseQuestionBankExamQuestions = onSchedule({
+  schedule: 'every 1 minutes',
+  timeZone: 'Asia/Dhaka',
+  region: DB_REGION
+}, async () => {
+  const database = getDatabase();
+  const queueSnapshot = await database.ref(`${V2_ROOT}/questionBankReleaseQueue`).get();
+  const now = Date.now();
+  const due = Object.entries(mapObject(queueSnapshot.val())).filter(([, item]) => Number(item?.endAt) > 0 && Number(item.endAt) < now);
+  if (!due.length) return;
+  const [bankSnapshot, studentsSnapshot] = await Promise.all([
+    database.ref(`${V2_ROOT}/questionBank`).get(),
+    database.ref(`${V2_ROOT}/students`).get()
+  ]);
+  const bank = mapObject(bankSnapshot.val());
+  const students = mapObject(studentsSnapshot.val());
+  const updates = {};
+  const processed = [];
+  for (const [questionId, queued] of due) {
+    if (!safeQuestionKey(questionId)) continue;
+    const question = bank[questionId];
+    if (!question || question.id !== questionId || question.active !== true || !question.source?.examId) {
+      processed.push([questionId, Number(queued.endAt)]);
+      continue;
+    }
+    const endAt = Number(question.endAt);
+    if (endAt !== Number(queued.endAt)) {
+      // A reschedule superseded this queue entry; the canonical trigger creates
+      // the replacement entry, so leave it alone if it has already changed.
+      if (!(endAt > now)) processed.push([questionId, Number(queued.endAt)]);
+      continue;
+    }
+    for (const [studentId, student] of Object.entries(students)) {
+      if (!safeQuestionKey(studentId) || !student || student.id !== studentId) continue;
+      const projection = buildStudentQuestionProjection({ [questionId]: question }, student, now);
+      if (projection[questionId]) updates[`studentQuestionBank/${studentId}/${questionId}`] = projection[questionId];
+    }
+    processed.push([questionId, Number(queued.endAt)]);
+  }
+  await applyV2Updates(updates);
+  // Clear a queue entry only if it is still the same schedule we processed.
+  await Promise.all(processed.map(([questionId, endAt]) => database.ref(`${V2_ROOT}/questionBankReleaseQueue/${questionId}`).transaction(
+    current => current && Number(current.endAt) === endAt ? null : undefined,
+    undefined,
+    false
+  )));
+});
+
+/**
+ * Staged-migration link step for accounts that predate the V2 claims.
+ *
+ * • Dry run (no `username`): reports which legacy usernames carry assignment
+ *   rows, without writing anything.
+ * • With `username`: verifies the identity server-side through
+ *   `usernameIndex` → `users/{uid}` → Firebase Auth, then sets the secure
+ *   `teacherId` claim via linkedTeacherClaims(). An inactive, disabled or
+ *   non-Teacher identity is rejected — the legacy username alone is never
+ *   trusted.
+ * • With `applyAssignments: true`: additionally writes that Teacher's migrated
+ *   rows to `activePlusV2/teacherAssignments/{id}` (Admin SDK writes bypass
+ *   rules, so this is safe before the V2 rules deploy). Legacy bridge rows are
+ *   never modified or deleted; unresolved rows are reported, not dropped.
+ */
+exports.adminProvisionV2Identities = onCall(async request => {
+  requireCaller(request, 'admin');
+  const username = normalizeUsername(request.data?.username);
+  const applyAssignments = request.data?.applyAssignments === true;
+  const database = getDatabase();
+  const legacySnapshot = await database.ref(`${BRIDGE_ROOT}/teacherAssignments`).get();
+  const legacyValue = legacySnapshot.val();
+  const legacyRows = entriesOfLegacyAssignments(legacyValue);
+
+  if (!username) {
+    const usernames = new Set();
+    for (const [, row] of legacyRows) usernames.add(normalizeUsername(row?.teacherUsername));
+    usernames.delete('');
+    return { ok: true, preview: true, usernames: [...usernames].sort(), totalRows: legacyRows.length };
+  }
+  if (!HANDLE.test(username)) {
+    throw new HttpsError('invalid-argument', 'username গ্রহণযোগ্য নয়।');
+  }
+
+  const indexSnapshot = await usernameDoc(username).get();
+  const uid = String(indexSnapshot.exists ? indexSnapshot.data()?.uid || '' : '');
+  if (!safeQuestionKey(uid)) throw new HttpsError('not-found', 'এই username-এর যাচাইযোগ্য অ্যাকাউন্ট পাওয়া যায়নি।');
+  const profileSnapshot = await db.doc(`users/${uid}`).get();
+  const profile = profileSnapshot.exists ? profileSnapshot.data() : null;
+  const record = await auth.getUser(uid).catch(() => null);
+  if (!profile || !record) throw new HttpsError('not-found', 'এই username-এর যাচাইযোগ্য অ্যাকাউন্ট পাওয়া যায়নি।');
+  if (record.disabled) throw new HttpsError('failed-precondition', 'ডিজেবল করা অ্যাকাউন্ট লিংক করা যাবে না।');
+  const identity = {
+    uid,
+    username: normalizeUsername(profile.username) || username,
+    role: String(profile.role || ''),
+    status: String(profile.status || ''),
+    disabled: false,
+    mustChangePassword: profile.mustChangePassword === true
+  };
+  if (identity.username !== username) {
+    throw new HttpsError('failed-precondition', 'username index এবং profile মিলছে না।');
+  }
+  let claims;
+  try {
+    claims = linkedTeacherClaims({ uid, profile: identity, authClaims: record.customClaims || {} });
+  } catch {
+    throw new HttpsError('failed-precondition', 'শুধু সক্রিয় Teacher অ্যাকাউন্ট লিংক করা যায়।');
+  }
+  await auth.setCustomUserClaims(uid, claims);
+
+  const migration = migrationForTeacher(legacyValue, username, identity);
+  if (applyAssignments && migration.assignments.length) {
+    const patch = {};
+    for (const row of migration.assignments) patch[`${V2_ROOT}/teacherAssignments/${row.id}`] = row;
+    await database.ref().update(patch);
+  }
+  return {
+    ok: true,
+    uid,
+    username,
+    linkedClaims: { role: claims.role, status: claims.status, teacherId: claims.teacherId },
+    assignments: migration.assignments,
+    unresolved: migration.unresolved,
+    applied: applyAssignments
+  };
+});
+
+/**
+ * Staged-migration roster step. Legacy roster rows live under
+ * `activePlusSync/v1/students/{recordId}` with local record ids and no link to
+ * any Firebase Auth account; V2 addresses a student's own paths by the claim
+ * `studentId` (=== Auth uid). Each legacy row must therefore be re-keyed under
+ * the matching account's uid by an explicit Admin decision — a wrong match is a
+ * privacy breach, so the callable only PROPOSES candidates by normalized
+ * mobile and never auto-links.
+ *
+ * • `{ preview: true }`: legacy rows with candidate accounts per row.
+ * • `{ studentId, uid }`: validates both sides, returns the proposed V2 row.
+ * • `{ studentId, uid, apply: true }`: additionally writes
+ *   `activePlusV2/students/{uid}` (additive; a row created by the new account
+ *   flow is never overwritten) and backfills the `studentId` claim. The legacy
+ *   bridge row is never modified or deleted.
+ */
+exports.adminMigrateStudentToV2 = onCall(async request => {
+  requireCaller(request, 'admin');
+  const preview = request.data?.preview === true;
+  const studentId = String(request.data?.studentId || '');
+  const uid = String(request.data?.uid || '');
+  const apply = request.data?.apply === true;
+  const database = getDatabase();
+  const legacySnapshot = await database.ref(`${BRIDGE_ROOT}/students`).get();
+  const legacyValue = legacySnapshot.val();
+
+  if (preview) {
+    const accountsSnapshot = await db.collection('users').where('role', '==', 'student').get();
+    const accounts = accountsSnapshot.docs.map(docSnap => docSnap.data());
+    return { ok: true, preview: true, proposals: mobileProposals(legacyValue, accounts) };
+  }
+
+  if (!safeQuestionKey(studentId) || !safeQuestionKey(uid)) {
+    throw new HttpsError('invalid-argument', 'studentId এবং uid যাচাই করুন।');
+  }
+  const rows = new Map(legacyStudentRows(legacyValue));
+  const legacyRow = rows.get(studentId);
+  if (!legacyRow) throw new HttpsError('not-found', 'এই লেগাসি শিক্ষার্থী রেকর্ড পাওয়া যায়নি।');
+  const profileSnapshot = await db.doc(`users/${uid}`).get();
+  const profile = profileSnapshot.exists ? profileSnapshot.data() : null;
+  const record = await auth.getUser(uid).catch(() => null);
+  if (!profile || !record || profile.role !== 'student') {
+    throw new HttpsError('failed-precondition', 'এই uid-এর যাচাইযোগ্য শিক্ষার্থী অ্যাকাউন্ট পাওয়া যায়নি।');
+  }
+  let migrationRecord;
+  try {
+    migrationRecord = v2StudentRecord(legacyRow, { uid, accountStatus: String(profile.status || 'pending') });
+  } catch (error) {
+    throw new HttpsError('failed-precondition', `মাইগ্রেশন রো তৈরি করা যায়নি: ${error.message}`);
+  }
+  if (!apply) return { ok: true, proposed: migrationRecord };
+
+  const targetRef = database.ref(`${V2_ROOT}/students/${uid}`);
+  const result = await targetRef.transaction(current => {
+    // Never overwrite a row the new account flow created; re-running the same
+    // confirmed migration is allowed (idempotent).
+    if (current && current.migratedFromLegacy !== true) return;
+    return migrationRecord;
+  }, undefined, false);
+  if (!result.committed) {
+    throw new HttpsError('failed-precondition', 'এই শিক্ষার্থীর রো আগে থেকেই নতুন অ্যাকাউন্ট ফ্লোতে তৈরি — ওভাররাইট করা হয়নি।');
+  }
+  const claims = record.customClaims || {};
+  if (claims.studentId !== uid) {
+    await auth.setCustomUserClaims(uid, { ...claims, ...v2IdentityClaims('student', uid) });
+  }
+  return { ok: true, applied: true, migrated: migrationRecord };
+});
 
 async function tokenEntries() {
   const snapshot = await getDatabase().ref(PUSH_TOKENS_PATH).get();

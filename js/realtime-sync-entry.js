@@ -61,12 +61,62 @@ async function bootRealtimeSync() {
   }
 }
 
+/* Authenticated Question Bank sync (activePlusV2). It runs next to the legacy
+   bridge, never instead of it: the bridge keeps syncing every other
+   collection, while this controller owns only the role-scoped Question Bank
+   paths. It activates solely from the signed-in user's custom claims — the
+   same selector the server rules enforce — so a device without V2 claims
+   simply stays a no-op until the staged migration provisions them. */
+let v2Running = false;
+let v2Attempt = 0;
+let v2Timer = null;
+
+function scheduleV2(delay) {
+  window.clearTimeout(v2Timer);
+  if (!LEGACY_CLOUD_ENABLED || !maySync()) return;
+  v2Timer = window.setTimeout(bootQuestionBankV2, delay);
+}
+
+async function bootQuestionBankV2() {
+  if (!LEGACY_CLOUD_ENABLED) return;
+  if (!maySync() || !navigator.onLine || v2Running) return;
+  try {
+    const { hasSyncSession } = await import('./sync-session.js');
+    if (!(await hasSyncSession())) return;
+  } catch { return; }
+  v2Running = true;
+  try {
+    const [{ startQuestionBankV2Sync }, { questionBankV2RetryDecision }] = await Promise.all([
+      import('../sync/question-bank-v2-sync.js'),
+      import('../sync/question-bank-v2-policy.js')
+    ]);
+    const decision = questionBankV2RetryDecision(await startQuestionBankV2Sync());
+    if (decision.started) v2Attempt = 0;
+    else if (decision.retry) scheduleV2(retryDelay(v2Attempt++));
+  } catch (error) {
+    reportSyncError(error);
+    scheduleV2(retryDelay(v2Attempt++));
+  } finally {
+    v2Running = false;
+  }
+}
+
+async function stopQuestionBankV2() {
+  window.clearTimeout(v2Timer);
+  v2Attempt = 0;
+  try {
+    const { stopQuestionBankV2Sync } = await import('../sync/question-bank-v2-sync.js');
+    stopQuestionBankV2Sync();
+  } catch { /* module never loaded — nothing to stop */ }
+}
+
 /* No on-screen sync message: the topbar's top border
    (js/topbar-connectivity.js) is the only standing sync status, and sync still
    retries on its own backoff. The login page must not fetch/sync account or
    application collections before a user has signed in. */
 function mountSync() {
   if (maySync()) schedule();
+  if (maySync()) scheduleV2(400);
   if (maySync()) mountNotifications();
 }
 
@@ -82,11 +132,12 @@ function mountNotifications() {
 if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', mountSync, { once: true });
 else mountSync();
 
-window.addEventListener('apc-session-ready', () => { if (!maySync()) return; mountNotifications(); schedule(0); });
+window.addEventListener('apc-session-ready', () => { if (!maySync()) return; mountNotifications(); schedule(0); scheduleV2(0); });
 window.addEventListener('apc-session-ended', () => {
   cancelScheduled();
   attempt = 0;
+  void stopQuestionBankV2();
 });
-window.addEventListener('online', () => { if (maySync()) schedule(250); });
-window.addEventListener('offline', () => { cancelScheduled(); setSyncStatus(LEGACY_CLOUD_ENABLED ? 'offline' : 'paused'); });
-window.addEventListener('apc-sync-retry', () => { if (maySync()) schedule(0); });
+window.addEventListener('online', () => { if (maySync()) { schedule(250); scheduleV2(250); } });
+window.addEventListener('offline', () => { cancelScheduled(); window.clearTimeout(v2Timer); setSyncStatus(LEGACY_CLOUD_ENABLED ? 'offline' : 'paused'); });
+window.addEventListener('apc-sync-retry', () => { if (maySync()) { schedule(0); scheduleV2(0); } });

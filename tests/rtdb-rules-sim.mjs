@@ -60,6 +60,10 @@ class Snap {
     if (!value || typeof value !== 'object') return false;
     return list ? list.every(key => this.hasChild(key)) : Object.keys(value).length > 0;
   }
+  numChildren() {
+    const value = this.val();
+    return value && typeof value === 'object' ? Object.keys(value).length : 0;
+  }
   isString() { return typeof this.val() === 'string'; }
   isNumber() { return typeof this.val() === 'number'; }
   isBoolean() { return typeof this.val() === 'boolean'; }
