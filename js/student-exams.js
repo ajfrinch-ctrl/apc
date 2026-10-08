@@ -72,6 +72,12 @@ export function initStudentExams({ getStudent, getAccount }) {
     });
     const panel = document.querySelector('[data-exam-panel="results"]');
     if (panel) panel.hidden = tab !== 'results';
+    /* Tile rule: a tab shows only its own content — ফলাফল keeps the overview
+       panel alone, অনুশীলন lives with the completed papers on সম্পন্ন. */
+    const examWorkspace = document.querySelector('#studentExamWorkspace');
+    if (examWorkspace) examWorkspace.hidden = tab === 'results';
+    const practiceWorkspace = document.querySelector('#studentPracticeWorkspace');
+    if (practiceWorkspace) practiceWorkspace.hidden = tab !== 'done';
     if (tab === 'results') paintResultOverview();
   }
   /* Which tab a student lands on: the first one that actually has something to
