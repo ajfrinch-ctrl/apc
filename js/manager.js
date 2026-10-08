@@ -670,18 +670,18 @@ function moreMenuItem({ icon, label }) {
   return button;
 }
 const moreMenu = $('#managerMoreMenu');
-MORE_MODULES.forEach(module => {
-  const button = moreMenuItem(module);
-  button.dataset.managerView = module.view;
-  button.addEventListener('click', () => renderView(module.view));
-  moreMenu.append(button);
-});
-/* Logging out is one deliberate row here too, the way the Admin panel ends its
-   own More menu — phones reach it without hunting for the top-bar icon. */
-const moreLogout = moreMenuItem({ icon: 'logout', label: 'লগআউট', hint: 'সেশন শেষ করে লগইন পেইজে যান' });
-moreLogout.classList.add('is-logout');
-moreLogout.addEventListener('click', () => { clearStaffSession('manager'); goToLoginPage(); });
-moreMenu.append(moreLogout);
+if (moreMenu && !moreMenu.querySelector('.pay-tile')) {
+  MORE_MODULES.forEach(module => {
+    const button = moreMenuItem(module);
+    button.dataset.managerView = module.view;
+    moreMenu.append(button);
+  });
+  const moreLogout = moreMenuItem({ icon: 'logout', label: 'লগআউট' });
+  moreLogout.classList.add('is-logout');
+  moreLogout.id = 'managerMoreLogout';
+  moreMenu.append(moreLogout);
+}
+$('#managerMoreLogout')?.addEventListener('click', () => { clearStaffSession('manager'); goToLoginPage(); });
 document.addEventListener('click', event => {
   const examTile = event.target.closest('[data-manager-exam]');
   if (!examTile) return;
