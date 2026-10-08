@@ -20,7 +20,7 @@ import { teachingRepository, DEMO_TEACHER, ACTIVITY_TYPES, PROGRESS_LABELS, esca
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', homeClass: 'all', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '' };
+const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', homeClass: 'all', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', calMonth: todayISO().slice(0, 7), calDay: todayISO() };
 let modalTrigger, toastTimer;
 initFixedShell();
 /* The examination workspace is the single exam/question surface; the academic
@@ -165,6 +165,40 @@ function renderHome() {
     ? todays.map(item => `<article class="teaching-card"><span class="teaching-kind">Manager routine</span><h3>${esc(item.subject || 'বিষয় উল্লেখ নেই')}</h3><small>${esc(item.className || '')}${item.room ? ` • ${esc(item.room)}` : ''}</small><p>${esc(item.time || 'সময় নির্ধারিত নয়')}</p></article>`).join('')
     : `<p class="teacher-empty">${hasAssignments ? 'Manager routine-এ আজকের কোনো assigned class schedule নেই।' : 'No Manager assignment.'}</p>`;
   $('#teacherRecent').innerHTML = records.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5).map(recordCard).join('') || `<p class="teacher-empty">${hasAssignments ? 'এখনও কোনো academic কাজ যোগ করা হয়নি।' : 'Assignment না থাকায় academic কাজ দেখানো হচ্ছে না।'}</p>`;
+  renderCalendar(records);
+}
+const BN_MONTHS = Object.freeze(['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর']);
+function renderCalendar(records) {
+  const grid = $('#teacherCalGrid'); if (!grid) return;
+  const [year, month] = (state.calMonth || todayISO().slice(0, 7)).split('-').map(Number);
+  const first = new Date(year, month - 1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const lead = (first.getDay() + 1) % 7;
+  const today = todayISO();
+  const counts = {};
+  records.forEach(a => { if (a.date) counts[a.date] = (counts[a.date] || 0) + 1; });
+  ownNotices(String(state.teacher?.username || 'teacher.apc')).forEach(n => {
+    const day = String(n.createdAt || n.date || '').slice(0, 10);
+    if (day) counts[day] = (counts[day] || 0) + 1;
+  });
+  const title = $('#teacherCalTitle');
+  if (title) title.textContent = `${BN_MONTHS[month - 1]} ${bn(year)}`;
+  const cells = [];
+  for (let i = 0; i < lead; i++) cells.push('<span class="teacher-cal-pad"></span>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const on = iso === state.calDay;
+    const isToday = iso === today;
+    const n = counts[iso] || 0;
+    cells.push(`<button type="button" class="teacher-cal-day${on ? ' is-on' : ''}${isToday ? ' is-today' : ''}" data-cal-day="${iso}" aria-pressed="${on}"><span>${bn(d)}</span>${n ? `<i>${bn(n)}</i>` : ''}</button>`);
+  }
+  grid.innerHTML = cells.join('');
+  const dayItems = records.filter(a => a.date === state.calDay);
+  const dayNotices = ownNotices(String(state.teacher?.username || 'teacher.apc')).filter(n => String(n.createdAt || n.date || '').slice(0, 10) === state.calDay);
+  const dayTitle = $('#teacherCalDayTitle');
+  if (dayTitle) dayTitle.textContent = `${dayLabel(state.calDay) || displayDate(state.calDay)} • ${bn(dayItems.length + dayNotices.length)}টি`;
+  const noticeCards = dayNotices.map(n => `<article class="teaching-card"><span class="teaching-kind">নোটিশ</span><h3>${esc(n.title || 'নোটিশ')}</h3><small>${esc(n.className || 'সব শ্রেণি')}</small></article>`);
+  $('#teacherCalDay').innerHTML = (dayItems.map(recordCard).join('') + noticeCards.join('')) || '<p class="teacher-empty">এই দিনে কোনো কাজ নেই।</p>';
 }
 function renderRecords() {
   if (!ACTIVITY_TYPES[state.view]) return;
@@ -694,6 +728,17 @@ $('#teacherNewActivity').addEventListener('click', () => showEditor(state.view))
   });
 });
 $('#teacherHomeClass').addEventListener('change', () => { state.homeClass = $('#teacherHomeClass').value; renderHome(); });
+$('#teacherCalGrid')?.addEventListener('click', event => {
+  const day = event.target.closest('[data-cal-day]'); if (!day) return;
+  state.calDay = day.dataset.calDay;
+  renderHome();
+});
+document.querySelectorAll('[data-cal-step]').forEach(button => button.addEventListener('click', () => {
+  const [year, month] = state.calMonth.split('-').map(Number);
+  const next = new Date(year, month - 1 + Number(button.dataset.calStep), 1);
+  state.calMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+  renderHome();
+}));
 /* Type tabs above the list: switch record type without going back to the nav. */
 $('.teacher-type-tabs')?.addEventListener('click', event => {
   const tab = event.target.closest('[data-type-tab]'); if (!tab) return;

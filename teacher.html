@@ -5,9 +5,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=227" data-entry="teacher"></script>
-  <script type="module" src="js/teacher.js?v=227"></script>
-  <script src="js/topbar-connectivity.js?v=22761005-syncborder"></script>
+  <script src="js/app-entry.js?v=228" data-entry="teacher"></script>
+  <script type="module" src="js/teacher.js?v=228"></script>
+  <script src="js/topbar-connectivity.js?v=22861005-syncborder"></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
   <script src="js/theme-logos.js?v=158"></script>
@@ -22,7 +22,7 @@
   <!-- Global glass design system. Presentation layer only; loaded last. -->
   <link rel="preload" href="assets/fonts/NotoSansBengali-Variable.ttf" as="font" type="font/ttf" crossorigin>
 
-  <link rel="stylesheet" href="css/design-system.css?v=227">
+  <link rel="stylesheet" href="css/design-system.css?v=228">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -57,6 +57,19 @@
           <button class="pay-tile" type="button" data-teacher-view="students"><span class="pay-tile-icon"><svg class="apc-color-icon" data-icon="students" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="11.2" cy="11.4" r="2.8" fill="var(--icon-paper, currentColor)" /><path d="M6.6 19.700000000000003v-1.3a4.6 4.6 0 0 1 9.2 0v1.3Z" fill="var(--icon-blue, currentColor)" /><path d="m4 6.5 7.2-3.2 7.2 3.2-7.2 3.2Z" fill="var(--icon-mint, currentColor)" /><path d="M7.2 8v2.2q4 2.7 8 0V8" fill="var(--icon-mint-back, currentColor)" /><path d="M18.4 6.5v4.8" fill="none" stroke="var(--icon-outline, currentColor)" stroke-width="1.25"/><circle cx="18.4" cy="12.1" r="0.75" fill="var(--icon-gold, currentColor)" /><rect x="15.7" y="16.6" width="5.7" height="4.9" rx="0.8" fill="var(--icon-gold, currentColor)" /><path d="M17.4 18.7h2.3" fill="none" stroke="var(--icon-outline, currentColor)" stroke-width="1"/></g></svg></span><span class="pay-tile-label">শিক্ষার্থী</span></button>
           <button class="pay-tile" type="button" data-teacher-view="courses"><span class="pay-tile-icon"><svg class="apc-color-icon" data-icon="clipboard" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="3.9" width="14.5" height="17.4" rx="2" fill="var(--icon-violet, currentColor)" /><rect x="5.5" y="6" width="10.3" height="13.2" rx="0.9" fill="var(--icon-paper, currentColor)" /><rect x="7.3" y="2.5" width="6.7" height="4.5" rx="1.4" fill="var(--icon-blue-back, currentColor)" /><path d="m7.8 10.3 1 1 1.6-1.9M12.2 10.4h1.6M7.8 14h5.6M7.8 16.7h3.6" fill="none" stroke="var(--icon-blue, currentColor)" stroke-width="1.1"/><path d="m17.6 11.1 3.2 1.8-5.1 8.5-3.6 1.1-.1-3.6Z" fill="var(--icon-gold, currentColor)" /><path d="m17.6 11.1 1-1.6a1 1 0 0 1 1.4-.3l1.5.8a1 1 0 0 1 .3 1.4l-1 1.5Z" fill="var(--icon-coral, currentColor)" /><path d="m12.1 18.9 3.6 2.5" fill="none" stroke="var(--icon-outline, currentColor)" stroke-width="1"/></g></svg></span><span class="pay-tile-label">উপকরণ <span class="learning-filter-count" data-study-count="materials">০</span></span><span class="academic-count" data-academic-count="materials" aria-hidden="true"></span></button>
         </nav>
+        <section class="teacher-cal" aria-labelledby="teacherCalTitle">
+          <div class="teacher-cal-nav">
+            <button type="button" class="mini-btn" data-cal-step="-1" aria-label="আগের মাস">‹</button>
+            <h2 id="teacherCalTitle">ক্যালেন্ডার</h2>
+            <button type="button" class="mini-btn" data-cal-step="1" aria-label="পরের মাস">›</button>
+          </div>
+          <p class="finance-hint">যেদিন কাজ দিয়েছেন, সেদিন চাপুন।</p>
+          <div class="teacher-cal-weekdays" aria-hidden="true"><span>শনি</span><span>রবি</span><span>সোম</span><span>মঙ্গল</span><span>বুধ</span><span>বৃহ</span><span>শুক্র</span></div>
+          <div id="teacherCalGrid" class="teacher-cal-grid"></div>
+          <h3 id="teacherCalDayTitle" class="teacher-group-label">আজকের কাজ</h3>
+          <div id="teacherCalDay" class="teacher-record-list"></div>
+        </section>
+
 
         <div class="teacher-toolbar">
           <label for="teacherHomeClass">কোন শ্রেণির কাজ দেখবেন</label><select id="teacherHomeClass"><option value="all">সব শ্রেণি</option></select>
