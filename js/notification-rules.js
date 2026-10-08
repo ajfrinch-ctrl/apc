@@ -351,6 +351,43 @@ export function nextBirthdayBoundary(now = Date.now()) {
   return next.getTime();
 }
 
+const BIRTHDAY_STAFF = Object.freeze(['admin', 'manager', 'teacher']);
+
+/** One-day heads-up for Admin, Manager and Teacher: whose birthday is tomorrow. */
+export function birthdayAdvanceItems(students, viewer, now = Date.now()) {
+  if (viewer?.kind !== 'staff' || !BIRTHDAY_STAFF.includes(text(viewer.role))) return [];
+  const current = new Date(Number(now) || Date.now());
+  if (!Number.isFinite(current.getTime())) return [];
+  const tomorrow = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1);
+  const year = tomorrow.getFullYear();
+  const assigned = Array.isArray(viewer.assignedClasses)
+    ? new Set(viewer.assignedClasses.map(scopeKey).filter(Boolean))
+    : null;
+  const items = [];
+  for (const student of Array.isArray(students) ? students : []) {
+    if (!isObject(student) || student.status === 'rejected') continue;
+    const id = text(student.id);
+    if (!id || !isStudentBirthday(student.birthDate, tomorrow.getTime())) continue;
+    if (text(viewer.role) === 'teacher') {
+      if (!assigned?.size || !assigned.has(scopeKey(student.className))) continue;
+    }
+    const name = text(student.name) || text(student.nameEn) || 'নাম নেই';
+    const place = [text(student.className), text(student.group)].filter(Boolean).join(' • ');
+    items.push({
+      key: `birthday-soon:${id}:${year}`,
+      source: 'students',
+      sourceId: id,
+      kind: 'birthday-soon',
+      target: 'students',
+      title: 'আগামীকাল জন্মদিন',
+      body: `${place ? `${place} — ` : ''}${name}`,
+      at: Number(now) || Date.now(),
+      audience: 'এডমিন, ম্যানেজার ও শিক্ষক'
+    });
+  }
+  return items;
+}
+
 /** Next local-day transition that changes a homework reminder. */
 export function nextHomeworkBoundary(teachingDb, viewer, now = Date.now()) {
   const timestamp = Number(now);
@@ -619,6 +656,7 @@ export function notificationFeed({ notices = [], config = null, examDb = null, t
   items.push(...examReviewItems(examDb, viewer));
   items.push(...teacherExamItems(examDb, viewer));
   items.push(...birthdayItems(viewer, now));
+  items.push(...birthdayAdvanceItems(students, viewer, now));
   // Items this person cleared from the list stay cleared on this device.
   const hidden = new Set(Array.isArray(cleared) ? cleared : []);
   const unique = new Map();

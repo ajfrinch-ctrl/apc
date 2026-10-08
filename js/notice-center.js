@@ -36,6 +36,7 @@ const KIND_ICON = Object.freeze({
   'exam-returned': 'icon-clipboard',
   'exam-approved': 'icon-clipboard',
   birthday: 'icon-award',
+  'birthday-soon': 'icon-award',
   approved: 'icon-award',
   rejected: 'icon-bell',
   payment: 'icon-bell',
