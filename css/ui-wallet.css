@@ -1169,4 +1169,10 @@ svg.apc-color-icon, svg.apc-glyph-icon { flex-shrink: 0; pointer-events: none; }
 @media(max-width:380px){.student-fee-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Exam list: the refresh action reads as a quiet pill, not a full-width block. */
 [data-student-exam-action="refresh"]{width:auto;min-height:40px;margin-inline:auto;padding:0 16px;border:1px solid var(--color-border);border-radius:999px;background:var(--color-surface);color:var(--color-text-secondary);font-size:var(--font-sm);font-weight:600;box-shadow:none}
+/* পড়াশোনা / পরীক্ষা / রুটিন are icon-tile hubs like Home: the open section
+   wears the brand ring on its disc and a primary label. */
+.pay-grid .pay-tile .pay-tile-label strong{font-weight:700}
+.pay-grid .pay-tile[aria-pressed="true"] .pay-tile-label,.pay-grid .day-tab.active .pay-tile-label{color:var(--color-primary)}
+.pay-grid .pay-tile[aria-pressed="true"] .pay-tile-icon,.pay-grid .day-tab.active .pay-tile-icon{box-shadow:0 0 0 2px var(--color-primary),var(--pay-shadow);transform:scale(1.05)}
+.pay-grid .pay-tile[aria-pressed="true"] .learning-filter-count{color:var(--color-primary);opacity:1}
 }
