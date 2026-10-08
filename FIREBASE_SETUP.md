@@ -23,22 +23,31 @@ Do not deploy blanket `true` rules to troubleshoot this code.
 ## Realtime sync (`activePlusSync`) — required console settings
 
 The shipped cross-device login bridge (`js/realtime-sync.js`) talks to the
-**Realtime Database** instance `https://active-plus.firebaseio.com` under the
-path `activePlusSync/v1`, after `signInAnonymously()`. All four settings below
-must hold at once; if any one fails, the bridge is dead and a second device
-cannot see IDs created on the first.
+**Realtime Database** instance
+`https://active-plus-coaching-default-rtdb.asia-southeast1.firebasedatabase.app`
+(the Singapore instance of the `active-plus-coaching` project, migrated on
+2026-10-06) under the path `activePlusSync/v1`, after `signInAnonymously()`.
+All four settings below must hold at once; if any one fails, the bridge is dead
+and a second device cannot see IDs created on the first. A complete
+delete-and-recreate walkthrough lives in `docs/RTDB-REBUILD-RUNBOOK.md`.
 
-1. **Realtime Database instance** — the `databaseURL` in `js/firebase-config.js`
-   must match the actual instance shown in Firebase Console. The configured
-   value is `https://active-plus.firebaseio.com`; do not guess a different name.
+1. **Realtime Database instance** — the `databaseURL` in
+   `firebase/firebase-config.js` must match the actual instance shown in
+   Firebase Console, including its region. The configured value is
+   `https://active-plus-coaching-default-rtdb.asia-southeast1.firebasedatabase.app`;
+   do not guess a different name, and do not create the instance in the wrong
+   region (the URL encodes it).
 2. **Anonymous sign-in enabled** — Firebase Console → *Authentication →
    Sign-in method → Anonymous → Enable*. The repository rules require
    `auth != null`, so without anonymous auth every read/write is refused.
 3. **Rules deployed** — `firebase deploy --only database` publishes
    `database.rules.json` (read/write on `activePlusSync` for signed-in users).
    Default locked rules refuse everything with `Permission denied`. The project
-   is pinned by `.firebaserc` (`active-plus`); without that file the CLI falls
-   back to whatever `firebase use` last selected, or refuses to deploy.
+   is pinned by `.firebaserc` (`active-plus-coaching`); without that file the
+   CLI falls back to whatever `firebase use` last selected, or refuses to
+   deploy. **Never deploy `database.rules.v2.draft.json`** — that staged draft
+   closes the legacy bridge (`activePlusSync`) entirely; it is for the planned
+   per-user migration only.
 4. **App Check configured** — when enforcement is enabled, initialize App
    Check with the registered provider before starting Auth/database operations.
    The bridge awaits `appCheckReady`. A missing token can still cause denied
@@ -48,7 +57,7 @@ cannot see IDs created on the first.
 
 To keep App Check enforcement ON instead, register this web app under
 *Firebase Console → App Check* with a reCAPTCHA v3 site key and paste that key
-into `APP_CHECK_SITE_KEY` in `js/firebase-config.js` (debug-token instructions
+into `APP_CHECK_SITE_KEY` in `firebase/firebase-config.js` (debug-token instructions
 are in the same file).
 
 The five pages' `Content-Security-Policy` already allows the reCAPTCHA sources
@@ -165,7 +174,7 @@ npm --prefix functions run test:rules
 
 This launches the Firestore emulator for a test proving Admin approval is denied, Manager approval succeeds, Manager finance/settings access is denied, and academic-report access is allowed.
 
-The web Firebase config is in `js/firebase-config.js`; it is not an Admin credential. No service-account key is committed. Before production, configure a Firebase project, App Check, Auth providers, emulator/rules tests, backups, and deploy the functions/rules. Keep service-account credentials in Firebase-managed environments only; never place them in this repository or browser code.
+The web Firebase config is in `firebase/firebase-config.js`; it is not an Admin credential. No service-account key is committed. Before production, configure a Firebase project, App Check, Auth providers, emulator/rules tests, backups, and deploy the functions/rules. Keep service-account credentials in Firebase-managed environments only; never place them in this repository or browser code.
 
 ## Current limitations
 
@@ -399,7 +408,7 @@ Student-ID হুবহু key হিসেবে রাখা বা একট�
 অ্যাপ সম্পূর্ণ বন্ধ থাকলেও push পেতে দুটি কাজ বাকি (আপনার Firebase প্রজেক্টে):
 
 1. Console → Project settings → Cloud Messaging → Web Push certificates → key pair তৈরি করে
-   `js/firebase-config.js`-এর `FCM_VAPID_KEY`-এ পেস্ট করুন।
+   `firebase/firebase-config.js`-এর `FCM_VAPID_KEY`-এ পেস্ট করুন।
 2. `firebase deploy --only functions` চালান (Blaze plan লাগে) — এতে `pushNotice`,
    `pushBroadcast`, `pushExam` ট্রিগার চালু হবে (RTDB `activePlusSync/v1/*` নোডে)।
 

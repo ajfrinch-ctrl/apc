@@ -64,6 +64,23 @@ test('the app nodes work for the signed-in device', () => {
   ok('examDb/attempts/A1', { id: 'A1', examId: 'E1', studentId: 'S1', status: 'active' });
   ok('pushTokens/dev2', { token: 'y'.repeat(40), role: 'student' });
   ok('pushTokens/dev1', null);
+  // Diagnostic probe (js/firebase-diagnostics.js): write {at}, then delete it.
+  ok('system/connectivityProbe/diag-abc123', { at: 1728432000000 });
+  ok('system/connectivityProbe/diag-abc123', null);
+});
+
+test('the connectivity probe accepts only {at:number} and refuses free storage', () => {
+  const probe = key => `activePlusSync/v1/system/connectivityProbe/${key}`;
+  const ok = (path, value) => assert.equal(sim.canWrite(anon, path, value, cloud()), true, `write ${path}`);
+  const no = (path, value) => assert.equal(sim.canWrite(anon, path, value, cloud()), false, `write ${path}`);
+  ok(probe('diag-x1'), { at: Date.now() });
+  assert.equal(sim.canRead(anon, probe('diag-x1'), cloud()), true, 'probe node readable like the rest of system');
+  no(probe('diag-x2'), { at: 'not-a-number' }, 'at must be a number');
+  no(probe('diag-x3'), { at: 1, token: 'x'.repeat(40) }, 'no extra children: the probe node is not free storage');
+  no(probe('diag-x4'), { garbage: true }, 'at is required');
+  no(`${probe('diag-x5')}/at`, 'text', 'the child guard refuses non-numeric at');
+  no(probe('x'.repeat(80)), { at: 1 }, 'probe keys stay short');
+  no(V1('system/connectivityProbe'), { a: 1 }, 'the whole probe node cannot be replaced at once');
 });
 
 test('what the interim rules refuse even for a signed-in device', () => {

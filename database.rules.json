@@ -50,6 +50,17 @@
           "adminInitialized": {
             ".write": "auth != null && newData.isBoolean()",
             ".validate": "newData.isBoolean()"
+          },
+          "connectivityProbe": {
+            "$probeKey": {
+              ".write": "auth != null && $probeKey.length <= 64",
+              "at": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
           }
         },
         "settings": {

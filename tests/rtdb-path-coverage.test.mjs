@@ -61,6 +61,7 @@ const payloadFor = path => {
   if (node === 'staffDirectory') return { version: 1, records: [{ id: 'S1', username: 'teacher.apc', role: 'teacher' }] };
   if (node === 'usernames') return { 'teacher.apc': 'staff:teacher' };
   if (node === 'adminInitialized') return true;
+  if (path.includes('/system/connectivityProbe/')) return { at: 1728432000000 };
   if (path.includes('/examDb/exams/')) return { id: 'EX1', teacherId: 'T1', status: 'draft' };
   if (path.includes('/examDb/attempts/')) return { id: 'AT1', examId: 'EX1', studentId: 'STU-1' };
   if (path.includes('/studentAccounts/')) return { username: 'dolon', pinHash: hash };
@@ -89,6 +90,9 @@ const WRITTEN = [
   V1('examDb/exams/EX1'),
   V1('examDb/attempts/AT1'),
   V1('system/adminInitialized'),
+  /* The login-page diagnostic (js/firebase-diagnostics.js) proves write
+     permission with a probe record it removes immediately. */
+  V1('system/connectivityProbe/diag-test'),
   V1('pushTokens/device-1')
 ];
 

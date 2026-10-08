@@ -81,6 +81,19 @@ export function buildInterimRules() {
       adminInitialized: {
         '.write': `${AUTH} && newData.isBoolean()`,
         '.validate': 'newData.isBoolean()'
+      },
+      /* Login-page diagnostic (js/firebase-diagnostics.js): a signed-in device
+         proves the rules really allow a write with a tiny `{at: <millis>}`
+         record that it removes the same second. Deletion must stay possible
+         (cleanup), so the write rule does not require newData.exists(); the
+         child guard keeps the node from becoming free storage — the only
+         accepted child is a numeric `at`. */
+      connectivityProbe: {
+        $probeKey: {
+          '.write': `${AUTH} && $probeKey.length <= 64`,
+          at: { '.validate': 'newData.isNumber()' },
+          $other: { '.validate': false }
+        }
       }
     },
     // Settings document (scalar fields are normal here).
