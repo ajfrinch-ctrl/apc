@@ -97,6 +97,13 @@ function paintManagerExam() {
 }
 const scopeLabel = Object.freeze({ all: 'সব', pending: 'নিবন্ধন অপেক্ষমাণ', approved: 'সক্রিয়', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });
 
+function pressTiles(selector, isOn) {
+  $$(selector).forEach(item => {
+    const on = isOn(item);
+    item.classList.toggle('active', on);
+    if (item.matches('.pay-tile')) item.setAttribute('aria-pressed', String(on));
+  });
+}
 function toast(message, error = false) {
   const node = $('#managerToast'); if (!node) return;
   node.textContent = message; node.dataset.tone = error ? 'error' : 'success'; node.hidden = false;
@@ -363,7 +370,7 @@ function renderFinance() {
   $$('[data-finance-segment]').forEach(button => {
     const active = button.dataset.financeSegment === financeSegment;
     button.classList.toggle('active', active);
-    button.setAttribute('aria-selected', String(active));
+    button.setAttribute('aria-pressed', String(active));
   });
   $$('[data-finance-panel]').forEach(panel => { panel.hidden = panel.dataset.financePanel !== financeSegment; });
 
@@ -384,7 +391,7 @@ function renderFinance() {
     $('#managerCashList').innerHTML = newestTransactions(selected).length
       ? newestTransactions(selected).map(tx => transactionCard(tx, true)).join('')
       : '<p class="admin-empty">এই filter-এ কোনো Cash Counter entry নেই।</p>';
-    $$('[data-cash-scope]').forEach(button => button.classList.toggle('active', button.dataset.cashScope === cashScope));
+    pressTiles('[data-cash-scope]', button => button.dataset.cashScope === cashScope);
   }
 
   if (financeSegment === 'due') {
@@ -471,7 +478,7 @@ function renderRoutine() {
   // must not depend on visiting the unrelated Classes screen first.
   renderRoutineClassOptions();
   if ($('#managerRoutineDays')) {
-    $('#managerRoutineDays').innerHTML = WEEK_DAYS.map(day => `<button type="button" class="chip ${day === routineDay ? 'active' : ''}" data-routine-day="${day}">${dayLabel[day] || day}</button>`).join('');
+    $('#managerRoutineDays').innerHTML = WEEK_DAYS.map(day => `<button type="button" class="pay-tile" data-routine-day="${day}" aria-pressed="${day === routineDay ? 'true' : 'false'}"><span class="pay-tile-label">${dayLabel[day] || day}</span></button>`).join('');
   }
   if ($('#managerRoutineDayTitle')) $('#managerRoutineDayTitle').textContent = `${dayLabel[routineDay] || routineDay} — রুটিনে ক্লাস যোগ করুন`;
   const rows = routine[routineDay]?.classes || [];
@@ -647,22 +654,18 @@ async function changeRoutine(index) {
 }
 
 /* Manager's menu is an explicit allow-list. No Admin-only route/view exists here. */
-function moreMenuItem({ icon, label, hint }) {
+function moreMenuItem({ icon, label }) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'admin-more-item';
+  button.className = 'pay-tile';
   const iconHost = document.createElement('span');
-  iconHost.className = 'admin-more-icon';
+  iconHost.className = 'pay-tile-icon';
   iconHost.setAttribute('aria-hidden', 'true');
-  iconHost.append(iconElement(icon, 'admin-more-icon-svg apc-icon-svg'));
+  iconHost.append(iconElement(icon, 'apc-icon-svg'));
   const copy = document.createElement('span');
-  copy.className = 'admin-more-copy';
-  const title = document.createElement('strong');
-  title.textContent = label;
-  const note = document.createElement('small');
-  note.textContent = hint;
-  copy.append(title, note);
-  button.append(iconHost, copy, iconElement('arrow-right', 'admin-menu-arrow apc-icon-svg'));
+  copy.className = 'pay-tile-label';
+  copy.textContent = label;
+  button.append(iconHost, copy);
   return button;
 }
 const moreMenu = $('#managerMoreMenu');
@@ -693,14 +696,14 @@ $$('[data-manager-view]').forEach(button => button.addEventListener('click', () 
   if (button.dataset.studentScope) studentScope = button.dataset.studentScope;
   if (button.dataset.financeSegment) financeSegment = button.dataset.financeSegment;
   renderView(view);
-  $$('[data-student-scope]').forEach(item => item.classList.toggle('active', item.dataset.studentScope === studentScope));
-  $$('[data-finance-segment]').forEach(item => item.classList.toggle('active', item.dataset.financeSegment === financeSegment));
+  pressTiles('[data-student-scope]', item => item.dataset.studentScope === studentScope);
+  pressTiles('[data-finance-segment]', item => item.dataset.financeSegment === financeSegment);
 }));
 $('#managerStudentSearch').addEventListener('input', renderStudents);
 $('#managerStudentSearch').addEventListener('search', renderStudents);
 $$('[data-student-scope]').forEach(button => button.addEventListener('click', () => {
   studentScope = button.dataset.studentScope;
-  $$('[data-student-scope]').forEach(item => item.classList.toggle('active', item === button)); renderStudents();
+  pressTiles('[data-student-scope]', item => item === button); renderStudents();
 }));
 function handleStudentAction(button) {
   const student = students.find(row => row.id === button.dataset.id); if (!student) return;
@@ -787,7 +790,7 @@ document.addEventListener('click', event => {
       if (target.scope) academicScope = target.scope;
       managerExamScreen = target.screen || (target.view === 'exams' ? '' : managerExamScreen);
       renderView(target.view);
-      $$('[data-academic-scope]').forEach(item => item.classList.toggle('active', item.dataset.academicScope === academicScope));
+      pressTiles('[data-academic-scope]', item => item.dataset.academicScope === academicScope);
     }
     return;
   }
@@ -796,7 +799,7 @@ document.addEventListener('click', event => {
 $('#managerAcademicFilters').addEventListener('click', event => {
   const chip = event.target.closest('[data-academic-scope]'); if (!chip) return;
   academicScope = chip.dataset.academicScope;
-  $$('[data-academic-scope]').forEach(item => item.classList.toggle('active', item === chip));
+  pressTiles('[data-academic-scope]', item => item === chip);
   renderAcademicRecords();
 });
 ['managerAcademicSearch', 'managerAcademicClass'].forEach(id => $('#' + id).addEventListener(id.includes('Search') ? 'input' : 'change', renderAcademicRecords));
