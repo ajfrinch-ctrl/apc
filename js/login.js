@@ -151,12 +151,10 @@ async function handleDirectoryStaffLogin(directory, remember) {
    login button hostage: the import and the hydrate each get a short budget and
    the device's own records are used either way. */
 const ONLINE_BRIDGE_BUDGET_MS = 2500;
-/* The identity hydrate pays for the CDN import, anonymous sign-in and the cloud
-   reads in one go, so on a slow mobile network 2.5s cuts the first cross-device
-   login short — the account that exists on the other phone would then be
-   reported as "not on this device". A wider budget only extends this one wait;
-   login still proceeds either way. */
-const LOGIN_IDENTITY_BUDGET_MS = 8000;
+const LOGIN_BRIDGE_IMPORT_MS = 15000;
+/* Slow phones pay for Firebase + App Check + the student lookup. 8s was
+   cutting a real account short and showing “ক্লাউড থেকে অ্যাকাউন্ট আনা যায়নি”. */
+const LOGIN_IDENTITY_BUDGET_MS = 25000;
 function withinBudget(promise, what, budget = ONLINE_BRIDGE_BUDGET_MS) {
   let timer;
   return Promise.race([
@@ -184,16 +182,32 @@ async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS
    untouched — they stay the authoritative credentials on it.
    Returns true only when the cloud lookup ran and finished; false when the
    device is offline, the budget ran out, or the cloud refused the request. */
+async function loadSyncBridge(budget = LOGIN_BRIDGE_IMPORT_MS) {
+  return withinBudget(import('../sync/sync-core.js?v=20260929-protected'), 'online identity import', budget);
+}
+
+function warmCloudBridge() {
+  if (!LEGACY_CLOUD_ENABLED || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
+  void import('../sync/sync-core.js?v=20260929-protected').catch(() => {});
+}
+
 async function hydrateUserIdentifiersOnline(what, identifier = '', password = '', budget = LOGIN_IDENTITY_BUDGET_MS) {
   if (!LEGACY_CLOUD_ENABLED) return cloudPausedResult();
   if (!navigator.onLine) return false;
+  const run = async () => {
+    const bridge = await loadSyncBridge();
+    return withinBudget(bridge.hydrateUserIdentifiers({ identifier, password }), 'online identity hydrate', budget);
+  };
   try {
-    const bridge = await withinBudget(import('../sync/sync-core.js?v=20260929-protected'), 'online identity import', budget);
-    const result = await withinBudget(bridge.hydrateUserIdentifiers({ identifier, password }), 'online identity hydrate', budget);
-    return result;
+    return await run();
   } catch (error) {
     console.warn(`[Active Plus] user id sync unavailable during ${what}:`, error.message);
-    return false;
+    try {
+      return await run();
+    } catch (retryError) {
+      console.warn(`[Active Plus] user id sync retry failed during ${what}:`, retryError.message);
+      return false;
+    }
   }
 }
 
@@ -441,6 +455,7 @@ export function initLogin({ state, onAuthenticated }) {
   // usable immediately, and only a verified cloud answer opens creation.
   void initFirstAdminSetup().catch(() => {});
   void paintAuthWeather();
+  warmCloudBridge();
 }
 
 const KANUNGOPARA = Object.freeze({ lat: 22.35803, lon: 92.12380 });
