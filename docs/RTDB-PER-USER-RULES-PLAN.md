@@ -432,10 +432,44 @@ new account flow, and it never modifies the legacy `activePlusSync/v1/students`
 row. Rows whose account is still `pending` migrate as `pending` and stay out of
 the practice lane until the Manager approves them.
 
+### Console walkthrough (Admin panel → সিস্টেম → ভি-টু সিংক মাইগ্রেশন)
+
+The console wraps both callables above with explicit confirmations. Operator
+sequence on cutover day:
+
+1. **Local gates first.** `npm run rehearse:cutover` runs the rehearsal, the
+   draft-rules simulator, and every migration/projection helper suite in one
+   command. It must be green before touching live data.
+2. **শিক্ষক লিংক (teacher) card.**
+   a. ক্লিক **ড্রাই-রান তালিকা দেখুন** → shows every legacy username and the
+      total row count. Writes nothing.
+   b. For EACH username: type it into the input, ক্লিক **যাচাই করুন**. The
+      screen lists the linked claims, the assignment rows that WILL be written,
+      and any `unresolved` rows with a Bengali reason
+      (`teacher-not-active`, `username-mismatch`, …).
+   c. Only after the preview looks right, ক্লিক **অ্যাসাইনমেন্টসহ প্রয়োগ
+      করুন**. This sets the claims AND writes the V2 assignment rows. Repeat
+      per teacher; each apply is idempotent.
+3. **শিক্ষার্থী রোস্টার (student) card.**
+   a. ক্লিক **প্রস্তাব দেখুন** → table of every legacy roster row with its
+      candidate accounts (mobile match only — nothing is linked yet).
+   b. For each row choose EXACTLY ONE candidate from the dropdown. Rows with no
+      candidate mean the student has no account yet: create one
+      (`adminCreateAccount` → Manager approval) and re-run the preview.
+   c. ক্লিক **ভ্যালিডেট করুন** → the server re-checks the legacy row, the
+      account role and the Auth record, and shows the exact V2 row to write.
+   d. ক্লিক **প্রয়োগ করুন** → writes `activePlusV2/students/{uid}` (keeping
+      `legacyStudentId` as provenance) and backfills the `studentId` claim.
+4. **Verify before moving on.** Sign in as one migrated Teacher and one
+   migrated Student on separate devices; each should load only their own
+   question-bank lane. Unlinked/suspended identities must stay locked out.
+
+Errors in the console are mapped to actionable hints — e.g. if Functions are
+not deployed yet it says so instead of dumping an SDK code.
+
 Still required before cutover (owner-gated, in order):
-- [ ] Pass the local cutover rehearsal `tests/v2-cutover-rehearsal.test.mjs`
-      (runs the exact migration helpers against the draft rules and the
-      question-bank projections; part of `npm test`). The emulator gate below
+- [ ] Pass the local gates `npm run rehearse:cutover` (rehearsal + draft-rules
+      simulator + migration/projection helper suites). The emulator gate below
       remains the authoritative rules check.
 - [ ] Run `adminProvisionV2Identities` dry-run, review unresolved rows, then
       link each active Teacher (`applyAssignments: true`).
