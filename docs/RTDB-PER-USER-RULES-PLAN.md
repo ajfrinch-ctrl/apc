@@ -433,6 +433,10 @@ row. Rows whose account is still `pending` migrate as `pending` and stay out of
 the practice lane until the Manager approves them.
 
 Still required before cutover (owner-gated, in order):
+- [ ] Pass the local cutover rehearsal `tests/v2-cutover-rehearsal.test.mjs`
+      (runs the exact migration helpers against the draft rules and the
+      question-bank projections; part of `npm test`). The emulator gate below
+      remains the authoritative rules check.
 - [ ] Run `adminProvisionV2Identities` dry-run, review unresolved rows, then
       link each active Teacher (`applyAssignments: true`).
 - [ ] Run `adminMigrateStudentToV2` preview, confirm each student↔account match,
