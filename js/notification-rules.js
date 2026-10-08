@@ -305,6 +305,52 @@ export function homeworkItems(teachingDb, viewer, now = Date.now()) {
   return items;
 }
 
+const pad2 = value => String(value).padStart(2, '0');
+const isLeapYear = year => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+
+/** `MM-DD` from a stored ISO birth date. Empty when the profile has none. */
+export function birthMonthDay(birthDate) {
+  const match = text(birthDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[2]}-${match[3]}` : '';
+}
+
+/** True on the student's birthday (29 Feb falls on 1 Mar in a common year). */
+export function isStudentBirthday(birthDate, now = Date.now()) {
+  const stamp = birthMonthDay(birthDate);
+  if (!stamp) return false;
+  const date = new Date(Number(now));
+  if (!Number.isFinite(date.getTime())) return false;
+  const today = `${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  if (stamp === today) return true;
+  return stamp === '02-29' && !isLeapYear(date.getFullYear()) && today === '03-01';
+}
+
+/** One greeting per year, only for the signed-in student, only on the day. */
+export function birthdayItems(viewer, now = Date.now()) {
+  if (viewer?.kind !== 'student' || !text(viewer.studentId) || !isStudentBirthday(viewer.birthDate, now)) return [];
+  const date = new Date(Number(now) || Date.now());
+  const year = date.getFullYear();
+  const first = text(viewer.name).split(/\s+/)[0] || 'শিক্ষার্থী';
+  return [{
+    key: `birthday:${text(viewer.studentId)}:${year}`,
+    source: 'account',
+    sourceId: text(viewer.studentId),
+    kind: 'birthday',
+    target: 'home',
+    title: `শুভ জন্মদিন, ${first}!`,
+    body: 'Active Plus Coaching পরিবার থেকে ভালোবাসা আর শুভেচ্ছা। আজকের দিনটা আপনার — শিখতে থাকো, এগিয়ে যাও।',
+    at: Number(now) || Date.now(),
+    audience: 'নিজের জন্মদিন'
+  }];
+}
+
+export function nextBirthdayBoundary(now = Date.now()) {
+  const date = new Date(Number(now));
+  if (!Number.isFinite(date.getTime())) return 0;
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+  return next.getTime();
+}
+
 /** Next local-day transition that changes a homework reminder. */
 export function nextHomeworkBoundary(teachingDb, viewer, now = Date.now()) {
   const timestamp = Number(now);
@@ -572,6 +618,7 @@ export function notificationFeed({ notices = [], config = null, examDb = null, t
   items.push(...paymentRejectedItems(transactions, viewer));
   items.push(...examReviewItems(examDb, viewer));
   items.push(...teacherExamItems(examDb, viewer));
+  items.push(...birthdayItems(viewer, now));
   // Items this person cleared from the list stay cleared on this device.
   const hidden = new Set(Array.isArray(cleared) ? cleared : []);
   const unique = new Map();

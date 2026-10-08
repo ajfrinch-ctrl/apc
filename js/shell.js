@@ -1,6 +1,7 @@
 /* App shell lifecycle and student identity rendering. */
 import { loadAccount } from './storage.js';
 import { $, $$, scrollToTop, toBanglaNumber } from './ui.js';
+import { isStudentBirthday } from './notification-rules.js';
 
 export function renderStudent(student) {
   const fullName = String(student.name || student.nameBn || 'শিক্ষার্থী').trim() || 'শিক্ষার্থী';
@@ -32,6 +33,22 @@ export function renderStudent(student) {
     additional.hidden = !numbers.length;
   }
   if ($('#editStudentId')) $('#editStudentId').value = student.id || '';
+  paintBirthdayLook(student);
+}
+
+function paintBirthdayLook(student) {
+  const on = isStudentBirthday(student?.birthDate);
+  document.documentElement.toggleAttribute('data-birthday', on);
+  $('#appShell')?.classList.toggle('is-birthday', on);
+  const greeting = $('#dayGreeting');
+  if (greeting && on) greeting.textContent = 'শুভ জন্মদিন';
+  const banner = $('#birthdayBanner');
+  if (banner) {
+    banner.hidden = !on;
+    const first = String(student?.name || student?.nameBn || 'শিক্ষার্থী').trim().split(/\s+/)[0] || 'শিক্ষার্থী';
+    const copy = banner.querySelector('[data-birthday-name]');
+    if (copy) copy.textContent = first;
+  }
 }
 
 export function openStudentApp(state) {
@@ -53,8 +70,11 @@ export function showAuthScreen() {
   const app = $('#appShell');
   if (app) {
     app.hidden = true;
-    app.classList.remove('is-pending');
+    app.classList.remove('is-pending', 'is-birthday');
   }
+  document.documentElement.removeAttribute('data-birthday');
+  const banner = $('#birthdayBanner');
+  if (banner) banner.hidden = true;
   scrollToTop();
 }
 

@@ -33,6 +33,7 @@ export const SECTION_LABEL = Object.freeze({
   broadcast: 'জরুরি ঘোষণা',
   exam: 'পরীক্ষা',
   homework: 'বাড়ির কাজ',
+  birthday: 'জন্মদিন',
   'exam-soon': 'পরীক্ষা',
   'exam-live': 'পরীক্ষা',
   'exam-review': 'পরীক্ষা',

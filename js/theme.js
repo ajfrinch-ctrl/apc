@@ -37,7 +37,9 @@ function applyTimeTheme() {
      date strip, no daily advice line. Only the greeting card still renders the
      time theme; everything else lives in the page that owns it (the daily quote
      card, the dashboard date pills). */
-  if ($('#dayGreeting')) $('#dayGreeting').textContent = TIME_THEMES[theme].greeting;
+  if ($('#dayGreeting') && !document.documentElement.hasAttribute('data-birthday')) {
+    $('#dayGreeting').textContent = TIME_THEMES[theme].greeting;
+  }
 }
 
 function applyWeatherTheme(weatherKey = loadWeather()) {
