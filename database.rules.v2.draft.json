@@ -88,7 +88,22 @@
           ".read": "((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null) && $studentId === auth.token.studentId)",
           "$activityId": {
             ".write": "(((auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && auth.token.mustChangePassword !== true && auth.token.status === 'approved' && auth.token.role === 'student' && auth.token.studentId != null) && $studentId === auth.token.studentId) && newData.exists() && root.child('activePlusV2/studentTeaching').child($studentId).child($activityId).child('type').val() === 'homework' && root.child('activePlusV2/studentTeaching').child($studentId).child($activityId).child('status').val() === 'published')",
-            ".validate": "newData.numChildren() === 4 && newData.hasChildren(['studentId', 'activityId', 'value', 'updatedAt']) && newData.child('studentId').val() === $studentId && newData.child('activityId').val() === $activityId && newData.child('value').val() === 'done' && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now"
+            ".validate": "newData.hasChildren(['studentId', 'activityId', 'value', 'updatedAt']) && newData.child('studentId').val() === $studentId && newData.child('activityId').val() === $activityId && newData.child('value').val() === 'done' && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now",
+            "studentId": {
+              ".validate": "newData.isString() && newData.val() === $studentId"
+            },
+            "activityId": {
+              ".validate": "newData.isString() && newData.val() === $activityId"
+            },
+            "value": {
+              ".validate": "newData.val() === 'done'"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber() && newData.val() <= now"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         }
       },

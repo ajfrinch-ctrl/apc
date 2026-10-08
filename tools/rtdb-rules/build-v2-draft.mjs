@@ -152,7 +152,15 @@ export function buildRules() {
             '.read': ownStudent('$studentId'),
             $activityId: {
               '.write': `(${ownStudent('$studentId')} && newData.exists() && root.child('${V2_ROOT}/studentTeaching').child($studentId).child($activityId).child('type').val() === 'homework' && root.child('${V2_ROOT}/studentTeaching').child($studentId).child($activityId).child('status').val() === 'published')`,
-              '.validate': `newData.numChildren() === 4 && newData.hasChildren(['studentId', 'activityId', 'value', 'updatedAt']) && newData.child('studentId').val() === $studentId && newData.child('activityId').val() === $activityId && newData.child('value').val() === 'done' && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now`
+              // numChildren() is not a Realtime Database rules method; the engine
+              // rejects the ruleset at this line. Exactly these four fields are
+              // enforced with hasChildren plus $other.
+              '.validate': `newData.hasChildren(['studentId', 'activityId', 'value', 'updatedAt']) && newData.child('studentId').val() === $studentId && newData.child('activityId').val() === $activityId && newData.child('value').val() === 'done' && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now`,
+              studentId: { '.validate': "newData.isString() && newData.val() === $studentId" },
+              activityId: { '.validate': "newData.isString() && newData.val() === $activityId" },
+              value: { '.validate': "newData.val() === 'done'" },
+              updatedAt: { '.validate': "newData.isNumber() && newData.val() <= now" },
+              $other: { '.validate': false }
             }
           }
         },
