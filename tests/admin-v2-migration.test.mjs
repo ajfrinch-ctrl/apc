@@ -142,6 +142,38 @@ test('student proposals require an explicit select → validate → apply sequen
   assert.match(card.querySelector('[role="status"]').textContent, /মাইগ্রেশন সম্পন্ন/);
 });
 
+test('an undeployed callable explains itself instead of dumping an SDK code', async () => {
+  const ctx = await loadPage('admin.html');
+  const { mountV2Migration } = await import('../js/admin-migration.js');
+  const call = async () => { throw { code: 'functions/not-found', message: 'NOT_FOUND' }; };
+  mountV2Migration({ mount: '#adminV2Migration', call });
+  const teacherCard = ctx.$$('.v2-migration-card')[0];
+  const dryRun = teacherCard.querySelector('button');
+  dryRun.click();
+  await tick();
+  const status = teacherCard.querySelector('[role="status"]').textContent;
+  assert.match(status, /ডিপ্লয় হয়নি/, 'the hint names the deploy step');
+  assert.ok(!status.includes('NOT_FOUND'), 'the raw SDK message never reaches the operator');
+  assert.equal(dryRun.disabled, false, 'the tool stays usable after the failure');
+
+  const studentCard = ctx.$$('.v2-migration-card')[1];
+  const preview = [...studentCard.querySelectorAll('button')].find(button => button.textContent.includes('প্রস্তাব'));
+  preview.click();
+  await tick();
+  assert.match(studentCard.querySelector('[role="status"]').textContent, /ডিপ্লয় হয়নি/);
+});
+
+test('an unmapped failure falls back to the message, and the console never throws', async () => {
+  const ctx = await loadPage('admin.html');
+  const { mountV2Migration } = await import('../js/admin-migration.js');
+  const call = async () => { throw new Error('boom'); };
+  mountV2Migration({ mount: '#adminV2Migration', call });
+  const teacherCard = ctx.$$('.v2-migration-card')[0];
+  teacherCard.querySelector('button').click();
+  await tick();
+  assert.match(teacherCard.querySelector('[role="status"]').textContent, /পড়া যায়নি: boom/);
+});
+
 /* --------------------- permission wiring on the real shell ---------------- */
 
 test('the migration console lives in the সিস্টেম hub, opens by hash, and keeps the system seat lit', async () => {

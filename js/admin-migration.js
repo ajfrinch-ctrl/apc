@@ -35,6 +35,19 @@ const reasonLabels = {
   'missing-subjects': 'বিষয় নেই'
 };
 
+/* Raw SDK codes are meaningless to an operator — the first run happens BEFORE
+   the callables are deployed, so map the common ones to actionable hints. */
+const errorLabels = {
+  'functions/not-found': 'ফাংশনটি এখনো ডিপ্লয় হয়নি — আগে `cd functions && npm run deploy`',
+  'not-found': 'ফাংশনটি এখনো ডিপ্লয় হয়নি — আগে `cd functions && npm run deploy`',
+  'functions/unauthenticated': 'ক্লাউড সেশন নেই — আগে লগইন করুন',
+  'functions/permission-denied': 'এই কলেবল শুধু অ্যাডমিন ক্যাপাবিলিটির জন্য',
+  'functions/unavailable': 'নেটওয়ার্ক বা ক্লাউড এন্ডপয়েন্ট পাওয়া যাচ্ছে না',
+  'functions/deadline-exceeded': 'ক্লাউড সাড়া দেয়নি — আবার চেষ্টা করুন',
+  'functions/internal': 'সার্ভারে অপ্রত্যাশিত ত্রুটি — লগ দেখুন'
+};
+const errorText = error => errorLabels[String(error?.code || '')] || error?.message || error?.code || 'অজানা ত্রুটি';
+
 export function mountV2Migration({ mount, call = defaultCall, onToast = () => {} } = {}) {
   const root = typeof mount === 'string' ? document.querySelector(mount) : mount;
   if (!root) return { ok: false, reason: 'mount-missing' };
@@ -73,7 +86,7 @@ export function mountV2Migration({ mount, call = defaultCall, onToast = () => {}
       );
       statusLine(teacherStatus, 'ড্রাই-রান সম্পন্ন — কিছু লেখা হয়নি।');
     } catch (error) {
-      statusLine(teacherStatus, `পড়া যায়নি: ${error?.message || error?.code || 'অজানা ত্রুটি'}`, true);
+      statusLine(teacherStatus, `পড়া যায়নি: ${errorText(error)}`, true);
     } finally { previewButton.disabled = false; }
   });
 
@@ -112,7 +125,7 @@ export function mountV2Migration({ mount, call = defaultCall, onToast = () => {}
       applyButton.disabled = !(result?.assignments || []).length;
       statusLine(teacherStatus, 'যাচাই সম্পন্ন — প্রয়োগে ক্লিক করলে অ্যাসাইনমেন্ট ও ক্লেম লেখা হবে।');
     } catch (error) {
-      statusLine(teacherStatus, `যাচাই ব্যর্থ: ${error?.message || error?.code || 'অজানা ত্রুটি'}`, true);
+      statusLine(teacherStatus, `যাচাই ব্যর্থ: ${errorText(error)}`, true);
     } finally { verifyButton.disabled = false; }
   });
 
@@ -129,7 +142,7 @@ export function mountV2Migration({ mount, call = defaultCall, onToast = () => {}
       verifiedUsername = '';
     } catch (error) {
       applyButton.disabled = false;
-      statusLine(teacherStatus, `প্রয়োগ ব্যর্থ: ${error?.message || error?.code || 'অজানা ত্রুটি'}`, true);
+      statusLine(teacherStatus, `প্রয়োগ ব্যর্থ: ${errorText(error)}`, true);
     }
   });
 
@@ -207,7 +220,7 @@ export function mountV2Migration({ mount, call = defaultCall, onToast = () => {}
       renderProposals();
       statusLine(studentStatus, `${proposals.length}টি রো — প্রতিটির জন্য প্রার্থী অ্যাকাউন্ট বেছে নিন।`);
     } catch (error) {
-      statusLine(studentStatus, `প্রস্তাব পড়া যায়নি: ${error?.message || error?.code || 'অজানা ত্রুটি'}`, true);
+      statusLine(studentStatus, `প্রস্তাব পড়া যায়নি: ${errorText(error)}`, true);
     } finally { previewStudentsButton.disabled = false; }
   });
 
@@ -226,7 +239,7 @@ export function mountV2Migration({ mount, call = defaultCall, onToast = () => {}
       statusLine(studentStatus, `প্রস্তাব: ${validated.name || validated.id} → ${validated.className} (${validated.group || 'কোনো গ্রুপ নেই'}) · স্ট্যাটাস ${validated.status}`);
       applyStudentButton.disabled = false;
     } catch (error) {
-      statusLine(studentStatus, `ভ্যালিডেট ব্যর্থ: ${error?.message || error?.code || 'অজানা ত্রুটি'}`, true);
+      statusLine(studentStatus, `ভ্যালিডেট ব্যর্থ: ${errorText(error)}`, true);
     } finally { validateButton.disabled = !selection; }
   });
 
@@ -245,7 +258,7 @@ export function mountV2Migration({ mount, call = defaultCall, onToast = () => {}
       validateButton.disabled = true;
     } catch (error) {
       applyStudentButton.disabled = false;
-      statusLine(studentStatus, `প্রয়োগ ব্যর্থ: ${error?.message || error?.code || 'অজানা ত্রুটি'}`, true);
+      statusLine(studentStatus, `প্রয়োগ ব্যর্থ: ${errorText(error)}`, true);
     }
   });
 
