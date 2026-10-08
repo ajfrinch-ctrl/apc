@@ -291,6 +291,7 @@ function setView(view) {
     const active = el.dataset.typeTab === view;
     el.classList.toggle('active', active);
     el.setAttribute('aria-selected', String(active));
+    if (el.matches('.pay-tile')) el.setAttribute('aria-pressed', String(active));
   });
   /* The bottom bar keeps its five seats: the academic screens light up the
      একাডেমিক seat, the class-test results the ফলাফল seat. */

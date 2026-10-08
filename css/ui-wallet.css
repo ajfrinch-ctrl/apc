@@ -579,9 +579,10 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 .teacher-record-list, .exam-list, .exam-results { margin: 10px 0; gap: 10px; }
 .teacher-record-list .teaching-card { padding: 14px; border-radius: 18px; box-shadow: var(--pay-shadow); }
 .teacher-record-list h3 { margin: 7px 0 2px; font-size: 15px; font-weight: 700; }
-.teacher-type-tabs { gap: 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
-.teacher-type-tabs > button { flex: none; border-radius: 999px; min-height: 40px; font-size: 13px; }
-.teacher-type-tabs > button.active { background: var(--color-primary); color: var(--color-surface); border-color: var(--color-primary); }
+.teacher-type-tabs.pay-grid,
+#teacherStatusFilter.pay-grid { display: grid; overflow: visible; flex-wrap: unset; }
+.teacher-type-tabs.pay-grid > .pay-tile.active,
+#teacherStatusFilter.pay-grid > .pay-tile.active { outline: 2px solid var(--color-primary); }
 .tab-count { opacity: .8; margin-left: 2px; }
 .teacher-list-more { width: 100%; border-radius: 999px; margin: 12px 0; color: var(--color-primary); }
 .teacher-menu-label { font-size: 12px; font-weight: 700; color: var(--color-text-secondary); padding: 16px 16px 4px; margin: 0; }
