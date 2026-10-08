@@ -848,6 +848,7 @@ async function enterManager() {
     await lockPanel({ role: 'manager.html', clear: 'manager', reason: 'এই ডিভাইসে ম্যানেজার অ্যাকাউন্টের রেকর্ড নেই — লগইন পেজ থেকে আবার প্রবেশ করুন।' });
     return;
   }
+  $('#managerBootLink')?.remove();
   $('#managerShell').hidden = false;
   ensureExamWorkspace();
   // A refresh (or a shared link) reopens the page that was open, when it is a

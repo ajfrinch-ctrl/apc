@@ -58,9 +58,14 @@
   }
   function start() {
     timer = setTimeout(showFailure, 12000);
-    const el = document.createElement('script');
-    el.type = 'module';
-    el.src = moduleUrl;
+    const file = entry.replace('./', '');
+    let el = document.querySelector(`script[type="module"][src*="${file}"]`);
+    if (!el) {
+      el = document.createElement('script');
+      el.type = 'module';
+      el.src = moduleUrl;
+      document.head.append(el);
+    }
     el.addEventListener('error', () => {
       console.warn('[Active Plus] entry module unavailable');
       showFailure();
@@ -70,7 +75,6 @@
       document.getElementById('appEntryError')?.remove();
       failed = false;
     });
-    document.head.append(el);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true});
   else start();
