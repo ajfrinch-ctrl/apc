@@ -39,12 +39,13 @@ test('all portals retain the same uncluttered two-action brand bar', () => {
 });
 
 test('student, manager and teacher have real, named service shortcuts', () => {
-  /* The student grid is the five quick academic cards of the app architecture
-     plus the Notice Board entrance; the staff panels keep their eight tiles. */
+  /* Student: architecture cards. Manager home keeps only unique shortcuts
+     (অনুমোদন বাকি, ক্লাস পরিচালনা) — the rest live on bottom tabs / একাডেমিক. */
   const allowed = {
-    manager: ['students', 'classes', 'teachers', 'finance', 'routine', 'exams', 'notices', 'reports'],
+    manager: ['students', 'classes'],
     teacher: ['classes', 'students', 'routine-view', 'routine', 'homework', 'online-exams', 'exam', 'reports']
   };
+  const expectedCount = { manager: 2, teacher: 8 };
   const studentCards = [
     ['homework', 'বাড়ির কাজ'], ['suggestion', 'সাজেশন'], ['question-bank', 'প্রশ্নব্যাংক'],
     ['exams', 'পরীক্ষা'], ['exam-results', 'ফলাফল'], ['notice-board', 'Notice Board']
@@ -62,7 +63,7 @@ test('student, manager and teacher have real, named service shortcuts', () => {
   for (const [name, views] of Object.entries(allowed)) {
     const document = doc(name);
     const tiles = [...document.querySelectorAll('[aria-label="দ্রুত অ্যাক্সেস"] > .pay-tile')];
-    assert.equal(tiles.length, 8, name);
+    assert.equal(tiles.length, expectedCount[name], name);
     for (const tile of tiles) {
       assert.equal(tile.getAttribute('type'), 'button');
       assert.ok(tile.querySelector('.pay-tile-icon svg[aria-hidden="true"]'), name + ' blank icon');
