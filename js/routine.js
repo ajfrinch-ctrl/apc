@@ -36,8 +36,12 @@ export function renderRoutine(day = 'sat', student = null) {
   const list = $('#routineList');
   if (!list) return;
 
-  $('#routineDate').textContent = dates[day]?.label || '';
-  $('#classCount').textContent = `${toBanglaNumber(dayData.classes.length)}টি ক্লাস`;
+  // Null-guarded on purpose: this render runs inside the shared chunk-init
+  // chain — a throw here must never strand the hubs that initialise after it.
+  const dateEl = $('#routineDate');
+  if (dateEl) dateEl.textContent = dates[day]?.label || '';
+  const countEl = $('#classCount');
+  if (countEl) countEl.textContent = `${toBanglaNumber(dayData.classes.length)}টি ক্লাস`;
   list.innerHTML = dayData.classes.map(item => `
     <article class="routine-item">
       <div class="routine-time"><strong>${item.time}</strong><small>${item.period}</small></div>
@@ -48,7 +52,8 @@ export function renderRoutine(day = 'sat', student = null) {
       </div>
     </article>
   `).join('');
-  $('#emptyRoutine').hidden = dayData.classes.length !== 0;
+  const emptyEl = $('#emptyRoutine');
+  if (emptyEl) emptyEl.hidden = dayData.classes.length !== 0;
   list.hidden = dayData.classes.length === 0;
 }
 

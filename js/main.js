@@ -204,16 +204,28 @@ function refreshSignedInSurface() {
   refreshReports($('#studentReports'));
 }
 
-/** Wires the chunk's modules exactly the way the static imports used to. */
+/** Wires the chunk's modules exactly the way the static imports used to.
+    Each module boots in isolation: one init throwing must never strand the
+    ones after it (a dead routine hub frozen on "ক্লাস রুটিন লোড হচ্ছে…" is
+    what a student reads as "routine load failed"). Every featureHandles
+    consumer above is an optional-chained proxy, so a missing handle is a
+    missing card — not a broken app. */
 function initStudentFeatureSurface(f) {
-  featureHandles.noticeBoard = f.noticeBoard.initStudentNoticeBoard({ getStudent: () => state.student });
-  featureHandles.refreshExams = f.exams.initStudentExams({ getStudent: () => state.student, getAccount: () => state.account });
-  featureHandles.refreshPractice = f.practice.initStudentPractice({ getStudent: () => state.student, getAccount: () => state.account });
-  featureHandles.refreshTeaching = f.teaching.initStudentTeaching({ getStudent: () => state.student });
-  featureHandles.refreshStudySections = f.studySections.initStudentStudySections({ getStudent: () => state.student, teaching: featureHandles.refreshTeaching });
-  featureHandles.refreshFee = f.fee.initStudentFee({ getStudent: () => state.student });
-  featureHandles.refreshDashboard = f.dashboard.initStudentDashboard({ getStudent: () => state.student, getAccount: () => state.account });
-  featureHandles.refreshCourses = f.courseHub.initCourseHub({
+  const boot = (name, init) => {
+    try { return init(); }
+    catch (error) {
+      console.warn(`[Active Plus] ${name} init failed:`, error?.message);
+      return undefined;
+    }
+  };
+  featureHandles.noticeBoard = boot('notice-board', () => f.noticeBoard.initStudentNoticeBoard({ getStudent: () => state.student }));
+  featureHandles.refreshExams = boot('exams', () => f.exams.initStudentExams({ getStudent: () => state.student, getAccount: () => state.account }));
+  featureHandles.refreshPractice = boot('practice', () => f.practice.initStudentPractice({ getStudent: () => state.student, getAccount: () => state.account }));
+  featureHandles.refreshTeaching = boot('teaching', () => f.teaching.initStudentTeaching({ getStudent: () => state.student }));
+  featureHandles.refreshStudySections = boot('study-sections', () => f.studySections.initStudentStudySections({ getStudent: () => state.student, teaching: featureHandles.refreshTeaching }));
+  featureHandles.refreshFee = boot('fee', () => f.fee.initStudentFee({ getStudent: () => state.student }));
+  featureHandles.refreshDashboard = boot('dashboard', () => f.dashboard.initStudentDashboard({ getStudent: () => state.student, getAccount: () => state.account }));
+  featureHandles.refreshCourses = boot('course-hub', () => f.courseHub.initCourseHub({
     getStudent: () => state.student,
     onAction: action => {
       if (action.kind === 'chapter-mcq-practice') {
@@ -229,26 +241,26 @@ function initStudentFeatureSurface(f) {
         }));
       }
     }
-  });
-  featureHandles.dailyQuote = f.dailyQuote.initDailyQuote({ mount: '#dailyQuoteCard' });
-  featureHandles.refreshRoutine = f.routine.initRoutine({ getStudent: () => state.student });
-  f.hubs.initStudentHubs({ getStudent: () => state.student });
-  f.profile.initProfile({
+  }));
+  featureHandles.dailyQuote = boot('daily-quote', () => f.dailyQuote.initDailyQuote({ mount: '#dailyQuoteCard' }));
+  featureHandles.refreshRoutine = boot('routine', () => f.routine.initRoutine({ getStudent: () => state.student }));
+  boot('hubs', () => f.hubs.initStudentHubs({ getStudent: () => state.student }));
+  boot('profile', () => f.profile.initProfile({
     state,
     onStudentChange: student => { renderStudent(student); noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshStudentSections(); refreshReports($('#studentReports')); }
-  });
+  }));
   /* Settings → the one five-group structure every role shares (js/settings-hub.js).
      The student's own rows (profile, install, theme, device, offline) stay exactly
      where they are; the hub only adds what was missing — session, storage, sync —
      and hands the notification group to js/notification-settings.js. */
-  f.settingsHub.mountSettingsHub({
+  boot('settings-hub', () => f.settingsHub.mountSettingsHub({
     mount: '#settingsView',
     role: 'student',
     session: { value: 'লগইন সেশন এই ডিভাইসে', hint: 'নিরাপত্তার জন্য সেশন ডিভাইস-বাউন্ড' }
-  });
+  }));
   // Settings → Notification Settings (the full screen behind এই নোটিফিকেশন সেটিংস).
-  f.notificationSettings.initNotificationSettings({ mount: '#notificationSettings' });
-  f.reports.mountReports($('#studentReports'), { panel: 'student' });
+  boot('notification-settings', () => f.notificationSettings.initNotificationSettings({ mount: '#notificationSettings' }));
+  boot('reports', () => f.reports.mountReports($('#studentReports'), { panel: 'student' }));
   featureHandles.refreshReports = f.reports.refreshReports;
   featureHandles.openProfileEditor = f.profile.openProfileEditor;
   featureHandles.shareStudentOnWhatsApp = f.profile.shareStudentOnWhatsApp;
@@ -258,6 +270,12 @@ function initStudentFeatureSurface(f) {
 }
 
 let studentFeaturesFlight = null;
+let studentFeaturesRetries = 0;
+/* A flaky first fetch must not strand the signed-in surface on its
+   "লোড হচ্ছে…" placeholders — a student who opens ক্লাস রুটিন while the chunk
+   is missing reads that as "routine failed to load". Retry twice on a short
+   backoff, then say so out loud instead of failing silently. */
+const STUDENT_FEATURES_RETRY_DELAYS = Object.freeze([1200, 4000]);
 function bootStudentFeatures() {
   studentFeaturesFlight ??= loadStudentFeatures()
     .then(initStudentFeatureSurface)
@@ -266,6 +284,13 @@ function bootStudentFeatures() {
       // retries it, and the auth screen never depended on it.
       studentFeaturesFlight = null;
       console.warn('[Active Plus] feature chunk unavailable:', error?.message);
+      const delay = STUDENT_FEATURES_RETRY_DELAYS[studentFeaturesRetries];
+      if (delay !== undefined) {
+        studentFeaturesRetries += 1;
+        window.setTimeout(() => { void bootStudentFeatures(); }, delay);
+        return;
+      }
+      showFeedback('অ্যাপের কিছু অংশ লোড হয়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।');
     });
   return studentFeaturesFlight;
 }
