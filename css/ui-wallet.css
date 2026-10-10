@@ -535,8 +535,9 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
   content: ''; position: absolute; z-index: -1; top: 0; bottom: 44px; left: 50%; width: 100vw; transform: translateX(-50%);
   background: linear-gradient(180deg, var(--pay-hero-a), var(--pay-hero-b)); border-radius: 0 0 30px 30px;
 }
-/* The Teacher home has no floating stats card below its title; keep the hero
-   band behind the full greeting and its helper note as account names wrap. */
+/* The Teacher home has no floating stats card below its title, so add a little
+   extra blue base to match the deeper hero landing on the other home screens. */
+.teacher-hero { padding-bottom: var(--space-5); }
 .teacher-hero::before { bottom: 0; }
 .teacher-hero .teacher-welcome-note { color: var(--pay-on-hero-soft); }
 .teacher-hero #teacherHomeTitle { overflow-wrap: anywhere; }

@@ -171,6 +171,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
       await expect(page.locator('#teacherHomeTitle')).toHaveText(`স্বাগতম, ${fullName}`);
       const welcomeFits = await page.evaluate(() => {
         const title = document.querySelector('#teacherHomeTitle');
+        const note = document.querySelector('.teacher-welcome-note');
         const hero = document.querySelector('.teacher-hero');
         const range = document.createRange();
         range.selectNodeContents(title);
@@ -184,6 +185,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
           textBottom: Math.max(...textRects.map(rect => rect.bottom)),
           boxRight: title.getBoundingClientRect().right,
           backgroundBottom: heroRect.bottom - parseFloat(heroBackground.bottom),
+          helperNoteBottom: note.getBoundingClientRect().bottom,
           documentWidth: document.documentElement.scrollWidth,
           viewportWidth: innerWidth
         };
@@ -191,6 +193,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
       expect(welcomeFits.scrollWidth, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.clientWidth + 1);
       expect(welcomeFits.textRight, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.boxRight + 1);
       expect(welcomeFits.textBottom, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.backgroundBottom + 1);
+      expect(welcomeFits.backgroundBottom - welcomeFits.helperNoteBottom, JSON.stringify(welcomeFits)).toBeGreaterThanOrEqual(24);
       expect(welcomeFits.documentWidth, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.viewportWidth);
     }
     const responsiveHeader = await page.evaluate(() => {
