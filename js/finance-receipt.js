@@ -89,7 +89,7 @@ export function receiptMarkup(tx, logo = 'assets/icons/app-logo.png') {
 let fontAsset;
 async function receiptFont() {
   if (!fontAsset) fontAsset = (async () => {
-    const url = new URL('../assets/fonts/NotoSansBengali-Variable.ttf', import.meta.url).href;
+    const url = new URL('../assets/fonts/NotoSansBengali-Variable.woff2', import.meta.url).href;
     let cached;
     try { cached = await globalThis.caches?.match(url); }
     catch { /* Restricted CacheStorage can still use the bundled same-origin font. */ }

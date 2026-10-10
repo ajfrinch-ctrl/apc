@@ -14,11 +14,16 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const exists = path => existsSync(new URL(`../${path}`, import.meta.url));
 const GALLERY = 'preview/sync-indicator-167/';
-const gallery = read(GALLERY + 'index.html');
+/* preview/ is untracked (design snapshots are too heavy for the repository),
+   so a fresh clone has no gallery: the assertions then skip instead of
+   crashing the suite. Where preview/ exists they run in full. */
+const PRESENT = existsSync(new URL(`../${GALLERY}index.html`, import.meta.url));
+const gallery = PRESENT ? read(GALLERY + 'index.html') : '';
+const only = PRESENT ? test : test.skip;
 /** Resolve a gallery reference the way the browser does, from the gallery dir. */
 const resolve = ref => ref.startsWith('../../') ? ref.slice(6) : `${GALLERY}${ref}`;
 
-test('the gallery loads the real app files and never a private copy', () => {
+only('the gallery loads the real app files and never a private copy', () => {
   assert.match(gallery, /href="\.\.\/\.\.\/css\/design-system\.css"/, 'the app stylesheet');
   assert.match(gallery, /src="\.\.\/\.\.\/js\/topbar-connectivity\.js"/, 'the real indicator script');
   assert.match(gallery, /import\('\.\.\/\.\.\/js\/sync-status\.js'\)/, 'the real status module drives the demo');
@@ -30,7 +35,7 @@ test('the gallery loads the real app files and never a private copy', () => {
   assert.doesNotMatch(gallery, /--tone-mint|--color-danger\s*:/, 'the gallery must not redefine palette tokens');
 });
 
-test('every colour the gallery quotes is computed from the palette it documents', () => {
+only('every colour the gallery quotes is computed from the palette it documents', () => {
   const foundation = read('css/foundation.css');
   const block = selector => {
     const start = foundation.indexOf(selector);
@@ -65,7 +70,7 @@ test('every colour the gallery quotes is computed from the palette it documents'
   }
 });
 
-test('every referenced screenshot exists at the captured size (2x the 63px bar)', () => {
+only('every referenced screenshot exists at the captured size (2x the 63px bar)', () => {
   const refs = [...new Set([...gallery.matchAll(/src="([^"?#]+)"/g)].map(match => match[1]))];
   const screenshots = refs.filter(ref => ref.endsWith('.png'));
   assert.ok(screenshots.length >= 11, `the gallery references ${screenshots.length} screenshots`);

@@ -40,7 +40,7 @@ before(async () => {
     async load() { return this; }
   };
   globalThis.caches = { async match(url) {
-    assert.match(url, /\/assets\/fonts\/NotoSansBengali-Variable\.ttf$/);
+    assert.match(url, /\/assets\/fonts\/NotoSansBengali-Variable\.woff2$/);
     cacheHits++;
     return { async arrayBuffer() { return new Uint8Array([1,2,3]).buffer; } };
   } };
@@ -179,7 +179,7 @@ test('the offline shell precaches the complete local entry/module graph and paym
       assert.ok(cached.has(src.split('?')[0]), `${page} entry script ${src} is missing from the PWA cache`);
     }
   }
-  assert.ok(cached.has('assets/fonts/NotoSansBengali-Variable.ttf'));
+  assert.ok(cached.has('assets/fonts/NotoSansBengali-Variable.woff2'), 'the WOFF2 receipt font is precached');
 });
 
 test('a restricted font cache/failing load can be retried without a CDN or a stuck asset promise', async () => {
@@ -197,7 +197,7 @@ test('a restricted font cache/failing load can be retried without a CDN or a stu
     const blob = await fresh.createReceiptPDF(TX);
     assert.equal(blob.type, 'application/pdf');
     assert.equal(attempts, 2);
-    assert.ok(sources.every(source => /^url\(".*\/assets\/fonts\/NotoSansBengali-Variable\.ttf"\)$/.test(source)), 'fallback is only the bundled font, never an external provider');
+    assert.ok(sources.every(source => /^url\(".*\/assets\/fonts\/NotoSansBengali-Variable\.woff2"\)$/.test(source)), 'fallback is only the bundled font, never an external provider');
   } finally {
     globalThis.FontFace = NativeMock; globalThis.caches = originalCache;
   }

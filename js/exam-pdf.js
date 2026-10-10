@@ -10,7 +10,7 @@ import { BRAND_NAME, BRAND_TAGLINE, brandLogoLargeSrc } from './brand.js';
 let assets;
 export async function loadAssets() {
   if (!assets) assets = Promise.all([
-    new FontFace('ExamBangla', `url("${new URL('../assets/fonts/NotoSansBengali-Variable.ttf', import.meta.url).href}")`, { weight: '100 900' }).load().then(font => document.fonts.add(font)),
+    new FontFace('ExamBangla', `url("${new URL('../assets/fonts/NotoSansBengali-Variable.woff2', import.meta.url).href}")`, { weight: '100 900' }).load().then(font => document.fonts.add(font)),
     (async () => { const logo = new Image(); logo.src = brandLogoLargeSrc(import.meta.url); await logo.decode(); return logo; })()
   ]).catch(error => { assets = null; throw error; });
   return assets;

@@ -126,7 +126,11 @@ test('the new icon dependency ships in the bumped offline release', () => {
   assert.ok(existsSync(new URL('../js/icon-set.js', import.meta.url)));
   assert.match(read('js/icons.js'), /from '\.\/icon-set\.js'/);
   for (const page of ['index','admin','manager','teacher','payment','offline-roles']) {
-    assert.match(read(page + '.html'), new RegExp(`css/design-system\\.css\\?v=${version}`));
+    /* The stylesheets are linked directly (fifteen parallel <link>s instead of
+       one @import chain), so EVERY sheet must carry the release query. */
+    const links = [...read(page + '.html').matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match => match[1]);
+    assert.equal(links.length, 15, `${page} must link the fifteen canonical sheets`);
+    for (const href of links) assert.match(href, new RegExp(`\\?v=${version}$`), `${page}: ${href} is not pinned to CACHE_VERSION`);
   }
   for (const file of ['js/icons.js','js/icon-set.js']) {
     assert.doesNotMatch(read(file), /localStorage|indexedDB|fetch\s*\(|XMLHttpRequest|firebase|https?:\/\//i);

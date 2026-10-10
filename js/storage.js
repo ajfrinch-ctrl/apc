@@ -12,7 +12,7 @@ import { rememberAccount, KEYS, nextSequence, recordNonce } from './database.js'
 import { hashPassword, verifyPassword, isPasswordRecord } from './password-hash.js';
 import { encryptValue, decryptValue, isEncryptedEnvelope } from './secure-store.js';
 import { buildSessionRecord, isSessionRecordValid } from './session.js';
-import { LOCAL_WRITE_KEY, markLocalSource } from './notification-rules.js';
+import { LOCAL_WRITE_KEY, markLocalSource } from './local-write-mark.js';
 
 const SESSION_DAYS_REMEMBER = 90;
 const TAB_SESSION_MARKER = '1';

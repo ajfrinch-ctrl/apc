@@ -4,8 +4,7 @@
 import { loadAccount, saveAccount, saveStudent, readJSON, writeJSON } from './storage.js';
 import { KEYS, listDocuments, listDocumentsStrict, replaceDocumentsStrict } from './database.js';
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
-import { listClasses } from './academics.js';
-import { LOCAL_WRITE_KEY, markLocalSource } from './notification-rules.js';
+import { LOCAL_WRITE_KEY, markLocalSource } from './local-write-mark.js';
 
 export const ROSTER_KEY = KEYS.students;
 export const NOTICES_KEY = KEYS.notices;
@@ -94,6 +93,7 @@ export async function updateStudentOperationalInfo(studentId, patch = {}) {
   const group = String(patch.group ?? current.group ?? '').trim();
   const monthlyFee = Number(patch.monthlyFee ?? current.monthlyFee ?? 1500);
   if (!name || name.length > 100 || mobile.length > 32 || guardianMobile.length > 32 || group.length > 80) throw new Error('শিক্ষার্থীর নাম, মোবাইল বা batch/group তথ্য সঠিক নয়।');
+  const { listClasses } = await import('./academics.js');
   if (!listClasses().some(item => item.active !== false && item.name === className)) throw new Error('সঠিক সক্রিয় শ্রেণি নির্বাচন করুন।');
   if (!Number.isSafeInteger(monthlyFee) || monthlyFee < 0 || monthlyFee > 1000000) throw new Error('মাসিক ফি ০ থেকে ১০,০০,০০০ টাকার মধ্যে দিন।');
   const updated = {

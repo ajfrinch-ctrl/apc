@@ -19,3 +19,11 @@ emulator-data/
 **/*serviceAccount*.json
 *.pem
 *.key
+
+# Design snapshots & capture output: 14 MB of PNG/PDF that bloats every clone
+# and the GitHub Pages bundle. The capture tools (tools/capture-*.cjs,
+# tests/course-audit.mjs) write here; the gallery test skips when absent.
+preview/
+
+# Unwired sync foundation removed 2026-10-10 (see PERFORMANCE-AUDIT-2026-10-10.md);
+# kept out of the tree, recoverable from git history.

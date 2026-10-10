@@ -184,7 +184,9 @@ test('wallet assets and entry versions ship together in the offline shell', () =
   assert.ok(sw.includes("'./css/ui-wallet.css'"));
   assert.ok(!sw.includes("'./css/ui-interior.css'"), 'unused skin must not be a precache dependency');
   for (const name of [...portals, 'offline-roles']) {
-    assert.match(read(name + '.html'), new RegExp(`css/design-system\\.css\\?v=${version}`), name);
+    const links = [...read(name + '.html').matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match => match[1]);
+    assert.ok(links.some(href => href.startsWith('css/ui-wallet.css?')), `${name} must link the wallet skin`);
+    for (const href of links) assert.match(href, new RegExp(`\\?v=${version}$`), `${name}: ${href} is not pinned to CACHE_VERSION`);
   }
 });
 

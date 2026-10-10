@@ -2,10 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync,existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import { checkAll as checkCssOrder } from '../tools/css-order-check.mjs';
+const await_import_guard = () => ({ checkAll: checkCssOrder });
 const read=p=>readFileSync(p,'utf8');
 const pages=['index','admin','manager','teacher','payment','offline-roles'];
-test('every page has one new entry and no legacy icon dependencies',()=>{
- for(const page of pages){const s=read(`${page}.html`);assert.equal((s.match(/rel="stylesheet"/g)||[]).length,1);assert.match(s,/css\/design-system.css/);assert.doesNotMatch(s,/<use\b|<symbol\b|icon-sprite|assets\/icons\/(glass|admin)\//);}
+test('every page links the canonical stylesheet set and no legacy icon dependencies',()=>{
+ /* One @import chain became fifteen parallel <link>s; the canonical order is
+    css/design-system.css's, guarded by tools/css-order-check.mjs. */
+ const { checkAll } = await_import_guard();
+ for(const page of pages){const s=read(`${page}.html`);assert.doesNotMatch(s,/<use\b|<symbol\b|icon-sprite|assets\/icons\/(glass|admin)\//);}
+ assert.deepEqual(checkAll().problems, [], 'stylesheet links drifted from design-system.css order');
  for(const file of readdirSync('js').filter(f=>f.endsWith('.js')))assert.doesNotMatch(read(`js/${file}`),/<use\b|assets\/icons\/(glass|admin)\//);
 });
 test('new presentation has no storage or Firebase API and no legacy imports',()=>{

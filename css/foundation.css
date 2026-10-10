@@ -1,4 +1,7 @@
-@font-face{font-family:'Noto Sans Bengali';src:url('../assets/fonts/NotoSansBengali-Variable.ttf') format('truetype');font-weight:100 900;font-display:swap}
+/* WOFF2 is the shipped payload (238 KB vs the 453 KB TTF); the TTF stays in the
+   repository as the licensed OFL source and is only a last-resort fallback for
+   an engine old enough to lack WOFF2 — no modern client ever downloads it. */
+@font-face{font-family:'Noto Sans Bengali';src:url('../assets/fonts/NotoSansBengali-Variable.woff2') format('woff2'),url('../assets/fonts/NotoSansBengali-Variable.ttf') format('truetype');font-weight:100 900;font-display:swap}
 /* One palette for every portal — the only place a colour is defined.
    Light is the default. The dark theme is the AMOLED one: a true-black canvas
    (#000 — the pixels an OLED panel actually switches off), surfaces lifted by

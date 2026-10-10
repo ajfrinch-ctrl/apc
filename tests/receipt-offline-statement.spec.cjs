@@ -20,9 +20,12 @@ async function readyOfflineShell(page, context) {
     if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
   });
   expect(await page.evaluate(async () => {
-    const cache = await caches.open('active-plus-student-v150-minimal-education');
+    // Name it by prefix, never by a hard-coded CACHE_VERSION: the cache name
+    // carries the sw.js version, which moves on every release.
+    const names = await caches.keys();
+    const cache = await caches.open(names.find(name => name.startsWith('active-plus-student-v')));
     return Boolean(await cache.match('./js/finance-receipt.js'))
-      && Boolean(await cache.match('./assets/fonts/NotoSansBengali-Variable.ttf'));
+      && Boolean(await cache.match('./assets/fonts/NotoSansBengali-Variable.woff2'));
   })).toBe(true);
   // Prove generation is not depending on a primed browser HTTP cache or on a
   // previous receipt. CacheStorage (the installed PWA) deliberately remains.

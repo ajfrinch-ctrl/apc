@@ -5,9 +5,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=240" data-entry="student"></script>
-  <script type="module" src="js/main.js?v=240"></script>
-  <script src="js/topbar-connectivity.js?v=24061005-syncborder"></script>
+  <script src="js/app-entry.js?v=241" data-entry="student"></script>
+  <script type="module" src="js/main.js?v=241"></script>
+  <script src="js/topbar-connectivity.js?v=24161005-syncborder" defer></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
   <script src="js/theme-logos.js?v=158"></script>
@@ -20,12 +20,34 @@
   <meta name="apple-mobile-web-app-title" content="Active Plus">
   <title>Active Plus | শিক্ষার্থী অ্যাপ</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://active-plus-coaching-default-rtdb.asia-southeast1.firebasedatabase.app">
+  <link rel="dns-prefetch" href="https://active-plus-coaching-default-rtdb.asia-southeast1.firebasedatabase.app">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
-  <link rel="preload" href="assets/fonts/NotoSansBengali-Variable.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="css/design-system.css?v=240">
+  <link rel="preload" href="assets/fonts/NotoSansBengali-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Stylesheets are linked directly, in design-system.css order, instead of
+       being @import-ed from it: the preload scanner then discovers all 15 in the
+       HTML and fetches them in parallel, instead of a render-blocking serial
+       waterfall (design-system.css first, its imports one round-trip later).
+       tools/css-order-check.mjs + tests/css-order.test.mjs keep this in sync. -->
+  <link rel="stylesheet" href="css/foundation.css?v=241">
+  <link rel="stylesheet" href="css/ui-layout.css?v=241">
+  <link rel="stylesheet" href="css/ui-components.css?v=241">
+  <link rel="stylesheet" href="css/ui-forms.css?v=241">
+  <link rel="stylesheet" href="css/ui-features.css?v=241">
+  <link rel="stylesheet" href="css/notice-board.css?v=241">
+  <link rel="stylesheet" href="css/ui-status.css?v=241">
+  <link rel="stylesheet" href="css/ui-auth.css?v=241">
+  <link rel="stylesheet" href="css/app-polish.css?v=241">
+  <link rel="stylesheet" href="css/student-record.css?v=241">
+  <link rel="stylesheet" href="css/exam-archive.css?v=241">
+  <link rel="stylesheet" href="css/academics.css?v=241">
+  <link rel="stylesheet" href="css/notifications.css?v=241">
+  <link rel="stylesheet" href="css/course-hub.css?v=241">
+  <link rel="stylesheet" href="css/ui-wallet.css?v=241">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
