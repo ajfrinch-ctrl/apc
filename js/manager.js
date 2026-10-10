@@ -41,6 +41,14 @@ const LEGACY_VIEWS = Object.freeze({
   approvals: { view: 'students', scope: 'pending' },
   'cash-counter': { view: 'finance', segment: 'approval' }
 });
+/* Notification aliases with no nav button of their own (the Cash Counter review
+   queue is a segment of হিসাব now): renderView normalizes them, so a tapped
+   notification deep link lands on the right seat even mid-boot. */
+window.addEventListener('apc-notice-route', event => {
+  if (!LEGACY_VIEWS[event.detail?.target]) return;
+  event.preventDefault();
+  renderView(event.detail.target);
+});
 /* একাডেমিক hub cards. Each one opens the screen that already owns that work —
    প্রশ্নব্যাংক / পরীক্ষা land in the single examination workspace. */
 const ACADEMIC_SECTIONS = Object.freeze({
@@ -847,6 +855,9 @@ async function enterManager() {
     mount: '[data-settings-hub="manager"]',
     role: 'manager',
     actions: {
+      /* The Manager's profile card lives on its own page, so the hub carries a
+         link row (§29) instead of a second copy of the card. */
+      profile: () => renderView('profile'),
       password: () => openStaffPasswordDialog({ role: 'manager', mode: 'change' }),
       logout: () => { clearStaffSession('manager'); goToLoginPage(); }
     },

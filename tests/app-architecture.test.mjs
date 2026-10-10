@@ -197,7 +197,9 @@ test('the teacher bottom bar is exactly হোম / কাজ দিন / রু
 test('একাডেমিক is one hub whose six cards open the screens that already own the work', () => {
   const hub = teacherHtml.slice(teacherHtml.indexOf('id="teacherAcademic"'), teacherHtml.indexOf('id="teacherStudents"'));
   assert.deepEqual([...hub.matchAll(/data-academic-count="([a-z]+)"/g)].map(match => match[1]),
-    ['homework', 'suggestion', 'bank', 'materials', 'exams', 'notice']);
+    /* IA decision (2026-10-10): the hub follows the authoring pipeline —
+       content (materials) before questions (bank) before exams. */
+    ['homework', 'suggestion', 'materials', 'bank', 'exams', 'notice']);
   /* Nothing is rebuilt for the hub: each card points at an existing screen. */
   const routes = [...hub.matchAll(/data-(teacher-view|academic-section)="([a-z-]+)"/g)].map(match => `${match[1]}:${match[2]}`);
   assert.ok(routes.includes('teacher-view:homework'));

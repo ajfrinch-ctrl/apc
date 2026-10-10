@@ -142,7 +142,6 @@ function renderTypeCounts() {
 function renderHome() {
   const hasAssignments = state.assignments.length > 0;
   $('#teacherAssignmentNotice').hidden = hasAssignments;
-  if ($('#teacherQuickActions')) $('#teacherQuickActions').hidden = !hasAssignments;
   const today = todayISO();
   $('#teacherToday').textContent = displayDate(today);
   const scope = state.homeClass;

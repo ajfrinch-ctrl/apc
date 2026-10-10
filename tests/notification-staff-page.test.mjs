@@ -31,7 +31,7 @@ before(async () => {
 });
 
 test('a staff panel knows which person is using it', () => {
-  assert.deepEqual(controller.viewer(), { kind: 'staff', role: 'manager', username: 'manager.apc', name: 'ম্যানেজার' });
+  assert.deepEqual(controller.viewer(), { kind: 'staff', role: 'manager', username: 'manager.apc', name: 'ম্যানেজার', assignedClasses: [] });
   assert.equal(controller.viewerKey(), 'staff:manager.apc');
 });
 

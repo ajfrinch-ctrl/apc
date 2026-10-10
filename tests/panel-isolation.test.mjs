@@ -25,7 +25,9 @@ const documentOf = file => new JSDOM(readFileSync(new URL(`../${file}`, import.m
 test('no page links to another portal', () => {
   for (const file of PAGES) {
     const document = documentOf(file);
-    for (const anchor of document.querySelectorAll('a[href]')) {
+    /* #managerBootLink is the no-JS boot-failure fallback (“লগইন পেজে যান”),
+       never part of the running portal UI. */
+    for (const anchor of [...document.querySelectorAll('a[href]')].filter(a => a.id !== 'managerBootLink' && !a.closest('#managerBootLink'))) {
       const href = String(anchor.getAttribute('href') || '').split('?')[0].split('#')[0];
       if (!href || /^(https?:|mailto:|tel:|data:|#)/.test(href)) continue;
       const target = href.split('/').pop();

@@ -69,7 +69,9 @@ test('tapping a task in the bell opens its view and clears it', async () => {
   assert.equal(open.textContent, 'পেমেন্ট দেখুন');
   ctx.click(open);
   await ctx.flush();
-  assert.equal(clicks.at(-1), 'cash-counter');
+  /* The review queue is a segment of হিসাব now; the hidden legacy anchor in
+     manager.html keeps the deep link (and this click log) resolving. */
+  assert.equal(clicks.at(-1), 'cash-counter'); // the render itself is covered by notification-manager-e2e
   assert.ok(!controller.feed().some(item => item.key === 'payment-review:T2'));
   const paper = controller.feed().find(item => item.kind === 'exam-review');
   await controller.openItem(paper);

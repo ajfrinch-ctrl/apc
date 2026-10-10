@@ -5,9 +5,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=244" data-entry="manager"></script>
-  <script type="module" src="js/manager.js?v=244"></script>
-  <script src="js/topbar-connectivity.js?v=24461005-syncborder" defer></script>
+  <script src="js/app-entry.js?v=245" data-entry="manager"></script>
+  <script type="module" src="js/manager.js?v=245"></script>
+  <script src="js/topbar-connectivity.js?v=24561005-syncborder" defer></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
   <script src="js/theme-logos.js?v=158"></script>
@@ -27,21 +27,21 @@
        HTML and fetches them in parallel, instead of a render-blocking serial
        waterfall (design-system.css first, its imports one round-trip later).
        tools/css-order-check.mjs + tests/css-order.test.mjs keep this in sync. -->
-  <link rel="stylesheet" href="css/foundation.css?v=244">
-  <link rel="stylesheet" href="css/ui-layout.css?v=244">
-  <link rel="stylesheet" href="css/ui-components.css?v=244">
-  <link rel="stylesheet" href="css/ui-forms.css?v=244">
-  <link rel="stylesheet" href="css/ui-features.css?v=244">
-  <link rel="stylesheet" href="css/notice-board.css?v=244">
-  <link rel="stylesheet" href="css/ui-status.css?v=244">
-  <link rel="stylesheet" href="css/ui-auth.css?v=244">
-  <link rel="stylesheet" href="css/app-polish.css?v=244">
-  <link rel="stylesheet" href="css/student-record.css?v=244">
-  <link rel="stylesheet" href="css/exam-archive.css?v=244">
-  <link rel="stylesheet" href="css/academics.css?v=244">
-  <link rel="stylesheet" href="css/notifications.css?v=244">
-  <link rel="stylesheet" href="css/course-hub.css?v=244">
-  <link rel="stylesheet" href="css/ui-wallet.css?v=244">
+  <link rel="stylesheet" href="css/foundation.css?v=245">
+  <link rel="stylesheet" href="css/ui-layout.css?v=245">
+  <link rel="stylesheet" href="css/ui-components.css?v=245">
+  <link rel="stylesheet" href="css/ui-forms.css?v=245">
+  <link rel="stylesheet" href="css/ui-features.css?v=245">
+  <link rel="stylesheet" href="css/notice-board.css?v=245">
+  <link rel="stylesheet" href="css/ui-status.css?v=245">
+  <link rel="stylesheet" href="css/ui-auth.css?v=245">
+  <link rel="stylesheet" href="css/app-polish.css?v=245">
+  <link rel="stylesheet" href="css/student-record.css?v=245">
+  <link rel="stylesheet" href="css/exam-archive.css?v=245">
+  <link rel="stylesheet" href="css/academics.css?v=245">
+  <link rel="stylesheet" href="css/notifications.css?v=245">
+  <link rel="stylesheet" href="css/course-hub.css?v=245">
+  <link rel="stylesheet" href="css/ui-wallet.css?v=245">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -117,6 +117,10 @@
         </nav>
       </section>
     </main>
+    <!-- Legacy notification seat: the Cash Counter review queue lives inside
+         হিসাব → অনুমোদন now. The hidden anchor keeps old deep links (and the
+         bell’s route table) resolving without a visible duplicate seat. -->
+    <button type="button" hidden data-manager-view="cash-counter" aria-hidden="true" tabindex="-1"></button>
     <nav class="admin-bottom manager-bottom" aria-label="Manager navigation"><button class="admin-bottom-item active" type="button" data-manager-view="dashboard"><span class="nav-chip"><svg class="apc-glyph-icon" data-icon="home" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10.5 9-7.7 9 7.7M5.2 9.3v10a1.7 1.7 0 0 0 1.7 1.7h10.2a1.7 1.7 0 0 0 1.7-1.7v-10M9.5 21v-6.5h5V21"/></svg></span><span class="nav-label">হোম</span></button><button class="admin-bottom-item" type="button" data-manager-view="students"><span class="nav-chip"><svg class="apc-glyph-icon" data-icon="students" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 6.2 9-3.5 9 3.5-9 3.5ZM6 7.5v3q6 3.5 12 0v-3M21 6.2v6"/><circle cx="12" cy="13.5" r="2.4"/><path d="M6.5 21v-.5a5.5 5.5 0 0 1 11 0v.5"/></svg></span><span class="nav-label">শিক্ষার্থী</span></button><button class="admin-bottom-item" type="button" data-manager-view="academic"><span class="nav-chip"><svg class="apc-glyph-icon" data-icon="book" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5q-4-2.5-8-1.2v15.9q4-1.3 8 1.2 4-2.5 8-1.2V3.8Q16 2.5 12 5Zm0 0v15.9M7 7.8l2 .5M15 8.3l2-.5"/></svg></span><span class="nav-label">একাডেমিক</span></button><button class="admin-bottom-item" type="button" data-manager-view="finance"><span class="nav-chip"><svg class="apc-glyph-icon" data-icon="wallet" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="14" rx="2.5"/><path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H18v4M21 12.5h-5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5"/><circle cx="17.7" cy="15" r=".6" fill="currentColor" stroke="none"/></svg></span><span class="nav-label">হিসাব</span></button><button class="admin-bottom-item" type="button" data-manager-view="reports"><span class="nav-chip"><svg class="apc-glyph-icon" data-icon="reports" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2.2"/><path d="M7.5 16.5v-4M12 16.5v-9M16.5 16.5V10"/></svg></span><span class="nav-label">রিপোর্ট</span></button><button class="admin-bottom-item" type="button" data-manager-view="more"><span class="nav-chip"><svg class="apc-glyph-icon" data-icon="more" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></span><span class="nav-label">আরও</span></button></nav>
   </div>
 

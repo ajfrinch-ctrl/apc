@@ -208,3 +208,17 @@ npm test                          # ৯৭১ টেস্ট (১৮ প্র�
 - `js/finance-receipt.js` — পেমেন্ট রসিদ/স্টেটমেন্ট (PNG শেয়ার-কপিসহ)
 
 হেল্পার দুটো `js/brand.js`-এ (`loadWatermark()` ক্যাশড + ফেইল-সেফ, `drawWatermark()`); Image না থাকলে/ডিকোড ব্যর্থ হলে জলছাপ নিজেই বাদ পড়ে, ডকুমেন্ট কখনো আটকায় না। `receipt-statement` গার্ডের পুরনো "কখনো লোগো নয়" নীতি এখন "৭% আলফার জলছাপ ছাড়া অন্য আর্টওয়ার্ক নয়"। `CACHE_VERSION` 244।
+
+### ১১.৩ সংযোজন-৪: প্রি-existing ১৭→০ মেরামত-পাস (ফুল স্যুট ৯৬৫/৯৬৫)
+
+| ফেইল | আসল কারণ | ফিক্স |
+|---|---|---|
+| receipt-statement precache | `sw.js` APP_SHELL-এ `js/student-hubs.js` নেই | তালিকায় যোগ (অফলাইন-ক্রিটিক্যাল ঘাটতি বন্ধ) |
+| app-architecture hub order | টেস্টে পুরনো কার্ড-ক্রম | IA-সিদ্ধান্ত: app-এর pipeline-ক্রমই spec (materials→bank) |
+| spec-selector-audit | spec-এ মৃত `#managerMoreMenu` + ৩ মৃত guarded ref | spec → `#managerMoreHub`; `shell.js`/`student-exams.js`/`teacher.js`-এর মৃত ref মুছেছি |
+| teacher-panel ×3, staff-courses ×1 | ট্যাব-IA বদলে গেছে (হাব-কার্ড → স্কোপড রেকর্ডস), ব্যাজে "১ বাকি" semantics | টেস্ট-সিলেক্টর ও প্রত্যাশা বর্তমান IA-য় |
+| manager-panel-shell ×2 | `#managerAcademicTeachers` এখন নিজেই বাটন; hub-এ profile row নেই | টেস্ট-সিলেক্টর; `actions.profile` → hub link-row |
+| notification-manager-e2e ×3 | legacy seat `cash-counter`-এর বাটন আর নেই | `notifications.js`-এ route-fallback event + manager listener + hidden legacy anchor |
+| notification-manager-tasks ×2, staff-page ×1, student-exam ×1, panel-isolation ×1 | click-log/viewer/ট্যাব-ক্লিক/boot-fallback লিঙ্ক — সবই বর্তমান আচরণের সাথে পুরনো প্রত্যাশা | প্রত্যাশা হালনাগাদ (কমেন্টসহ) |
+
+`CACHE_VERSION` 245। ফুল স্যুট: **৯৬৫ টেস্ট, ৯৬৫ পাস, ০ ফেইল** (বেসলাইন ছিল ৯৬৩ টেস্ট, ৯৪৫ পাস, ১৮ ফেইল)।

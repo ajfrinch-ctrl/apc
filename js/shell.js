@@ -15,7 +15,6 @@ export function renderStudent(student) {
   $('#profileAvatar') && ($('#profileAvatar').textContent = initial);
   $('#profileName') && ($('#profileName').textContent = student.name);
   $('#profileMeta') && ($('#profileMeta').textContent = meta);
-  $('#routineClass') && ($('#routineClass').textContent = meta);
   $('#studentId') && ($('#studentId').textContent = student.id);
   const usernameChip = $('#profileUsername');
   const usernameWrap = $('#profileUsernameWrap');

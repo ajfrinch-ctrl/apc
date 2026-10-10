@@ -416,9 +416,12 @@ function navigateTo(target) {
   const attribute = NAV_ATTRIBUTE[viewer?.kind === 'staff' ? viewer.role : 'student'];
   if (!attribute || !target) return false;
   const button = [...document.querySelectorAll(`[${attribute}]`)].find(item => item.getAttribute(attribute) === target);
-  if (!button) return false;
-  button.click();
-  return true;
+  if (button) { button.click(); return true; }
+  /* Legacy seats (the Cash Counter review queue is a segment of হিসাব now) have
+     no button of their own: the panel that owns the alias routes it. */
+  const routed = new CustomEvent('apc-notice-route', { detail: { target }, cancelable: true });
+  window.dispatchEvent(routed);
+  return routed.defaultPrevented;
 }
 
 /**

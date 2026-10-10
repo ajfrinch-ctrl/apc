@@ -67,8 +67,6 @@ export function initStudentExams({ getStudent, getAccount }) {
   }
   function paintTabs() {
     const bar = document.querySelector('#examTabs');
-    const practiceMenu = document.querySelector('#practiceMenu');
-    const hubBack = document.querySelector('#examHubBack');
     const now = Date.now();
     const exams = activeAccount() ? visibleExams() : [];
     const counts = { upcoming: 0, live: 0, done: 0, results: 0 };
