@@ -285,6 +285,12 @@
   .admin-reset-note { display:flex;align-items:flex-start;gap:10px;margin-top:20px;padding:12px;background:var(--color-bg);border-radius:10px;font-size:13px;color:var(--color-text-secondary); }
 }
 
+.teacher-header-name { display: inline-block; flex: 0 1 auto; min-width: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-bg); color: var(--color-text); font-size: 13px; font-weight: 700; line-height: 1.35; }
+.teacher-header-name[hidden] { display: none; }
+@media (max-width: 560px) {
+  .teacher-header-name { max-width: 78px; padding: 5px 7px; font-size: 11px; }
+}
+
 /* ── AMOLED dark: component tuning ─────────────────────────────────────────
    The palette lives in css/foundation.css and is shared by every portal; this
    block only adjusts the pieces a pure-black canvas changes the meaning of —

@@ -54,18 +54,19 @@ test('an empty home reports honestly: no classes today, no work yet', () => {
   assert.equal($('#navDot-academic').hidden, true, 'nothing pending anywhere yet');
 });
 
-test('the home greets the teacher by name in the welcome hero', async () => {
+test('the header and welcome hero show the teacher name from the staff profile', async () => {
   /* A provisioned test account starts without a display name — the home must
-     still greet politely; once the profile carries a name (Manager/Admin or
-     the teacher's own settings write it), the hero shows it after the next
-     data event. The topbar stays byte-identical across panels (notice-center
-     rule), so the name lives in the hero, not in a header chip. */
+     still greet politely and keep the header slot hidden; once the profile
+     carries a name, both places update after the next data event. */
   assert.equal($('#teacherHomeTitle').textContent, 'স্বাগতম', 'no name on the account yet — a plain welcome');
+  assert.equal($('#teacherHeaderName').hidden, true, 'do not show a blank header name');
   const updated = await updateStaffProfile('teacher', { fullName: 'পরীক্ষা শিক্ষক' });
   assert.equal(updated.ok, true);
   ctx.window.dispatchEvent(new ctx.window.CustomEvent('teaching-data-updated'));
   await settle();
   assert.equal($('#teacherHomeTitle').textContent, 'স্বাগতম, পরীক্ষা শিক্ষক');
+  assert.equal($('#teacherHeaderName').hidden, false);
+  assert.equal($('#teacherHeaderName').textContent, 'পরীক্ষা শিক্ষক');
   assert.match($('#teacherHome').textContent, /আপনার আজকের কাজগুলো দেখে নিন।/);
 });
 

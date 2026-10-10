@@ -137,10 +137,17 @@ function renderHome() {
   $('#teacherAssignmentNotice').hidden = hasAssignments;
   const today = todayISO();
   $('#teacherToday').textContent = displayDate(today);
-  /* স্বাগতম বার্তা: শিক্ষকের নিজের নাম hero-তে (টপবার সব প্যানেলে হুবহু এক —
-     notice-center-এর identical-topbar নিয়ম তাই নাম চিপ রাখে না)। */
+  /* শিক্ষক-নাম টপবারে এবং welcome hero-তে; textContent ব্যবহার করে account
+     profile-এর নাম নিরাপদে দেখানো হয়। */
   const name = String(state.teacher?.fullName || '').trim();
   $('#teacherHomeTitle').textContent = name ? `স্বাগতম, ${name}` : 'স্বাগতম';
+  const headerName = $('#teacherHeaderName');
+  if (headerName) {
+    headerName.textContent = name;
+    headerName.hidden = !name;
+    if (name) headerName.title = name;
+    else headerName.removeAttribute('title');
+  }
   const records = own();
   const weekday = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
   const todays = (loadRoutine()[weekday]?.classes || []).filter(item => state.assignments.some(assignment => assignment.className === item.className)).sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
