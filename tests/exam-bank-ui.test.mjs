@@ -36,7 +36,7 @@ before(async () => {
   await openStaffPanel(ctx, 'teacher', {
     importPanel: () => import('../js/teacher.js'),
     shellId: 'teacherShell',
-    ready: () => [...$('#teacherHomeClass').options].some(option => option.textContent === 'সব assigned class')
+    ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব assigned class')
   });
   ctx.click($('[data-teacher-view="online-exams"]'));
   await ctx.waitFor(() => Boolean($('#teacherExamWorkspace [data-exam-action="new-mcq"]')));

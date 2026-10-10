@@ -5,9 +5,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=248" data-entry="teacher"></script>
-  <script type="module" src="js/teacher.js?v=248"></script>
-  <script src="js/topbar-connectivity.js?v=24861005-syncborder" defer></script>
+  <script src="js/app-entry.js?v=249" data-entry="teacher"></script>
+  <script type="module" src="js/teacher.js?v=249"></script>
+  <script src="js/topbar-connectivity.js?v=24961005-syncborder" defer></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
   <script src="js/theme-logos.js?v=158"></script>
@@ -30,21 +30,21 @@
        HTML and fetches them in parallel, instead of a render-blocking serial
        waterfall (design-system.css first, its imports one round-trip later).
        tools/css-order-check.mjs + tests/css-order.test.mjs keep this in sync. -->
-  <link rel="stylesheet" href="css/foundation.css?v=248">
-  <link rel="stylesheet" href="css/ui-layout.css?v=248">
-  <link rel="stylesheet" href="css/ui-components.css?v=248">
-  <link rel="stylesheet" href="css/ui-forms.css?v=248">
-  <link rel="stylesheet" href="css/ui-features.css?v=248">
-  <link rel="stylesheet" href="css/notice-board.css?v=248">
-  <link rel="stylesheet" href="css/ui-status.css?v=248">
-  <link rel="stylesheet" href="css/ui-auth.css?v=248">
-  <link rel="stylesheet" href="css/app-polish.css?v=248">
-  <link rel="stylesheet" href="css/student-record.css?v=248">
-  <link rel="stylesheet" href="css/exam-archive.css?v=248">
-  <link rel="stylesheet" href="css/academics.css?v=248">
-  <link rel="stylesheet" href="css/notifications.css?v=248">
-  <link rel="stylesheet" href="css/course-hub.css?v=248">
-  <link rel="stylesheet" href="css/ui-wallet.css?v=248">
+  <link rel="stylesheet" href="css/foundation.css?v=249">
+  <link rel="stylesheet" href="css/ui-layout.css?v=249">
+  <link rel="stylesheet" href="css/ui-components.css?v=249">
+  <link rel="stylesheet" href="css/ui-forms.css?v=249">
+  <link rel="stylesheet" href="css/ui-features.css?v=249">
+  <link rel="stylesheet" href="css/notice-board.css?v=249">
+  <link rel="stylesheet" href="css/ui-status.css?v=249">
+  <link rel="stylesheet" href="css/ui-auth.css?v=249">
+  <link rel="stylesheet" href="css/app-polish.css?v=249">
+  <link rel="stylesheet" href="css/student-record.css?v=249">
+  <link rel="stylesheet" href="css/exam-archive.css?v=249">
+  <link rel="stylesheet" href="css/academics.css?v=249">
+  <link rel="stylesheet" href="css/notifications.css?v=249">
+  <link rel="stylesheet" href="css/course-hub.css?v=249">
+  <link rel="stylesheet" href="css/ui-wallet.css?v=249">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -57,37 +57,21 @@
       <section id="teacherHome" class="teacher-view" aria-labelledby="teacherHomeTitle">
         <article class="admin-hero teacher-hero">
           <div class="admin-hero-head">
-            <div class="admin-hero-title"><span class="admin-hero-icon" aria-hidden="true"><svg class="apc-glyph-icon" data-icon="book" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5q-4-2.5-8-1.2v15.9q4-1.3 8 1.2 4-2.5 8-1.2V3.8Q16 2.5 12 5Zm0 0v15.9M7 7.8l2 .5M15 8.3l2-.5"/></svg></span><div class="pay-portal-heading"><p class="pay-portal-kicker" id="teacherToday"></p><h1 id="teacherHomeTitle">আপনার ক্লাসরুম</h1></div></div>
-        <nav class="teacher-quick" aria-label="দ্রুত কাজ">
-          <button class="teacher-quick-btn" type="button" data-teacher-view="homework"><svg class="apc-color-icon" data-icon="assignment" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.7 9.3V7a2 2 0 0 1 2-2h5.1l2.1 2.1H20v12.7H4.7a2 2 0 0 1-2-2Z" fill="var(--icon-blue, currentColor)" /><rect x="7.3" y="2.7" width="12.3" height="15.7" rx="1.7" fill="var(--icon-paper, currentColor)" /><path d="M10 7.2h6.8M10 10.2h6.8M10 13.2h3.6" fill="none" stroke="var(--icon-blue, currentColor)" stroke-width="1.25"/><path d="M2.7 11.7h18.6l-2 8.9H5.1a2 2 0 0 1-2-1.6Z" fill="var(--icon-gold, currentColor)" /><circle cx="18.6" cy="17.9" r="3.4" fill="var(--icon-mint, currentColor)" /><path d="m17 17.9 1.1 1.1 2.1-2.3" fill="none" stroke="var(--icon-on-color, currentColor)" stroke-width="1.6"/></g></svg><span>কাজ দিন</span><small>হোমওয়ার্ক / সাজেশন</small></button>
-          <button class="teacher-quick-btn" type="button" data-teacher-view="routine-view"><svg class="apc-color-icon" data-icon="calendar" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.7" width="18" height="16.3" rx="2.5" fill="var(--icon-paper, currentColor)" /><path d="M3 9V7.2a2.5 2.5 0 0 1 2.5-2.5h13A2.5 2.5 0 0 1 21 7.2V9Z" fill="var(--icon-blue, currentColor)" /><path d="M7.2 2.8v4.3M16.8 2.8v4.3" fill="none" stroke="var(--icon-outline, currentColor)" stroke-width="1.7"/><rect x="6.1" y="11.8" width="3.4" height="3.4" rx="0.8" fill="var(--icon-gold, currentColor)" stroke="none"/><path d="M12.2 12.3h4.6M6.5 17.8h3.4" fill="none" stroke="var(--icon-blue, currentColor)" stroke-width="1.4"/><circle cx="18" cy="18.4" r="4.1" fill="var(--icon-mint, currentColor)" /><path d="m15.9 18.4 1.4 1.5 2.8-3" fill="none" stroke="var(--icon-on-color, currentColor)" stroke-width="1.6"/></g></svg><span>উপস্থিতি</span><small>আজকের ক্লাস</small></button>
-          <button class="teacher-quick-btn" type="button" data-teacher-view="exam"><svg class="apc-color-icon" data-icon="exam" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="3.9" width="14.5" height="17.4" rx="2" fill="var(--icon-violet, currentColor)" /><rect x="5.5" y="6" width="10.3" height="13.2" rx="0.9" fill="var(--icon-paper, currentColor)" /><rect x="7.3" y="2.5" width="6.7" height="4.5" rx="1.4" fill="var(--icon-blue-back, currentColor)" /><path d="m7.8 10.3 1 1 1.6-1.9M12.2 10.4h1.6M7.8 14h5.6M7.8 16.7h3.6" fill="none" stroke="var(--icon-blue, currentColor)" stroke-width="1.1"/><path d="m17.6 11.1 3.2 1.8-5.1 8.5-3.6 1.1-.1-3.6Z" fill="var(--icon-gold, currentColor)" /><path d="m17.6 11.1 1-1.6a1 1 0 0 1 1.4-.3l1.5.8a1 1 0 0 1 .3 1.4l-1 1.5Z" fill="var(--icon-coral, currentColor)" /><path d="m12.1 18.9 3.6 2.5" fill="none" stroke="var(--icon-outline, currentColor)" stroke-width="1"/></g></svg><span>পরীক্ষা ও ফলাফল</span><small>নম্বর নথিভুক্ত</small></button>
-          <button class="teacher-quick-btn" type="button" data-teacher-view="notice"><svg class="apc-color-icon" data-icon="notice" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.3 8.1h4.8L18.8 4v14l-9.7-4.1H4.3Z" fill="var(--icon-mint, currentColor)" /><rect x="2.4" y="8.3" width="4.3" height="5.4" rx="1.2" fill="var(--icon-blue, currentColor)" /><path d="M8.7 13.8 11 21h-4L5 13.8Z" fill="var(--icon-blue, currentColor)" /><path d="M9.1 8.1v5.8L18.8 18V4Z" fill="var(--icon-paper, currentColor)" /><path d="M21 7.2 22.3 6M21.4 11h1.5M21 14.8l1.3 1.2" fill="none" stroke="var(--icon-gold, currentColor)" stroke-width="1.5"/></g></svg><span>নোটিশ</span><small>শিক্ষার্থীদের জন্য</small></button>
-        </nav>
-
-            <span class="badge badge-pending">শিক্ষক</span>
+            <div class="admin-hero-title"><span class="admin-hero-icon" aria-hidden="true"><svg class="apc-glyph-icon" data-icon="book" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5q-4-2.5-8-1.2v15.9q4-1.3 8 1.2 4-2.5 8-1.2V3.8Q16 2.5 12 5Zm0 0v15.9M7 7.8l2 .5M15 8.3l2-.5"/></svg></span><div class="pay-portal-heading"><p class="pay-portal-kicker" id="teacherToday"></p><h1 id="teacherHomeTitle">স্বাগতম</h1><p class="teacher-welcome-note">আপনার আজকের কাজগুলো দেখে নিন।</p></div></div>
           </div>
-          <div class="teacher-summary">
-          <div><span>প্রকাশিত কাজ</span><strong id="teacherPublishedCount">০</strong></div>
-          <div><span>খসড়া</span><strong id="teacherDraftCount">০</strong></div>
-          <div><span>মূল্যায়ন বাকি</span><strong id="teacherPendingCount">০</strong></div>
-          <div><span>আজকের ক্লাস</span><strong id="teacherTodayClassCount">০</strong></div>
-        </div>
         </article>
-                <p class="pay-section-label">আজকের কাজ</p>
-<div class="teacher-toolbar">
-          <label for="teacherHomeClass">কোন শ্রেণির কাজ দেখবেন</label><select id="teacherHomeClass"><option value="all">সব শ্রেণি</option></select>
-        </div>
-
-        <div class="teacher-section-heading"><h2>মনোযোগ দরকার</h2><small id="teacherAttentionHint">বাকি কাজ</small></div>
-        <div id="teacherAttention" class="teacher-record-list"></div>
-
-        <div class="teacher-section-heading"><h2>আজকের ক্লাস</h2><small>সময় অনুযায়ী সাজানো</small></div>
+        <nav class="teacher-home-grid" aria-label="শিক্ষকের কাজ">
+          <button class="teacher-home-tile" type="button" data-teacher-view="homework"><svg class="apc-color-icon" data-icon="assignment" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.7 9.3V7a2 2 0 0 1 2-2h5.1l2.1 2.1H20v12.7H4.7a2 2 0 0 1-2-2Z" fill="var(--icon-blue, currentColor)" /><rect x="7.3" y="2.7" width="12.3" height="15.7" rx="1.7" fill="var(--icon-paper, currentColor)" /><path d="M10 7.2h6.8M10 10.2h6.8M10 13.2h3.6" fill="none" stroke="var(--icon-blue, currentColor)" stroke-width="1.25"/><path d="M2.7 11.7h18.6l-2 8.9H5.1a2 2 0 0 1-2-1.6Z" fill="var(--icon-gold, currentColor)" /><circle cx="18.6" cy="17.9" r="3.4" fill="var(--icon-mint, currentColor)" /><path d="m17 17.9 1.1 1.1 2.1-2.3" fill="none" stroke="var(--icon-on-color, currentColor)" stroke-width="1.6"/></g></svg><span>বাড়ির কাজ</span><small>দিন ও দেখুন</small></button>
+          <button class="teacher-home-tile" type="button" data-teacher-view="suggestion"><svg class="apc-color-icon" data-icon="book" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 5.4h7.9l2.2 2v13.2H5.2a2 2 0 0 1-2-2Z" fill="var(--icon-blue-back, currentColor)" /><rect x="6" y="3.3" width="14.8" height="17.6" rx="2" fill="var(--icon-blue, currentColor)" /><path d="M6 17.6h13.4v3.3H7.8a1.7 1.7 0 0 1 0-3.3" fill="var(--icon-paper, currentColor)" /><path d="M14.8 3.3h3.1v7l-1.55-1.5-1.55 1.5Z" fill="var(--icon-mint, currentColor)" stroke="none"/><path d="M9.2 7.5h3M9.2 10.2h3" fill="none" stroke="var(--icon-on-color, currentColor)" stroke-width="1.4"/></g></svg><span>সাজেশন</span><small>একাডেমিক নোটিশ</small></button>
+          <button class="teacher-home-tile" type="button" data-teacher-view="courses"><svg class="apc-color-icon" data-icon="clipboard" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="3.9" width="14.5" height="17.4" rx="2" fill="var(--icon-violet, currentColor)" /><rect x="5.5" y="6" width="10.3" height="13.2" rx="0.9" fill="var(--icon-paper, currentColor)" /><rect x="7.3" y="2.5" width="6.7" height="4.5" rx="1.4" fill="var(--icon-blue-back, currentColor)" /><path d="m7.8 10.3 1 1 1.6-1.9M12.2 10.4h1.6M7.8 14h5.6M7.8 16.7h3.6" fill="none" stroke="var(--icon-blue, currentColor)" stroke-width="1.1"/><path d="m17.6 11.1 3.2 1.8-5.1 8.5-3.6 1.1-.1-3.6Z" fill="var(--icon-gold, currentColor)" /><path d="m17.6 11.1 1-1.6a1 1 0 0 1 1.4-.3l1.5.8a1 1 0 0 1 .3 1.4l-1 1.5Z" fill="var(--icon-coral, currentColor)" /><path d="m12.1 18.9 3.6 2.5" fill="none" stroke="var(--icon-outline, currentColor)" stroke-width="1"/></g></svg><span>শিক্ষা উপকরণ</span><small>নোট ও উপকরণ</small></button>
+          <button class="teacher-home-tile" type="button" data-teacher-view="routine-view"><svg class="apc-color-icon" data-icon="calendar" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.7" width="18" height="16.3" rx="2.5" fill="var(--icon-paper, currentColor)" /><path d="M3 9V7.2a2.5 2.5 0 0 1 2.5-2.5h13A2.5 2.5 0 0 1 21 7.2V9Z" fill="var(--icon-blue, currentColor)" /><path d="M7.2 2.8v4.3M16.8 2.8v4.3" fill="none" stroke="var(--icon-outline, currentColor)" stroke-width="1.7"/><rect x="6.1" y="11.8" width="3.4" height="3.4" rx="0.8" fill="var(--icon-gold, currentColor)" stroke="none"/><path d="M12.2 12.3h4.6M6.5 17.8h3.4" fill="none" stroke="var(--icon-blue, currentColor)" stroke-width="1.4"/><circle cx="18" cy="18.4" r="4.1" fill="var(--icon-mint, currentColor)" /><path d="m15.9 18.4 1.4 1.5 2.8-3" fill="none" stroke="var(--icon-on-color, currentColor)" stroke-width="1.6"/></g></svg><span>উপস্থিতি</span><small>আজকের ক্লাস</small></button>
+          <button class="teacher-home-tile" type="button" data-teacher-view="online-exams"><svg class="apc-color-icon" data-icon="exam" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="3.9" width="14.5" height="17.4" rx="2" fill="var(--icon-violet, currentColor)" /><rect x="5.5" y="6" width="10.3" height="13.2" rx="0.9" fill="var(--icon-paper, currentColor)" /><rect x="7.3" y="2.5" width="6.7" height="4.5" rx="1.4" fill="var(--icon-blue-back, currentColor)" /><path d="m7.8 10.3 1 1 1.6-1.9M12.2 10.4h1.6M7.8 14h5.6M7.8 16.7h3.6" fill="none" stroke="var(--icon-blue, currentColor)" stroke-width="1.1"/><path d="m17.6 11.1 3.2 1.8-5.1 8.5-3.6 1.1-.1-3.6Z" fill="var(--icon-gold, currentColor)" /><path d="m17.6 11.1 1-1.6a1 1 0 0 1 1.4-.3l1.5.8a1 1 0 0 1 .3 1.4l-1 1.5Z" fill="var(--icon-coral, currentColor)" /><path d="m12.1 18.9 3.6 2.5" fill="none" stroke="var(--icon-outline, currentColor)" stroke-width="1"/></g></svg><span>পরীক্ষা নিন</span><small>নতুন পরীক্ষা</small></button>
+          <button class="teacher-home-tile" type="button" data-teacher-view="notice"><svg class="apc-color-icon" data-icon="notice" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g stroke="var(--icon-outline, currentColor)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.3 8.1h4.8L18.8 4v14l-9.7-4.1H4.3Z" fill="var(--icon-mint, currentColor)" /><rect x="2.4" y="8.3" width="4.3" height="5.4" rx="1.2" fill="var(--icon-blue, currentColor)" /><path d="M8.7 13.8 11 21h-4L5 13.8Z" fill="var(--icon-blue, currentColor)" /><path d="M9.1 8.1v5.8L18.8 18V4Z" fill="var(--icon-paper, currentColor)" /><path d="M21 7.2 22.3 6M21.4 11h1.5M21 14.8l1.3 1.2" fill="none" stroke="var(--icon-gold, currentColor)" stroke-width="1.5"/></g></svg><span>নোটিশ</span><small>শিক্ষার্থীদের জন্য</small></button>
+        </nav>
+        <div class="teacher-section-heading"><h2>আজকের ক্লাস</h2><small id="teacherTodayClassCount">—</small></div>
         <div id="teacherTodayClasses" class="teacher-record-list"></div>
-
-        <div class="teacher-section-heading"><h2>সাম্প্রতিক কাজ</h2><small>সর্বশেষ ৫টি</small></div>
+        <div class="teacher-section-heading"><h2>সাম্প্রতিক কাজ</h2><small>সর্বশেষ ৩টি</small></div>
         <div id="teacherRecent" class="teacher-record-list"></div>
-        <p class="teacher-local-note">প্রকাশিত কাজ একই ব্রাউজারের সংশ্লিষ্ট শ্রেণির শিক্ষার্থী অ্যাপে দেখা যাবে। খসড়া শুধু এখানে থাকে।</p>
       </section>
       <section id="teacherRecords" class="teacher-view" aria-labelledby="teacherRecordsTitle" hidden>
         <div class="page-intro"><button class="pay-back" type="button" data-teacher-view="home" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" data-icon="back" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button><div><h1 id="teacherRecordsTitle">পরীক্ষা</h1></div><button id="teacherNewActivity" class="admin-btn primary" type="button">+ নতুন যোগ করুন</button></div>

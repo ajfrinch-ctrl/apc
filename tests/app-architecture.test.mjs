@@ -211,10 +211,20 @@ test('একাডেমিক is one hub whose six cards open the screens that 
   assert.match(read('js/exam-manager.js'), /return \{\s*open\(screen = ''\)/, 'the workspace exposes a deep link');
 });
 
-test('teacher Home is a snapshot; work tiles live once on কাজ দিন / রুটিন / পরীক্ষা / আরও', () => {
+test('teacher Home is the launcher: welcome, one 3-column grid over existing screens, today + recent', () => {
+  /* মাস্টার প্রম্পট ২০২৬-১০: Home = স্বাগতম + একটি ৩-কলাম আইকন গ্রিড +
+     আজকের ক্লাস (Manager routine) + সর্বশেষ ৩টি কাজ। গ্রিড শুধু বিদ্যমান
+     স্ক্রিনে রুট করে — create ফর্ম ও pay-tile শেলফ কাজ দিন হাবেই থাকে। */
   const home = teacherHtml.slice(teacherHtml.indexOf('id="teacherHome"'), teacherHtml.indexOf('id="teacherRecords"'));
-  assert.equal((home.match(/class="pay-tile"/g) || []).length, 0, 'home must not copy কাজ দিন tiles');
+  assert.match(home, /teacher-home-grid/);
+  assert.deepEqual([...home.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
+    ['homework', 'suggestion', 'courses', 'routine-view', 'online-exams', 'notice'],
+    'every grid tile routes to an existing screen');
+  assert.equal((home.match(/class="pay-tile"/g) || []).length, 0, 'home grid never copies the pay-tile shelf');
+  assert.equal(home.includes('data-new-activity'), false, 'create forms stay on the কাজ দিন hub');
   assert.equal(home.includes('teacherQuickActions'), false, 'home must not duplicate create tiles');
+  assert.match(home, /id="teacherTodayClasses"/, 'আজকের ক্লাস from the Manager routine');
+  assert.match(home, /id="teacherRecent"/, 'সাম্প্রতিক কাজ — the latest three');
   const hub = teacherHtml.slice(teacherHtml.indexOf('id="teacherAcademic"'), teacherHtml.indexOf('id="teacherNotice"'));
   assert.match(hub, /data-new-activity="homework"/);
   assert.match(hub, /data-new-activity="suggestion"/);

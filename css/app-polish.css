@@ -213,10 +213,6 @@
   /* pay-body is the document body, not a two-column content container. */
   body.pay-body { display:block; }
   .pay-shell { width:100%; }
-  .teacher-summary { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0; }
-  .teacher-summary>div { display:grid;gap:12px;padding:16px;border:1px solid var(--color-border);border-radius:14px;background:var(--color-surface);min-width:0; }
-  .teacher-summary span { font-size:13px;color:var(--color-text-secondary); }
-  .teacher-summary strong { font-size:24px; }
   .teacher-toolbar { padding:16px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:14px;margin-block:20px; }
   .teacher-toolbar label:first-child { margin-top:0; }
   .teacher-section-heading { display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-top:28px; }
@@ -230,10 +226,7 @@
   .rc-form .rc-field+.rc-field { margin-top:8px; }
   .rc-preview-head { flex-wrap:wrap; }
   @media(max-width:640px) {
-    .teacher-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    .teacher-summary>div { padding:14px; }
     .rc-form { padding:16px; }
-    .teacher-summary strong { font-size:22px; }
   }
 }
 @media screen {
@@ -330,14 +323,18 @@ html[data-theme="dark"] .apc-inapp-alert { box-shadow: 0 16px 40px #000; }
 html[data-theme="dark"] .rc-pdf-preview { background: var(--color-bg); }
 
 /* ── Teacher calm pass: one-tap home, one-screen routine ───────────────────
-   Big soft quick-action buttons (deliberately not pay-tiles: Home stays a
-   snapshot) and a roomier segment row for the unified routine screen. */
-.teacher-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 4px 0 18px; }
-.teacher-quick-btn { display: grid; justify-items: start; gap: 2px; padding: 16px 14px; border: 1px solid var(--color-border); border-radius: 20px; background: var(--color-surface); box-shadow: var(--pay-shadow); text-align: start; }
-.teacher-quick-btn svg { width: 30px; height: 30px; margin-bottom: 6px; }
-.teacher-quick-btn span { font-size: 16px; font-weight: 700; color: var(--color-text); }
-.teacher-quick-btn small { font-size: 12px; color: var(--color-text-secondary); }
-.teacher-quick-btn:active { transform: scale(.98); }
+   Home launcher (মাস্টার প্রম্পট ২০২৬-১০): স্বাগতম-লাইন, বিদ্যমান স্ক্রিনগুলোর
+   ওপর একটি ৩-কলাম আইকন গ্রিড, আজকের ক্লাস ও সর্বশেষ ৩টি কাজ। গ্রিডের কোনো
+   টাইল নতুন কিছু তৈরি করে না — প্রতিটি শুধু নিজের স্ক্রিনে পৌঁছে দেয়
+   (create ফর্ম কাজ দিন হাব ও পরীক্ষা-সিটেই থাকে)। */
+.teacher-welcome-note { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+.teacher-home-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 4px 0 8px; }
+.teacher-home-tile { display: grid; justify-items: center; gap: 2px; padding: 14px 6px; border: 1px solid var(--color-border); border-radius: 20px; background: var(--color-surface); box-shadow: var(--pay-shadow); text-align: center; cursor: pointer; min-width: 0; }
+.teacher-home-tile svg { width: 28px; height: 28px; margin-bottom: 6px; }
+.teacher-home-tile span { font-size: 14px; font-weight: 700; color: var(--color-text); line-height: 1.35; }
+.teacher-home-tile small { font-size: 11px; color: var(--color-text-secondary); line-height: 1.4; }
+.teacher-home-tile:active { transform: scale(.98); }
+.teacher-home-card { cursor: pointer; }
 .teacher-routine-tabs { gap: 8px; margin: 6px 0 14px; }
 .teacher-routine-tabs .day-tab { flex: 0 0 auto; padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; }
 .teacher-routine-tabs .day-tab.active { outline: 2px solid var(--color-primary); }
