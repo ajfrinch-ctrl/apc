@@ -1,3 +1,5 @@
+// v251: the home homework tile opens the existing assignment form in one tap;
+//       its class/subject/status fields, store and save path remain unchanged.
 // v250: the Teacher name is also visible in the responsive topbar identity slot;
 //       the hero still greets the same profile name, and the other panel headers stay unchanged.
 // v178: the teacher's ফলাফল seat is alive again — Phase 2 added the seat with the value
@@ -76,7 +78,7 @@
 // v181: precache the Admin-only Staff Management stylesheet.
 // v182: precache the authenticated Question Bank V2 sync modules.
 // v183: precache the Admin V2 staged-cutover migration console.
-const CACHE_VERSION = 250;
+const CACHE_VERSION = 251;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

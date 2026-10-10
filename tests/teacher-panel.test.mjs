@@ -77,9 +77,27 @@ test('home is welcome + one 3-column grid over existing screens + today + recent
   assert.deepEqual(tiles.map(t => t.dataset.teacherView),
     ['homework', 'suggestion', 'courses', 'routine-view', 'online-exams', 'notice'],
     'প্রতিটি টাইল একটি বিদ্যমান স্ক্রিনে যায়');
-  assert.equal($$('#teacherHome [data-new-activity]').length, 0, 'create forms stay on the কাজ দিন hub');
+  const oneTapHomework = $$('#teacherHome [data-new-activity="homework"]');
+  assert.equal(oneTapHomework.length, 1, 'এক ট্যাপের বাড়ির কাজ entry');
+  assert.equal(oneTapHomework[0], tiles[0], 'one-tap action is the existing homework tile, not a duplicate button');
   assert.ok($('#teacherTodayClasses'), 'আজকের ক্লাস section');
   assert.ok($('#teacherRecent'), 'সাম্প্রতিক কাজ section');
+});
+
+test('one tap on the home homework tile opens the existing assignment form directly', async () => {
+  const tile = $('#teacherHome .teacher-home-tile[data-teacher-view="homework"]');
+  assert.equal(tile.dataset.newActivity, 'homework');
+  ctx.click(tile);
+  assert.equal($('#teacherRecords').hidden, false, 'the existing homework records screen owns the form');
+  assert.equal($('#teacherModalBackdrop').hidden, false, 'one tap opens the existing form immediately');
+  assert.equal(nfc($('#teacherModalTitle').textContent), nfc('নতুন বাড়ির কাজ'));
+  assert.ok($('#activity-title'), 'the normal assignment form is reused');
+  ctx.click($('#teacherModalClose'));
+  await settle();
+  assert.equal($('#teacherModalBackdrop').hidden, true);
+  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  await settle();
+  assert.equal($('#teacherHome').hidden, false, 'Home navigation returns to the launcher');
 });
 
 test('recent work shows the latest three with name, class and status', async () => {

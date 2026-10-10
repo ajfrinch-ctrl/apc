@@ -50,6 +50,20 @@ async function seed(page, activities) {
   }, activities);
 }
 
+test('one tap from the Teacher home opens the existing homework assignment form', async ({ page }) => {
+  await enter(page);
+  await expect(page.locator('#teacherClassFilter option').first()).toHaveText('সব assigned class');
+  await page.locator('#teacherHome .teacher-home-tile[data-teacher-view=homework]').click();
+  await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
+  await expect(page.locator('#teacherModalTitle')).toContainText('নতুন');
+  await expect(page.locator('#teacherModalTitle')).toContainText('কাজ');
+  await expect(page.locator('#activity-title')).toBeVisible();
+  await page.locator('#teacherModalClose').click();
+  await expect(page.locator('#teacherModalBackdrop')).toBeHidden();
+  await page.locator('.admin-bottom [data-teacher-view=home]').click();
+  await expect(page.locator('#teacherHome')).toBeVisible();
+});
+
 test('exam drafts must use Manager approval workflow; legacy marks are read-only', async ({ page, context }) => {
   await enter(page);
   await page.locator('.admin-bottom [data-teacher-view=academic]').click();
