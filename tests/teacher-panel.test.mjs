@@ -226,3 +226,15 @@ test('home offers four one-tap doors and the routine lives on one screen', async
   await settle();
   assert.equal($('#teacherRecords').hidden, false, 'কাজ দিন door opens the records screen');
 });
+
+test('the exam seat lands on one CTA and four doors, not a nine-tile shelf', async () => {
+  assert.ok($('.teacher-cta'), 'একটি primary CTA');
+  const chips = $$('#teacherExamHub .day-tab');
+  assert.equal(chips.length, 4, 'চারটি বিভাগ-দরজা');
+  assert.equal($$('#teacherExamHub .pay-tile').length, 0, 'the nine-tile shelf is gone');
+  ctx.click($('.teacher-cta'));
+  await settle();
+  assert.equal($('#teacherOnlineExams').hidden, false);
+  assert.equal($('#teacherExamWorkspace').hidden, false, 'CTA opens the workspace home');
+  assert.ok($('#teacherExamWorkspace [data-exam-action="new-mcq"]'), 'create buttons live one tap in');
+});

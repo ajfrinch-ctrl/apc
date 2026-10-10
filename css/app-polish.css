@@ -342,3 +342,9 @@ html[data-theme="dark"] .rc-pdf-preview { background: var(--color-bg); }
 .teacher-routine-tabs .day-tab { flex: 0 0 auto; padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; }
 .teacher-routine-tabs .day-tab.active { outline: 2px solid var(--color-primary); }
 #teacherRoutineViewList .teaching-card { padding: 14px 16px; border-radius: 18px; }
+
+/* Teacher exam seat: one primary action, then a short chip row. */
+.teacher-cta { display: block; width: 100%; margin: 2px 0 12px; padding: 16px 18px; border: 0; border-radius: 18px; background: var(--color-primary); color: var(--color-surface); font-size: 16px; font-weight: 700; text-align: center; box-shadow: var(--pay-shadow); }
+.teacher-cta:active { transform: scale(.98); }
+.teacher-exam-chips { gap: 8px; margin: 0 0 14px; }
+.teacher-exam-chips .day-tab { flex: 0 0 auto; padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; }

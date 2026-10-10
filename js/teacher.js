@@ -502,9 +502,11 @@ const ACADEMIC_SECTIONS = Object.freeze({
   notice: { view: 'notice' }
 });
 
+/* One landing, four doors: the old nine-tile shelf sent five tiles to the same
+   workspace view — the CTA above opens it on its home (where the create
+   buttons live), the chips pick a list, and marks stay on the records tab. */
 const EXAM_SCREENS = Object.freeze({
-  bank: 'bank', upcoming: 'upcoming', done: 'archive', papers: 'archive',
-  live: 'home', instant: 'home', recent: 'home', results: 'home', other: 'home'
+  bank: 'bank', upcoming: 'upcoming', archive: 'archive', home: 'home'
 });
 function paintTeacherExam() {
   const hub = $('#teacherExamHub');
