@@ -153,7 +153,7 @@ test('student roster needs query, matches Bengali mobile/ID, excludes pending an
   await page.locator('#teacherStudentSearch').fill(''); await expect(page.locator('#teacherStudentList .teaching-card')).toHaveCount(0);
 });
 
-for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 600, height: 700 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
   test(`teacher home header and three-column grid stay responsive (${viewport.width}px)`, async ({ page }) => {
     await page.setViewportSize(viewport); await enter(page);
     for (const fullName of [
