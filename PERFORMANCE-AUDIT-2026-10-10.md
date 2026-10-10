@@ -280,3 +280,13 @@ npm test                          # ৯৭১ টেস্ট (১৮ প্র�
 **টেস্ট:** `tests/teacher-panel.test.mjs`-এ ১৬ টেস্ট — header+welcome-তে নাম, এক ট্যাপে বিদ্যমান বাড়ির কাজ form, গ্রিড-রুট, সাম্প্রতিক ৩টি + স্ট্যাটাস, bulk marking ও records filter। `app-architecture`-এ একই one-tap entry-র home policy assertion; ৬টি টেস্ট-ফাইলের ready-সিগন্যাল `#teacherClassFilter`-এ। `CACHE_VERSION` 251 + ১০৫ পিন।
 
 **ফলো-আপ যাচাই:** পূর্ণ `npm test` — **৯৭৫টি, ৯৭২ পাশ / ০ ফেল / ৩ skip**। `teacher-panel` + `app-architecture` — **৪২/৪২ পাশ**; one-tap Playwright — **১/১ পাশ**; responsive browser check — **৪/৪ পাশ** (৩২০px, ৩৯০px, ৮৪৪×৩৯০, ১২৮০px), ৩ কলাম ও no horizontal overflow। one-tap পরিবর্তনের আগের সম্পূর্ণ `tests/teacher.spec.cjs` run-এ ৮টি পাশ / ৭টি fail ছিল (পুরনো exam/routine selector, modal-click ও cross-role test-device assumptions); এই follow-up-এ পূর্ণ browser file পুনরায় green বলে দাবি করা হয়নি।
+
+### ১৭. MCQ পরীক্ষার সময় টাইমবার উপরে স্থির রাখা
+
+**পরিবর্তন:** চলমান অফিসিয়াল MCQ পরীক্ষার countdown bar-এ আলাদা `.exam-timer--pinned` class যোগ করা হয়েছে। `#appMain`-ই যেহেতু অ্যাপের scroll container, CSS `position: sticky; top: 0` টাইমবারকে ওই অংশের উপরে ধরে রাখে—অ্যাপের header ও bottom navigation আগের জায়গাতেই থাকে। Instant MCQ practice-এর টাইমার, countdown, উত্তর সংরক্ষণ এবং auto-submit logic অপরিবর্তিত।
+
+**কভারেজ:** `tests/student-mcq-sitting.test.mjs`-এ live-exam timer class assertion; `tests/exams.spec.cjs`-এর ৩২০ / ৩৯০ / ৮৪৪×৩৯০ / ১২৮০px browser checks-এ sticky position ও scroll-এর পর top alignment। `CACHE_VERSION` এবং shared HTML asset pins 252।
+
+**Scope guard:** `tests/mcq-instant-practice.test.mjs` নিশ্চিত করে practice clock-এ pinned class নেই।
+
+**যাচাই:** পূর্ণ `npm test` — ৯৭৫টি, ৯৭২ পাশ / ০ ফেল / ৩ skip; sticky-position Playwright — চার ভিউপোর্টেই **৪/৪ পাশ**।

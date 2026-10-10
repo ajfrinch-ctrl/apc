@@ -13,6 +13,9 @@
 .exam-auto-notice:empty{display:none}
 [data-exam-content]>.exam-actions:first-child{margin-top:0}
 .exam-timer{margin-top:var(--space-3)}
+/* Keep the official live-exam countdown visible while the student scrolls the
+   paper. #appMain owns scrolling, so top:0 pins this below the shell header. */
+.exam-timer--pinned{position:sticky;top:0;z-index:25;margin-top:0;background:var(--color-surface)}
 
 /* ---- module tiles + counters ------------------------------------------- */
 .exam-hub{display:grid;gap:var(--space-3)}

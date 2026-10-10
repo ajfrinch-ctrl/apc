@@ -75,6 +75,8 @@ test('every question arrives together, each with its options', () => {
 });
 
 test('the top of the page counts the time left and warns in the last five minutes', async () => {
+  const timerBar = $('#studentExamWorkspace .exam-timer');
+  assert.ok(timerBar?.classList.contains('exam-timer--pinned'), 'the official MCQ timer uses the pinned timer bar');
   const clockNode = $('[data-exam-clock]');
   assert.ok(clockNode, 'the clock sits in the exam header');
   assert.match(clockNode.textContent, /সময় বাকি/, 'it says time is left');

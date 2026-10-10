@@ -165,6 +165,36 @@ for (const width of [320,390,844,1280]) {
   });
 }
 
+for (const [width,height] of [[320,844],[390,844],[844,390],[1280,844]]) {
+  test(`student MCQ timer stays at the top while scrolling (${width}×${height})`, async ({ page }) => {
+    await page.setViewportSize({width,height}); await page.clock.setFixedTime(start); await page.goto('/index.html');
+    await page.evaluate(async()=>{
+      const {EXAM_KEY,examTemplate,validateExam}=await import('/js/exam-data.js');
+      const now=Date.now(),participant={id:'AP-1024',name:'রাইসা',className:'দশম শ্রেণি',group:''};
+      const fields=validateExam({type:'mcq',title:'Sticky timer check',subject:'গণিত',className:participant.className,startAt:now-60000,endAt:now+60*60000,lateMinutes:10,negative:0,passPercent:33,template:Array(4).fill(examTemplate('mcq')).join('\n---\n')});
+      const exam={...fields,id:'EX-TIMER-STICKY',teacherId:'DEMO-TEACHER',teacherName:'Demo Teacher',status:'published',resultsPublished:true,participants:[participant],createdAt:now,updatedAt:now};
+      localStorage.setItem('active-plus-account-v1',JSON.stringify({status:'active',registrationMobile:'01700000000',mobile:'01700000000',student:participant}));
+      sessionStorage.setItem('active-plus-session-v1','1');
+      localStorage.setItem(EXAM_KEY,JSON.stringify({version:1,exams:[exam],attempts:[]}));
+    });
+    await page.reload(); await page.waitForLoadState('networkidle');
+    await page.locator('.bottom-nav [data-view=exams]').click(); await page.locator('#examTabs [data-exam-tab=live]').click();
+    await expect(page.locator('[data-student-exam-action=start]')).toBeVisible(); await page.locator('[data-student-exam-action=start]').click();
+    const timer=page.locator('#studentExamWorkspace .exam-timer--pinned'), main=page.locator('#appMain');
+    await expect(timer).toBeVisible(); await expect(timer).toHaveCSS('position','sticky');
+    const scroll=await main.evaluate(el=>{
+      const timer=document.querySelector('#studentExamWorkspace .exam-timer--pinned');
+      el.scrollTop=0;
+      const offset=timer.getBoundingClientRect().top-el.getBoundingClientRect().top;
+      const max=el.scrollHeight-el.clientHeight;
+      el.scrollTop=Math.min(max,Math.ceil(offset+1));
+      return {offset,max};
+    });
+    expect(scroll.max).toBeGreaterThanOrEqual(scroll.offset);
+    await expect.poll(async()=>Math.abs((await timer.boundingBox()).y-(await main.boundingBox()).y)).toBeLessThan(2);
+  });
+}
+
 test('copyable templates and long Bengali exam PDFs paginate without print dialogs', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read','clipboard-write']); await teacher(page); const root=page.locator('#teacherExamWorkspace'); await root.locator('[data-exam-action=new-mcq]').click(); await root.locator('[data-exam-action=copy-template]').click(); expect(await page.evaluate(()=>navigator.clipboard.readText())).toContain('উত্তর: A');
   await root.locator('[data-exam-action=list]').click();
