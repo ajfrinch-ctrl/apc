@@ -12,6 +12,7 @@ import { listClasses, listChapters, subjectsForClass } from './academics.js';
 import { questionBank, searchQuestions, listQuestions, questionById, ensureExamsInBank, QUESTION_TYPES, QUESTION_DIFFICULTIES, QUESTION_TYPE_ORDER, QUESTION_DIFFICULTY_ORDER, watchQuestionBank, questionForExam } from './question-bank.js';
 import { subjectsForTeacherClass } from './teacher-assignments.js';
 import { listTeacherAssignments, isTeacherAssignedSubject } from './teacher-assignments.js';
+import { teachingScopeUsername } from './teaching-data.js';
 import {
   EXAM_FILTERS, normalizeFilters, activeFilterCount, examPermissions, filterExams,
   groupExamsByDate, upcomingExams, examCounters, classOptions, subjectOptions,
@@ -25,7 +26,7 @@ export function initExamManager(container, role) {
   const academicClasses = () => listClasses().map(item => item.name);
   const roleClasses = () => {
     if (role !== 'teacher') { const names = academicClasses(); return names.length ? names : [...enabledClasses]; }
-    const assigned = [...new Set(listTeacherAssignments('teacher.apc').map(item => item.className))];
+    const assigned = [...new Set(listTeacherAssignments(teachingScopeUsername()).map(item => item.className))];
     return assigned.length ? assigned : academicClasses();
   };
   let db = { exams: [], attempts: [] }, view = 'home', selected = null, openQuestion = null;
@@ -163,7 +164,7 @@ export function initExamManager(container, role) {
   function bankRowsForRole() {
     const rows = listQuestions();
     return role === 'teacher'
-      ? rows.filter(row => row.className && row.subject && isTeacherAssignedSubject('teacher.apc', row.className, row.subject, row.group))
+      ? rows.filter(row => row.className && row.subject && isTeacherAssignedSubject(teachingScopeUsername(), row.className, row.subject, row.group))
       : rows;
   }
 
@@ -383,7 +384,7 @@ export function initExamManager(container, role) {
       already stored on the record stays selectable so nothing is lost. */
   function subjectNamesFor(className, legacy = '') {
     const enabled = subjectsForClass(className).map(item => item.name);
-    const assigned = role === 'teacher' ? subjectsForTeacherClass('teacher.apc', className) : [];
+    const assigned = role === 'teacher' ? subjectsForTeacherClass(teachingScopeUsername(), className) : [];
     const list = role === 'teacher' && assigned.length ? enabled.filter(name => assigned.includes(name)) : enabled;
     return [...new Set([...list, ...(legacy ? [legacy] : [])])];
   }
@@ -414,7 +415,7 @@ export function initExamManager(container, role) {
       <label>টপিক / অংশ<input name="topic" maxlength="120" value="${esc(data.topic || '')}" placeholder="যেমন: বহুপদী সমীকরণ"></label>
       <label>প্রশ্নের ক্রম<select name="questionOrder"><option value="shuffle" ${data.questionOrder !== 'fixed' ? 'selected' : ''}>প্রতিটি শিক্ষার্থীর জন্য আলাদা ক্রম</option><option value="fixed" ${data.questionOrder === 'fixed' ? 'selected' : ''}>সবাই একই ক্রমে পাবে</option></select></label>
       <label>অপশনের ক্রম<select name="optionOrder"><option value="shuffle" ${data.optionOrder !== 'fixed' ? 'selected' : ''}>প্রতিটি শিক্ষার্থীর জন্য আলাদা ক্রম</option><option value="fixed" ${data.optionOrder === 'fixed' ? 'selected' : ''}>সবাই একই ক্রমে পাবে</option></select></label>
-      <label>Batch / Group<input name="group" maxlength="80" list="examAssignedGroups" value="${esc(data.group || '')}" placeholder="Full-class assignment হলে ফাঁকা রাখুন"><datalist id="examAssignedGroups">${[...new Set(listTeacherAssignments('teacher.apc').filter(item => item.group).map(item => item.group))].map(group => `<option value="${esc(group)}"></option>`).join('')}</datalist></label>
+      <label>Batch / Group<input name="group" maxlength="80" list="examAssignedGroups" value="${esc(data.group || '')}" placeholder="Full-class assignment হলে ফাঁকা রাখুন"><datalist id="examAssignedGroups">${[...new Set(listTeacherAssignments(teachingScopeUsername()).filter(item => item.group).map(item => item.group))].map(group => `<option value="${esc(group)}"></option>`).join('')}</datalist></label>
       ${field('startAt', type === 'mcq' ? 'শুরুর সময় *' : 'প্রশ্ন ডাউনলোড শুরুর সময় *', 'datetime-local', 'required')}${field('endAt', type === 'mcq' ? 'সবার জন্য শেষ সময় *' : 'আজকের প্রস্তুতির শেষ সময় *', 'datetime-local', 'required')}
       <p class="exam-note">সময় এই মোবাইলের স্থানীয় সময় অনুযায়ী। পরীক্ষার তারিখ ও সময়কাল নিচে আলাদা করে দেখানো হয়। ${type === 'mcq' ? 'মোট দুইবার; চলমান প্রথম-প্রচেষ্টার গড়ের নিচে থাকলে দ্বিতীয় সুযোগ। সময় বাড়বে না। সেরা নম্বর ফলাফলে থাকবে।' : 'শুরুর তারিখের পরের দিন (বাংলাদেশ সময়) ক্লাসে পরীক্ষা হবে। শিক্ষার্থী PDF নেবে, খাতায় উত্তর দেবে।'}</p>
       <p class="exam-note" data-duration-readout></p>

@@ -1,6 +1,6 @@
 /* Local exam workflow adapter, NOT secure online authentication/proctoring.
    A production API must own authorization, time, answer keys and accepted submissions. */
-import { teachingRepository, DEMO_TEACHER } from './teaching-data.js';
+import { teachingRepository, DEMO_TEACHER, teachingScopeUsername, currentTeacherProfile } from './teaching-data.js';
 import { isTeacherAssigned, subjectsForTeacherClass } from './teacher-assignments.js';
 import { isSubjectEnabled, academicCodes, chapterByName, ensureChapter as ensureAcademicChapter } from './academics.js';
 import { allocateExamCode, examCodeParts, orderPaperForAttempt, timeLabel } from './exam-core.js';
@@ -652,12 +652,13 @@ async function mutate(fn) {
 }
 function examById(db, id) { const e = db.exams.find(e => e.id === id); if (!e) fail('পরীক্ষাটি পাওয়া যায়নি।'); return e; }
 function teacherOwns(exam, actor) {
-  if (actor?.role !== 'teacher' || actor.id !== exam.teacherId || !isTeacherAssigned('teacher.apc', exam.className, exam.group || '')) fail('শুধু দায়িত্বপ্রাপ্ত শিক্ষক এবং Manager-assigned class এই কাজ করতে পারবেন।');
+  if (actor?.role !== 'teacher' || actor.id !== exam.teacherId || !isTeacherAssigned(teachingScopeUsername(), exam.className, exam.group || '')) fail('শুধু দায়িত্বপ্রাপ্ত শিক্ষক এবং Manager-assigned class এই কাজ করতে পারবেন।');
 }
 function requireManager(actor) { if (actor?.role !== 'manager') fail('শুধু Manager পরীক্ষা অনুমোদন করতে পারবেন।'); }
 async function requireRoleSession(role) {
   if (!(await hasStaffSession(role))) fail(`সক্রিয় ${role === 'teacher' ? 'Teacher' : 'Manager'} session ছাড়া এই কাজ করা যাবে না।`);
-  const account = await readStaffAccount(role);
+  // The signed-in teacher is the active identity's record, not a role account.
+  const account = role === 'teacher' ? await currentTeacherProfile() : await readStaffAccount(role);
   if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') fail(`সক্রিয় ${role === 'teacher' ? 'Teacher' : 'Manager'} profile ছাড়া এই কাজ করা যাবে না।`);
 }
 function eligibleParticipant(exam, student) {
@@ -679,7 +680,7 @@ function examSnapshot(db, actor) { return actor?.role === 'teacher' ? teacherExa
 async function paperActor(actor) {
   if (actor?.role !== 'teacher' && actor?.role !== 'manager') fail('শিক্ষক বা Manager প্রশ্ন তৈরি ও সম্পাদনা করতে পারবেন।');
   await requireRoleSession(actor.role);
-  const account = await readStaffAccount(actor.role);
+  const account = actor.role === 'teacher' ? await currentTeacherProfile() : await readStaffAccount(actor.role);
   const name = String(account?.fullName || account?.username || '').trim();
   if (!name) fail(`${actor.role === 'teacher' ? 'Teacher' : 'Manager'} profile পাওয়া যায়নি।`);
   return name;
@@ -701,7 +702,7 @@ function nextOccurrence(startAt, now) {
   return next.getTime();
 }
 function teacherExamSnapshot(db, actor = TEACHER_ACTOR) {
-  const exams = db.exams.filter(exam => exam.teacherId === actor.id && isTeacherAssigned('teacher.apc', exam.className, exam.group || ''));
+  const exams = db.exams.filter(exam => exam.teacherId === actor.id && isTeacherAssigned(teachingScopeUsername(), exam.className, exam.group || ''));
   const ids = new Set(exams.map(exam => exam.id));
   return { ...db, exams, attempts: db.attempts.filter(attempt => ids.has(attempt.examId)) };
 }
@@ -828,7 +829,7 @@ export const examRepository = {
     const name = await paperActor(actor);
     const fields = validateExam(input);
     if (actor.role === 'teacher') {
-      const username = String((await readStaffAccount('teacher'))?.username || 'teacher.apc');
+      const username = String((await currentTeacherProfile())?.username || 'teacher.apc');
       if (!isTeacherAssigned(username, fields.className, fields.group)) fail('এই class/batch-এর জন্য Manager assignment নেই।');
       /* Subject-level scope: the teacher must hold the subject in that class.
          A legacy assignment whose subjects are not part of the Admin structure
@@ -1004,7 +1005,7 @@ export const examRepository = {
      is never touched. */
   async duplicate(id, actor = MANAGER_ACTOR, options = {}) {
     const name = await paperActor(actor);
-    const username = actor.role === 'teacher' ? String((await readStaffAccount('teacher'))?.username || 'teacher.apc') : '';
+    const username = actor.role === 'teacher' ? String((await currentTeacherProfile())?.username || 'teacher.apc') : '';
     return mutate(db => {
       const source = examById(db, id);
       if (actor.role === 'teacher') {

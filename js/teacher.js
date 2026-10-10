@@ -1,6 +1,6 @@
 import { loadRoutine, loadNotices, saveNotices, WEEK_DAYS } from './office-data.js';
-import { readStaffAccount } from './staff-auth.js';
-import { listTeacherAssignments } from './teacher-assignments.js';
+import { listTeacherAssignments, syncTeacherAssignmentFromDirectory, effectiveTeacherAssignments } from './teacher-assignments.js';
+import { setTeachingScope, currentTeacherProfile } from './teaching-data.js';
 import { hasStaffSession, clearStaffSession, goToLoginPage } from './staff-auth.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
@@ -200,7 +200,7 @@ function renderStudents() {
   const className = $('#teacherStudentClass').value;
   if (!state.assignments.length) {
     $('#teacherStudentCount').textContent = '—';
-    $('#teacherStudentList').innerHTML = '<p class="teacher-empty">Manager assignment না দেওয়া পর্যন্ত student search বন্ধ থাকবে।</p>';
+    $('#teacherStudentList').innerHTML = '<p class="teacher-empty">এখনো কোনো ক্লাস অ্যাসাইন করা হয়নি — অ্যাসাইন হলে শিক্ষার্থী খুঁজতে পারবেন। কর্তৃপক্ষ সঙ্গে যোগাযোগ করুন।</p>';
     return;
   }
   if (!$('#teacherStudentSearch').value.trim()) {
@@ -217,8 +217,8 @@ function renderTeacherClasses() {
   const host = $('#teacherClassList'); if (!host) return;
   host.innerHTML = state.assignments.map(item => {
     const students = state.students.filter(student => student.className === item.className && (!item.group || student.group === item.group));
-    return `<article class="teaching-card"><h3>${esc(item.className)}${item.group ? ` • ${esc(item.group)}` : ''}</h3><p>${esc(item.subject)}</p><small>${bn(students.length)} জন অনুমোদিত শিক্ষার্থী</small></article>`;
-  }).join('') || '<p class="teacher-empty">Manager এখনো কোনো class/batch assignment দেননি। অ্যাসাইনমেন্ট না থাকায় শিক্ষার্থী ও একাডেমিক রেকর্ড দেখানো হচ্ছে না।</p>';
+    return `<article class="teaching-card"><h3>${esc(item.className)}${item.group ? ` • ${esc(item.group)}` : ''}</h3><p>${esc((item.subjects && item.subjects.length ? item.subjects : [item.subject]).filter(Boolean).join(', ') || '—')}</p><small>${bn(students.length)} জন অনুমোদিত শিক্ষার্থী</small></article>`;
+  }).join('') || '<p class="teacher-empty">এখনো কোনো ক্লাস অ্যাসাইন করা হয়নি। অ্যাসাইন হলে এখানে আপনার ক্লাস ও বিষয় দেখা যাবে; কর্তৃপক্ষ সঙ্গে যোগাযোগ করুন।</p>';
 }
 function assignedRoutineRows(day) {
   const routine = loadRoutine() || {};
@@ -322,8 +322,18 @@ function setView(view) {
 }
 async function reload() {
   try {
-    const [db, students, teacher] = await Promise.all([teachingRepository.list(), teachingRepository.listStudents(), readStaffAccount('teacher')]);
-    state.db = db; state.students = students; state.teacher = teacher; state.assignments = listTeacherAssignments(teacher?.username || 'teacher.apc');
+    /* WHO is at the panel decides what is fetched: the active staff identity's
+       own Login User ID / Staff ID, never a hard-coded role account. */
+    const teacher = await currentTeacherProfile();
+    setTeachingScope(teacher?.username || 'teacher.apc');
+    /* Self-heal: a teacher record saved before the projection bridge existed
+       is projected now, before any scope gate reads the store. */
+    try {
+      if (teacher?.assignment) syncTeacherAssignmentFromDirectory(teacher);
+    } catch { /* best-effort: the merged read below still answers */ }
+    const [db, students] = await Promise.all([teachingRepository.list(), teachingRepository.listStudents()]);
+    state.db = db; state.students = students; state.teacher = teacher;
+    state.assignments = await effectiveTeacherAssignments(teacher?.username || 'teacher.apc');
     state.ready = true;
     ['teacherClassFilter', 'teacherStudentClass', 'teacherNoticeClass'].forEach(id => {
       const select = $('#' + id), selected = select.value;
@@ -760,6 +770,17 @@ document.addEventListener('keydown', event => {
 watchTeachingData(() => {
   if (!state.busy && !$('#teacherShell').hidden) reload();
   refreshReports($('#teacherReports'));
+});
+/* Admin assignment changes reach this panel in real time: the local projection
+   event (same tab) and the cloud bridge (other devices). Either one reloads the
+   scope — a newly assigned class shows up without a manual refresh. */
+window.addEventListener('teacher-assignments-updated', () => {
+  if (!state.busy && $('#teacherShell') && !$('#teacherShell').hidden) reload();
+});
+window.addEventListener('apc-sync-updated', event => {
+  const collection = event?.detail?.collection;
+  if (!['teacherAssignments', 'staffDirectory', 'staffAccounts'].includes(collection)) return;
+  if (!state.busy && $('#teacherShell') && !$('#teacherShell').hidden) reload();
 });
 
 // An existing device-bound session opens the panel without asking again.

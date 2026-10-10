@@ -5,8 +5,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=255" data-entry="admin"></script>
-  <script type="module" src="js/admin.js?v=255"></script>
+  <script src="js/app-entry.js?v=256" data-entry="admin"></script>
+  <script type="module" src="js/admin.js?v=256"></script>
   <script src="js/topbar-connectivity.js?v=25161005-syncborder" defer></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
@@ -35,21 +35,21 @@
        HTML and fetches them in parallel, instead of a render-blocking serial
        waterfall (design-system.css first, its imports one round-trip later).
        tools/css-order-check.mjs + tests/css-order.test.mjs keep this in sync. -->
-  <link rel="stylesheet" href="css/foundation.css?v=255">
-  <link rel="stylesheet" href="css/ui-layout.css?v=255">
-  <link rel="stylesheet" href="css/ui-components.css?v=255">
-  <link rel="stylesheet" href="css/ui-forms.css?v=255">
-  <link rel="stylesheet" href="css/ui-features.css?v=255">
-  <link rel="stylesheet" href="css/notice-board.css?v=255">
-  <link rel="stylesheet" href="css/ui-status.css?v=255">
-  <link rel="stylesheet" href="css/ui-auth.css?v=255">
-  <link rel="stylesheet" href="css/app-polish.css?v=255">
-  <link rel="stylesheet" href="css/student-record.css?v=255">
-  <link rel="stylesheet" href="css/exam-archive.css?v=255">
-  <link rel="stylesheet" href="css/academics.css?v=255">
-  <link rel="stylesheet" href="css/notifications.css?v=255">
-  <link rel="stylesheet" href="css/course-hub.css?v=255">
-  <link rel="stylesheet" href="css/ui-wallet.css?v=255">
+  <link rel="stylesheet" href="css/foundation.css?v=256">
+  <link rel="stylesheet" href="css/ui-layout.css?v=256">
+  <link rel="stylesheet" href="css/ui-components.css?v=256">
+  <link rel="stylesheet" href="css/ui-forms.css?v=256">
+  <link rel="stylesheet" href="css/ui-features.css?v=256">
+  <link rel="stylesheet" href="css/notice-board.css?v=256">
+  <link rel="stylesheet" href="css/ui-status.css?v=256">
+  <link rel="stylesheet" href="css/ui-auth.css?v=256">
+  <link rel="stylesheet" href="css/app-polish.css?v=256">
+  <link rel="stylesheet" href="css/student-record.css?v=256">
+  <link rel="stylesheet" href="css/exam-archive.css?v=256">
+  <link rel="stylesheet" href="css/academics.css?v=256">
+  <link rel="stylesheet" href="css/notifications.css?v=256">
+  <link rel="stylesheet" href="css/course-hub.css?v=256">
+  <link rel="stylesheet" href="css/ui-wallet.css?v=256">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -138,6 +138,7 @@
              section, rendered only for the capabilities this role holds. -->
         <p class="pay-section-label">দ্রুত অ্যাক্সেস</p>
         <div class="pay-grid is-2 admin-feature-grid" id="adminFeatureGrid" aria-label="হোম শর্টকাট"></div>
+        <article class="admin-card staff-overview-card" id="staffOverviewHome" data-admin-cap="staff.manage"></article>
       </section>
 
       <!-- ================= Staff Management =================
@@ -445,6 +446,7 @@
           <div class="profile-section" data-settings-group="account">
             
             <article class="admin-card" id="adminProfileCard" data-settings-row="profile" aria-live="polite"></article>
+            <article class="admin-card staff-overview-card" id="staffOverviewProfile" data-admin-cap="staff.manage"></article>
             <article class="admin-card"><h2>সেশন</h2><button class="admin-btn ghost" type="button" data-settings-row="logout" id="adminAccountLogout"><span class="settings-icon danger" aria-hidden="true"></span> লগআউট</button></article>
             <article class="admin-card">
           <header class="admin-card-head">

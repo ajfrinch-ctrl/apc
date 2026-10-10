@@ -518,6 +518,39 @@ function sessionStores(spec) {
   } catch { return { local: null, tab: null }; }
 }
 
+/* ---------- Active staff identity ----------
+   Which staff member is signed in on this device RIGHT NOW. A role session
+   alone cannot answer that: "teacher" is a panel, while the person who signed
+   in may be a Staff Directory identity ("rahim.teacher.apc"), not the built-in
+   device account ("teacher.apc"). Panels must fetch data keyed by this
+   identity's username/Staff ID — never assume the role account and the
+   person are the same record. One panel per device, so exactly one identity
+   is active at a time. */
+
+const ACTIVE_STAFF_IDENTITY_KEY = 'activePlus.activeStaffIdentity.v1';
+
+/** The signed-in staff identity ({ username, staffId, fullName, role }) or null. */
+export function readActiveStaffIdentity() {
+  try {
+    const raw = readJSON(ACTIVE_STAFF_IDENTITY_KEY, null);
+    return raw && typeof raw === 'object' && raw.username ? raw : null;
+  } catch { return null; }
+}
+
+function writeActiveStaffIdentity(identity) {
+  try {
+    if (!identity || !identity.username) {
+      window.localStorage.removeItem(ACTIVE_STAFF_IDENTITY_KEY);
+      return true;
+    }
+    return writeJSON(ACTIVE_STAFF_IDENTITY_KEY, identity);
+  } catch { return false; }
+}
+
+export function clearActiveStaffIdentity() {
+  writeActiveStaffIdentity(null);
+}
+
 /**
  * One device, one panel: signing a role in ends every other staff session on
  * this device. Without it a device could hold an Admin and a Manager session at
@@ -537,17 +570,26 @@ export async function activeStaffRoles() {
   return roles.filter((name, index) => live[index]);
 }
 
-export async function saveStaffSession(role, remember = true) {
+export async function saveStaffSession(role, remember = true, identity = null) {
   const spec = staffSpec(role);
   if (!spec) return false;
   const { local, tab } = sessionStores(spec);
   if (!local || !tab) return false;
   clearOtherStaffSessions(role);
+  /* The session now names the person, not only the panel: a Staff Directory
+     teacher ("rahim.teacher.apc") must not be read later as the built-in
+     device account ("teacher.apc"). */
+  writeActiveStaffIdentity({
+    username: normalizeStaffUsername(identity?.username || spec.username),
+    staffId: String(identity?.staffId || ''),
+    fullName: String(identity?.fullName || ''),
+    role
+  });
   try {
     local.removeItem(spec.sessionKey);
     tab.removeItem(spec.sessionKey);
     if (remember) {
-      const record = buildSessionRecord({ owner: spec.username, ttlDays: REMEMBER_DAYS });
+      const record = buildSessionRecord({ owner: identity?.username || spec.username, ttlDays: REMEMBER_DAYS });
       const envelope = await encryptValue(JSON.stringify(record));
       return envelope
         ? writeJSON(spec.sessionKey, envelope)
@@ -604,6 +646,9 @@ export function clearStaffSession(role) {
     window.localStorage.removeItem(spec.sessionKey);
     window.sessionStorage.removeItem(spec.sessionKey);
   } catch { /* no-op */ }
+  // Signing out ends the identity too: the next sign-in names its own person.
+  const identity = readActiveStaffIdentity();
+  if (identity?.role === role) clearActiveStaffIdentity();
 }
 
 export const STAFF_SESSION_RULES = Object.freeze({ rememberDays: REMEMBER_DAYS, dayMs: DAY_MS });

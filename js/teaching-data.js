@@ -4,12 +4,46 @@ import { enabledClasses, STORAGE_KEYS } from './config.js';
 import { loadRoster } from './office-data.js';
 import { KEYS, readRaw, writeRaw, newId } from './database.js';
 import { isTeacherAssigned, assignedScopeForStudent } from './teacher-assignments.js';
-import { hasStaffSession, readStaffAccount } from './staff-auth.js';
+import { hasStaffSession, readStaffAccount, readActiveStaffIdentity } from './staff-auth.js';
 import { authenticatedStudent } from './student-access.js';
 import { searchStudentsByQuery } from './student-search.js';
 
 export const TEACHING_KEY = KEYS.teaching;
 export const DEMO_TEACHER = Object.freeze({ id: 'TCH-001', name: 'মো. সাইফুল ইসলাম' });
+
+/* ---------- Signed-in teacher identity ----------
+   Scope checks must key on WHO signed in (the active staff identity's Login
+   User ID), not on a hard-coded role account. Before this, every gate below
+   asked `isTeacherAssigned('teacher.apc', …)` and a Staff Directory teacher
+   ("rahim.teacher.apc") saw another person's — or no — classes. */
+
+let scopeUsername = 'teacher.apc';
+
+/** Set the Login User ID every scope gate in this module checks against. */
+export function setTeachingScope(username) {
+  scopeUsername = String(username || '').trim().toLowerCase() || 'teacher.apc';
+  return scopeUsername;
+}
+
+export const teachingScopeUsername = () => scopeUsername;
+
+/**
+ * The signed-in teacher's profile record: the active identity's Staff
+ * Directory record first (Staff ID + Login User ID), then the built-in device
+ * account — never assumed to be the same person.
+ */
+export async function currentTeacherProfile() {
+  const identity = readActiveStaffIdentity();
+  const handle = String(identity?.username || '').trim().toLowerCase();
+  if (identity?.role === 'teacher' && handle) {
+    try {
+      const { findDirectoryStaffByUsername } = await import('./staff-directory.js');
+      const record = await findDirectoryStaffByUsername(handle);
+      if (record) return record;
+    } catch { /* offline lookup failure: fall back to the device account */ }
+  }
+  return readStaffAccount('teacher');
+}
 export const ACTIVITY_TYPES = Object.freeze({
   exam: { label: 'নম্বর ও ফলাফল', plural: 'নম্বর ও ফলাফল', progress: '' },
   homework: { label: 'বাড়ির কাজ', plural: 'বাড়ির কাজ', progress: 'জমার অবস্থা' },
@@ -112,9 +146,9 @@ function approvedRoster() {
   } catch { /* Existing app owns student-account recovery. */ }
   return students;
 }
-function roster() { return approvedRoster().filter(student => assignedScopeForStudent('teacher.apc', student)); }
+function roster() { return approvedRoster().filter(student => assignedScopeForStudent(scopeUsername, student)); }
 function teacherSnapshot(db) {
-  return { ...db, activities: db.activities.filter(activity => activity.teacherId === DEMO_TEACHER.id && isTeacherAssigned('teacher.apc', activity.className, activity.group)) };
+  return { ...db, activities: db.activities.filter(activity => activity.teacherId === DEMO_TEACHER.id && isTeacherAssigned(scopeUsername, activity.className, activity.group)) };
 }
 function studentSnapshot(db, student) {
   return {
@@ -128,11 +162,31 @@ function studentSnapshot(db, student) {
   };
 }
 function assertAssigned(className, group = '') {
-  if (!isTeacherAssigned('teacher.apc', className, group)) fail('এই class/batch-এ আপনার Manager assignment নেই।');
+  if (!isTeacherAssigned(scopeUsername, className, group)) fail('এই class/batch-এ আপনার Manager assignment নেই।');
+}
+async function roleProfileAccount(role) {
+  const account = await readStaffAccount(role);
+  const accountActive = Boolean(account)
+    && !['disabled', 'inactive', 'rejected'].includes(account.status || '')
+    && account.accountStatus !== 'disabled';
+  if (accountActive) return account;
+  /* A Staff Directory sign-in carries its own profile: the built-in device
+     account may not even exist on this device. The active identity decides
+     who is at the panel; only an inactive record is refused. */
+  if (role === 'teacher') {
+    try {
+      const identity = readActiveStaffIdentity();
+      const record = identity?.role === 'teacher' && identity.username
+        ? await (await import('./staff-directory.js')).findDirectoryStaffByUsername(identity.username)
+        : null;
+      if (record && record.status === 'active') return { ...record, status: 'active', accountStatus: 'active' };
+    } catch { /* fall through to the caller's refusal */ }
+  }
+  return account;
 }
 async function requireRoleSession(role) {
   if (!(await hasStaffSession(role))) fail(`সক্রিয় ${role === 'teacher' ? 'Teacher' : 'Manager'} session ছাড়া এই কাজ করা যাবে না।`);
-  const account = await readStaffAccount(role);
+  const account = await roleProfileAccount(role);
   if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') fail(`সক্রিয় ${role === 'teacher' ? 'Teacher' : 'Manager'} profile ছাড়া এই কাজ করা যাবে না।`);
 }
 async function mutate(change) {
@@ -147,7 +201,7 @@ async function mutate(change) {
 }
 function ownedActivity(db, id) {
   const activity = db.activities.find(a => a.id === id);
-  if (!activity || activity.teacherId !== DEMO_TEACHER.id || !isTeacherAssigned('teacher.apc', activity.className, activity.group)) fail('কাজটি পাওয়া যায়নি বা এই class/batch-এর assignment নেই।');
+  if (!activity || activity.teacherId !== DEMO_TEACHER.id || !isTeacherAssigned(scopeUsername, activity.className, activity.group)) fail('কাজটি পাওয়া যায়নি বা এই class/batch-এর assignment নেই।');
   return activity;
 }
 export const teachingRepository = {
@@ -172,7 +226,7 @@ export const teachingRepository = {
     const fields = validateActivity(input);
     if (fields.type === 'exam') fail('পরীক্ষার খসড়া ও অনুমোদনের জন্য Examination workflow ব্যবহার করুন।');
     assertAssigned(fields.className, fields.group);
-    const teacher = await readStaffAccount('teacher');
+    const teacher = await currentTeacherProfile();
     const teacherName = String(teacher?.fullName || teacher?.username || '').trim();
     if (!teacherName) fail('Teacher profile পাওয়া যায়নি।');
     const db = await mutate(db => {

@@ -172,3 +172,150 @@ export async function deleteAssignmentSubject(id, subject) {
 export function assignedScopeForStudent(username, student) {
   return isTeacherAssigned(username, student?.className, student?.group);
 }
+
+/* ---------------------------------------------------------------------------
+   Staff Directory projection (Admin → Teacher panel bridge)
+   ------------------------------------------------------------------------
+
+   The Admin's Staff Management saves a teacher's academic assignment on the
+   staff record (`assignment.classSubjects` / `assignment.classes` +
+   `assignment.subjects`). The Teacher panel and every scope gate read THIS
+   module's store. Before this bridge the two were disconnected: an Admin-made
+   teacher logged in and saw nothing. `syncTeacherAssignmentFromDirectory`
+   projects the directory record into the store (one row per class carrying
+   that class's subjects), keyed by the record's own Login User ID — never by
+   role assumption and never by name. The projection is deterministic: it is
+   re-applied on teacher sign-in and after every Admin save, so the directory
+   record stays the source of truth while the store stays the query/sync shape
+   (js/realtime-sync.js mirrors `TEACHER_ASSIGNMENTS_KEY` to Firebase). */
+
+/** Marker for rows owned by a directory projection (never by the Manager UI). */
+export const DIRECTORY_ASSIGNMENT_SOURCE = 'directory';
+
+/** Stable per-row id so re-projection updates in place instead of duplicating. */
+export const projectedAssignmentId = (staffId, className) =>
+  `DIR-${String(staffId || 'x')}-${String(className || '').normalize('NFC').trim()}`;
+
+/**
+ * Store rows for one Staff Directory record. `assignment.classSubjects`
+ * (Class → [subjects]) is the precise shape; a legacy flat record
+ * (`classes` + `subjects`) keeps working: every selected class carries the
+ * same subject list. Rows with no subject at all are not projected.
+ */
+export function directoryAssignmentRows(record = {}) {
+  const assignment = record?.assignment || {};
+  const username = String(record?.username || '').trim().toLowerCase();
+  if (!username) return [];
+  const teacherName = String(record?.fullName || record?.username || '').trim();
+  const staffId = String(record?.staffId || '');
+  const rows = [];
+  const classSubjects = assignment.classSubjects && typeof assignment.classSubjects === 'object' && !Array.isArray(assignment.classSubjects)
+    ? assignment.classSubjects
+    : null;
+  if (classSubjects) {
+    for (const [className, subjects] of Object.entries(classSubjects)) {
+      const cleanClass = String(className || '').normalize('NFC').trim();
+      const list = [...new Set((Array.isArray(subjects) ? subjects : [subjects])
+        .map(value => String(value ?? '').normalize('NFC').trim()).filter(Boolean))];
+      if (cleanClass && list.length) rows.push({ className: cleanClass, group: '', subjects: list });
+    }
+  }
+  if (!rows.length) {
+    const classes = (Array.isArray(assignment.classes) ? assignment.classes : [])
+      .map(value => String(value || '').normalize('NFC').trim()).filter(Boolean);
+    const flat = (Array.isArray(assignment.subjects) ? assignment.subjects : [])
+      .map(value => String(value || '').normalize('NFC').trim()).filter(Boolean);
+    if (classes.length && flat.length) {
+      for (const className of classes) rows.push({ className, group: '', subjects: [...flat] });
+    }
+  }
+  return rows.map(row => ({
+    ...normalizeAssignment(row),
+    id: projectedAssignmentId(staffId || username, row.className),
+    teacherUsername: username,
+    teacherName,
+    source: DIRECTORY_ASSIGNMENT_SOURCE,
+    staffId
+  }));
+}
+
+/** True when a store row was produced by a directory projection. */
+const isProjectedRow = (item, username = '') =>
+  item?.source === DIRECTORY_ASSIGNMENT_SOURCE
+  && (!username || item.teacherUsername.toLowerCase() === String(username).toLowerCase());
+
+/**
+ * Replace every projected row of this staff record with the current
+ * assignment. Manager-authored rows for the same teacher are left untouched.
+ * Returns the written rows (empty when the record carries no assignment).
+ */
+export function syncTeacherAssignmentFromDirectory(record = {}) {
+  const username = String(record?.username || '').trim().toLowerCase();
+  if (!username) return [];
+  const wanted = directoryAssignmentRows(record);
+  const records = readAssignments();
+  const kept = records.filter(item => !isProjectedRow(item, username))
+    .map(item => ({ ...item, subjects: [...item.subjects] }));
+  /* A projected row must never collide with a Manager row about the same
+     class/batch — the Manager row keeps its subjects and the projection adds
+     only classes the Manager row does not already cover. */
+  const merged = [...kept];
+  for (const row of wanted) {
+    const clash = merged.find(item =>
+      item.teacherUsername.toLowerCase() === username
+      && item.className === row.className
+      && groupKey(item.group) === groupKey(row.group));
+    if (clash) {
+      clash.subjects = [...new Set([...clash.subjects, ...row.subjects])];
+      clash.subject = clash.subjects.join(', ');
+    } else {
+      merged.unshift(row);
+    }
+  }
+  /* Only a real change is written: a teacher panel re-projects on every reload,
+     and an unconditional write would loop through the update event forever. */
+  const fingerprint = list => JSON.stringify(
+    [...list].sort((a, b) => String(a.id).localeCompare(String(b.id)))
+      .map(item => ({ id: item.id, username: item.teacherUsername, className: item.className, group: item.group, subjects: [...item.subjects].sort() }))
+  );
+  if (fingerprint(records) !== fingerprint(merged)) writeAssignments(merged);
+  return wanted;
+}
+
+/** Drop the projected rows of a deleted staff record. Manager rows survive. */
+export function removeDirectoryAssignmentRows(username) {
+  const handle = String(username || '').trim().toLowerCase();
+  if (!handle) return [];
+  const records = readAssignments();
+  const next = records.filter(item => !isProjectedRow(item, handle));
+  if (next.length !== records.length) writeAssignments(next);
+  return next;
+}
+
+/**
+ * Everything this teacher actually takes: the store (Manager-made rows plus
+ * projections) with a last-moment directory fallback merged in — a record
+ * saved before this bridge existed answers without any migration step.
+ */
+export async function effectiveTeacherAssignments(username) {
+  const handle = String(username || '').trim().toLowerCase();
+  const rows = listTeacherAssignments(handle);
+  let projected = [];
+  try {
+    const { findDirectoryStaffByUsername } = await import('./staff-directory.js');
+    const record = await findDirectoryStaffByUsername(handle);
+    projected = directoryAssignmentRows(record || {});
+  } catch { projected = []; }
+  const merged = rows.map(item => ({ ...item, subjects: [...item.subjects] }));
+  for (const row of projected) {
+    const clash = merged.find(item =>
+      item.className === row.className && groupKey(item.group) === groupKey(row.group));
+    if (clash) {
+      clash.subjects = [...new Set([...clash.subjects, ...row.subjects])];
+      clash.subject = clash.subjects.join(', ');
+    } else {
+      merged.push({ ...row, subjects: [...row.subjects] });
+    }
+  }
+  return merged;
+}

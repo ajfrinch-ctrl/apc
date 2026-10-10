@@ -75,9 +75,9 @@ function staffRolePanelOf(staff) {
 /* Switching is deliberate and password-gated: the target role's own credentials
    were just verified, and the session they replace is named out loud. No logout
    step is needed, and no tap alone can move this device to another panel. */
-async function enterStaffPanel(role, remember) {
+async function enterStaffPanel(role, remember, identity = null) {
   const previous = (await activeStaffRoles()).filter(name => name !== role);
-  if (!(await saveStaffSession(role, remember))) {
+  if (!(await saveStaffSession(role, remember, identity))) {
     setAuthMessage('সেশন সংরক্ষণ করা যায়নি — ব্রাউজারের স্টোরেজ পরীক্ষা করে আবার চেষ্টা করুন।');
     return;
   }
@@ -105,17 +105,20 @@ async function handleStaffLogin(role, typedId, pin) {
     return;
   }
   const remember = $('#rememberMe')?.checked !== false;
+  /* The device role account signs in as itself: the session carries that
+     username so panels never confuse it with a Staff Directory identity. */
+  const identity = { username: normalizeStaffUsername(typedId), staffId: '', fullName: '' };
   if (result.needsPasswordChange) {
     openStaffPasswordDialog({
       role,
       mode: 'change',
-      onDone: () => enterStaffPanel(role, remember),
+      onDone: () => enterStaffPanel(role, remember, identity),
       onCancel: () => setAuthMessage('নিরাপত্তার জন্য নতুন পাসওয়ার্ড নির্ধারণ করা বাধ্যতামূলক।')
     });
     return;
   }
   // The staff panel boots cloud sync itself (js/realtime-sync-entry.js).
-  await enterStaffPanel(role, remember);
+  await enterStaffPanel(role, remember, identity);
 }
 
 /* A staff identity created in Staff Management: same password rules, same
@@ -131,17 +134,24 @@ async function handleDirectoryStaffLogin(directory, remember) {
     setAuthMessage('শিক্ষক প্যানেল প্রবেশ এই মুহূর্তে এডমিন কর্তৃক বন্ধ রাখা হয়েছে।');
     return;
   }
+  /* The person who signed in is the Staff Directory record — its Login User ID
+     and Staff ID are the keys every panel must fetch that person's data with. */
+  const identity = {
+    username: normalizeStaffUsername(staff.username),
+    staffId: String(staff.staffId || ''),
+    fullName: String(staff.fullName || '')
+  };
   if (mustChangePassword) {
     openStaffPasswordDialog({
       role,
       mode: 'change',
       onSubmit: async (next, confirm) => (await import('./staff-directory.js')).changeDirectoryStaffPassword(staff.staffId, $('#loginPin').value, next, confirm),
-      onDone: () => enterStaffPanel(role, remember),
+      onDone: () => enterStaffPanel(role, remember, identity),
       onCancel: () => setAuthMessage('নিরাপত্তার জন্য নতুন পাসওয়ার্ড নির্ধারণ করা বাধ্যতামূলক।')
     });
     return;
   }
-  await enterStaffPanel(role, remember);
+  await enterStaffPanel(role, remember, identity);
 }
 
 /* The online bridge is an optional convenience, never a gate. localStorage is

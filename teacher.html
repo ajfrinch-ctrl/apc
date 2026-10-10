@@ -5,8 +5,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src 'self' https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=255" data-entry="teacher"></script>
-  <script type="module" src="js/teacher.js?v=255"></script>
+  <script src="js/app-entry.js?v=256" data-entry="teacher"></script>
+  <script type="module" src="js/teacher.js?v=256"></script>
   <script src="js/topbar-connectivity.js?v=25161005-syncborder" defer></script>
   <script type="module" src="js/realtime-sync-entry.js"></script>
   <script src="js/appearance-boot.js"></script>
@@ -30,21 +30,21 @@
        HTML and fetches them in parallel, instead of a render-blocking serial
        waterfall (design-system.css first, its imports one round-trip later).
        tools/css-order-check.mjs + tests/css-order.test.mjs keep this in sync. -->
-  <link rel="stylesheet" href="css/foundation.css?v=255">
-  <link rel="stylesheet" href="css/ui-layout.css?v=255">
-  <link rel="stylesheet" href="css/ui-components.css?v=255">
-  <link rel="stylesheet" href="css/ui-forms.css?v=255">
-  <link rel="stylesheet" href="css/ui-features.css?v=255">
-  <link rel="stylesheet" href="css/notice-board.css?v=255">
-  <link rel="stylesheet" href="css/ui-status.css?v=255">
-  <link rel="stylesheet" href="css/ui-auth.css?v=255">
-  <link rel="stylesheet" href="css/app-polish.css?v=255">
-  <link rel="stylesheet" href="css/student-record.css?v=255">
-  <link rel="stylesheet" href="css/exam-archive.css?v=255">
-  <link rel="stylesheet" href="css/academics.css?v=255">
-  <link rel="stylesheet" href="css/notifications.css?v=255">
-  <link rel="stylesheet" href="css/course-hub.css?v=255">
-  <link rel="stylesheet" href="css/ui-wallet.css?v=255">
+  <link rel="stylesheet" href="css/foundation.css?v=256">
+  <link rel="stylesheet" href="css/ui-layout.css?v=256">
+  <link rel="stylesheet" href="css/ui-components.css?v=256">
+  <link rel="stylesheet" href="css/ui-forms.css?v=256">
+  <link rel="stylesheet" href="css/ui-features.css?v=256">
+  <link rel="stylesheet" href="css/notice-board.css?v=256">
+  <link rel="stylesheet" href="css/ui-status.css?v=256">
+  <link rel="stylesheet" href="css/ui-auth.css?v=256">
+  <link rel="stylesheet" href="css/app-polish.css?v=256">
+  <link rel="stylesheet" href="css/student-record.css?v=256">
+  <link rel="stylesheet" href="css/exam-archive.css?v=256">
+  <link rel="stylesheet" href="css/academics.css?v=256">
+  <link rel="stylesheet" href="css/notifications.css?v=256">
+  <link rel="stylesheet" href="css/course-hub.css?v=256">
+  <link rel="stylesheet" href="css/ui-wallet.css?v=256">
   <script type="module" src="js/ui-accessibility.js"></script>
   <script src="js/launch-screen.js" defer></script>
 </head>
@@ -53,7 +53,7 @@
     <header class="app-topbar"><div class="app-topbar-inner"><div class="app-brand"><img class="app-brand-logo" src="assets/icons/logo-128.png" alt="Active Plus Coaching" width="38" height="38"><span class="app-brand-text"><strong class="app-brand-institute">Active Plus Coaching</strong><small class="app-brand-slogan" data-fixed-tagline>শিখতে থাকো, এগিয়ে যাও</small></span></div><div class="app-topbar-actions"><span class="teacher-header-name" id="teacherHeaderName" hidden></span><button class="app-topbar-icon notification-button" id="notificationButton" type="button" aria-label="নোটিফিকেশন দেখুন" aria-haspopup="dialog"><svg class="apc-glyph-icon" data-icon="bell" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.5 16V9a6.5 6.5 0 0 1 13 0v7l2 2h-17Zm4 5a3 3 0 0 0 5 0"/></svg><span class="notification-dot" hidden aria-hidden="true"></span></button><button class="app-topbar-icon app-topbar-exit" id="teacherExit" type="button" aria-label="লগআউট"><svg class="apc-glyph-icon" data-icon="logout" data-icon-set="active-plus-color" data-icon-version="1" data-icon-style="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5M8 12h13m-5-5 5 5-5 5"/></svg></button></div></div></header>
     <main class="admin-main" id="teacherMain">
       <div id="teacherDataError" class="finance-error" role="alert" hidden>ডেটা পড়া যায়নি। <button id="teacherRetry" class="mini-btn" type="button">আবার চেষ্টা করুন</button></div>
-      <p id="teacherAssignmentNotice" class="finance-error" role="status" hidden>Manager এখনো কোনো class/batch assignment দেননি। Teacher academic data access বন্ধ আছে; Manager-কে Teachers প্যানেল থেকে assignment দিতে বলুন।</p>
+      <p id="teacherAssignmentNotice" class="finance-error" role="status" hidden>এখনো কোনো ক্লাস অ্যাসাইন করা হয়নি — আপনার অ্যাকাউন্টে কোনো ক্লাস বা বিষয় যুক্ত হয়নি। অ্যাসাইন হলে এখানেই দেখা যাবে; কর্তৃপক্ষ সঙ্গে যোগাযোগ করুন।</p>
       <section id="teacherHome" class="teacher-view" aria-labelledby="teacherHomeTitle">
         <article class="admin-hero teacher-hero">
           <div class="admin-hero-head">

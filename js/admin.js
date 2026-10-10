@@ -45,6 +45,7 @@ import {
   staffRoleLabel
 } from './staff-directory.js';
 import { initStaffManagement, renderStaff } from './staff-management.js';
+import { mountStaffOverview, refreshStaffOverviews } from './staff-overview.js';
 import { ROLE_CAPABILITIES } from './admin-permissions.js';
 import { runMigrations } from './storage/migration.js';
 
@@ -112,6 +113,12 @@ async function enterPanel() {
   // Staff Management is wired once; it re-reads the directory on every render
   // and calls back so the dashboard, reports and security stay in sync.
   initStaffManagement({ onChanged: onStaffChanged });
+  /* Staff Management Overview — the same directory and the same dialogs as the
+     full স্টাফ ম্যানেজমেন্ট section, surfaced on the Profile and the Dashboard.
+     Only rendered when the role holds staff.manage (the mount cards carry the
+     capability marker and enforceCapabilities drops the rest). */
+  mountStaffOverview({ mount: '#staffOverviewProfile', onNavigate: navigate, onToast: toast });
+  mountStaffOverview({ mount: '#staffOverviewHome', onNavigate: navigate, onToast: toast, compact: true });
   await refreshStaffSnapshot();
   renderAll();
   // The Reports Module re-reads who is signed in and what they may see.
@@ -191,7 +198,9 @@ function navigate(view, source) {
   const target = String(view || '').trim();
   if (!access.allowsView(target)) {
     toast('এই বিভাগে প্রবেশের অনুমতি আপনার Role-এ নেই।');
-    setView(access.defaultView());
+    const fallback = access.defaultView();
+    setView(fallback);
+    refreshView(fallback);
     return false;
   }
   if (source?.dataset?.studentScope === 'pending') {
@@ -205,6 +214,8 @@ function navigate(view, source) {
     renderStudents();
   }
   if (!setView(target)) return false;
+  // Fresh data every activation — never a stale snapshot from an earlier visit.
+  refreshView(target);
   if (source?.matches?.('.admin-more-item, .admin-more-back, .admin-bottom-item')) {
     const heading = $('.admin-view.active h1');
     heading?.setAttribute('tabindex', '-1');
@@ -1119,6 +1130,33 @@ function renderMigration() {
   });
 }
 
+/**
+ * Re-read a view's data every time the view becomes active. A tab never shows
+ * what a previous visit (or a failed earlier read) left behind: revisiting a
+ * tab is a fresh load, not a frozen snapshot. Mount-once surfaces (Reports,
+ * Academic Setup, the migration console) keep their own refresh entries.
+ */
+const VIEW_REFRESHERS = {
+  dashboard: () => { renderDashboard(); refreshStaffOverviews(); },
+  students: () => renderStudents(),
+  settings: () => { renderAppManagement(); renderClasses(); },
+  roles: () => renderRoles(),
+  data: () => renderDataManagement(),
+  backup: () => renderBackup(),
+  security: () => renderSecurity(),
+  profile: () => { renderAdminProfile(); refreshStaffOverviews(); },
+  staff: () => { void renderStaff(); },
+  reports: () => refreshReports($('#adminReports'))
+};
+
+function refreshView(view) {
+  const refresh = VIEW_REFRESHERS[view];
+  if (!refresh || !viewExists(view)) return;
+  try { refresh(); } catch (error) {
+    console.warn(`[Active Plus] ${view} refresh failed:`, error?.message);
+  }
+}
+
 function renderAll() {
   if (viewExists('dashboard')) renderDashboard();
   if (viewExists('students')) renderStudents();
@@ -1137,6 +1175,7 @@ function renderAll() {
 /** Called by Staff Management after every create / edit / delete / status
  *  change, so the dashboard counters and reports never go stale. */
 function onStaffChanged() {
+  void refreshStaffOverviews();
   void refreshStaffSnapshot().then(() => {
     renderDashboard();
     if (viewExists('roles')) renderRoles();
@@ -1158,6 +1197,9 @@ $('#adminExitButton')?.addEventListener('click', exitPanel);
 $$('[data-admin-view]').forEach(button => {
   if (button.classList.contains('admin-bottom-item')) return;
   if (button.classList.contains('admin-more-item')) return;
+  // Exactly one handler per entry, no matter how often this wiring runs.
+  if (button.dataset.navWired === '1') return;
+  button.dataset.navWired = '1';
   button.addEventListener('click', () => navigate(button.dataset.adminView, button));
 });
 
@@ -1175,7 +1217,7 @@ onRouteChange(name => {
 
 /* Fee collection is the Cash Counter's job; this panel keeps no handler. */
 
-$('#studentSearch').addEventListener('input', event => {
+$('#studentSearch')?.addEventListener('input', event => {
   state.query = event.target.value;
   renderStudents();
 });
@@ -1212,7 +1254,7 @@ $('#studentSearchClear')?.addEventListener('click', () => {
   });
 })();
 
-$('#studentFilterChips').addEventListener('click', event => {
+$('#studentFilterChips')?.addEventListener('click', event => {
   const chip = event.target.closest('[data-student-filter]');
   if (!chip) return;
   state.filter = chip.dataset.studentFilter;
@@ -1251,12 +1293,12 @@ const studentAction = event => {
     openPinReset(student);
   }
 };
-$('#studentList').addEventListener('click', studentAction);
+$('#studentList')?.addEventListener('click', studentAction);
 
 /* Notice publishing and routine entry now live in the Manager portal, so this
    panel keeps no handler for them. */
 
-$('#classList').addEventListener('change', toggleClass);
+$('#classList')?.addEventListener('change', toggleClass);
 
 /* ---------- Staff, Data, Backup, Security and Profile wiring ---------- */
 
@@ -1333,8 +1375,8 @@ $('#adminPasswordForm')?.addEventListener('submit', async event => {
   toast('পাসওয়ার্ড বদল করা হয়েছে');
 });
 
-$('#adminModalClose').addEventListener('click', closeModal);
-$('#adminModalBackdrop').addEventListener('click', event => {
+$('#adminModalClose')?.addEventListener('click', closeModal);
+$('#adminModalBackdrop')?.addEventListener('click', event => {
   if (event.target === event.currentTarget) closeModal();
 });
 document.addEventListener('keydown', event => {

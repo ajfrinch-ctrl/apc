@@ -46,6 +46,12 @@ import {
   setStaffPassword,
   hasStaffSession
 } from './staff-auth.js';
+/* Teacher-class rows live in js/teacher-assignments.js (the shape the Teacher
+   panel queries and js/realtime-sync.js mirrors to Firebase). A teacher's
+   assignment saved here is projected into that store so the two can never
+   drift apart again. No cycle: teacher-assignments.js never imports this file
+   statically. */
+import { syncTeacherAssignmentFromDirectory, removeDirectoryAssignmentRows } from './teacher-assignments.js';
 
 /** Device-local storage key. Records live here as an encrypted envelope and
     are mirrored through the optional online bridge (js/realtime-sync.js) so
@@ -166,7 +172,7 @@ function newRecordId() {
 }
 
 function blankAssignment() {
-  return { classes: [], subjects: [], batches: [], counter: '', designation: '', notes: '' };
+  return { classes: [], subjects: [], batches: [], classSubjects: {}, counter: '', designation: '', notes: '' };
 }
 
 function normalizeAssignment(source = {}) {
@@ -174,10 +180,26 @@ function normalizeAssignment(source = {}) {
     .map(item => clean(item, 80))
     .filter(Boolean)
     .slice(0, 40);
+  /* Per-class subject mapping — "Class 8 → গণিত, ইংরেজি; Class 9 → গণিত".
+     This is what the Teacher panel projects from; the flat lists stay as a
+     readable mirror so older records and cards keep working. */
+  const classSubjects = {};
+  const rawMap = source.classSubjects && typeof source.classSubjects === 'object' && !Array.isArray(source.classSubjects)
+    ? source.classSubjects
+    : {};
+  for (const [className, subjects] of Object.entries(rawMap)) {
+    const name = clean(className, 80);
+    const names = (Array.isArray(subjects) ? subjects : String(subjects || '').split(','))
+      .map(item => clean(item, 80))
+      .filter(Boolean)
+      .slice(0, 30);
+    if (name && names.length) classSubjects[name] = names;
+  }
   return {
     classes: list(source.classes),
     subjects: list(source.subjects),
     batches: list(source.batches),
+    classSubjects,
     counter: clean(source.counter, 80),
     designation: clean(source.designation, 80),
     notes: clean(source.notes, 300)
@@ -536,6 +558,15 @@ export async function createStaff(fields = {}) {
       records: [...records, record],
       updatedAt: now
     });
+    if (saved && record.role === 'teacher') {
+      /* A teacher's classes/subjects are projected into the assignment store
+         the Teacher panel queries (and js/realtime-sync.js mirrors to
+         Firebase) — keyed by THIS record's Login User ID. A projection
+         failure never voids a saved record: it is re-applied on the teacher's
+         next sign-in. */
+      try { syncTeacherAssignmentFromDirectory({ ...record }); }
+      catch (error) { console.warn('[Active Plus] teacher assignment projection failed:', error?.message); }
+    }
     if (!saved) {
       writeJSON(KEYS.usernames, index);
       return { ok: false, error: 'স্টাফ অ্যাকাউন্ট সংরক্ষণ করা যায়নি — স্টোরেজ পরীক্ষা করুন।', code: 'STORAGE' };
@@ -621,7 +652,17 @@ export async function updateStaff(staffId, patch = {}) {
     }
 
     const nextRecords = records.map((record, position) => (position === index ? updated : record));
-    if (!(await writeDirectory({ version: 1, records: nextRecords, updatedAt: new Date().toISOString() }))) {
+    const wroteDirectory = await writeDirectory({ version: 1, records: nextRecords, updatedAt: new Date().toISOString() });
+    if (wroteDirectory) try {
+      const oldUsername = normalizeStaffUsername(current.username);
+      const newUsername = normalizeStaffUsername(updated.username);
+      if (oldUsername && oldUsername !== newUsername) removeDirectoryAssignmentRows(oldUsername);
+      if (updated.role === 'teacher') syncTeacherAssignmentFromDirectory({ ...updated });
+      else if (newUsername) removeDirectoryAssignmentRows(newUsername);
+    } catch (projectionError) {
+      console.warn('[Active Plus] teacher assignment projection failed:', projectionError?.message);
+    }
+    if (!wroteDirectory) {
       return { ok: false, error: 'স্টাফ তথ্য সংরক্ষণ করা যায়নি — স্টোরেজ পরীক্ষা করুন।', code: 'STORAGE' };
     }
     return { ok: true, staff: publicStaff(updated) };
@@ -855,6 +896,8 @@ export async function deleteStaff(staffId) {
       delete released[current.username];
       writeJSON(KEYS.usernames, released);
     }
+    try { removeDirectoryAssignmentRows(current.username); }
+    catch (projectionError) { console.warn('[Active Plus] teacher assignment cleanup failed:', projectionError?.message); }
     return { ok: true, staffId };
   });
 }

@@ -16,6 +16,8 @@
 */
 
 import { enabledClasses } from './config.js';
+import { listClasses } from './academics.js';
+import { selectableSubjects } from './teacher-assignments.js';
 import { toBanglaNumber } from './ui.js';
 import { escapeHtml } from './sanitize.js';
 import { iconMarkup, paintIcon } from './icons.js';
@@ -302,27 +304,108 @@ function renderList() {
     : `<p class="admin-empty">“${escapeHtml(state.query)}” দিয়ে কোনো স্টাফ পাওয়া যায়নি। Staff ID, নাম, ইউজারনেম বা মোবাইল দিয়ে খুঁজুন।</p>`;
 }
 
+let renderGeneration = 0;
 export async function renderStaff() {
   const host = $('#staffList');
   if (!host) return;
-  state.staff = await listStaff();
-  state.counts = staffCounts(state.staff);
-  state.canManage = await canManageStaff();
-  const createButton = $('#staffCreateButton');
-  if (createButton) createButton.hidden = !state.canManage;
-  if (!state.canManage) {
-    const note = $('#staffReadonlyNote');
-    if (note) note.hidden = false;
+  /* Every call takes a number; only the newest may touch the DOM. A slow read
+     that lands after a newer one can never overwrite it with stale rows. */
+  const generation = ++renderGeneration;
+  try {
+    const [staff, canManage] = await Promise.all([listStaff(), canManageStaff()]);
+    if (generation !== renderGeneration) return;
+    state.staff = staff;
+    state.counts = staffCounts(state.staff);
+    state.canManage = canManage;
+    const createButton = $('#staffCreateButton');
+    if (createButton) createButton.hidden = !state.canManage;
+    if (!state.canManage) {
+      const note = $('#staffReadonlyNote');
+      if (note) note.hidden = false;
+    }
+    renderRoleFilter();
+    renderStatusFilter();
+    renderList();
+    state.ready = true;
+  } catch (error) {
+    if (generation !== renderGeneration) return;
+    state.ready = false;
+    // A failed load says so and offers a retry — never a silently frozen tab.
+    host.innerHTML = `<div class="admin-empty" role="alert"><p>${escapeHtml(error?.message || 'স্টাফ তালিকা লোড হয়নি।')}</p><button class="mini-btn" type="button" data-staff-action="retry">আবার চেষ্টা করুন</button></div>`;
   }
-  renderRoleFilter();
-  renderStatusFilter();
-  renderList();
-  state.ready = true;
 }
 
 /* ---------------------------------------------------------------------------
    Create / Edit
    ------------------------------------------------------------------------ */
+
+/* ---------------------------------------------------------------------------
+   Academic assignment — per-class subject matrix (Teacher only)
+   ------------------------------------------------------------------------
+
+   One teacher may take different subjects in different classes
+   (Class 8 → গণিত, ইংরেজি; Class 9 → গণিত). The flat fields stay as the
+   readable mirror; this matrix is what gets projected into the Teacher
+   panel's assignment store. Only the classes the Admin ticks are asked for. */
+
+const teacherClassChoices = () => [...new Set([...listClasses().map(item => item.name), ...enabledClasses])];
+
+function classSubjectMatrixHtml({ role, assignment, classes }) {
+  if (role !== 'teacher') return '';
+  const chosen = (Array.isArray(classes) ? classes : []).filter(Boolean);
+  const legacy = Array.isArray(assignment?.subjects) ? assignment.subjects : [];
+  const perClass = assignment?.classSubjects && typeof assignment.classSubjects === 'object' ? assignment.classSubjects : {};
+  if (!chosen.length) {
+    return '<p class="staff-matrix-hint">উপরের তালিকা থেকে শ্রেণি বাছলে প্রতি শ্রেণির বিষয় টিক দেওয়ার ঘর দেখা যাবে।</p>';
+  }
+  return chosen.map(className => {
+    const options = selectableSubjects(className, { includeLegacy: [...legacy, ...(perClass[className] || [])] });
+    const checked = new Set(perClass[className] || (Object.keys(perClass).length ? [] : legacy));
+    const rows = options.length
+      ? options.map(name => `
+        <label class="staff-matrix-subject">
+          <input type="checkbox" data-class-subject="${escapeHtml(className)}" value="${escapeHtml(name)}" ${checked.has(name) ? 'checked' : ''}>
+          <span>${escapeHtml(name)}</span>
+        </label>`).join('')
+      : `<p class="staff-matrix-hint">এই ক্লাসের জন্য কোনো বিষয় চালু নেই — সিস্টেম → ক্লাস ও বিষয় থেকে চালু করুন।</p>`;
+    return `
+      <section class="staff-matrix-class" data-matrix-class="${escapeHtml(className)}">
+        <strong class="staff-matrix-title">${escapeHtml(className)}</strong>
+        <div class="staff-matrix-subjects">${rows}</div>
+      </section>`;
+  }).join('');
+}
+
+/** Re-render the matrix from the form's current class selection, keeping the
+ *  ticks the admin has already made. */
+function renderClassMatrix(form, record = null) {
+  const host = form?.querySelector('#staffClassSubjects');
+  if (!host) return;
+  const role = form.querySelector('#staffField-role')?.value || 'teacher';
+  if (role !== 'teacher') {
+    host.dataset.role = role;
+    host.innerHTML = '';
+    return;
+  }
+  const classes = [...(form.querySelector('#staffField-classes')?.selectedOptions || [])].map(option => option.value);
+  const boxes = [...form.querySelectorAll('input[data-class-subject]')];
+  const current = {};
+  for (const box of boxes.filter(box => box.checked)) {
+    (current[box.dataset.classSubject] ||= []).push(box.value);
+  }
+  /* Ticks already on screen are authoritative (even an empty tick set). Before
+     the first render the record itself seeds the matrix — its per-class map
+     when it has one, else the legacy flat subjects. */
+  const seededMap = boxes.length ? current : (record?.assignment?.classSubjects || {});
+  const useLegacy = !boxes.length && !record?.assignment?.classSubjects;
+  const assignment = {
+    ...(record?.assignment || {}),
+    classSubjects: seededMap,
+    subjects: useLegacy ? (record?.assignment?.subjects || []) : []
+  };
+  host.dataset.role = 'teacher';
+  host.innerHTML = classSubjectMatrixHtml({ role: 'teacher', assignment, classes });
+}
 
 function staffFormHtml(record) {
   const editing = Boolean(record);
@@ -365,6 +448,7 @@ function staffFormHtml(record) {
         <div class="staff-form-grid">
           ${roleAssignmentFields(role).map(spec => fieldRow(spec, spec.name === 'classes' ? assignment.classes : assignment[spec.name])).join('')}
         </div>
+        <div class="staff-class-subjects" id="staffClassSubjects"></div>
       </div>
       <div class="staff-form-footer">
         <p class="finance-error" id="staffFormError" role="alert" hidden></p>
@@ -380,6 +464,15 @@ function collectForm(form) {
   const data = new FormData(form);
   const get = name => String(data.get(name) ?? '').trim();
   const classes = data.getAll('classes').map(String);
+  /* Per-class subject ticks (Teacher) are the precise assignment; the flat
+     fields stay as the readable mirror. A ticked matrix overrides the comma
+     list, so "Class 8 → গণিত, ইংরেজি; Class 9 → গণিত" is stored exactly. */
+  const classSubjects = {};
+  for (const box of form.querySelectorAll('input[data-class-subject]:checked')) {
+    (classSubjects[box.dataset.classSubject] ||= []).push(box.value);
+  }
+  const flatSubjects = get('subjects').split(',').map(item => item.trim()).filter(Boolean);
+  const matrixSubjects = [...new Set(Object.values(classSubjects).flat())];
   return {
     fullName: get('fullName'),
     username: get('username'),
@@ -392,9 +485,10 @@ function collectForm(form) {
     joiningDate: get('joiningDate'),
     address: get('address'),
     assignment: {
-      classes,
-      subjects: get('subjects').split(',').map(item => item.trim()).filter(Boolean),
+      classes: [...new Set([...classes, ...Object.keys(classSubjects)])],
+      subjects: matrixSubjects.length ? matrixSubjects : flatSubjects,
       batches: get('batches').split(',').map(item => item.trim()).filter(Boolean),
+      classSubjects: Object.keys(classSubjects).length ? classSubjects : undefined,
       counter: get('counter'),
       designation: get('designation'),
       notes: get('notes')
@@ -471,6 +565,8 @@ function refreshAutoId(form, record = null) {
 
 function wireForm(form, record) {
   const assignmentHost = form.querySelector('#staffAssignmentFields');
+  form.querySelector('#staffField-classes')?.addEventListener('change', () => renderClassMatrix(form, record));
+  renderClassMatrix(form, record);
   form.querySelector('#staffField-fullName')?.addEventListener('input', () => refreshAutoId(form, record));
   form.querySelector('#staffField-role')?.addEventListener('change', event => {
     const role = event.target.value;
@@ -485,6 +581,8 @@ function wireForm(form, record) {
       grid.innerHTML = roleAssignmentFields(role)
         .map(spec => fieldRow(spec, spec.name === 'classes' ? [] : '')).join('');
     }
+    // The role grid was reset: the per-class matrix follows suit.
+    renderClassMatrix(form, null);
   });
 
   form.addEventListener('submit', async event => {
@@ -743,6 +841,7 @@ export function initStaffManagement({ onChanged } = {}) {
       return;
     }
     state.openMore = null;
+    if (staffAction === 'retry') { await renderStaff(); return; }
     if (staffAction === 'view') await openProfile(staffId);
     else if (staffAction === 'edit') { closeModal(); await openEdit(staffId); }
     else if (staffAction === 'reset') await openReset(staffId);
@@ -759,4 +858,6 @@ export function initStaffManagement({ onChanged } = {}) {
   state.wired = true;
 }
 
-export { STAFF_ROLE_META, STAFF_STATUS };
+/* The Staff Management Overview widget (Admin Profile / Dashboard) drives the
+   exact same dialogs and mutations — one management system, surfaced twice. */
+export { STAFF_ROLE_META, STAFF_STATUS, openProfile, openEdit, changeStatus, openReset, refresh as refreshStaffList };

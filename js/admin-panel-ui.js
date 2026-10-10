@@ -89,7 +89,13 @@ function renderHub(root, menuSelector, panelView, catalogue, access, onNavigate)
     const hint = item.querySelector('.admin-more-copy small');
     if (label && entry.label && !label.textContent.trim()) label.textContent = entry.label;
     if (hint && entry.hint && !hint.textContent.trim()) hint.textContent = entry.hint;
-    item.addEventListener('click', () => onNavigate(entry.view, item));
+    /* Bind exactly once per item: these rows live in static markup and the
+       shell may be rebuilt on re-entry, so a second binding would fire
+       navigate() twice per click. */
+    if (item.dataset.navWired !== '1') {
+      item.dataset.navWired = '1';
+      item.addEventListener('click', () => onNavigate(entry.view, item));
+    }
     items.push(item);
   });
   if (!items.length && !menu.querySelector('.admin-more-item')) {

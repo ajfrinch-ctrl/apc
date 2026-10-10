@@ -16,3 +16,32 @@ table{width:100%;border-collapse:collapse;font-size:var(--font-sm);table-layout:
 @media(max-width:640px){.admin-card,.pay-card,.study-progress-card,.learning-card,.rc-head{padding:var(--space-4)}.admin-feature-tile{padding:var(--space-4);gap:var(--space-2)}table,tbody,tr,td{display:block;width:100%}thead{display:none}tr{border-bottom:1px solid var(--color-border);padding:var(--space-2)}td{border:0;padding:var(--space-2)}td[data-label]::before{content:attr(data-label) ': ';font-weight:600}.modal,.admin-modal{padding:var(--space-4)}}
 /* Keep modal close controls on their own compact column. */
 .admin-modal-header,.modal-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}.admin-modal-close,.modal-close{grid-column:2;grid-row:1}.admin-modal-header>div,.modal-header>div{min-width:0}.pay-success{display:flex;align-items:flex-start;gap:var(--space-2)}.pay-success>div{min-width:0}.pay-toast{pointer-events:none;bottom:calc(88px + var(--safe-bottom));font-size:var(--font-sm)}.receipt-download-hint{font-size:var(--font-sm);font-weight:400;color:var(--color-text-secondary);margin-top:var(--space-4)}
+
+/* ---- Staff Management Overview (Admin Profile / Dashboard) ----------------
+   A compact view onto the one staff directory: one row per person (identity →
+   role → responsibility → status) with quick actions, filters and paging. */
+.staff-overview-card{min-width:0}
+.staff-overview-toolbar{display:flex;flex-wrap:wrap;gap:var(--space-3);margin-block:var(--space-3)}
+.staff-overview-search{flex:1 1 12rem;min-width:0;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-text);font-size:var(--font-sm)}
+.staff-overview-filter{flex:0 1 9rem;min-width:7.5rem;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-text);font-size:var(--font-sm)}
+.staff-overview-count{margin:0 0 var(--space-3);font-size:var(--font-sm);color:var(--color-text-secondary)}
+.staff-overview-list{display:grid;gap:var(--space-3)}
+.staff-overview-row{display:flex;flex-wrap:wrap;gap:var(--space-3);justify-content:space-between;align-items:flex-start;padding:var(--space-4);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);min-width:0}
+.staff-overview-identity{flex:1 1 12rem;min-width:0}
+.staff-overview-identity strong{display:block;font-size:var(--font-md);color:var(--color-text);overflow-wrap:anywhere}
+.staff-overview-meta{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin:var(--space-2) 0 0}
+.staff-overview-login,.staff-overview-duty{font-size:var(--font-xs);color:var(--color-text-secondary);overflow-wrap:anywhere;margin:0}
+.staff-overview-duty{margin-top:var(--space-2)}
+.staff-overview-side{display:flex;flex-direction:column;gap:var(--space-2);align-items:flex-end}
+.staff-overview-actions{display:flex;flex-wrap:wrap;gap:var(--space-2);justify-content:flex-end}
+.staff-overview-pager{display:flex;align-items:center;justify-content:center;gap:var(--space-4);margin-top:var(--space-4)}
+.staff-overview-page{font-size:var(--font-sm);color:var(--color-text-secondary)}
+
+/* ---- Per-class subject matrix (Teacher academic assignment) ---------------
+   Class 8 → গণিত, ইংরেজি; Class 9 → গণিত — the precise assignment shape. */
+.staff-class-subjects{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
+.staff-matrix-class{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:var(--space-3);background:var(--color-surface-muted)}
+.staff-matrix-title{display:block;font-size:var(--font-sm);color:var(--color-text);margin-bottom:var(--space-2)}
+.staff-matrix-subjects{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4)}
+.staff-matrix-subject{display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--font-sm);color:var(--color-text)}
+.staff-matrix-hint{margin:0;font-size:var(--font-xs);color:var(--color-text-secondary)}
