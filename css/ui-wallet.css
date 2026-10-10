@@ -834,14 +834,15 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 @keyframes apc-cloud-drift { from { transform: translateX(0); } to { transform: translateX(28px); } }
 /* No sun glow behind a full cloud deck; a low warm one at dusk; a pale moon
    glow at night. */
+.auth-screen[data-sky=clear-day] .auth-orb,
+.auth-screen[data-sky=heat] .auth-orb,
+.auth-screen[data-sky=clear-night] .auth-orb,
 .auth-screen[data-sky=cloudy] .auth-orb,
 .auth-screen[data-sky=rain] .auth-orb,
 .auth-screen[data-sky=storm] .auth-orb,
 .auth-screen[data-sky=fog] .auth-orb { display: none; }
 .auth-screen[data-sky=dusk] .auth-orb { top: 26vh; right: 12%; width: 240px; height: 160px;
   background: var(--sky-glow-dusk); }
-.auth-screen[data-sky=clear-night] .auth-orb { top: -30px; right: 14%; width: 150px; height: 150px;
-  background: var(--sky-glow-night); }
 .auth-screen[data-sky=storm] .auth-cloud { opacity: .45; }
 .auth-screen[data-sky=clear-night] .auth-cloud { opacity: .5; background: var(--sky-haze-night); }
 @media (prefers-reduced-motion: reduce) {
@@ -852,9 +853,9 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
    state's photograph is ever fetched. */
 .auth-screen[data-sky] { background-position: center top; background-repeat: no-repeat; }
 .auth-screen[data-sky=clear-day] { background-image: var(--sky-scrim-bright), url('../assets/sky/clear-day.jpg'), var(--sky-fall-day);
-  background-size: auto, cover, auto; }
+  background-size: auto, cover, auto;  background-position: 70% top;}
 .auth-screen[data-sky=heat] { background-image: var(--sky-warm-wash), var(--sky-scrim-bright), url('../assets/sky/clear-day.jpg'), var(--sky-fall-heat);
-  background-size: auto, auto, cover, auto; }
+  background-size: auto, auto, cover, auto;  background-position: 70% top;}
 .auth-screen[data-sky=dusk] { background-image: var(--sky-scrim-dusk), url('../assets/sky/dusk.jpg'), var(--sky-fall-dusk);
   background-size: auto, cover, auto; }
 .auth-screen[data-sky=clear-night] { background-image: var(--sky-scrim-night), url('../assets/sky/clear-night.jpg'), var(--sky-fall-night);
@@ -870,6 +871,14 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 /* Over a photograph the brand is hero text: light states keep the ink
    colours under the scrim, dark skies switch to light ink with a soft
    shadow so it never fights the clouds. */
+.auth-screen[data-sky=clear-day] .auth-brand h1,
+.auth-screen[data-sky=heat] .auth-brand h1,
+.auth-screen[data-sky=cloudy] .auth-brand h1,
+.auth-screen[data-sky=fog] .auth-brand h1,
+.auth-screen[data-sky=clear-day] .auth-brand p,
+.auth-screen[data-sky=heat] .auth-brand p,
+.auth-screen[data-sky=cloudy] .auth-brand p,
+.auth-screen[data-sky=fog] .auth-brand p { text-shadow: var(--sky-ink-shadow-paper); }
 .auth-screen[data-sky=clear-night] .auth-brand h1,
 .auth-screen[data-sky=storm] .auth-brand h1,
 .auth-screen[data-sky=dusk] .auth-brand h1 { color: var(--sky-ink-strong); text-shadow: var(--sky-ink-shadow); }

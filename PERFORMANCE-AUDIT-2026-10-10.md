@@ -176,17 +176,26 @@ npm test                          # ৯৭১ টেস্ট (১৮ প্র�
 
 | state | ফাইল | সাইজ |
 |---|---|---|
-| clear-day | `assets/sky/clear-day.jpg` | ২৮.৮ KB |
-| clear-night | `assets/sky/clear-night.jpg` | ৬৩.৩ KB |
+| clear-day | `assets/sky/clear-day.jpg` | ২৯.১ KB |
+| clear-night | `assets/sky/clear-night.jpg` | ৫৮.৩ KB |
 | cloudy | `assets/sky/cloudy.jpg` | ৩৬.৬ KB |
 | dusk | `assets/sky/dusk.jpg` | ২৯.৮ KB |
 | rain | `assets/sky/rain.jpg` | ২৬.৯ KB |
 | storm | `assets/sky/storm.jpg` | ৪৫.৫ KB |
 
-মোট **২৩০.৯ KB**, কিন্তু **এক ভিজিটে কেবল একটি** state-এর ছবি নামে (২৬.৯–৬৩.৩ KB)। ছবিগুলো ইচ্ছাকৃতভাবে SW precache-এ **নেই** — lazy; প্রথম fetch-এর পর cache-first; অফলাইনে আগের gradient fallback-ই রেন্ডার হয় (প্রতিটি layer-stack-এ সর্বশেষ layer হিসেবে)।
+মোট **২২.২ KB**, কিন্তু **এক ভিজিটে কেবল একটি** state-এর ছবি নামে (২৬.৯–৬৩.৩ KB)। ছবিগুলো ইচ্ছাকৃতভাবে SW precache-এ **নেই** — lazy; প্রথম fetch-এর পর cache-first; অফলাইনে আগের gradient fallback-ই রেন্ডার হয় (প্রতিটি layer-stack-এ সর্বশেষ layer হিসেবে)।
 
 **পড়ার যোগ্যতা:** প্রতিটি state-এ ছবির ওপরে readability scrim (`--sky-scrim-*`, ভেতরের রঙ `--sky-fade` থেকে), আর `.auth-message` ব্যানার পেল solid `color-mix` বেস + shadow — লাল error-ব্যানার গাঢ় আকাশেও স্পষ্ট। night/storm/dusk-এ brand-ink হালকা + text-shadow। ৬টি state × theme স্ক্রিনশট `tools/capture-auth-sky.cjs` দিয়ে তোলা (আউটপুট `preview/`, gitignored)।
 
 **প্যালেট-একীকরণ (বোনাস ফিক্স):** সব আকাশ-রঙ ও birthday-থিমের রঙ এখন `css/foundation.css`-এর নতুন `--sky-*` / `--birthday-*` টোকেন সেকশনে; `ui-wallet.css` কেবল `var()` + `url()` কম্পোজ করে। এতে দীর্ঘদিনের প্রি-existing **`wallet-design` টেস্ট-১ ফেইল এখন গ্রিন** — বেসলাইন ফেইল ১৮ → **১৭**। `minimal-ui` গার্ডের gradient-স্ক্যান এখন custom-property ডিক্লারেশন বাদ দেয় (গার্ডের অভিপ্রায় — component rule ফ্ল্যাট থাকবে — অক্ষত; প্যালেট টোকেনে gradient বৈধ)।
 
 **গার্ড সাবসেট:** ১৬ ফাইল → ১১৮ টেস্ট / ১০১ পাস / ১৭ ফেইল — সবগুলোই পরিচিত প্রি-existing।
+
+### ১১.১ সংযোজন-২: দিনের সময় অনুযায়ী দৃশ্যমান সূর্য/চাঁদ
+
+ব্যবহারকারীর পছন্দ অনুযায়ী এখন ছবির ভেতরেই **আসল সূর্য ও চাঁদ** দেখা যায়:
+- `clear-day` — উপরে-ডানায় বাস্তব সূর্য (starburst glare + bloom); মোবাইল crop-এ সূর্য যেন হারিয়ে না যায় তাই এই state-এ `background-position: 70% top` (heat-ও একই ছবি ব্যবহার করে)
+- `clear-night` — উপরে-কেন্দ্রে খাঁটি crescent-ঘেঁষা gibbous চাঁদ, crater ও halo-সহ
+- লাইট থিমে হেডারের পড়ার যোগ্যতা রাখতে `--sky-scrim-bright`-এর উপরের wash কমানো (.30→.16) + হেডারে `--sky-ink-shadow-paper`; **ডার্ক থিমে** light ink-এর জন্য পুরনো wash-ই override করে রাখা
+- ছবিতে এখন আসল জ্যোতিষ্ক থাকায় clear-day/clear-night/heat-এ আঁকা orb-আভা লুকানো (দ্বিতীয় আলোর উৎস এড়াতে); dusk-এ নিচু গোধূলি-আভা বহাল
+- নতুন ক্যাশ-পিন: `CACHE_VERSION` 243
