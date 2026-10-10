@@ -4,11 +4,13 @@
 import { toBanglaNumber as bn } from './ui.js';
 import { ACTIVITY_TYPES, displayDate, todayISO } from './teaching-data.js';
 import { loadAssets, pagesPDF, downloadBlob, wrapText } from './exam-pdf.js';
+import { loadWatermark, drawWatermark } from './brand.js';
 
 export const materialFileName = activity => `ActivePlus-material-${activity.type || 'work'}-${todayISO()}.pdf`;
 
 export async function activitySheetPDF(activity) {
   const [font, logo] = await loadAssets(), canvas = document.createElement('canvas');
+  const wm = await loadWatermark();
   canvas.width = 1240; canvas.height = 1754;
   const ctx = canvas.getContext('2d'), pages = [];
   const W = canvas.width, LEFT = 62, RIGHT = W - 62, CONTENT_W = RIGHT - LEFT;
@@ -18,6 +20,7 @@ export async function activitySheetPDF(activity) {
   const beginPage = () => {
     pageNo++;
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, canvas.height);
+    drawWatermark(ctx, W, canvas.height, wm);
     ctx.drawImage(logo, 62, 42, 72, 72);
     ctx.fillStyle = '#04795a'; ctx.font = '700 30px ExamBangla'; ctx.fillText('Active Plus Coaching', 150, 80);
     ctx.font = '22px ExamBangla'; ctx.fillText('শিখতে থাকো, এগিয়ে যাও', 150, 113);

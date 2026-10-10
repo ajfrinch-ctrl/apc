@@ -56,15 +56,20 @@ beforeEach(() => {
 
 const texts = () => draws.map(draw => draw.text);
 
-test('statement generation uses cached Bengali font bytes, never the logo or a PDF service', async () => {
+test('statement generation uses cached Bengali font bytes and no PDF service; the logo watermark stays a faint canvas stamp', async () => {
   await engine.renderReceiptCanvas(TX);
   assert.ok(cacheHits >= 1, 'the offline app cache supplies the font');
   assert.ok(fontSources[0] instanceof ArrayBuffer, 'FontFace receives cached bytes, not a network URL');
-  assert.equal(imageDecodes, 0, 'a text statement must not even load the coloured logo');
-  assert.equal(images.length, 0);
+  /* Policy (2026-10-10): every PDF carries the institute logo as a ~7% alpha
+     diagonal watermark, drawn straight from the precached app-logo. In this
+     headless realm Image does not exist, so the stamp skips itself — what must
+     never appear is a decode through the receipt asset loader or a network
+     PDF service. */
+  assert.equal(imageDecodes, 0, 'statements never decode the logo through the receipt asset loader');
+  assert.equal(images.length, 0, 'no image paints headlessly; browsers stamp the bundled logo only');
 });
 
-test('the statement is black text on white paper without dashboard cards, borders or artwork', async () => {
+test('the statement is black text on white paper without dashboard cards or borders — only the faint logo watermark may paint', async () => {
   const canvas = await engine.renderReceiptCanvas(TX);
   assert.ok(texts().includes('পেমেন্ট স্টেটমেন্ট'));
   assert.ok(draws.every(draw => draw.fill === '#000000'), 'every text line uses black ink');

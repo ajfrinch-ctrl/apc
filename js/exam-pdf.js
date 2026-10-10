@@ -6,7 +6,7 @@
    The answer key keeps its own pages after the question pages. */
 import { toBanglaNumber as bn } from './ui.js';
 import { EXAM_TYPES, totalMarks, classExamDate, examCodeOf, examDurationMinutes, examDateOf, examStageLabel } from './exam-data.js';
-import { BRAND_NAME, BRAND_TAGLINE, brandLogoLargeSrc } from './brand.js';
+import { BRAND_NAME, BRAND_TAGLINE, brandLogoLargeSrc, loadWatermark, drawWatermark } from './brand.js';
 let assets;
 export async function loadAssets() {
   if (!assets) assets = Promise.all([
@@ -89,6 +89,7 @@ export async function downloadExamPDF(exam, { solutions = false, attempt = null,
   if (solutions && Date.now() < exam.endAt) throw new Error('সঠিক উত্তরসহ PDF সবার পরীক্ষা শেষ হলে পাওয়া যাবে।');
   if (!authorPreview && (exam.status !== 'published' || Date.now() < exam.startAt)) throw new Error('প্রশ্ন এখনও প্রকাশের সময় হয়নি।');
   const [font, logo] = await loadAssets(), canvas = document.createElement('canvas'); canvas.width = 1240; canvas.height = 1754;
+  const wm = await loadWatermark();
   /* The printed code is the paper's permanent identity: it appears on every
      page footer, so a printed sheet can always be traced back to one record. */
   const code = examCodeOf(exam);
@@ -120,6 +121,7 @@ export async function downloadExamPDF(exam, { solutions = false, attempt = null,
   const beginPage = ({ part = null } = {}) => {
     pageNo++;
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, canvas.height);
+    drawWatermark(ctx, W, canvas.height, wm);
     ctx.drawImage(logo, 62, 42, 72, 72);
     ctx.fillStyle = '#04795a'; ctx.font = '700 30px ExamBangla'; ctx.fillText(BRAND_NAME, 150, 80);
     ctx.font = '22px ExamBangla'; ctx.fillText(BRAND_TAGLINE, 150, 113);

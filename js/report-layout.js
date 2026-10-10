@@ -1,4 +1,5 @@
 import { PRINT_COLORS } from './print-tokens.js';
+import { loadWatermark, drawWatermark } from './brand.js';
 import { loadAppConfig } from './storage.js';
 /* Report layout engine — one measured draw-list, two identical renderers.
 
@@ -570,6 +571,7 @@ async function drawPage(page) {
   ctx.scale(PDF_SCALE, PDF_SCALE);
   ctx.fillStyle = COLORS.white;
   ctx.fillRect(0, 0, PAGE.width, PAGE.height);
+  drawWatermark(ctx, PAGE.width, PAGE.height, await loadWatermark());
   ctx.textBaseline = 'alphabetic';
   for (const item of page.items) {
     if (item.kind === 'text') {
