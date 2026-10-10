@@ -20,7 +20,7 @@ import { teachingRepository, DEMO_TEACHER, ACTIVITY_TYPES, PROGRESS_LABELS, esca
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', homeClass: 'all', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '' };
+const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', homeClass: 'all', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', routineTab: 'today' };
 let modalTrigger, toastTimer;
 initFixedShell();
 /* The examination workspace is the single exam/question surface; the academic
@@ -242,23 +242,34 @@ function routineBlob(item) {
   return `${item.tag || ''} ${item.status || ''} ${item.subject || ''}`.toLowerCase();
 }
 function renderTeacherRoutine() {
+  /* One routine screen, nine tabs: the Manager owns the schedule, the Teacher
+     only reads it and jumps to attendance — nine separate pages became a
+     single scroll with a segment row. */
+  const host = $('#teacherRoutineViewList'); if (!host) return;
   const all = WEEK_DAYS.flatMap(day => assignedRoutineRows(day).map(item => ({ ...item, day })));
-  const fill = (id, html) => { const node = $('#' + id); if (node) node.innerHTML = html; };
-  fill('teacherRoutineTodayList', routineCardHtml(assignedRoutineRows(routineTodayKey()), 'আজ কোনো ক্লাস নেই।'));
-  fill('teacherRoutineTomorrowList', routineCardHtml(assignedRoutineRows(routineTodayKey(1)), 'আগামীকাল কোনো ক্লাস নেই।'));
-  fill('teacherRoutineWeeklyList', WEEK_DAYS.map(day => `<section class="exam-card"><h3>${esc(weekdayNames[day] || day)}</h3>${routineCardHtml(assignedRoutineRows(day), 'ক্লাস নেই।')}</section>`).join(''));
-  fill('teacherRoutineClassList', WEEK_DAYS.map(day => `<section class="exam-card"><h3>${esc(weekdayNames[day] || day)}</h3>${routineCardHtml(assignedRoutineRows(day), 'ক্লাস নেই।')}</section>`).join(''));
-  const exams = all.filter(item => /পরীক্ষা|exam/.test(routineBlob(item)));
-  fill('teacherRoutineExamList', routineCardHtml(exams, 'পরীক্ষা রুটিন এখনও নেই।'));
-  const changed = all.filter(item => /পরিবর্ত|changed/.test(routineBlob(item)));
-  fill('teacherRoutineChangedList', routineCardHtml(changed, 'পরিবর্তিত রুটিন নেই।'));
-  const holiday = all.filter(item => /ছুটি|holiday/.test(routineBlob(item)));
-  fill('teacherRoutineHolidayList', routineCardHtml(holiday, 'ছুটির তালিকা খালি।'));
-  const important = all.filter(item => /গুরুত্বপূর্ণ|important/.test(routineBlob(item)));
-  fill('teacherRoutineImportantList', routineCardHtml(important, 'গুরুত্বপূর্ণ সময়সূচি নেই।'));
-  const other = all.filter(item => !/পরীক্ষা|exam|পরিবর্ত|changed|ছুটি|holiday|গুরুত্বপূর্ণ|important/.test(routineBlob(item)));
-  fill('teacherRoutineOtherList', routineCardHtml(other, 'অন্যান্য রুটিন নেই।'));
+  const week = WEEK_DAYS.map(day => `<section class="exam-card"><h3>${esc(weekdayNames[day] || day)}</h3>${routineCardHtml(assignedRoutineRows(day), 'ক্লাস নেই।')}</section>`).join('');
+  const by = {
+    today: () => routineCardHtml(assignedRoutineRows(routineTodayKey()), 'আজ কোনো ক্লাস নেই।'),
+    tomorrow: () => routineCardHtml(assignedRoutineRows(routineTodayKey(1)), 'আগামীকাল কোনো ক্লাস নেই।'),
+    weekly: () => week,
+    class: () => week,
+    exam: () => routineCardHtml(all.filter(item => /পরীক্ষা|exam/.test(routineBlob(item))), 'পরীক্ষা রুটিন এখনও নেই।'),
+    changed: () => routineCardHtml(all.filter(item => /পরিবর্ত|changed/.test(routineBlob(item))), 'পরিবর্তিত রুটিন নেই।'),
+    holiday: () => routineCardHtml(all.filter(item => /ছুটি|holiday/.test(routineBlob(item))), 'ছুটির তালিকা খালি।'),
+    important: () => routineCardHtml(all.filter(item => /গুরুত্বপূর্ণ|important/.test(routineBlob(item))), 'গুরুত্বপূর্ণ সময়সূচি নেই।'),
+    other: () => routineCardHtml(all.filter(item => !/পরীক্ষা|exam|পরিবর্ত|changed|ছুটি|holiday|গুরুত্বপূর্ণ|important/.test(routineBlob(item))), 'অন্যান্য রুটিন নেই।')
+  };
+  host.innerHTML = (by[state.routineTab] || by.today)();
+  $$('.teacher-routine-tabs [data-routine-tab]').forEach(button => {
+    const active = button.dataset.routineTab === state.routineTab;
+    button.setAttribute('aria-selected', String(active));
+    button.classList.toggle('active', active);
+  });
 }
+$$('.teacher-routine-tabs [data-routine-tab]').forEach(button => button.addEventListener('click', () => {
+  state.routineTab = button.dataset.routineTab;
+  renderTeacherRoutine();
+}));
 function renderAcademicReports() {
   const host = $('#teacherAcademicReportList'); if (!host) return;
   const records = own();
@@ -281,6 +292,9 @@ const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 
 const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'students', 'online-exams', 'courses', 'classes', 'routine-view', 'reports', 'profile', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
 function setView(view) {
   if (!TEACHER_VIEWS.includes(view)) return;
+  /* The nine routine pages are one screen now; their routes stay as aliases
+     so old deep links and notifications keep landing on the right tab. */
+  if (ROUTINE_CHILD_VIEWS.includes(view)) { state.routineTab = view.slice('routine-'.length); view = 'routine-view'; }
   const previous = state.view;
   // A search typed for one record type must not silently hide the next one.
   if (ACTIVITY_TYPES[view] && previous !== view) {
@@ -289,7 +303,7 @@ function setView(view) {
     state.recordLimit = 15;
   }
   state.view = view;
-  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', students: 'teacherStudents', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'routine-view': 'teacherRoutine', 'routine-today': 'teacherRoutineToday', 'routine-tomorrow': 'teacherRoutineTomorrow', 'routine-weekly': 'teacherRoutineWeekly', 'routine-class': 'teacherRoutineClass', 'routine-exam': 'teacherRoutineExam', 'routine-changed': 'teacherRoutineChanged', 'routine-holiday': 'teacherRoutineHoliday', 'routine-important': 'teacherRoutineImportant', 'routine-other': 'teacherRoutineOther', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
+  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', students: 'teacherStudents', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
   $$('.teacher-view').forEach(el => { el.hidden = el.id !== panel; });
   $$('.teacher-type-tabs [data-type-tab]').forEach(el => {
     const active = el.dataset.typeTab === view;

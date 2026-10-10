@@ -328,3 +328,17 @@ html[data-theme="dark"] .apc-inapp-alert { box-shadow: 0 16px 40px #000; }
 /* Report/receipt preview keeps white paper on purpose (it mirrors the PDF);
    only the gutters around it follow the theme. */
 html[data-theme="dark"] .rc-pdf-preview { background: var(--color-bg); }
+
+/* ── Teacher calm pass: one-tap home, one-screen routine ───────────────────
+   Big soft quick-action buttons (deliberately not pay-tiles: Home stays a
+   snapshot) and a roomier segment row for the unified routine screen. */
+.teacher-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 4px 0 18px; }
+.teacher-quick-btn { display: grid; justify-items: start; gap: 2px; padding: 16px 14px; border: 1px solid var(--color-border); border-radius: 20px; background: var(--color-surface); box-shadow: var(--pay-shadow); text-align: start; }
+.teacher-quick-btn svg { width: 30px; height: 30px; margin-bottom: 6px; }
+.teacher-quick-btn span { font-size: 16px; font-weight: 700; color: var(--color-text); }
+.teacher-quick-btn small { font-size: 12px; color: var(--color-text-secondary); }
+.teacher-quick-btn:active { transform: scale(.98); }
+.teacher-routine-tabs { gap: 8px; margin: 6px 0 14px; }
+.teacher-routine-tabs .day-tab { flex: 0 0 auto; padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+.teacher-routine-tabs .day-tab.active { outline: 2px solid var(--color-primary); }
+#teacherRoutineViewList .teaching-card { padding: 14px 16px; border-radius: 18px; }

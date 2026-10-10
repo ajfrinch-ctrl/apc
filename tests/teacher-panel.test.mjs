@@ -208,3 +208,21 @@ test('Teacher Settings is the shared five-group hub, with no duplicated control'
   }
   assert.equal(hub.querySelector('[data-settings-group="notification"]').dataset.settingsOwner, 'notification');
 });
+
+test('home offers four one-tap doors and the routine lives on one screen', async () => {
+  const quick = $$('#teacherHome .teacher-quick-btn');
+  assert.equal(quick.length, 4, 'হোমে চারটি এক-ট্যাপ দরজা');
+  ctx.click(quick[1]);
+  await settle();
+  assert.equal($('#teacherRoutine').hidden, false, 'উপস্থিতি door opens the routine screen');
+  const tabs = $$('.teacher-routine-tabs [data-routine-tab]');
+  assert.equal(tabs.length, 9, 'নয়টি বিভাগ এক সারিতে');
+  assert.equal($('#teacherRoutineToday'), null, 'the nine separate pages are gone');
+  ctx.click($('.teacher-routine-tabs [data-routine-tab="exam"]'));
+  await settle();
+  assert.equal($('.teacher-routine-tabs [data-routine-tab="exam"]').getAttribute('aria-selected'), 'true');
+  assert.equal($('.teacher-routine-tabs [data-routine-tab="today"]').getAttribute('aria-selected'), 'false');
+  ctx.click($('#teacherHome .teacher-quick-btn'));
+  await settle();
+  assert.equal($('#teacherRecords').hidden, false, 'কাজ দিন door opens the records screen');
+});
