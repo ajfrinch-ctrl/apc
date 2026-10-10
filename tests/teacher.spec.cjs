@@ -156,14 +156,43 @@ test('student roster needs query, matches Bengali mobile/ID, excludes pending an
 for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
   test(`teacher home header and three-column grid stay responsive (${viewport.width}px)`, async ({ page }) => {
     await page.setViewportSize(viewport); await enter(page);
-    await page.evaluate(async () => {
-      const { updateStaffProfile } = await import('/js/staff-auth.js');
-      await updateStaffProfile('teacher', { fullName: 'E2E শিক্ষক' });
-      window.dispatchEvent(new CustomEvent('teaching-data-updated'));
-    });
-    await expect(page.locator('#teacherHeaderName')).toBeVisible();
-    await expect(page.locator('#teacherHeaderName')).toHaveText('E2E শিক্ষক');
-    await expect(page.locator('#teacherHomeTitle')).toHaveText('স্বাগতম, E2E শিক্ষক');
+    for (const fullName of [
+      'প্রাথমিক teacher অ্যাকাউন্ট',
+      'প্রাথমিক teacher অ্যাকাউন্টের দীর্ঘ শিক্ষক পরিচিতির নমুনা',
+      'প্রাথমিকteacherঅ্যাকাউন্টপরিচিতিরদীর্ঘনমুনা'
+    ]) {
+      await page.evaluate(async fullName => {
+        const { updateStaffProfile } = await import('/js/staff-auth.js');
+        await updateStaffProfile('teacher', { fullName });
+        window.dispatchEvent(new CustomEvent('teaching-data-updated'));
+      }, fullName);
+      await expect(page.locator('#teacherHeaderName')).toBeVisible();
+      await expect(page.locator('#teacherHeaderName')).toHaveText(fullName);
+      await expect(page.locator('#teacherHomeTitle')).toHaveText(`স্বাগতম, ${fullName}`);
+      const welcomeFits = await page.evaluate(() => {
+        const title = document.querySelector('#teacherHomeTitle');
+        const hero = document.querySelector('.teacher-hero');
+        const range = document.createRange();
+        range.selectNodeContents(title);
+        const textRects = [...range.getClientRects()];
+        const heroRect = hero.getBoundingClientRect();
+        const heroBackground = getComputedStyle(hero, '::before');
+        return {
+          clientWidth: title.clientWidth,
+          scrollWidth: title.scrollWidth,
+          textRight: Math.max(...textRects.map(rect => rect.right)),
+          textBottom: Math.max(...textRects.map(rect => rect.bottom)),
+          boxRight: title.getBoundingClientRect().right,
+          backgroundBottom: heroRect.bottom - parseFloat(heroBackground.bottom),
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: innerWidth
+        };
+      });
+      expect(welcomeFits.scrollWidth, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.clientWidth + 1);
+      expect(welcomeFits.textRight, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.boxRight + 1);
+      expect(welcomeFits.textBottom, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.backgroundBottom + 1);
+      expect(welcomeFits.documentWidth, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.viewportWidth);
+    }
     const responsiveHeader = await page.evaluate(() => {
       const name = document.querySelector('#teacherHeaderName').getBoundingClientRect();
       const bell = document.querySelector('#notificationButton').getBoundingClientRect();

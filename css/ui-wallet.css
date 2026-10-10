@@ -535,6 +535,10 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
   content: ''; position: absolute; z-index: -1; top: 0; bottom: 44px; left: 50%; width: 100vw; transform: translateX(-50%);
   background: linear-gradient(180deg, var(--pay-hero-a), var(--pay-hero-b)); border-radius: 0 0 30px 30px;
 }
+/* The Teacher home has no floating stats card below its title; keep the hero
+   band behind the full dynamic greeting, including any wrapped name lines. */
+.teacher-hero::before { bottom: 0; }
+.teacher-hero #teacherHomeTitle { overflow-wrap: anywhere; }
 .admin-hero-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; color: var(--pay-on-hero); }
 .admin-hero-title { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; min-width: 0; margin: 0; }
 .admin-hero-title h1, .teacher-hero h1 { margin: 0; color: var(--pay-on-hero); font-size: 21px; font-weight: 700; line-height: 1.35; }
