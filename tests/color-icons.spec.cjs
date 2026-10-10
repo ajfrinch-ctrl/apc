@@ -1,14 +1,46 @@
 const { test, expect } = require('./fixtures.cjs');
 test.use({ serviceWorkers: 'block' });
 
+/* The standalone icon gallery page retired with the preview/ snapshots, so the
+   audit wall is rebuilt here from the shipped icon module itself: every
+   illustration and glyph the app can paint, mounted into one page. The counts
+   are part of the contract — adding artwork means updating them on purpose. */
+const ILLUSTRATION_COUNT = 33;
+const GLYPH_COUNT = 64;
+
 for (const theme of ['light', 'dark']) test(`all colour/glyph artwork renders without invalid SVG or clipping (${theme})`, async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && /<path>|<svg>|SVG|attribute d/i.test(message.text())) errors.push(message.text()); });
-  await page.goto('/preview/wallet-140/icons.html');
-  await expect(page.locator('#illustrations svg')).toHaveCount(33);
-  await expect(page.locator('#glyphs svg')).toHaveCount(63);
-  await page.locator(`[data-icon-theme="${theme}"]`).click();
+  await page.goto('/index.html');
+  await page.evaluate(async () => {
+    const set = await import('/js/icon-set.js');
+    const { iconElement } = await import('/js/icons.js');
+    const host = document.createElement('div');
+    host.id = 'iconAudit';
+    host.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;padding:12px';
+    const wall = (box, names) => {
+      box.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+      for (const name of names) {
+        const cell = document.createElement('span');
+        cell.className = 'picture';
+        cell.append(iconElement(name));
+        box.append(cell);
+      }
+      host.append(box);
+    };
+    const illustrations = document.createElement('div');
+    illustrations.id = 'illustrations';
+    const glyphs = document.createElement('div');
+    glyphs.id = 'glyphs';
+    wall(illustrations, Object.keys(set.ILLUSTRATIONS));
+    wall(glyphs, Object.keys(set.GLYPHS));
+    host.append(illustrations, glyphs);
+    document.body.append(host);
+  });
+  await expect(page.locator('#illustrations svg')).toHaveCount(ILLUSTRATION_COUNT);
+  await expect(page.locator('#glyphs svg')).toHaveCount(GLYPH_COUNT);
+  await page.evaluate(value => { document.documentElement.setAttribute('data-theme', value); }, theme);
   await page.evaluate(() => document.fonts.ready);
   const bad = await page.locator('.picture svg').evaluateAll(icons => icons.flatMap(svg => {
     const box = svg.getBBox();

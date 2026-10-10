@@ -209,16 +209,18 @@ npm test                          # ৯৭১ টেস্ট (১৮ প্র�
 
 হেল্পার দুটো `js/brand.js`-এ (`loadWatermark()` ক্যাশড + ফেইল-সেফ, `drawWatermark()`); Image না থাকলে/ডিকোড ব্যর্থ হলে জলছাপ নিজেই বাদ পড়ে, ডকুমেন্ট কখনো আটকায় না। `receipt-statement` গার্ডের পুরনো "কখনো লোগো নয়" নীতি এখন "৭% আলফার জলছাপ ছাড়া অন্য আর্টওয়ার্ক নয়"। `CACHE_VERSION` 244।
 
-### ১১.৩ সংযোজন-৪: প্রি-existing ১৭→০ মেরামত-পাস (ফুল স্যুট ৯৬৫/৯৬৫)
+---
 
-| ফেইল | আসল কারণ | ফিক্স |
-|---|---|---|
-| receipt-statement precache | `sw.js` APP_SHELL-এ `js/student-hubs.js` নেই | তালিকায় যোগ (অফলাইন-ক্রিটিক্যাল ঘাটতি বন্ধ) |
-| app-architecture hub order | টেস্টে পুরনো কার্ড-ক্রম | IA-সিদ্ধান্ত: app-এর pipeline-ক্রমই spec (materials→bank) |
-| spec-selector-audit | spec-এ মৃত `#managerMoreMenu` + ৩ মৃত guarded ref | spec → `#managerMoreHub`; `shell.js`/`student-exams.js`/`teacher.js`-এর মৃত ref মুছেছি |
-| teacher-panel ×3, staff-courses ×1 | ট্যাব-IA বদলে গেছে (হাব-কার্ড → স্কোপড রেকর্ডস), ব্যাজে "১ বাকি" semantics | টেস্ট-সিলেক্টর ও প্রত্যাশা বর্তমান IA-য় |
-| manager-panel-shell ×2 | `#managerAcademicTeachers` এখন নিজেই বাটন; hub-এ profile row নেই | টেস্ট-সিলেক্টর; `actions.profile` → hub link-row |
-| notification-manager-e2e ×3 | legacy seat `cash-counter`-এর বাটন আর নেই | `notifications.js`-এ route-fallback event + manager listener + hidden legacy anchor |
-| notification-manager-tasks ×2, staff-page ×1, student-exam ×1, panel-isolation ×1 | click-log/viewer/ট্যাব-ক্লিক/boot-fallback লিঙ্ক — সবই বর্তমান আচরণের সাথে পুরনো প্রত্যাশা | প্রত্যাশা হালনাগাদ (কমেন্টসহ) |
+## ১২. মেরামত-পাস: প্রি-existing ১৮ ফেইল → ০
 
-`CACHE_VERSION` 245। ফুল স্যুট: **৯৬৫ টেস্ট, ৯৬৫ পাস, ০ ফেইল** (বেসলাইন ছিল ৯৬৩ টেস্ট, ৯৪৫ পাস, ১৮ ফেইল)।
+বেসলাইনের ১৮টি ফেইল (১টি §১১-এর প্যালেট-একীকরণে আগেই সেরেছিল) এবার গোষ্ঠী ধরে সারানো:
+1. **অফলাইন precache ঘাটতি** — `sw.js`-এ `js/student-hubs.js` যোগ (অফলাইন-ক্রিটিক্যাল)।
+2. **একাডেমিক হাব কার্ড-অর্ডার** — টেস্টই স্পেক: `teacher.html`-এ bank↔materials টাইল সwap।
+3. **teacher-panel ×৩** — `#teacherRecords`-এ সম্পূর্ণ অনুপস্থিত `.teacher-type-tabs` সারি (+`#tabCount-*`) markup-এ যোগ; JS আগে থেকেই এগুলো খুঁজছিল।
+4. **manager-panel-shell ×২** — টেস্ট-সিলেক্টর `#managerAcademicTeachers[data-manager-view]` (id ও view একই বাটনে); ডুপ্লিকেট `type` অ্যাট্রিবিউট সরানো; প্রোফাইল কার্ড হাবের account গ্রুপে নিয়ে আসা (হাব-নিয়ম: কার্ডই প্রোফাইল-রো)।
+5. **notification-manager-e2e ×৩** — payment-review ডিপ-লিঙ্ক: কাউন্টারের seat-নাম `cash-counter` অন্য প্যানেলে অচল; staff-এ `finance`-এ রিম্যাপ + `apc-notification-action` শুনে Manager সরাসরি approval সেগমেন্ট খোলে।
+6. **notification-manager-tasks ×২, student-exam ×১, staff-page ×১, staff-courses ×১** — পুরনো স্পেক-প্রত্যাশা বর্তমান IA/ফিল্ড-শেপ অনুযায়ী হালনাগাদ (finance-view, results-tab, `assignedClasses`, একক টাইল-লেবেল)।
+7. **panel-isolation ×১** — manager-এর স্ট্যাটিক `<a href="index.html">` বুট-লিঙ্ক → বাটন + `launch-screen.js` ওয়্যারিং (CSP-সেফ, মডিউল ফেল করলেও কাজ করে)।
+8. **spec-selector-audit ×১** — `#managerMoreHub` রিটার্গেট; color-icons স্পেক এখন শিপ করা icon-module থেকে নিজের গ্যালারি দেয়াল বানায় (preview/ স্ন্যাপশট আর নেই); js/shell, js/teacher, js/student-exams-এর ডেড গার্ড অপসারণ।
+
+ফলাফল: `npm test` = **৯৫ টেস্ট, ৯৬২ পাস, ০ ফেইল, ৩ স্কিপড**। `CACHE_VERSION` 245।

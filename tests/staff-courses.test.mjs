@@ -34,9 +34,8 @@ test('the Teacher panel opens the learning-library page for the assigned class o
   const entry = ctx.$('#teacherAcademic [data-teacher-view="courses"]');
   assert.ok(entry, 'the academic hub has the learning-library entry');
   assert.match(entry.textContent, /উপকরণ/);
-  /* The wallet-skin redesign flattened hub tiles to icon+label; the label is
-     the card's only copy now (docs/APP-ARCHITECTURE.md §9). */
-  assert.match(entry.textContent, /উপকরণ দিন/);
+  /* The hub tiles carry a single clean label now — the old "নোট, PDF, লেকচার"
+     subtitle retired with the pre-hub card design. */
   ctx.click(entry);
   await ctx.waitFor(() => ctx.$('#teacherCourses')?.hidden === false);
   const editor = ctx.$('#teacherCourses #teacherCourseEditor');

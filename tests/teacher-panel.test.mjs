@@ -58,8 +58,7 @@ test('the home queue lists only assigned academic work', async () => {
   assert.deepEqual(queueTitle().sort(), ['আজকের কাজ', 'অতিরিক্ত ক্লাস', 'খসড়া নোটিশ'].sort());
   assert.equal($('#navDot-routine').hidden, false);
   assert.equal($('#navDot-routine').textContent, '১');
-  /* The hub badge shows what waits on the teacher first ('১ বাকি'), the total only when nothing is waiting. */
-  assert.equal($('#teacherAcademic [data-academic-count="homework"]').textContent, '১ বাকি');
+  assert.equal($('#tabCount-homework').textContent, '১');
 });
 
 test('future-dated assignments are not counted as due', async () => {
@@ -109,13 +108,14 @@ test('"শুধু বাকিরা" filters assignment evaluation rows and b
 
 test('assignment tabs scope their saved records and report the status split', async () => {
   await teachingRepository.saveActivity({ type: 'homework', title: 'আগামীকালের কাজ', subject: 'পদার্থ', className: 'দশম শ্রেণি', date: shift(1), time: '10:00', status: 'draft', details: 'দ্বিতীয় অধ্যায়' });
-  await settle(); ctx.click($('#teacherAcademic [data-teacher-view="homework"]'));
+  await settle(); ctx.click($('[data-type-tab="homework"]'));
   assert.equal($('#teacherRecords').hidden, false); assert.equal($('#teacherHome').hidden, true);
   assert.equal($('#teacherRecordsTitle').textContent, 'বাড়ির কাজ');
-    assert.equal($('#teacherRecordCount').textContent, '৩টি বাড়ির কাজ • প্রকাশিত ২ • খসড়া ১');
+  assert.equal($('[data-type-tab="homework"]').getAttribute('aria-selected'), 'true');
+  assert.equal($('#teacherRecordCount').textContent, '৩টি বাড়ির কাজ • প্রকাশিত ২ • খসড়া ১');
   const labels = $$('#teacherRecordList .teacher-group-label').map(el => el.firstChild.textContent);
   assert.equal(labels[0], 'আজ'); assert.equal(labels[1], 'আগামীকাল'); assert.equal(labels.length, 3);
-  assert.equal($('#teacherAcademic [data-academic-count="homework"]').textContent, '২ বাকি'); // today's published + the draft both wait
+  assert.equal($('#tabCount-homework').textContent, '৩');
 });
 
 test('a long list pages instead of scrolling forever', async () => {
@@ -123,7 +123,7 @@ test('a long list pages instead of scrolling forever', async () => {
     await teachingRepository.saveActivity({ type: 'suggestion', title: `সাজেশন ${i + 1}`, subject: 'গণিত', className: 'দশম শ্রেণি', status: 'published', details: 'নোট' });
   }
   await settle();
-  ctx.click($('#teacherAcademic [data-teacher-view="suggestion"]'));
+  ctx.click($('[data-type-tab="suggestion"]'));
   await settle();
 
   assert.equal(cards('#teacherRecordList').length, 15);

@@ -69,9 +69,10 @@ test('tapping a task in the bell opens its view and clears it', async () => {
   assert.equal(open.textContent, 'পেমেন্ট দেখুন');
   ctx.click(open);
   await ctx.flush();
-  /* The review queue is a segment of হিসাব now; the hidden legacy anchor in
-     manager.html keeps the deep link (and this click log) resolving. */
-  assert.equal(clicks.at(-1), 'cash-counter'); // the render itself is covered by notification-manager-e2e
+  /* The counter seat name retired with the old layout: on the Manager the
+     approval queue is the finance view's approval segment (see the e2e file),
+     so the tap lands on the হিসাব seat. */
+  assert.equal(clicks.at(-1), 'finance');
   assert.ok(!controller.feed().some(item => item.key === 'payment-review:T2'));
   const paper = controller.feed().find(item => item.kind === 'exam-review');
   await controller.openItem(paper);
@@ -89,7 +90,7 @@ test('a tray tap while the panel is still starting waits for it, and is not over
   ctx.$('#managerShell').hidden = false;
   ctx.$('[data-manager-view="dashboard"]').click();
   assert.equal(await opened, true);
-  assert.deepEqual(clicks, ['dashboard', 'cash-counter'], 'the notification’s view wins');
+  assert.deepEqual(clicks, ['dashboard', 'finance'], 'the notification’s view wins');
 });
 
 test('a decided fee entry leaves the list by itself', async () => {

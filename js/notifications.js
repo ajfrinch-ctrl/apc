@@ -78,7 +78,7 @@ const KIND_TARGET = Object.freeze({
   'payment-review': 'cash-counter', 'payment-rejected': 'home', 'exam-review': 'exams',
   'exam-returned': 'online-exams', 'exam-approved': 'online-exams'
 });
-const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework', 'payment-rejected']);
+const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework', 'payment-rejected', 'payment-review']);
 const NOTICE_BOARD_KINDS = new Set(['notice', 'broadcast']);
 const generalNotificationItems = items => viewer?.kind === 'student'
   ? items.filter(item => !NOTICE_BOARD_KINDS.has(item.kind))
@@ -416,12 +416,9 @@ function navigateTo(target) {
   const attribute = NAV_ATTRIBUTE[viewer?.kind === 'staff' ? viewer.role : 'student'];
   if (!attribute || !target) return false;
   const button = [...document.querySelectorAll(`[${attribute}]`)].find(item => item.getAttribute(attribute) === target);
-  if (button) { button.click(); return true; }
-  /* Legacy seats (the Cash Counter review queue is a segment of হিসাব now) have
-     no button of their own: the panel that owns the alias routes it. */
-  const routed = new CustomEvent('apc-notice-route', { detail: { target }, cancelable: true });
-  window.dispatchEvent(routed);
-  return routed.defaultPrevented;
+  if (!button) return false;
+  button.click();
+  return true;
 }
 
 /**
@@ -440,9 +437,15 @@ export function openNotificationTarget(data) {
     ? entry.key === key
     : sourceId && entry.sourceId === sourceId && entry.kind === kind) || null;
   const isBoardItem = NOTICE_BOARD_KINDS.has(kind);
-  const target = isBoardItem
+  const routed = isBoardItem
     ? (viewer?.kind === 'student' ? 'notice-board' : 'home')
     : data?.target || item?.target || KIND_TARGET[kind] || '';
+  /* The counter's seat name means nothing on the other staff panels: the
+     Manager's approval queue lives inside হিসাব, so remap and let the panel's
+     own action listener open the approval segment. */
+  const target = routed === 'cash-counter' && viewer?.kind === 'staff' && viewer?.role !== 'payment'
+    ? 'finance'
+    : routed;
   const action = item?.action || data?.action || 'open';
   if (key && item && !(isBoardItem && viewer?.kind === 'student')) {
     clearNotifications([key]);
