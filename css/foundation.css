@@ -118,3 +118,53 @@ html[data-theme=dark]{
 *{box-sizing:border-box}html{scroll-padding-block:90px}body{margin:0;background:var(--color-bg);color:var(--color-text);font:400 var(--font-md)/1.65 'Noto Sans Bengali',system-ui,sans-serif}h1,h2,h3,p{margin:0 0 var(--space-3)}h1{font-size:var(--font-xl);line-height:1.4;font-weight:650}h2{font-size:var(--font-lg);line-height:1.5;font-weight:600}h3{font-size:var(--font-md);font-weight:600}strong,b{font-weight:600}small,.eyebrow{font-size:var(--font-xs);color:var(--color-text-secondary)}.eyebrow{letter-spacing:.06em;margin-bottom:var(--space-2)}a{color:var(--color-primary)}img{max-width:100%;object-fit:contain}svg{width:22px;height:22px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}button,a,input,select,textarea{touch-action:manipulation}button{font:inherit;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}:focus-visible{outline:3px solid var(--color-primary);outline-offset:3px}[hidden]{display:none!important}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}p,small,strong,label{overflow-wrap:anywhere}::selection{background:var(--color-surface-muted)}
 html[data-theme=dark] ::selection{background:#5ea9ff38;color:var(--color-text)}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* ── Weather-sky palette (login screen) ───────────────────────────────────
+   The photographic sky (css/ui-wallet.css §13) composes these tokens with one
+   state photograph each; every literal lives here so the wallet skin itself
+   stays free of raw colours (tests/wallet-design.test.mjs guards that). The
+   scrim tokens are built from --sky-fade, so the single dark-theme flip
+   re-tints every weather state at once. */
+:root{
+ --sky-fade:247,248,252;
+ --sky-glow-day:radial-gradient(circle at 50% 48%, rgba(255,250,226,.85), rgba(255,222,150,.30) 46%, rgba(255,222,150,0) 72%);
+ --sky-glow-dusk:radial-gradient(ellipse at 50% 60%, rgba(255,196,120,.55), rgba(255,150,80,.22) 48%, rgba(255,150,80,0) 74%);
+ --sky-glow-night:radial-gradient(circle at 50% 48%, rgba(240,246,255,.65), rgba(190,210,240,.18) 46%, rgba(190,210,240,0) 72%);
+ --sky-haze:radial-gradient(ellipse at center, rgba(255,255,255,.40), rgba(255,255,255,0) 70%);
+ --sky-haze-night:radial-gradient(ellipse at center, rgba(205,220,245,.22), rgba(205,220,245,0) 70%);
+ --sky-warm-wash:linear-gradient(180deg, rgba(255,158,64,.16), rgba(255,158,64,0) 55%);
+ --sky-fog-wash:linear-gradient(180deg, rgba(236,234,230,.55), rgba(236,234,230,.22) 45%, rgba(236,234,230,0) 72%);
+ --sky-scrim-bright:linear-gradient(180deg, rgba(var(--sky-fade),.30) 0%, rgba(var(--sky-fade),.72) 34%, rgba(var(--sky-fade),.96) 58%, var(--color-bg) 86%);
+ --sky-scrim-mid:linear-gradient(180deg, rgba(var(--sky-fade),.38) 0%, rgba(var(--sky-fade),.78) 36%, rgba(var(--sky-fade),.96) 60%, var(--color-bg) 88%);
+ --sky-scrim-rain:linear-gradient(180deg, rgba(var(--sky-fade),.30) 0%, rgba(var(--sky-fade),.70) 38%, rgba(var(--sky-fade),.95) 62%, var(--color-bg) 88%);
+ --sky-scrim-dusk:linear-gradient(180deg, rgba(var(--sky-fade),.12) 0%, rgba(var(--sky-fade),.62) 38%, rgba(var(--sky-fade),.95) 64%, var(--color-bg) 90%);
+ --sky-scrim-night:linear-gradient(180deg, rgba(var(--sky-fade),0) 0%, rgba(var(--sky-fade),.50) 36%, rgba(var(--sky-fade),.92) 64%, var(--color-bg) 92%);
+ --sky-scrim-storm:linear-gradient(180deg, rgba(var(--sky-fade),0) 0%, rgba(var(--sky-fade),.45) 38%, rgba(var(--sky-fade),.90) 66%, var(--color-bg) 92%);
+ --sky-scrim-fog:linear-gradient(180deg, rgba(var(--sky-fade),.45) 0%, rgba(var(--sky-fade),.85) 40%, rgba(var(--sky-fade),.98) 62%, var(--color-bg) 88%);
+ --sky-fall-day:linear-gradient(180deg, #cfe8ff 0%, #f4f7fb 42%, var(--color-bg) 100%);
+ --sky-fall-heat:linear-gradient(180deg, #ffd18a 0%, #f7e7d2 42%, var(--color-bg) 100%);
+ --sky-fall-dusk:linear-gradient(180deg, #f3c9a4 0%, #ead4c4 38%, var(--color-bg) 100%);
+ --sky-fall-night:linear-gradient(180deg, #1c2744 0%, #2c3548 40%, var(--color-bg) 100%);
+ --sky-fall-cloudy:linear-gradient(180deg, #c5cdd6 0%, #e8edf2 45%, var(--color-bg) 100%);
+ --sky-fall-rain:linear-gradient(180deg, #6e849c 0%, #c5d2de 48%, var(--color-bg) 100%);
+ --sky-fall-storm:linear-gradient(180deg, #3d4a5c 0%, #8b97a8 50%, var(--color-bg) 100%);
+ --sky-fall-fog:linear-gradient(180deg, #d5d2cc 0%, #eceae6 50%, var(--color-bg) 100%);
+ --sky-ink-strong:#eef4fc;--sky-ink-soft:#dce5f0;
+ --sky-ink-shadow:0 1px 14px rgba(8,14,26,.5);--sky-ink-shadow-soft:0 1px 10px rgba(8,14,26,.45);
+}
+html[data-theme=dark]{ --sky-fade:0,0,0; }
+/* ── Birthday celebration palette (wallet skin) ───────────────────────────
+   Same rule as the weather sky: the skin composes, the palette owns colours. */
+:root{
+ --birthday-band:linear-gradient(90deg, #ffd36a, #ff8aa0);
+ --birthday-ink:#3b2410;
+ --birthday-shell:radial-gradient(520px 280px at 12% -8%, rgba(255, 180, 80, .35), transparent 70%),
+   radial-gradient(480px 260px at 110% 8%, rgba(255, 110, 150, .28), transparent 68%),
+   var(--color-bg);
+ --birthday-topbar:linear-gradient(90deg, rgba(255, 196, 90, .35), rgba(255, 130, 160, .22));
+ --birthday-hero:linear-gradient(135deg, #f6c15a 0%, #ff8a7a 48%, #c084fc 100%);
+ --birthday-ring:0 0 0 2px rgba(255, 196, 90, .45);
+ --birthday-notice-border:#f3bd53;
+ --birthday-notice-bg:linear-gradient(180deg, #fff8e8, var(--color-surface));
+ --birthday-notice-icon:#fff0c4;
+}

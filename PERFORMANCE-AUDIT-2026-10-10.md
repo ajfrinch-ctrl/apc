@@ -165,3 +165,28 @@ node tools/css-order-check.mjs    # ১৫ শিটের ক্রম অক�
 node tools/optimize-assets.py verify   # WOFF2 == TTF (গ্লিফ/অ্যাক্সিস/কোডপয়েন্ট)
 npm test                          # ৯৭১ টেস্ট (১৮ প্রি-existing ফেইল)
 ```
+
+---
+
+## ১১. সংযোজন: লগিন-স্কাই রিয়েলিস্টিক করা (প্রিভিউ-রিভিউ পরবর্তী)
+
+**অভিযোগ:** লাইভ-ওয়েদার অনুযায়ী লগিন আকাশ বদলায় ঠিকই, কিন্তু সূর্য/মেঘের আঁকা আর্টওয়ার্ক **কার্টুনিশ** লাগছিল।
+
+**সমাধান:** কার্টুন orb/cloud-এর বদলে **৬টি ফোটোরিয়ালিস্টিক আকাশ-ছবি** (AI-জেনারেটেড, তারপর ≤1000px / JPEG q68 progressive-এ কম্প্রেস):
+
+| state | ফাইল | সাইজ |
+|---|---|---|
+| clear-day | `assets/sky/clear-day.jpg` | ২৮.৮ KB |
+| clear-night | `assets/sky/clear-night.jpg` | ৬৩.৩ KB |
+| cloudy | `assets/sky/cloudy.jpg` | ৩৬.৬ KB |
+| dusk | `assets/sky/dusk.jpg` | ২৯.৮ KB |
+| rain | `assets/sky/rain.jpg` | ২৬.৯ KB |
+| storm | `assets/sky/storm.jpg` | ৪৫.৫ KB |
+
+মোট **২৩০.৯ KB**, কিন্তু **এক ভিজিটে কেবল একটি** state-এর ছবি নামে (২৬.৯–৬৩.৩ KB)। ছবিগুলো ইচ্ছাকৃতভাবে SW precache-এ **নেই** — lazy; প্রথম fetch-এর পর cache-first; অফলাইনে আগের gradient fallback-ই রেন্ডার হয় (প্রতিটি layer-stack-এ সর্বশেষ layer হিসেবে)।
+
+**পড়ার যোগ্যতা:** প্রতিটি state-এ ছবির ওপরে readability scrim (`--sky-scrim-*`, ভেতরের রঙ `--sky-fade` থেকে), আর `.auth-message` ব্যানার পেল solid `color-mix` বেস + shadow — লাল error-ব্যানার গাঢ় আকাশেও স্পষ্ট। night/storm/dusk-এ brand-ink হালকা + text-shadow। ৬টি state × theme স্ক্রিনশট `tools/capture-auth-sky.cjs` দিয়ে তোলা (আউটপুট `preview/`, gitignored)।
+
+**প্যালেট-একীকরণ (বোনাস ফিক্স):** সব আকাশ-রঙ ও birthday-থিমের রঙ এখন `css/foundation.css`-এর নতুন `--sky-*` / `--birthday-*` টোকেন সেকশনে; `ui-wallet.css` কেবল `var()` + `url()` কম্পোজ করে। এতে দীর্ঘদিনের প্রি-existing **`wallet-design` টেস্ট-১ ফেইল এখন গ্রিন** — বেসলাইন ফেইল ১৮ → **১৭**। `minimal-ui` গার্ডের gradient-স্ক্যান এখন custom-property ডিক্লারেশন বাদ দেয় (গার্ডের অভিপ্রায় — component rule ফ্ল্যাট থাকবে — অক্ষত; প্যালেট টোকেনে gradient বৈধ)।
+
+**গার্ড সাবসেট:** ১৬ ফাইল → ১১৮ টেস্ট / ১০১ পাস / ১৭ ফেইল — সবগুলোই পরিচিত প্রি-existing।
