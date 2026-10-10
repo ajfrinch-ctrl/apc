@@ -233,6 +233,7 @@ test('a paper is sat instantly — no clock, no window — and marked on the spo
   const clock = $2('#studentPracticeWorkspace [data-practice-clock]');
   assert.ok(clock, 'the sheet runs under a clock, like the real exam');
   assert.equal($2('#studentPracticeWorkspace [data-exam-clock]'), null, '…under its own clock, not the official one');
+  assert.equal($2('#studentPracticeWorkspace .exam-timer--pinned'), null, 'only an official live exam pins its timer bar');
   assert.match($2('#studentPracticeWorkspace .exam-timer').textContent, /৩ মিনিট/, 'three questions price the sheet at three minutes');
   assert.match(clock.textContent, /সময় বাকি (৩:০০|২:[০-৯]{2})/, 'the countdown is live, from three minutes');
   assert.equal(clock.dataset.lowTime, 'false', 'not yet in the low-time band (half of three minutes)');

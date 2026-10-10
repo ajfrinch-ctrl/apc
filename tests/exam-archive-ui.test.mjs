@@ -41,7 +41,7 @@ before(async () => {
   await openStaffPanel(ctx, 'teacher', {
     importPanel: () => import('../js/teacher.js'),
     shellId: 'teacherShell',
-    ready: () => [...$('#teacherHomeClass').options].some(option => option.textContent === 'সব assigned class')
+    ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব assigned class')
   });
   ctx.window.sessionStorage.setItem(STAFF_ACCOUNTS.manager.sessionKey, '1');
   ctx.click($('[data-teacher-view="online-exams"]'));

@@ -40,7 +40,7 @@ before(async () => {
     async load() { return this; }
   };
   globalThis.caches = { async match(url) {
-    assert.match(url, /\/assets\/fonts\/NotoSansBengali-Variable\.ttf$/);
+    assert.match(url, /\/assets\/fonts\/NotoSansBengali-Variable\.woff2$/);
     cacheHits++;
     return { async arrayBuffer() { return new Uint8Array([1,2,3]).buffer; } };
   } };
@@ -56,15 +56,20 @@ beforeEach(() => {
 
 const texts = () => draws.map(draw => draw.text);
 
-test('statement generation uses cached Bengali font bytes, never the logo or a PDF service', async () => {
+test('statement generation uses cached Bengali font bytes and no PDF service; the logo watermark stays a faint canvas stamp', async () => {
   await engine.renderReceiptCanvas(TX);
   assert.ok(cacheHits >= 1, 'the offline app cache supplies the font');
   assert.ok(fontSources[0] instanceof ArrayBuffer, 'FontFace receives cached bytes, not a network URL');
-  assert.equal(imageDecodes, 0, 'a text statement must not even load the coloured logo');
-  assert.equal(images.length, 0);
+  /* Policy (2026-10-10): every PDF carries the institute logo as a ~7% alpha
+     diagonal watermark, drawn straight from the precached app-logo. In this
+     headless realm Image does not exist, so the stamp skips itself — what must
+     never appear is a decode through the receipt asset loader or a network
+     PDF service. */
+  assert.equal(imageDecodes, 0, 'statements never decode the logo through the receipt asset loader');
+  assert.equal(images.length, 0, 'no image paints headlessly; browsers stamp the bundled logo only');
 });
 
-test('the statement is black text on white paper without dashboard cards, borders or artwork', async () => {
+test('the statement is black text on white paper without dashboard cards or borders — only the faint logo watermark may paint', async () => {
   const canvas = await engine.renderReceiptCanvas(TX);
   assert.ok(texts().includes('পেমেন্ট স্টেটমেন্ট'));
   assert.ok(draws.every(draw => draw.fill === '#000000'), 'every text line uses black ink');
@@ -179,7 +184,7 @@ test('the offline shell precaches the complete local entry/module graph and paym
       assert.ok(cached.has(src.split('?')[0]), `${page} entry script ${src} is missing from the PWA cache`);
     }
   }
-  assert.ok(cached.has('assets/fonts/NotoSansBengali-Variable.ttf'));
+  assert.ok(cached.has('assets/fonts/NotoSansBengali-Variable.woff2'), 'the WOFF2 receipt font is precached');
 });
 
 test('a restricted font cache/failing load can be retried without a CDN or a stuck asset promise', async () => {
@@ -197,7 +202,7 @@ test('a restricted font cache/failing load can be retried without a CDN or a stu
     const blob = await fresh.createReceiptPDF(TX);
     assert.equal(blob.type, 'application/pdf');
     assert.equal(attempts, 2);
-    assert.ok(sources.every(source => /^url\(".*\/assets\/fonts\/NotoSansBengali-Variable\.ttf"\)$/.test(source)), 'fallback is only the bundled font, never an external provider');
+    assert.ok(sources.every(source => /^url\(".*\/assets\/fonts\/NotoSansBengali-Variable\.woff2"\)$/.test(source)), 'fallback is only the bundled font, never an external provider');
   } finally {
     globalThis.FontFace = NativeMock; globalThis.caches = originalCache;
   }

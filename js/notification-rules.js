@@ -11,10 +11,12 @@
    password hash or a session token. */
 
 export const NOTIFY_PREFIX = 'activePlus.notifications.';
+/* The local-write mark lives in its own tiny module so the boot path never
+   pulls this file in; re-exported here for every existing importer. */
+export { LOCAL_WRITE_KEY, markLocalSource } from './local-write-mark.js';
 export const SEEN_KEY_PREFIX = `${NOTIFY_PREFIX}seen.v1:`;
 export const BOOT_KEY_PREFIX = `${NOTIFY_PREFIX}boot.v1:`;
 export const PROMPT_HIDDEN_KEY = `${NOTIFY_PREFIX}promptHiddenAt.v1`;
-export const LOCAL_WRITE_KEY = `${NOTIFY_PREFIX}localWrite.v1`;
 /* The same event reaches a phone twice when the app is open — once through the
    sync bridge and once as an FCM push. Both paths claim the record here first,
    so exactly one notification is shown whichever arrives first. */
@@ -668,15 +670,6 @@ export function notificationFeed({ notices = [], config = null, examDb = null, t
    saveNotices()/saveAppConfig() stamp what this device wrote. The person who
    typed the notice should not receive their own push. */
 
-export function markLocalSource(localWrites, collection, id, at = Date.now()) {
-  const record = isObject(localWrites) ? { ...localWrites } : {};
-  const map = isObject(record[collection]) ? { ...record[collection] } : {};
-  map[text(id)] = Number(at) || Date.now();
-  const cutoff = (Number(at) || Date.now()) - 24 * 60 * 60 * 1000;
-  for (const [key, stamp] of Object.entries(map)) if (Number(stamp) < cutoff) delete map[key];
-  record[collection] = map;
-  return record;
-}
 
 export function isSelfAuthored(item, localWrites, now = Date.now(), windowMs = SELF_AUTHOR_WINDOW_MS) {
   if (!item || !isObject(localWrites)) return false;

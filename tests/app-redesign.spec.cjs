@@ -97,7 +97,7 @@ test('notice dialog and manager menu remain accessible on a narrow screen',async
  await page.locator('.manager-bottom [data-manager-view="more"]').click();
  // "আরও" is a real page now: it must fit a 320px screen with no sideways
  // scroll, and a row opens its module in the same view.
- const menu=page.locator('#managerMoreMenu');
+ const menu=page.locator('#managerMoreHub');
  await expect(menu).toBeVisible();
  const box=await menu.boundingBox();
  expect(box.x).toBeGreaterThanOrEqual(0);

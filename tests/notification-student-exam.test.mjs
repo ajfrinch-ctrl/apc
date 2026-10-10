@@ -96,7 +96,9 @@ test('a tray tap without a view name still finds the right view', async () => {
   const module = await import('../js/notifications.js');
   clicks.length = 0;
   await module.openNotificationTarget({ kind: 'result', id: 'E9', key: 'result:E9:1' });
-  assert.deepEqual(clicks, ['exams'], 'ফলাফল lives inside the পরীক্ষা section');
+  /* ফলাফল lives inside the পরীক্ষা section, and the section opens on its own
+     results tab — so the tap clicks the seat and then the tab. */
+  assert.deepEqual(clicks, ['exams', 'exam-results'], 'ফলাফল lives inside the পরীক্ষা section, on its results tab');
 });
 
 test('a fee confirmation carries its details and has no page to open', async () => {

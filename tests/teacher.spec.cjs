@@ -50,6 +50,20 @@ async function seed(page, activities) {
   }, activities);
 }
 
+test('one tap from the Teacher home opens the existing homework assignment form', async ({ page }) => {
+  await enter(page);
+  await expect(page.locator('#teacherClassFilter option').first()).toHaveText('সব assigned class');
+  await page.locator('#teacherHome .teacher-home-tile[data-teacher-view=homework]').click();
+  await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
+  await expect(page.locator('#teacherModalTitle')).toContainText('নতুন');
+  await expect(page.locator('#teacherModalTitle')).toContainText('কাজ');
+  await expect(page.locator('#activity-title')).toBeVisible();
+  await page.locator('#teacherModalClose').click();
+  await expect(page.locator('#teacherModalBackdrop')).toBeHidden();
+  await page.locator('.admin-bottom [data-teacher-view=home]').click();
+  await expect(page.locator('#teacherHome')).toBeVisible();
+});
+
 test('exam drafts must use Manager approval workflow; legacy marks are read-only', async ({ page, context }) => {
   await enter(page);
   await page.locator('.admin-bottom [data-teacher-view=academic]').click();
@@ -139,25 +153,78 @@ test('student roster needs query, matches Bengali mobile/ID, excludes pending an
   await page.locator('#teacherStudentSearch').fill(''); await expect(page.locator('#teacherStudentList .teaching-card')).toHaveCount(0);
 });
 
-for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
-  test(`mobile-only teacher panel: fixed bars, five tabs and reachable modal (${viewport.width}px)`, async ({ page }) => {
+for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 600, height: 700 }, { width: 743, height: 700 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+  test(`teacher home header and three-column grid stay responsive (${viewport.width}px)`, async ({ page }) => {
     await page.setViewportSize(viewport); await enter(page);
+    for (const fullName of [
+      'প্রাথমিক teacher অ্যাকাউন্ট',
+      'প্রাথমিক teacher অ্যাকাউন্টের দীর্ঘ শিক্ষক পরিচিতির নমুনা',
+      'প্রাথমিকteacherঅ্যাকাউন্টপরিচিতিরদীর্ঘনমুনা'
+    ]) {
+      await page.evaluate(async fullName => {
+        const { updateStaffProfile } = await import('/js/staff-auth.js');
+        await updateStaffProfile('teacher', { fullName });
+        window.dispatchEvent(new CustomEvent('teaching-data-updated'));
+      }, fullName);
+      await expect(page.locator('#teacherHeaderName')).toBeVisible();
+      await expect(page.locator('#teacherHeaderName')).toHaveText(fullName);
+      await expect(page.locator('#teacherHomeTitle')).toHaveText(`স্বাগতম, ${fullName}`);
+      const welcomeFits = await page.evaluate(() => {
+        const title = document.querySelector('#teacherHomeTitle');
+        const note = document.querySelector('.teacher-welcome-note');
+        const hero = document.querySelector('.teacher-hero');
+        const range = document.createRange();
+        range.selectNodeContents(title);
+        const textRects = [...range.getClientRects()];
+        const heroRect = hero.getBoundingClientRect();
+        const heroBackground = getComputedStyle(hero, '::before');
+        return {
+          clientWidth: title.clientWidth,
+          scrollWidth: title.scrollWidth,
+          textRight: Math.max(...textRects.map(rect => rect.right)),
+          textBottom: Math.max(...textRects.map(rect => rect.bottom)),
+          boxRight: title.getBoundingClientRect().right,
+          backgroundBottom: heroRect.bottom - parseFloat(heroBackground.bottom),
+          helperNoteBottom: note.getBoundingClientRect().bottom,
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: innerWidth
+        };
+      });
+      expect(welcomeFits.scrollWidth, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.clientWidth + 1);
+      expect(welcomeFits.textRight, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.boxRight + 1);
+      expect(welcomeFits.textBottom, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.backgroundBottom + 1);
+      expect(welcomeFits.backgroundBottom - welcomeFits.helperNoteBottom, JSON.stringify(welcomeFits)).toBeGreaterThanOrEqual(24);
+      expect(welcomeFits.documentWidth, JSON.stringify(welcomeFits)).toBeLessThanOrEqual(welcomeFits.viewportWidth);
+    }
+    const responsiveHeader = await page.evaluate(() => {
+      const name = document.querySelector('#teacherHeaderName').getBoundingClientRect();
+      const bell = document.querySelector('#notificationButton').getBoundingClientRect();
+      const columns = getComputedStyle(document.querySelector('.teacher-home-grid')).gridTemplateColumns.trim().split(/\s+/).length;
+      return name.right <= bell.left && columns === 3 && document.documentElement.scrollWidth <= innerWidth;
+    });
+    expect(responsiveHeader).toBe(true);
     await expect(page.locator('.admin-bottom-item')).toHaveCount(5);
     await seed(page, Array.from({ length: 6 }, (_, i) => ({ title: `সাজেশন ${i}` })));
-    await expect(page.locator('#teacherRecent .teaching-card')).toHaveCount(5);
+    await expect(page.locator('#teacherRecent .teaching-card')).toHaveCount(3);
     await page.locator('#teacherMain').evaluate(el => { el.scrollTop = el.scrollHeight; });
-    await expect.poll(() => page.evaluate(() => {
+    const layout = await page.evaluate(() => {
       const top = document.querySelector('.app-topbar').getBoundingClientRect(), foot = document.querySelector('.admin-bottom').getBoundingClientRect(), main = document.querySelector('#teacherMain').getBoundingClientRect();
-      return Math.abs(top.top) < 1 && Math.abs(foot.bottom - innerHeight) < 1 && Math.abs(main.top - top.bottom) <= 1 && Math.abs(main.bottom - foot.top) <= 1 && document.documentElement.scrollWidth <= innerWidth && document.querySelector('#teacherShell').offsetWidth <= 480 && window.scrollY === 0;
-    })).toBe(true);
-    await page.locator('.admin-bottom [data-teacher-view=academic]').click(); await page.locator('#teacherAcademic [data-teacher-view=homework]').click(); await expect.poll(() => page.locator('#teacherMain').evaluate(el => el.scrollTop)).toBe(0);
-    await page.locator('#teacherNewActivity').click(); await expect(page.locator('#teacherMain')).toHaveCSS('overflow-y', 'hidden');
-    await page.locator('#activity-title').fill('মোবাইল পরীক্ষা'); await page.locator('#activity-subject').fill('গণিত');
-    const submit = page.locator('#teacherActivityForm [type=submit]'); await submit.scrollIntoViewIfNeeded();
-    const rect = await submit.boundingBox(); expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);
-    await expect(page.locator('#activity-title')).toHaveCSS('font-size', '16px');
-    await submit.click(); await expect(page.locator('#teacherModalBackdrop')).toBeHidden();
-    await expect(page.locator('#teacherRecordList')).toContainText('মোবাইল পরীক্ষা');
+      const dimensions = { top: [top.top, top.bottom], footer: [foot.top, foot.bottom], main: [main.top, main.bottom], viewport: [innerWidth, innerHeight], documentWidth: document.documentElement.scrollWidth, shellWidth: document.querySelector('#teacherShell').offsetWidth, scrollY: window.scrollY };
+      dimensions.ok = Math.abs(top.top) < 1 && Math.abs(foot.bottom - innerHeight) < 1 && Math.abs(main.top - top.bottom) <= 1 && Math.abs(main.bottom - innerHeight) <= 1 && dimensions.documentWidth <= innerWidth && dimensions.shellWidth <= innerWidth && window.scrollY === 0;
+      return dimensions;
+    });
+    expect(layout.ok, JSON.stringify(layout)).toBe(true);
+    if (viewport.width <= 480) {
+      await page.locator('.admin-bottom [data-teacher-view=academic]').click();
+      await page.locator('#teacherAcademic [data-teacher-view=homework]').click();
+      await expect(page.locator('body')).toHaveClass(/admin-modal-open/);
+      await page.locator('#activity-title').fill('মোবাইল পরীক্ষা'); await page.locator('#activity-subject').fill('গণিত');
+      const submit = page.locator('#teacherActivityForm [type=submit]'); await submit.scrollIntoViewIfNeeded();
+      const rect = await submit.boundingBox(); expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);
+      await expect(page.locator('#activity-title')).toHaveCSS('font-size', '16px');
+      await submit.click(); await expect(page.locator('#teacherModalBackdrop')).toBeHidden();
+      await expect(page.locator('#teacherRecordList')).toContainText('মোবাইল পরীক্ষা');
+    }
   });
 }
 

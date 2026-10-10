@@ -376,7 +376,7 @@ test('workflow 8 — a teacher notice reaches its own class only: board and noti
     provision: false,
     importPanel: () => import('../js/teacher.js'),
     shellId: 'teacherShell',
-    ready: () => teacher.$$('#teacherHomeClass option').length > 1
+    ready: () => teacher.$$('#teacherClassFilter option').length > 1
   });
   teacher.click(teacher.$('.admin-bottom [data-teacher-view="academic"]'));
   await teacher.flush(6);

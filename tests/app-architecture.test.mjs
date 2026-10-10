@@ -211,10 +211,21 @@ test('একাডেমিক is one hub whose six cards open the screens that 
   assert.match(read('js/exam-manager.js'), /return \{\s*open\(screen = ''\)/, 'the workspace exposes a deep link');
 });
 
-test('teacher Home is a snapshot; work tiles live once on কাজ দিন / রুটিন / পরীক্ষা / আরও', () => {
+test('teacher Home is the launcher: welcome, one 3-column grid over existing screens, today + recent', () => {
+  /* মাস্টার প্রম্পট ২০২৬-১০: Home = স্বাগতম + একটি ৩-কলাম আইকন গ্রিড +
+     আজকের ক্লাস (Manager routine) + সর্বশেষ ৩টি কাজ। বাড়ির কাজ টাইলটি
+     এক ট্যাপে বিদ্যমান create form খোলে; অন্য টাইলগুলো বিদ্যমান স্ক্রিনে যায়। */
   const home = teacherHtml.slice(teacherHtml.indexOf('id="teacherHome"'), teacherHtml.indexOf('id="teacherRecords"'));
-  assert.equal((home.match(/class="pay-tile"/g) || []).length, 0, 'home must not copy কাজ দিন tiles');
-  assert.equal(home.includes('teacherQuickActions'), false, 'home must not duplicate create tiles');
+  assert.match(home, /teacher-home-grid/);
+  assert.deepEqual([...home.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
+    ['homework', 'suggestion', 'courses', 'routine-view', 'online-exams', 'notice'],
+    'every grid tile routes to an existing screen');
+  assert.equal((home.match(/class="pay-tile"/g) || []).length, 0, 'home grid never copies the pay-tile shelf');
+  assert.equal((home.match(/data-new-activity=/g) || []).length, 1, 'exactly one home tile is the one-tap homework entry');
+  assert.match(home, /data-teacher-view="homework"[^>]*data-new-activity="homework"/, 'the homework tile opens its existing create form directly');
+  assert.equal(home.includes('teacherQuickActions'), false, 'home must not duplicate the create-tile shelf');
+  assert.match(home, /id="teacherTodayClasses"/, 'আজকের ক্লাস from the Manager routine');
+  assert.match(home, /id="teacherRecent"/, 'সাম্প্রতিক কাজ — the latest three');
   const hub = teacherHtml.slice(teacherHtml.indexOf('id="teacherAcademic"'), teacherHtml.indexOf('id="teacherNotice"'));
   assert.match(hub, /data-new-activity="homework"/);
   assert.match(hub, /data-new-activity="suggestion"/);

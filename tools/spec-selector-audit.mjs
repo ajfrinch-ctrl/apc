@@ -10,7 +10,7 @@
    Deliberate exceptions are marked in the source with the word `legacy` on the
    same line (e.g. js/main.js removing a banner left by an older build); a stale
    pointer from a redesign carries no such marker and is reported. */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -21,11 +21,14 @@ const PAGES = ['index.html', 'admin.html', 'manager.html', 'teacher.html', 'paym
 /* Markup can also live in a referenced preview page (a design snapshot a spec
    points at); scan every page in the repo so those selectors resolve too. */
 const ALL_PAGES = readdirSync(root).filter(file => file.endsWith('.html'));
-const previews = readdirSync(path.join(root, 'preview'), { withFileTypes: true })
-  .filter(entry => entry.isDirectory())
-  .flatMap(entry => readdirSync(path.join(root, 'preview', entry.name))
-    .filter(file => file.endsWith('.html'))
-    .map(file => `preview/${entry.name}/${file}`));
+const previewRoot = path.join(root, 'preview');
+const previews = existsSync(previewRoot)
+  ? readdirSync(previewRoot, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .flatMap(entry => readdirSync(path.join(previewRoot, entry.name))
+      .filter(file => file.endsWith('.html'))
+      .map(file => `preview/${entry.name}/${file}`))
+  : [];   // preview/ is untracked: design snapshots stay out of the repository
 const pageSource = Object.fromEntries([...ALL_PAGES, ...previews].map(page => [page, read(page)]));
 /* Every module's source, so an id/attribute a page builds at runtime still counts. */
 const jsFiles = readdirSync(path.join(root, 'js')).filter(file => file.endsWith('.js'));

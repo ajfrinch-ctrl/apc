@@ -1,4 +1,5 @@
 import { toBanglaNumber as bn } from './ui.js';
+import { loadWatermark, drawWatermark } from './brand.js';
 import { loadAppConfig } from './storage.js';
 import { APP_TAGLINE, DEFAULT_APP_SETTINGS } from './config.js';
 import { escapeHtml as escape } from './sanitize.js';
@@ -89,7 +90,7 @@ export function receiptMarkup(tx, logo = 'assets/icons/app-logo.png') {
 let fontAsset;
 async function receiptFont() {
   if (!fontAsset) fontAsset = (async () => {
-    const url = new URL('../assets/fonts/NotoSansBengali-Variable.ttf', import.meta.url).href;
+    const url = new URL('../assets/fonts/NotoSansBengali-Variable.woff2', import.meta.url).href;
     let cached;
     try { cached = await globalThis.caches?.match(url); }
     catch { /* Restricted CacheStorage can still use the bundled same-origin font. */ }
@@ -191,7 +192,8 @@ export function imagePDF(jpeg, width, height) {
  * is read only: the header intentionally has no slogan row to duplicate an
  * address embedded in any legacy tagline (regardless of its punctuation). */
 export async function renderReceiptCanvas(tx) {
-  await receiptFont(); // No logo/image dependency for offline payment statements.
+  await receiptFont();
+  const wm = await loadWatermark(); // faint logo watermark; skipped if the image ever fails
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Receipt rendering unavailable');
@@ -231,6 +233,7 @@ export async function renderReceiptCanvas(tx) {
   ctx.scale(scale, scale);
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height); // The only filled rectangle is white paper.
+  drawWatermark(ctx, width, height, wm);
   const text = (value, x, y, size = 14, weight = 400, align = 'left') => {
     ctx.font = `${weight} ${size}px ReceiptBangla`;
     ctx.fillStyle = '#000000';

@@ -20,7 +20,7 @@ import { teachingRepository, DEMO_TEACHER, ACTIVITY_TYPES, PROGRESS_LABELS, esca
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', homeClass: 'all', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '' };
+const state = { db: { activities: [] }, students: [], assignments: [], teacher: null, view: 'home', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', routineTab: 'today' };
 let modalTrigger, toastTimer;
 initFixedShell();
 /* The examination workspace is the single exam/question surface; the academic
@@ -62,15 +62,6 @@ function pendingNote(a) {
   if (a.type === 'homework') return stats.missing ? `${bn(stats.missing)} জনের অবস্থা বাকি` : '';
   return stats.missing ? `${bn(stats.missing)} জনের উপস্থিতি বাকি` : '';
 }
-/** The home work queue: drafts to publish, marks to give, notebooks to check, attendance to take. */
-function attentionItems(source = own()) {
-  const today = todayISO();
-  return source
-    .map(a => ({ a, note: pendingNote(a) }))
-    .filter(item => item.note)
-    .sort((x, y) => `${y.a.date === today}|${y.a.date}`.localeCompare(`${x.a.date === today}|${x.a.date}`))
-    .slice(0, 6);
-}
 const assignedClasses = () => [...new Set(state.assignments.map(item => item.className))];
 const classOptions = value => assignedClasses().map(c => `<option value="${esc(c)}" ${c === value ? 'selected' : ''}>${esc(c)}</option>`).join('');
 function activityMeta(a) {
@@ -91,18 +82,20 @@ function recordCard(a) {
       ${a.type !== 'exam' ? `<button type="button" data-record-action="edit" data-id="${esc(a.id)}">সম্পাদনা</button>${a.status === 'published' && ACTIVITY_TYPES[a.type].progress ? `<button class="primary" type="button" data-record-action="progress" data-id="${esc(a.id)}">${ACTIVITY_TYPES[a.type].progress}</button>` : ''}<button class="danger" type="button" data-record-action="delete" data-id="${esc(a.id)}">মুছুন</button>` : '<small>পরীক্ষার approval ও score-entry Examination workflow-এ নিয়ন্ত্রিত</small>'}
     </div></article>`;
 }
-/* Slim card for the home queue: one tap opens the exact work that is pending. */
-function queueCard(a, note, actionLabel, clear = false) {
-  const progressAction = a.status === 'published' && ACTIVITY_TYPES[a.type].progress ? 'progress' : 'edit';
-  return `<article class="teaching-card teacher-queue-card" data-activity-id="${esc(a.id)}">
-    <div class="teaching-card-head"><span class="teaching-kind">${ACTIVITY_TYPES[a.type].label}</span><span class="teaching-status ${a.status}">${a.date ? esc(dayLabel(a.date)) : ''}</span></div>
+/* Slim Home card (মাস্টার প্রম্পট ২০২৬-১০): নাম, শ্রেণি ও স্ট্যাটাস এক নজরে;
+   কার্ডে ট্যাপ দিলে সংশ্লিষ্ট কার্যক্রমটি নিজেই খোলে, আর কাজ বাকি থাকলে
+   এক-ট্যাপ নথিভুক্তির দরজাটিও কার্ডে থাকে। */
+function homeCard(a) {
+  const note = pendingNote(a);
+  const progress = a.status === 'published' && ACTIVITY_TYPES[a.type].progress;
+  const actionLabel = progress ? ACTIVITY_TYPES[a.type].progress : 'সম্পাদনা করুন';
+  return `<article class="teaching-card teacher-queue-card teacher-home-card" data-record-action="detail" data-id="${esc(a.id)}" data-activity-id="${esc(a.id)}">
+    <div class="teaching-card-head"><span class="teaching-kind">${ACTIVITY_TYPES[a.type].label}</span><span class="teaching-status ${a.status}">${a.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}</span></div>
     <h3>${esc(a.title)}</h3>
     <small>${esc(a.className)} • ${esc(a.group || 'সব বিভাগ')}${a.time ? ' • ' + esc(bn(a.time)) : ''}</small>
-    <p class="teaching-progress-line ${clear ? 'clear' : 'pending'}">${esc(note)}</p>
-    <div class="teaching-actions">
-      <button class="primary" type="button" data-record-action="${progressAction}" data-id="${esc(a.id)}">${actionLabel}</button>
-      <button type="button" data-record-action="detail" data-id="${esc(a.id)}">বিস্তারিত</button>
-    </div></article>`;
+    ${note ? `<p class="teaching-progress-line pending">${esc(note)}</p>` : ''}
+    ${note || a.status === 'draft' ? `<div class="teaching-actions"><button class="primary" type="button" data-record-action="${progress ? 'progress' : 'edit'}" data-id="${esc(a.id)}">${actionLabel}</button></div>` : ''}
+  </article>`;
 }
 /** Today first, then the nearest upcoming date, then the most recent past date. */
 function byDueDate(a, b) {
@@ -142,29 +135,28 @@ function renderTypeCounts() {
 function renderHome() {
   const hasAssignments = state.assignments.length > 0;
   $('#teacherAssignmentNotice').hidden = hasAssignments;
-  if ($('#teacherQuickActions')) $('#teacherQuickActions').hidden = !hasAssignments;
   const today = todayISO();
   $('#teacherToday').textContent = displayDate(today);
-  const scope = state.homeClass;
-  const records = own().filter(a => scope === 'all' || a.className === scope);
-  const published = records.filter(a => a.status === 'published');
-  $('#teacherPublishedCount').textContent = hasAssignments ? bn(published.length) : '—';
-  $('#teacherDraftCount').textContent = hasAssignments ? bn(records.length - published.length) : '—';
-  $('#teacherPendingCount').textContent = hasAssignments ? bn(records.filter(a => pendingNote(a)).length) : '—';
+  /* শিক্ষক-নাম টপবারে এবং welcome hero-তে; textContent ব্যবহার করে account
+     profile-এর নাম নিরাপদে দেখানো হয়। */
+  const name = String(state.teacher?.fullName || '').trim();
+  $('#teacherHomeTitle').textContent = name ? `স্বাগতম, ${name}` : 'স্বাগতম';
+  const headerName = $('#teacherHeaderName');
+  if (headerName) {
+    headerName.textContent = name;
+    headerName.hidden = !name;
+    if (name) headerName.title = name;
+    else headerName.removeAttribute('title');
+  }
+  const records = own();
   const weekday = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
-  const todays = (loadRoutine()[weekday]?.classes || []).filter(item => state.assignments.some(assignment => assignment.className === item.className) && (scope === 'all' || item.className === scope)).sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
-  $('#teacherTodayClassCount').textContent = hasAssignments ? bn(todays.length) : '—';
+  const todays = (loadRoutine()[weekday]?.classes || []).filter(item => state.assignments.some(assignment => assignment.className === item.className)).sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
+  $('#teacherTodayClassCount').textContent = hasAssignments ? `${bn(todays.length)}টি ক্লাস` : '—';
   renderTypeCounts();
-
-  const items = attentionItems(records);
-  $('#teacherAttentionHint').textContent = items.length ? `${bn(items.length)}টি কাজ বাকি${scope === 'all' ? '' : ' • ' + esc(scope)}` : (scope === 'all' ? 'সব কাজ শেষ' : `${esc(scope)} — সব কাজ শেষ`);
-  $('#teacherAttention').innerHTML = items.length
-    ? items.map(({ a, note }) => queueCard(a, note, a.status === 'published' && ACTIVITY_TYPES[a.type].progress ? ACTIVITY_TYPES[a.type].progress : 'সম্পাদনা করুন')).join('')
-    : hasAssignments ? '<p class="teacher-empty teacher-all-clear">সব কাজ শেষ — নম্বর, খাতা দেখা ও উপস্থিতি সব নথিভুক্ত আছে।</p>' : '<p class="teacher-empty">কোনো assigned class/batch নেই।</p>';
   $('#teacherTodayClasses').innerHTML = todays.length
-    ? todays.map(item => `<article class="teaching-card"><span class="teaching-kind">Manager routine</span><h3>${esc(item.subject || 'বিষয় উল্লেখ নেই')}</h3><small>${esc(item.className || '')}${item.room ? ` • ${esc(item.room)}` : ''}</small><p>${esc(item.time || 'সময় নির্ধারিত নয়')}</p></article>`).join('')
-    : `<p class="teacher-empty">${hasAssignments ? 'Manager routine-এ আজকের কোনো assigned class schedule নেই।' : 'No Manager assignment.'}</p>`;
-  $('#teacherRecent').innerHTML = records.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5).map(recordCard).join('') || `<p class="teacher-empty">${hasAssignments ? 'এখনও কোনো academic কাজ যোগ করা হয়নি।' : 'Assignment না থাকায় academic কাজ দেখানো হচ্ছে না।'}</p>`;
+    ? todays.map(item => `<article class="teaching-card"><span class="teaching-kind">Manager routine</span><h3>${esc(item.subject || 'বিষয় উল্লেখ নেই')}</h3><small>${esc(item.className || '')}${item.room ? ` • ${esc(item.room)}` : ''}</small><p>${esc(item.time || 'সময় নির্ধারিত নয়')}</p></article>`).join('')
+    : '<p class="teacher-empty">আজ কোনো নির্ধারিত ক্লাস নেই</p>';
+  $('#teacherRecent').innerHTML = records.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3).map(homeCard).join('') || `<p class="teacher-empty">${hasAssignments ? 'এখনও কোনো academic কাজ যোগ করা হয়নি।' : 'Assignment না থাকায় academic কাজ দেখানো হচ্ছে না।'}</p>`;
 }
 function renderRecords() {
   if (!ACTIVITY_TYPES[state.view]) return;
@@ -243,23 +235,34 @@ function routineBlob(item) {
   return `${item.tag || ''} ${item.status || ''} ${item.subject || ''}`.toLowerCase();
 }
 function renderTeacherRoutine() {
+  /* One routine screen, nine tabs: the Manager owns the schedule, the Teacher
+     only reads it and jumps to attendance — nine separate pages became a
+     single scroll with a segment row. */
+  const host = $('#teacherRoutineViewList'); if (!host) return;
   const all = WEEK_DAYS.flatMap(day => assignedRoutineRows(day).map(item => ({ ...item, day })));
-  const fill = (id, html) => { const node = $('#' + id); if (node) node.innerHTML = html; };
-  fill('teacherRoutineTodayList', routineCardHtml(assignedRoutineRows(routineTodayKey()), 'আজ কোনো ক্লাস নেই।'));
-  fill('teacherRoutineTomorrowList', routineCardHtml(assignedRoutineRows(routineTodayKey(1)), 'আগামীকাল কোনো ক্লাস নেই।'));
-  fill('teacherRoutineWeeklyList', WEEK_DAYS.map(day => `<section class="exam-card"><h3>${esc(weekdayNames[day] || day)}</h3>${routineCardHtml(assignedRoutineRows(day), 'ক্লাস নেই।')}</section>`).join(''));
-  fill('teacherRoutineClassList', WEEK_DAYS.map(day => `<section class="exam-card"><h3>${esc(weekdayNames[day] || day)}</h3>${routineCardHtml(assignedRoutineRows(day), 'ক্লাস নেই।')}</section>`).join(''));
-  const exams = all.filter(item => /পরীক্ষা|exam/.test(routineBlob(item)));
-  fill('teacherRoutineExamList', routineCardHtml(exams, 'পরীক্ষা রুটিন এখনও নেই।'));
-  const changed = all.filter(item => /পরিবর্ত|changed/.test(routineBlob(item)));
-  fill('teacherRoutineChangedList', routineCardHtml(changed, 'পরিবর্তিত রুটিন নেই।'));
-  const holiday = all.filter(item => /ছুটি|holiday/.test(routineBlob(item)));
-  fill('teacherRoutineHolidayList', routineCardHtml(holiday, 'ছুটির তালিকা খালি।'));
-  const important = all.filter(item => /গুরুত্বপূর্ণ|important/.test(routineBlob(item)));
-  fill('teacherRoutineImportantList', routineCardHtml(important, 'গুরুত্বপূর্ণ সময়সূচি নেই।'));
-  const other = all.filter(item => !/পরীক্ষা|exam|পরিবর্ত|changed|ছুটি|holiday|গুরুত্বপূর্ণ|important/.test(routineBlob(item)));
-  fill('teacherRoutineOtherList', routineCardHtml(other, 'অন্যান্য রুটিন নেই।'));
+  const week = WEEK_DAYS.map(day => `<section class="exam-card"><h3>${esc(weekdayNames[day] || day)}</h3>${routineCardHtml(assignedRoutineRows(day), 'ক্লাস নেই।')}</section>`).join('');
+  const by = {
+    today: () => routineCardHtml(assignedRoutineRows(routineTodayKey()), 'আজ কোনো ক্লাস নেই।'),
+    tomorrow: () => routineCardHtml(assignedRoutineRows(routineTodayKey(1)), 'আগামীকাল কোনো ক্লাস নেই।'),
+    weekly: () => week,
+    class: () => week,
+    exam: () => routineCardHtml(all.filter(item => /পরীক্ষা|exam/.test(routineBlob(item))), 'পরীক্ষা রুটিন এখনও নেই।'),
+    changed: () => routineCardHtml(all.filter(item => /পরিবর্ত|changed/.test(routineBlob(item))), 'পরিবর্তিত রুটিন নেই।'),
+    holiday: () => routineCardHtml(all.filter(item => /ছুটি|holiday/.test(routineBlob(item))), 'ছুটির তালিকা খালি।'),
+    important: () => routineCardHtml(all.filter(item => /গুরুত্বপূর্ণ|important/.test(routineBlob(item))), 'গুরুত্বপূর্ণ সময়সূচি নেই।'),
+    other: () => routineCardHtml(all.filter(item => !/পরীক্ষা|exam|পরিবর্ত|changed|ছুটি|holiday|গুরুত্বপূর্ণ|important/.test(routineBlob(item))), 'অন্যান্য রুটিন নেই।')
+  };
+  host.innerHTML = (by[state.routineTab] || by.today)();
+  $$('.teacher-routine-tabs [data-routine-tab]').forEach(button => {
+    const active = button.dataset.routineTab === state.routineTab;
+    button.setAttribute('aria-selected', String(active));
+    button.classList.toggle('active', active);
+  });
 }
+$$('.teacher-routine-tabs [data-routine-tab]').forEach(button => button.addEventListener('click', () => {
+  state.routineTab = button.dataset.routineTab;
+  renderTeacherRoutine();
+}));
 function renderAcademicReports() {
   const host = $('#teacherAcademicReportList'); if (!host) return;
   const records = own();
@@ -282,6 +285,9 @@ const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 
 const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'students', 'online-exams', 'courses', 'classes', 'routine-view', 'reports', 'profile', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
 function setView(view) {
   if (!TEACHER_VIEWS.includes(view)) return;
+  /* The nine routine pages are one screen now; their routes stay as aliases
+     so old deep links and notifications keep landing on the right tab. */
+  if (ROUTINE_CHILD_VIEWS.includes(view)) { state.routineTab = view.slice('routine-'.length); view = 'routine-view'; }
   const previous = state.view;
   // A search typed for one record type must not silently hide the next one.
   if (ACTIVITY_TYPES[view] && previous !== view) {
@@ -290,7 +296,7 @@ function setView(view) {
     state.recordLimit = 15;
   }
   state.view = view;
-  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', students: 'teacherStudents', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'routine-view': 'teacherRoutine', 'routine-today': 'teacherRoutineToday', 'routine-tomorrow': 'teacherRoutineTomorrow', 'routine-weekly': 'teacherRoutineWeekly', 'routine-class': 'teacherRoutineClass', 'routine-exam': 'teacherRoutineExam', 'routine-changed': 'teacherRoutineChanged', 'routine-holiday': 'teacherRoutineHoliday', 'routine-important': 'teacherRoutineImportant', 'routine-other': 'teacherRoutineOther', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
+  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', students: 'teacherStudents', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
   $$('.teacher-view').forEach(el => { el.hidden = el.id !== panel; });
   $$('.teacher-type-tabs [data-type-tab]').forEach(el => {
     const active = el.dataset.typeTab === view;
@@ -319,7 +325,7 @@ async function reload() {
     const [db, students, teacher] = await Promise.all([teachingRepository.list(), teachingRepository.listStudents(), readStaffAccount('teacher')]);
     state.db = db; state.students = students; state.teacher = teacher; state.assignments = listTeacherAssignments(teacher?.username || 'teacher.apc');
     state.ready = true;
-    ['teacherHomeClass', 'teacherClassFilter', 'teacherStudentClass', 'teacherNoticeClass'].forEach(id => {
+    ['teacherClassFilter', 'teacherStudentClass', 'teacherNoticeClass'].forEach(id => {
       const select = $('#' + id), selected = select.value;
       select.innerHTML = `<option value="all">সব assigned class</option>${classOptions(selected)}`;
       if ([...select.options].some(option => option.value === selected)) select.value = selected; else select.value = 'all';
@@ -476,7 +482,7 @@ function showStudent(id) {
   openModal(s.name, `<p class="modal-copy">Student ID: ${esc(s.id)} • ${esc(s.className)} • ${esc(s.group || '—')}</p><div class="teacher-record-list">${records.map(a => `<article class="teaching-card"><small>${ACTIVITY_TYPES[a.type].label}</small><h3>${esc(a.title)}</h3><p>${a.type === 'exam' ? `${bn(a.progress[s.id].value)} / ${bn(a.totalMarks)}` : PROGRESS_LABELS[a.progress[s.id].value] || '—'}</p></article>`).join('') || '<p class="teacher-empty">এখনও কোনো নম্বর বা অগ্রগতি নথিভুক্ত হয়নি।</p>'}</div>`);
 }
 
-['teacherHomeClass', 'teacherClassFilter', 'teacherStudentClass'].forEach(id => { $('#' + id).insertAdjacentHTML('beforeend', classOptions()); });
+['teacherClassFilter', 'teacherStudentClass'].forEach(id => { $('#' + id).insertAdjacentHTML('beforeend', classOptions()); });
 /* ---- একাডেমিক hub, notice composer and quick actions ------------------------ */
 
 /** Which academic section is which: the hub card targets an existing screen. */
@@ -489,9 +495,11 @@ const ACADEMIC_SECTIONS = Object.freeze({
   notice: { view: 'notice' }
 });
 
+/* One landing, four doors: the old nine-tile shelf sent five tiles to the same
+   workspace view — the CTA above opens it on its home (where the create
+   buttons live), the chips pick a list, and marks stay on the records tab. */
 const EXAM_SCREENS = Object.freeze({
-  bank: 'bank', upcoming: 'upcoming', done: 'archive', papers: 'archive',
-  live: 'home', instant: 'home', recent: 'home', results: 'home', other: 'home'
+  bank: 'bank', upcoming: 'upcoming', archive: 'archive', home: 'home'
 });
 function paintTeacherExam() {
   const hub = $('#teacherExamHub');
@@ -693,7 +701,6 @@ $('#teacherNewActivity').addEventListener('click', () => showEditor(state.view))
     state.recordLimit = 15; renderRecords();
   });
 });
-$('#teacherHomeClass').addEventListener('change', () => { state.homeClass = $('#teacherHomeClass').value; renderHome(); });
 /* Type tabs above the list: switch record type without going back to the nav. */
 $('.teacher-type-tabs')?.addEventListener('click', event => {
   const tab = event.target.closest('[data-type-tab]'); if (!tab) return;

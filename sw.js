@@ -1,3 +1,7 @@
+// v251: the home homework tile opens the existing assignment form in one tap;
+//       its class/subject/status fields, store and save path remain unchanged.
+// v250: the Teacher name is also visible in the responsive topbar identity slot;
+//       the hero still greets the same profile name, and the other panel headers stay unchanged.
 // v178: the teacher's ফলাফল seat is alive again — Phase 2 added the seat with the value
 //       'exam' but never registered that view, so both the seat and the home "নম্বর" tile did
 //       nothing in a real browser. The seat now opens the documented marks screen (with its
@@ -74,7 +78,11 @@
 // v181: precache the Admin-only Staff Management stylesheet.
 // v182: precache the authenticated Question Bank V2 sync modules.
 // v183: precache the Admin V2 staged-cutover migration console.
-const CACHE_VERSION = 240;
+// v255: extend the Teacher home's blue hero to match the other portal homes.
+// v254: refresh the Teacher hero's complete greeting and note colour.
+// v253: keep the Teacher home greeting on its hero band when account names wrap.
+// v252: refresh the official MCQ exam screen's pinned timer-bar styles.
+const CACHE_VERSION = 255;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',
@@ -87,6 +95,9 @@ const APP_SHELL = [
   './js/student-record.js',
   './sync/cloud-access.js',
   './js/app-entry.js',
+  './js/student-features.js',
+  './js/student-hubs.js',
+  './js/local-write-mark.js',
   './css/ui-auth.css',
   './js/launch-screen.js',
   './js/topbar-connectivity.js',
@@ -166,7 +177,7 @@ const APP_SHELL = [
   './js/counter-report-data.js',
   './js/counter-reports.js',
   './js/theme-entry.js',
-  './assets/fonts/NotoSansBengali-Variable.ttf',
+  './assets/fonts/NotoSansBengali-Variable.woff2',
   './js/config.js',
   './js/student-access.js',
   './js/password-hash.js',
@@ -295,22 +306,52 @@ async function panelHintTarget() {
   } catch { return ''; }
 }
 
+/* Precache fill: bounded concurrency, per-item failure isolation.
+   cache.addAll() is atomic — one 404 or one flaky-mobile-network timeout on any
+   of the ~170 URLs aborted the WHOLE precache, leaving a freshly installed app
+   with no offline shell at all. Each URL is now added on its own, six at a time
+   so the fill never starves the page's own requests, and whatever a bad
+   connection drops is retried once from activate(). */
+const PRECACHE_CONCURRENCY = 6;
+
+async function fillCache(cache, urls) {
+  const queue = [...urls];
+  const failed = [];
+  async function worker() {
+    while (queue.length) {
+      const url = queue.shift();
+      try { await cache.add(url); } catch { failed.push(url); }
+    }
+  }
+  await Promise.all(Array.from({ length: PRECACHE_CONCURRENCY }, worker));
+  return failed;
+}
+
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    // Activate immediately: a ~3 MB precache must not stand between a slow
+    // link and the app's first paint. The fill runs in the background while
+    // the visitor is still on the login screen, and the cache-first fetches
+    // below top up anything not yet stored.
+    await self.skipWaiting();
+    const cache = await caches.open(CACHE_NAME);
+    await fillCache(cache, APP_SHELL);
+  })());
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    );
+    await self.clients.claim();
+    // Second chance for anything the install-time fill could not reach.
+    const cache = await caches.open(CACHE_NAME);
+    const missing = [];
+    for (const url of APP_SHELL) if (!(await cache.match(url))) missing.push(url);
+    if (missing.length) await fillCache(cache, missing);
+  })());
 });
 
 // Load-speed strategy (the old network-first for EVERYTHING meant a slow
@@ -322,9 +363,15 @@ self.addEventListener('activate', event => {
 //     always one consistent file set (the name bumps with every change set
 //     and activate() deletes the rest), so the cached copy is instant AND
 //     coherent — no mixed old/new modules.
-//   • URLs WITH a ?v= query (version-pinned module imports) — network-first
-//     as before: a new build must never receive last build's file under a
-//     new name.
+//   • URLs WITH a ?v= query — cache-first too, matching on the pathname when
+//     the exact URL is not stored (cachedResponse ignores the cache-buster).
+//     This used to be network-first, which meant EVERY version-pinned script
+//     and stylesheet re-downloaded on every single visit: the precache held
+//     './js/main.js' while the page asked for './js/main.js?v=240' and the two
+//     never met. Serving these from cache is safe because invalidation is per
+//     build, not per URL: CACHE_VERSION (and therefore CACHE_NAME) bumps with
+//     every change set and activate() deletes every other cache, so a new
+//     build always starts from an empty cache and fetches its own files.
 //   • cross-origin CORS GETs (the immutable Firebase SDK on gstatic) — also
 //     cache-first, so repeat visits skip that download entirely.
 const NAV_TIMEOUT_MS = 2500;
@@ -372,33 +419,18 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  let hasQuery = false;
-  try { hasQuery = new URL(event.request.url).search.length > 0; } catch { /* treat as plain */ }
-
-  if (!hasQuery) {
-    event.respondWith((async () => {
-      const cached = await caches.match(event.request);
-      if (cached) return cached;
-      try {
-        const response = await fetch(event.request);
-        if (cacheable(response)) remember(event.request, response);
-        return response;
-      } catch (error) {
-        return (await cachedResponse(event.request))
-          || new Response('', { status: 503, statusText: 'Offline' });
-      }
-    })());
-    return;
-  }
-
-  event.respondWith(
-    fetch(event.request).then(response => {
+  /* One cache-first path for every static GET, query string or not. */
+  event.respondWith((async () => {
+    const cached = await cachedResponse(event.request);
+    if (cached) return cached;
+    try {
+      const response = await fetch(event.request);
       if (cacheable(response)) remember(event.request, response);
       return response;
-    }).catch(async () =>
-      (await cachedResponse(event.request))
-      || new Response('', { status: 503, statusText: 'Offline' }))
-  );
+    } catch (error) {
+      return new Response('', { status: 503, statusText: 'Offline' });
+    }
+  })());
 });
 
 /* A tapped notification brings the app forward (notifications raised by the

@@ -2,10 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync,existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import { checkAll as checkCssOrder } from '../tools/css-order-check.mjs';
+const await_import_guard = () => ({ checkAll: checkCssOrder });
 const read=p=>readFileSync(p,'utf8');
 const pages=['index','admin','manager','teacher','payment','offline-roles'];
-test('every page has one new entry and no legacy icon dependencies',()=>{
- for(const page of pages){const s=read(`${page}.html`);assert.equal((s.match(/rel="stylesheet"/g)||[]).length,1);assert.match(s,/css\/design-system.css/);assert.doesNotMatch(s,/<use\b|<symbol\b|icon-sprite|assets\/icons\/(glass|admin)\//);}
+test('every page links the canonical stylesheet set and no legacy icon dependencies',()=>{
+ /* One @import chain became fifteen parallel <link>s; the canonical order is
+    css/design-system.css's, guarded by tools/css-order-check.mjs. */
+ const { checkAll } = await_import_guard();
+ for(const page of pages){const s=read(`${page}.html`);assert.doesNotMatch(s,/<use\b|<symbol\b|icon-sprite|assets\/icons\/(glass|admin)\//);}
+ assert.deepEqual(checkAll().problems, [], 'stylesheet links drifted from design-system.css order');
  for(const file of readdirSync('js').filter(f=>f.endsWith('.js')))assert.doesNotMatch(read(`js/${file}`),/<use\b|assets\/icons\/(glass|admin)\//);
 });
 test('new presentation has no storage or Firebase API and no legacy imports',()=>{
@@ -17,7 +23,14 @@ test('new presentation has no storage or Firebase API and no legacy imports',()=
  for(const f of ['foundation','ui-layout','ui-components','ui-forms','ui-features'])assert.ok(imports.includes(`${f}.css`),`design-system.css no longer loads ${f}.css`);
  assert.ok(imports.includes(SKIN),'design-system.css no longer loads the wallet skin');
  for(const f of imports){assert.doesNotMatch(f,/aurora|glass|ui-interior|ui-modern|student-notebook/,`legacy theme imported: ${f}`);assert.ok(existsSync(`css/${f}`),`missing stylesheet: ${f}`);}
- for(const f of ['design-system.css',...imports].filter(f=>f!==SKIN))assert.doesNotMatch(read(`css/${f}`),/gradient\(|backdrop-filter/,`${f} brings back gradients or glass blur outside the skin`);
+ for(const f of ['design-system.css',...imports].filter(f=>f!==SKIN)){
+  /* Palette tokens MAY define gradients — the weather-sky and birthday
+     palettes live in foundation.css as --sky-* / --birthday-* tokens. What
+     must stay flat is every component rule, so custom-property declarations
+     are stripped before the scan. */
+  const painted = read(`css/${f}`).replace(/--[\w-]+\s*:[^;]+;/g,'');
+  assert.doesNotMatch(painted,/gradient\(|backdrop-filter/,`${f} brings back gradients or glass blur outside the skin`);
+ }
 });
 // Baseline includes upstream single-flight sync fix merged from main; the UI does not modify it.
 test('protected core and all new and protected assets cached',()=>{

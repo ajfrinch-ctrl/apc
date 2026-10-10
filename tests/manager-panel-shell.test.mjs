@@ -59,7 +59,7 @@ test('Manager navigation refuses unknown or admin-only route identifiers', () =>
 
 test('Manager alone assigns Teacher class/batch scope through the Teachers workflow', async () => {
   ctx.click(ctx.$('.manager-bottom [data-manager-view="academic"]'));
-  ctx.click(ctx.$('#managerAcademicTeachers [data-manager-view="teachers"]'));
+  ctx.click(ctx.$('#managerAcademicTeachers[data-manager-view="teachers"]'));
   await ctx.waitFor(() => ctx.$('#managerTeacherAssignmentForm [name=className]')?.options.length > 1);
   const form = ctx.$('#managerTeacherAssignmentForm');
   // The subject picker is a checkbox list fed by Admin's Academic setup: it only

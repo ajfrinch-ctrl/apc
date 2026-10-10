@@ -688,6 +688,10 @@ $('#managerCashList').addEventListener('click', event => {
   const button = event.target.closest('[data-manager-action]'); if (button) void reviewPayment(button.dataset.id, button.dataset.managerAction === 'approve-payment' ? 'approved' : 'rejected');
 });
 $$('[data-cash-scope]').forEach(button => button.addEventListener('click', () => { cashScope = button.dataset.cashScope; renderCashCounter(); }));
+/* A payment-review notification deep-links straight into the approval queue. */
+window.addEventListener('apc-notification-action', event => {
+  if (event.detail?.kind === 'payment-review') renderCashCounter();
+});
 $('#managerPaymentSearch').addEventListener('input', renderFinance);
 $('#managerPaymentStatus').addEventListener('change', renderFinance);
 $('#managerResultList').addEventListener('click', async event => {

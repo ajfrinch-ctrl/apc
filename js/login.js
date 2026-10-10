@@ -22,7 +22,6 @@ import {
 } from './staff-auth.js';
 import { KEYS, readJSON } from './database.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
-import { authenticateDirectoryStaff, changeDirectoryStaffPassword } from './staff-directory.js';
 import { generateLoginId } from './user-id.js';
 import {
   adminInitializationStatus,
@@ -136,7 +135,7 @@ async function handleDirectoryStaffLogin(directory, remember) {
     openStaffPasswordDialog({
       role,
       mode: 'change',
-      onSubmit: (next, confirm) => changeDirectoryStaffPassword(staff.staffId, $('#loginPin').value, next, confirm),
+      onSubmit: async (next, confirm) => (await import('./staff-directory.js')).changeDirectoryStaffPassword(staff.staffId, $('#loginPin').value, next, confirm),
       onDone: () => enterStaffPanel(role, remember),
       onCancel: () => setAuthMessage('নিরাপত্তার জন্য নতুন পাসওয়ার্ড নির্ধারণ করা বাধ্যতামূলক।')
     });
@@ -266,6 +265,7 @@ async function handleLogin(event, state, onAuthenticated) {
   }
 
   // 2) Staff Directory — local first. This does not require Firebase.
+  const { authenticateDirectoryStaff } = await import('./staff-directory.js');
   const directory = await authenticateDirectoryStaff(typedId, pin);
   if (attemptId !== loginAttemptId) return;
   if (directory.ok) {
@@ -378,6 +378,7 @@ async function handleLogin(event, state, onAuthenticated) {
     }
 
     // Cloud Directory may have hydrated a staff identity.
+    const { authenticateDirectoryStaff } = await import('./staff-directory.js');
     const cloudDirectory = await authenticateDirectoryStaff(typedId, pin);
     if (attemptId !== loginAttemptId) return;
     if (cloudDirectory.ok) {

@@ -76,18 +76,13 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .pay-hero-name { font-size: 20px; font-weight: 700; color: var(--pay-on-hero); letter-spacing: -.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pay-hero-meta { font-size: 13px; color: var(--pay-on-hero-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.birthday-banner { margin: 8px 0 0; padding: 8px 12px; border-radius: 14px; background: linear-gradient(90deg, #ffd36a, #ff8aa0); color: #3b2410; font-size: 13px; font-weight: 650; }
-html[data-birthday] .app-shell {
-  background:
-    radial-gradient(520px 280px at 12% -8%, rgba(255, 180, 80, .35), transparent 70%),
-    radial-gradient(480px 260px at 110% 8%, rgba(255, 110, 150, .28), transparent 68%),
-    var(--color-bg);
-}
-html[data-birthday] .app-topbar { background: linear-gradient(90deg, rgba(255, 196, 90, .35), rgba(255, 130, 160, .22)); }
-html[data-birthday] .pay-hero { background: linear-gradient(135deg, #f6c15a 0%, #ff8a7a 48%, #c084fc 100%); }
-html[data-birthday] .pay-tile-icon { box-shadow: 0 0 0 2px rgba(255, 196, 90, .45); }
-.notice-detail.is-birthday { border-color: #f3bd53; background: linear-gradient(180deg, #fff8e8, var(--color-surface)); }
-.notice-detail-icon.is-birthday { background: #fff0c4; }
+.birthday-banner { margin: 8px 0 0; padding: 8px 12px; border-radius: 14px; background: var(--birthday-band); color: var(--birthday-ink); font-size: 13px; font-weight: 650; }
+html[data-birthday] .app-shell { background: var(--birthday-shell); }
+html[data-birthday] .app-topbar { background: var(--birthday-topbar); }
+html[data-birthday] .pay-hero { background: var(--birthday-hero); }
+html[data-birthday] .pay-tile-icon { box-shadow: var(--birthday-ring); }
+.notice-detail.is-birthday { border-color: var(--birthday-notice-border); background: var(--birthday-notice-bg); }
+.notice-detail-icon.is-birthday { background: var(--birthday-notice-icon); }
 .pay-hero-link {
   display: grid; place-items: center; flex: none; width: 40px; height: 40px; min-height: 40px; min-width: 40px;
   padding: 0; border-radius: 50%; color: var(--pay-on-hero);
@@ -540,6 +535,12 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
   content: ''; position: absolute; z-index: -1; top: 0; bottom: 44px; left: 50%; width: 100vw; transform: translateX(-50%);
   background: linear-gradient(180deg, var(--pay-hero-a), var(--pay-hero-b)); border-radius: 0 0 30px 30px;
 }
+/* The Teacher home has no floating stats card below its title, so add a little
+   extra blue base to match the deeper hero landing on the other home screens. */
+.teacher-hero { padding-bottom: var(--space-5); }
+.teacher-hero::before { bottom: 0; }
+.teacher-hero .teacher-welcome-note { color: var(--pay-on-hero-soft); }
+.teacher-hero #teacherHomeTitle { overflow-wrap: anywhere; }
 .admin-hero-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; color: var(--pay-on-hero); }
 .admin-hero-title { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; min-width: 0; margin: 0; }
 .admin-hero-title h1, .teacher-hero h1 { margin: 0; color: var(--pay-on-hero); font-size: 21px; font-weight: 700; line-height: 1.35; }
@@ -659,6 +660,13 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 .auth-message, .finance-error, .learning-error, .staff-pw-error {
   padding: 12px 14px; border: 1px solid var(--color-danger); border-left-width: 3px; border-radius: 14px;
   font-size: 13px; line-height: 1.7; color: var(--color-danger); background: var(--tone-rose-soft);
+}
+/* On the photographic login sky a translucent rose wash left the red ink
+   fighting the clouds: the banner keeps its tint over a solid surface base. */
+.auth-screen .auth-message {
+  background: var(--color-surface);
+  background: color-mix(in srgb, var(--tone-rose-soft) 78%, var(--color-surface));
+  box-shadow: var(--pay-shadow);
 }
 
 /* 12 ── Payment counter: a wallet summary and a three-step collection flow */
@@ -814,42 +822,76 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 .auth-screen { background: var(--color-bg); padding: 24px 16px calc(32px + var(--safe-bottom)); transition: background 600ms ease; }
 .auth-sky { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
 .auth-card { position: relative; z-index: 1; }
-.auth-orb { position: absolute; top: 28px; right: 18%; width: 72px; height: 72px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8d6, #ffd36a 55%, #f4b942); box-shadow: 0 0 40px 12px rgba(255, 210, 90, .45); }
-.auth-cloud { position: absolute; top: 56px; height: 28px; width: 86px; border-radius: 40px; background: rgba(255,255,255,.72); filter: blur(.2px); }
-.auth-cloud::before, .auth-cloud::after { content: ''; position: absolute; background: inherit; border-radius: 50%; }
-.auth-cloud::before { width: 36px; height: 36px; left: 14px; top: -16px; }
-.auth-cloud::after { width: 48px; height: 48px; right: 10px; top: -22px; }
-.auth-cloud.c1 { left: 8%; animation: apc-cloud-drift 18s linear infinite; }
-.auth-cloud.c2 { left: 42%; top: 88px; width: 110px; opacity: .85; animation: apc-cloud-drift 24s linear infinite reverse; }
-.auth-cloud.c3 { right: 6%; left: auto; top: 40px; width: 70px; opacity: .6; animation: apc-cloud-drift 20s linear infinite; }
+/* The sky is a real photograph per weather state (assets/sky/*.jpg, one file
+   fetched per visit, cache-first afterwards). The old cartoon sun disc and
+   three puff-ball clouds are gone: the orb is now a soft atmospheric glow and
+   the clouds are wide blurred haze bands, so nothing reads as a sticker on
+   top of the photo. Every colour lives in the foundation sky palette; the
+   scrim melts the photo into the page and keeps the transparent brand card
+   readable. */
+.auth-orb { position: absolute; top: -46px; right: 8%; width: 200px; height: 200px; border-radius: 50%;
+  background: var(--sky-glow-day); filter: blur(10px); }
+.auth-cloud { position: absolute; top: 72px; left: 4%; width: 62vw; height: 130px; border-radius: 50%;
+  background: var(--sky-haze); filter: blur(14px); }
+.auth-cloud::before, .auth-cloud::after { content: none; }
+.auth-cloud.c1 { left: 8%; animation: apc-cloud-drift 26s linear infinite; }
+.auth-cloud.c2 { left: 36%; top: 168px; width: 72vw; opacity: .8; animation: apc-cloud-drift 34s linear infinite reverse; }
+.auth-cloud.c3 { right: 4%; left: auto; top: 44px; width: 48vw; opacity: .6; animation: apc-cloud-drift 30s linear infinite; }
 @keyframes apc-cloud-drift { from { transform: translateX(0); } to { transform: translateX(28px); } }
+/* No sun glow behind a full cloud deck; a low warm one at dusk; a pale moon
+   glow at night. */
+.auth-screen[data-sky=clear-day] .auth-orb,
+.auth-screen[data-sky=heat] .auth-orb,
 .auth-screen[data-sky=clear-night] .auth-orb,
-.auth-screen[data-sky=storm] .auth-orb { background: radial-gradient(circle at 35% 30%, #f4f7ff, #c9d4ea 50%, #8ea0c4); box-shadow: 0 0 28px 8px rgba(180, 200, 255, .35); }
-.auth-screen[data-sky=dusk] .auth-orb { background: radial-gradient(circle at 35% 30%, #ffe7c2, #ff9b62 60%, #e06a3a); }
-.auth-screen[data-sky=rain] .auth-cloud,
-.auth-screen[data-sky=storm] .auth-cloud,
-.auth-screen[data-sky=cloudy] .auth-cloud { background: rgba(210, 218, 228, .9); }
-.auth-screen[data-sky=heat] .auth-orb { box-shadow: 0 0 56px 18px rgba(255, 160, 40, .55); }
+.auth-screen[data-sky=cloudy] .auth-orb,
+.auth-screen[data-sky=rain] .auth-orb,
+.auth-screen[data-sky=storm] .auth-orb,
+.auth-screen[data-sky=fog] .auth-orb { display: none; }
+.auth-screen[data-sky=dusk] .auth-orb { top: 26vh; right: 12%; width: 240px; height: 160px;
+  background: var(--sky-glow-dusk); }
+.auth-screen[data-sky=storm] .auth-cloud { opacity: .45; }
+.auth-screen[data-sky=clear-night] .auth-cloud { opacity: .5; background: var(--sky-haze-night); }
 @media (prefers-reduced-motion: reduce) {
   .auth-cloud { animation: none; }
 }
-/* Unified wallet look: a clean light page, the brand centred on the sheet and a
-   soft blue wash at the foot (the mockup's wave), not a hero band. */
-.auth-screen::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 240px;
-  background: radial-gradient(560px 260px at 50% 118%, var(--tone-blue-soft), transparent 72%); pointer-events: none; }
-.auth-screen[data-sky=clear-day] { background: linear-gradient(180deg, #cfe8ff 0%, #f4f7fb 42%, var(--color-bg) 100%); }
-.auth-screen[data-sky=dusk] { background: linear-gradient(180deg, #f3c9a4 0%, #ead4c4 38%, var(--color-bg) 100%); }
-.auth-screen[data-sky=clear-night] { background: linear-gradient(180deg, #1c2744 0%, #2c3548 40%, var(--color-bg) 100%); }
-.auth-screen[data-sky=cloudy] { background: linear-gradient(180deg, #c5cdd6 0%, #e8edf2 45%, var(--color-bg) 100%); }
-.auth-screen[data-sky=rain] { background: linear-gradient(180deg, #6e849c 0%, #c5d2de 48%, var(--color-bg) 100%); }
-.auth-screen[data-sky=storm] { background: linear-gradient(180deg, #3d4a5c 0%, #8b97a8 50%, var(--color-bg) 100%); }
-.auth-screen[data-sky=fog] { background: linear-gradient(180deg, #d5d2cc 0%, #eceae6 50%, var(--color-bg) 100%); }
-.auth-screen[data-sky=heat] { background: linear-gradient(180deg, #ffd18a 0%, #f7e7d2 42%, var(--color-bg) 100%); }
+/* Layer order per state: [optional tint/haze] → readability scrim → the
+   photograph → the gradient fallback for offline/no-photo. Only the current
+   state's photograph is ever fetched. */
+.auth-screen[data-sky] { background-position: center top; background-repeat: no-repeat; }
+.auth-screen[data-sky=clear-day] { background-image: var(--sky-scrim-bright), url('../assets/sky/clear-day.jpg'), var(--sky-fall-day);
+  background-size: auto, cover, auto;  background-position: 70% top;}
+.auth-screen[data-sky=heat] { background-image: var(--sky-warm-wash), var(--sky-scrim-bright), url('../assets/sky/clear-day.jpg'), var(--sky-fall-heat);
+  background-size: auto, auto, cover, auto;  background-position: 70% top;}
+.auth-screen[data-sky=dusk] { background-image: var(--sky-scrim-dusk), url('../assets/sky/dusk.jpg'), var(--sky-fall-dusk);
+  background-size: auto, cover, auto; }
+.auth-screen[data-sky=clear-night] { background-image: var(--sky-scrim-night), url('../assets/sky/clear-night.jpg'), var(--sky-fall-night);
+  background-size: auto, cover, auto; }
+.auth-screen[data-sky=cloudy] { background-image: var(--sky-scrim-mid), url('../assets/sky/cloudy.jpg'), var(--sky-fall-cloudy);
+  background-size: auto, cover, auto; }
+.auth-screen[data-sky=fog] { background-image: var(--sky-fog-wash), var(--sky-scrim-fog), url('../assets/sky/cloudy.jpg'), var(--sky-fall-fog);
+  background-size: auto, auto, cover, auto; }
+.auth-screen[data-sky=rain] { background-image: var(--sky-scrim-rain), url('../assets/sky/rain.jpg'), var(--sky-fall-rain);
+  background-size: auto, cover, auto; }
+.auth-screen[data-sky=storm] { background-image: var(--sky-scrim-storm), url('../assets/sky/storm.jpg'), var(--sky-fall-storm);
+  background-size: auto, cover, auto; }
+/* Over a photograph the brand is hero text: light states keep the ink
+   colours under the scrim, dark skies switch to light ink with a soft
+   shadow so it never fights the clouds. */
+.auth-screen[data-sky=clear-day] .auth-brand h1,
+.auth-screen[data-sky=heat] .auth-brand h1,
+.auth-screen[data-sky=cloudy] .auth-brand h1,
+.auth-screen[data-sky=fog] .auth-brand h1,
+.auth-screen[data-sky=clear-day] .auth-brand p,
+.auth-screen[data-sky=heat] .auth-brand p,
+.auth-screen[data-sky=cloudy] .auth-brand p,
+.auth-screen[data-sky=fog] .auth-brand p { text-shadow: var(--sky-ink-shadow-paper); }
 .auth-screen[data-sky=clear-night] .auth-brand h1,
-.auth-screen[data-sky=storm] .auth-brand h1 { color: #e8eef8; }
+.auth-screen[data-sky=storm] .auth-brand h1,
+.auth-screen[data-sky=dusk] .auth-brand h1 { color: var(--sky-ink-strong); text-shadow: var(--sky-ink-shadow); }
 .auth-screen[data-sky=clear-night] .auth-brand p,
 .auth-screen[data-sky=storm] .auth-brand p,
-.auth-screen[data-sky=rain] .auth-brand p { color: #d5deea; }
+.auth-screen[data-sky=rain] .auth-brand p,
+.auth-screen[data-sky=dusk] .auth-brand p { color: var(--sky-ink-soft); text-shadow: var(--sky-ink-shadow-soft); }
 .auth-card { position: relative; width: 100%; max-width: 460px; margin: 0 auto; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .auth-brand { text-align: center; margin-bottom: 22px; }
 .auth-brand img { display: block; width: 76px; height: 76px; padding: 8px; margin: 0 auto 12px; border-radius: 22px;

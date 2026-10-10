@@ -78,7 +78,7 @@ const KIND_TARGET = Object.freeze({
   'payment-review': 'cash-counter', 'payment-rejected': 'home', 'exam-review': 'exams',
   'exam-returned': 'online-exams', 'exam-approved': 'online-exams'
 });
-const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework', 'payment-rejected']);
+const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework', 'payment-rejected', 'payment-review']);
 const NOTICE_BOARD_KINDS = new Set(['notice', 'broadcast']);
 const generalNotificationItems = items => viewer?.kind === 'student'
   ? items.filter(item => !NOTICE_BOARD_KINDS.has(item.kind))
@@ -437,9 +437,15 @@ export function openNotificationTarget(data) {
     ? entry.key === key
     : sourceId && entry.sourceId === sourceId && entry.kind === kind) || null;
   const isBoardItem = NOTICE_BOARD_KINDS.has(kind);
-  const target = isBoardItem
+  const routed = isBoardItem
     ? (viewer?.kind === 'student' ? 'notice-board' : 'home')
     : data?.target || item?.target || KIND_TARGET[kind] || '';
+  /* The counter's seat name means nothing on the other staff panels: the
+     Manager's approval queue lives inside হিসাব, so remap and let the panel's
+     own action listener open the approval segment. */
+  const target = routed === 'cash-counter' && viewer?.kind === 'staff' && viewer?.role !== 'payment'
+    ? 'finance'
+    : routed;
   const action = item?.action || data?.action || 'open';
   if (key && item && !(isBoardItem && viewer?.kind === 'student')) {
     clearNotifications([key]);

@@ -17,25 +17,11 @@ import { initRegister } from './register.js';
 import { initRecovery } from './recovery.js';
 import { requestLogout, initLogout } from './logout.js';
 import { initNavigation } from './navigation.js';
-import { initProfile, openProfileEditor, shareStudentOnWhatsApp } from './profile.js';
-import { initRoutine } from './routine.js';
 import { initInstallPrompt, installApp } from './install.js';
 import { registerServiceWorker } from './service-worker.js';
 import { initDynamicTheme } from './theme.js';
 import { initFixedShell } from './fixed-shell.js';
-import { initStudentExams } from './student-exams.js';
-import { initStudentPractice } from './student-practice.js';
-import { initStudentTeaching } from './student-teaching.js';
-import { initStudentNoticeBoard } from './student-notice-board.js';
-import { initStudentDashboard } from './student-dashboard.js';
-import { mountReports, refreshReports } from './reports.js';
-import { initNotificationSettings } from './notification-settings.js';
-import { mountSettingsHub } from './settings-hub.js';
-import { initCourseHub } from './course-hub.js';
-import { initStudentStudySections } from './student-study-sections.js';
-import { initStudentHubs } from './student-hubs.js';
-import { initStudentFee } from './student-more.js';
-import { initDailyQuote } from './daily-quote.js';
+import { loadStudentFeatures } from './student-features.js';
 
 /* Always reveal the login shell before optional startup work. A failure in any
    secondary feature must never leave the entry page completely blank. */
@@ -167,43 +153,148 @@ const state = {
   student: loadStudent(),
   account: loadAccount()
 };
-const noticeBoard = initStudentNoticeBoard({ getStudent: () => state.student });
-const refreshExams = initStudentExams({ getStudent: () => state.student, getAccount: () => state.account });
+/* --- the signed-in feature surface -------------------------------------
+   The exam engine, the report builders, the Learning Hub and friends arrive
+   as one lazy chunk (js/student-features.js) instead of 47 static imports, so
+   the login screen no longer waits for them. Until the chunk resolves these
+   handles are harmless no-ops: nothing on the auth screen touches them, and
+   bootStudentFeatures() repaints whatever is on screen the moment they land. */
+const featureHandles = {};
+const noticeBoard = { refresh: (...args) => featureHandles.noticeBoard?.refresh?.(...args) };
+const refreshExams = Object.assign(
+  (...args) => featureHandles.refreshExams?.(...args),
+  { setTab: tab => featureHandles.refreshExams?.setTab?.(tab) }
+);
 /* ইনস্ট্যান্ট MCQ অনুশীলন — official papers are untouched; the practice lane
    reads the same papers through the question bank they join on publish. */
-const refreshPractice = initStudentPractice({ getStudent: () => state.student, getAccount: () => state.account });
-const refreshTeaching = initStudentTeaching({ getStudent: () => state.student });
+const refreshPractice = (...args) => featureHandles.refreshPractice?.(...args);
+const refreshTeaching = (...args) => featureHandles.refreshTeaching?.(...args);
 /* পড়াশোনা = one screen with five sections; the sections own the teaching board's
    scope, so the board is initialised first and handed in. */
-const refreshStudySections = initStudentStudySections({ getStudent: () => state.student, teaching: refreshTeaching });
+const refreshStudySections = (...args) => featureHandles.refreshStudySections?.(...args);
 /* ফি is read-only: the same finance repository the Home card reads. */
-const refreshFee = initStudentFee({ getStudent: () => state.student });
+const refreshFee = (...args) => featureHandles.refreshFee?.(...args);
 const refreshStudentSections = () => { void refreshStudySections(); void refreshFee(); };
-const refreshDashboard = initStudentDashboard({ getStudent: () => state.student, getAccount: () => state.account });
+const refreshDashboard = (...args) => featureHandles.refreshDashboard?.(...args);
 /* The Learning Hub (Class → Subject → Chapter → Content) reads the same exams,
    questions, practice history and results the existing learning modules own —
    it never keeps a second copy. Chapter MCQ practice and model tests route to
    those modules rather than starting parallel workflows. */
-const refreshCourses = initCourseHub({
-  getStudent: () => state.student,
-  onAction: action => {
-    if (action.kind === 'chapter-mcq-practice') {
-      setView('exams');
-      window.apcStudentPractice?.setMode?.('instant');
-      refreshExams.setTab?.('practice');
-      if (window.apcStudentPractice?.openChapter) window.apcStudentPractice.openChapter(action);
-      else refreshPractice();
-    } else if (action.kind === 'chapter-model-test') {
-      setView('exams');
-      window.dispatchEvent(new CustomEvent('apc-notification-action', {
-        detail: { kind: 'exam', id: action.examId, action: 'start' }
-      }));
-    }
-  }
-});
+const refreshCourses = Object.assign(
+  (...args) => featureHandles.refreshCourses?.(...args),
+  { paint: (...args) => featureHandles.refreshCourses?.paint?.(...args) }
+);
 /* আজকের অনুপ্রেরণা — the day's quote is on screen before this line returns and
    never waits for a network or a decision from the reader. */
-const dailyQuote = initDailyQuote({ mount: '#dailyQuoteCard' });
+const dailyQuote = { paint: (...args) => featureHandles.dailyQuote?.paint?.(...args) };
+const refreshRoutine = (...args) => featureHandles.refreshRoutine?.(...args);
+const refreshReports = (...args) => featureHandles.refreshReports?.(...args);
+const openProfileEditor = (...args) => featureHandles.openProfileEditor?.(...args);
+const shareStudentOnWhatsApp = (...args) => featureHandles.shareStudentOnWhatsApp?.(...args);
+
+/** Every signed-in refresh in one place: login, cloud writes and the moment
+    the lazy chunk lands all repaint through here. */
+function refreshSignedInSurface() {
+  refreshDashboard();
+  refreshTeaching(); refreshCourses.paint();
+  dailyQuote.paint();
+  refreshExams(); refreshPractice();
+  refreshStudentSections();
+  refreshNotices();
+  refreshReports($('#studentReports'));
+}
+
+/** Wires the chunk's modules exactly the way the static imports used to.
+    Each module boots in isolation: one init throwing must never strand the
+    ones after it (a dead routine hub frozen on "ক্লাস রুটিন লোড হচ্ছে…" is
+    what a student reads as "routine load failed"). Every featureHandles
+    consumer above is an optional-chained proxy, so a missing handle is a
+    missing card — not a broken app. */
+function initStudentFeatureSurface(f) {
+  const boot = (name, init) => {
+    try { return init(); }
+    catch (error) {
+      console.warn(`[Active Plus] ${name} init failed:`, error?.message);
+      return undefined;
+    }
+  };
+  featureHandles.noticeBoard = boot('notice-board', () => f.noticeBoard.initStudentNoticeBoard({ getStudent: () => state.student }));
+  featureHandles.refreshExams = boot('exams', () => f.exams.initStudentExams({ getStudent: () => state.student, getAccount: () => state.account }));
+  featureHandles.refreshPractice = boot('practice', () => f.practice.initStudentPractice({ getStudent: () => state.student, getAccount: () => state.account }));
+  featureHandles.refreshTeaching = boot('teaching', () => f.teaching.initStudentTeaching({ getStudent: () => state.student }));
+  featureHandles.refreshStudySections = boot('study-sections', () => f.studySections.initStudentStudySections({ getStudent: () => state.student, teaching: featureHandles.refreshTeaching }));
+  featureHandles.refreshFee = boot('fee', () => f.fee.initStudentFee({ getStudent: () => state.student }));
+  featureHandles.refreshDashboard = boot('dashboard', () => f.dashboard.initStudentDashboard({ getStudent: () => state.student, getAccount: () => state.account }));
+  featureHandles.refreshCourses = boot('course-hub', () => f.courseHub.initCourseHub({
+    getStudent: () => state.student,
+    onAction: action => {
+      if (action.kind === 'chapter-mcq-practice') {
+        setView('exams');
+        window.apcStudentPractice?.setMode?.('instant');
+        refreshExams.setTab?.('practice');
+        if (window.apcStudentPractice?.openChapter) window.apcStudentPractice.openChapter(action);
+        else refreshPractice();
+      } else if (action.kind === 'chapter-model-test') {
+        setView('exams');
+        window.dispatchEvent(new CustomEvent('apc-notification-action', {
+          detail: { kind: 'exam', id: action.examId, action: 'start' }
+        }));
+      }
+    }
+  }));
+  featureHandles.dailyQuote = boot('daily-quote', () => f.dailyQuote.initDailyQuote({ mount: '#dailyQuoteCard' }));
+  featureHandles.refreshRoutine = boot('routine', () => f.routine.initRoutine({ getStudent: () => state.student }));
+  boot('hubs', () => f.hubs.initStudentHubs({ getStudent: () => state.student }));
+  boot('profile', () => f.profile.initProfile({
+    state,
+    onStudentChange: student => { renderStudent(student); noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshStudentSections(); refreshReports($('#studentReports')); }
+  }));
+  /* Settings → the one five-group structure every role shares (js/settings-hub.js).
+     The student's own rows (profile, install, theme, device, offline) stay exactly
+     where they are; the hub only adds what was missing — session, storage, sync —
+     and hands the notification group to js/notification-settings.js. */
+  boot('settings-hub', () => f.settingsHub.mountSettingsHub({
+    mount: '#settingsView',
+    role: 'student',
+    session: { value: 'লগইন সেশন এই ডিভাইসে', hint: 'নিরাপত্তার জন্য সেশন ডিভাইস-বাউন্ড' }
+  }));
+  // Settings → Notification Settings (the full screen behind এই নোটিফিকেশন সেটিংস).
+  boot('notification-settings', () => f.notificationSettings.initNotificationSettings({ mount: '#notificationSettings' }));
+  boot('reports', () => f.reports.mountReports($('#studentReports'), { panel: 'student' }));
+  featureHandles.refreshReports = f.reports.refreshReports;
+  featureHandles.openProfileEditor = f.profile.openProfileEditor;
+  featureHandles.shareStudentOnWhatsApp = f.profile.shareStudentOnWhatsApp;
+  // The chunk can land after a session was already restored (a slow first load):
+  // repaint whatever is on screen so no signed-in view ever stays empty.
+  if ($('#appShell')?.hidden === false) refreshSignedInSurface();
+}
+
+let studentFeaturesFlight = null;
+let studentFeaturesRetries = 0;
+/* A flaky first fetch must not strand the signed-in surface on its
+   "লোড হচ্ছে…" placeholders — a student who opens ক্লাস রুটিন while the chunk
+   is missing reads that as "routine failed to load". Retry twice on a short
+   backoff, then say so out loud instead of failing silently. */
+const STUDENT_FEATURES_RETRY_DELAYS = Object.freeze([1200, 4000]);
+function bootStudentFeatures() {
+  studentFeaturesFlight ??= loadStudentFeatures()
+    .then(initStudentFeatureSurface)
+    .catch(error => {
+      // A failed chunk must never blank the app: the next navigation or login
+      // retries it, and the auth screen never depended on it.
+      studentFeaturesFlight = null;
+      console.warn('[Active Plus] feature chunk unavailable:', error?.message);
+      const delay = STUDENT_FEATURES_RETRY_DELAYS[studentFeaturesRetries];
+      if (delay !== undefined) {
+        studentFeaturesRetries += 1;
+        window.setTimeout(() => { void bootStudentFeatures(); }, delay);
+        return;
+      }
+      showFeedback('অ্যাপের কিছু অংশ লোড হয়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।');
+    });
+  return studentFeaturesFlight;
+}
+bootStudentFeatures();
 
 /* A control that names a tab of the পরীক্ষা section (Home's ফলাফল card) opens
    that tab. Tabs inside the section are handled by the exam module itself. */
@@ -275,15 +366,8 @@ function enterApp() {
   // session must never greet the student.
   setView(viewRouteFromHash(), { history: 'replace' });
   openStudentApp(state);
-  refreshDashboard();
-  refreshTeaching(); refreshCourses.paint();
-  dailyQuote.paint();
-  refreshExams(); refreshPractice();
-  refreshStudentSections();
-  refreshNotices();
+  refreshSignedInSurface();
   window.dispatchEvent(new Event('apc-session-ready'));
-  // A student's reports are their own: the module re-reads the signed-in id.
-  mountReports($('#studentReports'), { panel: 'student' });
 }
 
 function leaveApp() {
@@ -309,12 +393,6 @@ initNavigation({ onAction: handleAction });
 /* The bell and its inbox are owned by the notification engine
    (js/notifications.js) so every panel shares one receipt list. */
 const refreshNotices = () => { window.apcNoticeCenter?.paint?.(); noticeBoard.refresh(); };
-const refreshRoutine = initRoutine({ getStudent: () => state.student });
-initStudentHubs({ getStudent: () => state.student });
-initProfile({
-  state,
-  onStudentChange: student => { renderStudent(student); noticeBoard.refresh(); refreshTeaching(); refreshExams(); refreshPractice(); refreshCourses.paint(); refreshDashboard(); refreshRoutine(); refreshStudentSections(); refreshReports($('#studentReports')); }
-});
 let rosterProfileSyncFlight = null;
 async function applyRosterProfileToStudent() {
   const studentId = state.student?.id;
@@ -336,17 +414,6 @@ window.addEventListener('apc-sync-updated', event => {
 window.addEventListener('storage', event => {
   if (!event.key || event.key === ROSTER_KEY) void applyRosterProfileToStudent();
 });
-/* Settings → the one five-group structure every role shares (js/settings-hub.js).
-   The student's own rows (profile, install, theme, device, offline) stay exactly
-   where they are; the hub only adds what was missing — session, storage, sync —
-   and hands the notification group to js/notification-settings.js. */
-mountSettingsHub({
-  mount: '#settingsView',
-  role: 'student',
-  session: { value: 'লগইন সেশন এই ডিভাইসে', hint: 'নিরাপত্তার জন্য সেশন ডিভাইস-বাউন্ড' }
-});
-// Settings → Notification Settings (the full screen behind এই নোটিফিকেশন সেটিংস).
-initNotificationSettings({ mount: '#notificationSettings' });
 // Firebase is optional during online testing; offline startup remains independent.
 // The connection smoke test is diagnostic-only and costs an extra SDK download,
 // so it runs only when explicitly asked (index.html?fbtest=1) — never on a
@@ -434,12 +501,7 @@ window.addEventListener('storage', async event => {
       }
     }
     if (!$('#appShell').hidden) openStudentApp(state);
-    refreshDashboard();
-    refreshTeaching(); refreshCourses.paint();
-    refreshExams(); refreshPractice();
-    refreshStudentSections();
-    refreshNotices();
-    refreshReports($('#studentReports'));
+    refreshSignedInSurface();
   } catch (error) {
     console.warn('[Active Plus] cloud refresh failed:', error?.message);
   }
