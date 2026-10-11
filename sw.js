@@ -82,7 +82,7 @@
 // v254: refresh the Teacher hero's complete greeting and note colour.
 // v253: keep the Teacher home greeting on its hero band when account names wrap.
 // v252: refresh the official MCQ exam screen's pinned timer-bar styles.
-const CACHE_VERSION = 256;
+const CACHE_VERSION = 257;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './css/notifications.css',

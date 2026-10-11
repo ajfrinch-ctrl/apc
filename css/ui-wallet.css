@@ -829,8 +829,7 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
    top of the photo. Every colour lives in the foundation sky palette; the
    scrim melts the photo into the page and keeps the transparent brand card
    readable. */
-.auth-orb { position: absolute; top: -46px; right: 8%; width: 200px; height: 200px; border-radius: 50%;
-  background: var(--sky-glow-day); filter: blur(10px); }
+.auth-orb { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 .auth-cloud { position: absolute; top: 72px; left: 4%; width: 62vw; height: 130px; border-radius: 50%;
   background: var(--sky-haze); filter: blur(14px); }
 .auth-cloud::before, .auth-cloud::after { content: none; }
@@ -838,17 +837,21 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 .auth-cloud.c2 { left: 36%; top: 168px; width: 72vw; opacity: .8; animation: apc-cloud-drift 34s linear infinite reverse; }
 .auth-cloud.c3 { right: 4%; left: auto; top: 44px; width: 48vw; opacity: .6; animation: apc-cloud-drift 30s linear infinite; }
 @keyframes apc-cloud-drift { from { transform: translateX(0); } to { transform: translateX(28px); } }
-/* No sun glow behind a full cloud deck; a low warm one at dusk; a pale moon
-   glow at night. */
-.auth-screen[data-sky=clear-day] .auth-orb,
-.auth-screen[data-sky=heat] .auth-orb,
-.auth-screen[data-sky=clear-night] .auth-orb,
+/* The orb IS the sun or the moon: js/login.js walks it along the day's arc
+   through --orb-x/--orb-y/--orb-size and marks it with data-celestial, so it
+   rises, peaks and sets instead of standing still. No glow behind a full
+   cloud deck — the photograph owns those skies. */
+.auth-orb { left: var(--orb-x, 70%); top: var(--orb-y, 22vh);
+  width: var(--orb-size, 180px); height: var(--orb-size, 180px);
+  transition: left 90s linear, top 90s linear, width 400ms ease, height 400ms ease, opacity 600ms ease; }
+.auth-screen[data-celestial=sun] .auth-orb { background: var(--sky-orb-sun); filter: blur(2px); }
+.auth-screen[data-celestial=sun][data-orb-warm=high] .auth-orb { background: var(--sky-orb-sun-warm); filter: blur(4px); }
+.auth-screen[data-celestial=sun][data-orb-warm=mid] .auth-orb { background: var(--sky-orb-sun); filter: blur(3px); }
+.auth-screen[data-celestial=moon] .auth-orb { background: var(--sky-orb-moon); filter: blur(2px); }
 .auth-screen[data-sky=cloudy] .auth-orb,
 .auth-screen[data-sky=rain] .auth-orb,
 .auth-screen[data-sky=storm] .auth-orb,
 .auth-screen[data-sky=fog] .auth-orb { display: none; }
-.auth-screen[data-sky=dusk] .auth-orb { top: 26vh; right: 12%; width: 240px; height: 160px;
-  background: var(--sky-glow-dusk); }
 .auth-screen[data-sky=storm] .auth-cloud { opacity: .45; }
 .auth-screen[data-sky=clear-night] .auth-cloud { opacity: .5; background: var(--sky-haze-night); }
 @media (prefers-reduced-motion: reduce) {
@@ -863,6 +866,8 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 .auth-screen[data-sky=heat] { background-image: var(--sky-warm-wash), var(--sky-scrim-bright), url('../assets/sky/clear-day.jpg'), var(--sky-fall-heat);
   background-size: auto, auto, cover, auto;  background-position: 70% top;}
 .auth-screen[data-sky=dusk] { background-image: var(--sky-scrim-dusk), url('../assets/sky/dusk.jpg'), var(--sky-fall-dusk);
+  background-size: auto, cover, auto; }
+.auth-screen[data-sky=dawn] { background-image: var(--sky-scrim-dawn), url('../assets/sky/dusk.jpg'), var(--sky-fall-dawn);
   background-size: auto, cover, auto; }
 .auth-screen[data-sky=clear-night] { background-image: var(--sky-scrim-night), url('../assets/sky/clear-night.jpg'), var(--sky-fall-night);
   background-size: auto, cover, auto; }
@@ -887,11 +892,26 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 .auth-screen[data-sky=fog] .auth-brand p { text-shadow: var(--sky-ink-shadow-paper); }
 .auth-screen[data-sky=clear-night] .auth-brand h1,
 .auth-screen[data-sky=storm] .auth-brand h1,
-.auth-screen[data-sky=dusk] .auth-brand h1 { color: var(--sky-ink-strong); text-shadow: var(--sky-ink-shadow); }
+.auth-screen[data-sky=dusk] .auth-brand h1,
+.auth-screen[data-sky=dawn] .auth-brand h1 { color: var(--sky-ink-strong); text-shadow: var(--sky-ink-shadow); }
 .auth-screen[data-sky=clear-night] .auth-brand p,
 .auth-screen[data-sky=storm] .auth-brand p,
 .auth-screen[data-sky=rain] .auth-brand p,
-.auth-screen[data-sky=dusk] .auth-brand p { color: var(--sky-ink-soft); text-shadow: var(--sky-ink-shadow-soft); }
+.auth-screen[data-sky=dusk] .auth-brand p,
+.auth-screen[data-sky=dawn] .auth-brand p { color: var(--sky-ink-soft); text-shadow: var(--sky-ink-shadow-soft); }
+/* ঋতু washes — one soft tint per Bengali season, laid over the sky photo so
+   a June monsoon morning and a December dawn never share one palette. */
+.auth-sky::before { content: ''; position: absolute; inset: 0 0 auto; height: 46%; opacity: .9; }
+.auth-screen[data-season=sheet] .auth-sky::before { background: var(--sky-wash-sheet); }
+.auth-screen[data-season=basant] .auth-sky::before { background: var(--sky-wash-basanta); }
+.auth-screen[data-season=grishmo] .auth-sky::before { background: var(--sky-wash-grishmo); }
+.auth-screen[data-season=borsha] .auth-sky::before { background: var(--sky-wash-borsha); }
+.auth-screen[data-season=shorot] .auth-sky::before { background: var(--sky-wash-shorot); }
+.auth-screen[data-season=hemonto] .auth-sky::before { background: var(--sky-wash-hemonto); }
+/* The living status line: greeting · ঋতু · আবহাওয়া, recomputed every minute. */
+.auth-screen .auth-brand p.auth-sky-note { display: inline-block; margin: 8px 0 0; padding: 5px 13px;
+  border-radius: 999px; background: var(--sky-note-bg); color: var(--sky-note-ink);
+  text-shadow: none; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; animation: none; }
 .auth-card { position: relative; width: 100%; max-width: 460px; margin: 0 auto; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .auth-brand { text-align: center; margin-bottom: 22px; }
 .auth-brand img { display: block; width: 76px; height: 76px; padding: 8px; margin: 0 auto 12px; border-radius: 22px;

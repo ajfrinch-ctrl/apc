@@ -152,6 +152,21 @@ html[data-theme=dark] ::selection{background:#5ea9ff38;color:var(--color-text)}
  --sky-ink-strong:#eef4fc;--sky-ink-soft:#dce5f0;
  --sky-ink-shadow-paper:0 1px 2px rgba(var(--sky-fade),.9), 0 0 14px rgba(var(--sky-fade),.95);
  --sky-ink-shadow:0 1px 14px rgba(8,14,26,.5);--sky-ink-shadow-soft:0 1px 10px rgba(8,14,26,.45);
+ --sky-glow-dawn:radial-gradient(ellipse at 50% 62%, rgba(255,186,150,.55), rgba(255,140,110,.2) 48%, rgba(255,140,110,0) 74%);
+ --sky-scrim-dawn:linear-gradient(180deg, rgba(var(--sky-fade),.14) 0%, rgba(var(--sky-fade),.64) 38%, rgba(var(--sky-fade),.95) 64%, var(--color-bg) 90%);
+ --sky-fall-dawn:linear-gradient(180deg, #efc0c4 0%, #f2d9c8 38%, var(--color-bg) 100%);
+ --sky-orb-sun:radial-gradient(circle at 50% 50%, rgba(255,253,240,.95), rgba(255,230,160,.55) 32%, rgba(255,200,120,.18) 56%, rgba(255,190,100,0) 72%);
+ --sky-orb-sun-warm:radial-gradient(circle at 50% 52%, rgba(255,236,205,.95), rgba(255,176,112,.52) 34%, rgba(255,132,82,.18) 58%, rgba(255,120,70,0) 74%);
+ --sky-orb-moon:radial-gradient(circle at 46% 44%, rgba(242,247,255,.94), rgba(212,226,248,.5) 36%, rgba(190,210,240,.16) 60%, rgba(180,200,235,0) 76%);
+ --sky-wash-sheet:linear-gradient(180deg, rgba(196,218,244,.18), rgba(196,218,244,.05) 52%, rgba(196,218,244,0) 74%);
+ --sky-wash-basanta:linear-gradient(180deg, rgba(255,192,208,.17), rgba(206,236,196,.06) 52%, rgba(255,255,255,0) 74%);
+ --sky-wash-grishmo:linear-gradient(180deg, rgba(255,202,112,.18), rgba(255,172,92,.05) 52%, rgba(255,172,92,0) 74%);
+ --sky-wash-borsha:linear-gradient(180deg, rgba(118,178,168,.17), rgba(118,168,168,.05) 52%, rgba(118,168,168,0) 74%);
+ --sky-wash-shorot:linear-gradient(180deg, rgba(172,204,236,.15), rgba(180,210,240,.05) 52%, rgba(180,210,240,0) 74%);
+ --sky-wash-hemonto:linear-gradient(180deg, rgba(242,192,130,.16), rgba(236,186,122,.05) 52%, rgba(236,186,122,0) 74%);
+ --sky-note-bg:rgba(20,28,40,.42);
+ --sky-note-ink:#f2f6fb;
+ --orb-x:70%;--orb-y:22vh;--orb-size:180px;
 }
 html[data-theme=dark]{ --sky-fade:0,0,0;
   /* light ink over a bright day photo needs the stronger wash back */

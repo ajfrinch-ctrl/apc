@@ -465,55 +465,232 @@ export function initLogin({ state, onAuthenticated }) {
   // The one-time Admin gate is checked in the background: the login form is
   // usable immediately, and only a verified cloud answer opens creation.
   void initFirstAdminSetup().catch(() => {});
-  void paintAuthWeather();
+  void paintAuthSky();
+  startAuthSkyClock();
   warmCloudBridge();
 }
 
 const KANUNGOPARA = Object.freeze({ lat: 22.35803, lon: 92.12380 });
-const WEATHER_CACHE_KEY = 'activePlus.authWeather.kanungopara.v1';
+const WEATHER_CACHE_KEY = 'activePlus.authWeather.kanungopara.v2';
 
-function skyFromClock(date = new Date()) {
-  const hour = date.getHours();
-  if (hour >= 19 || hour < 5) return 'clear-night';
-  if (hour >= 17) return 'dusk';
-  return 'clear-day';
+/* ── Auth sky engine: সময় · ঋতু · আবহাওয়া ──────────────────────────────────
+   The login sky is a living scene, never a frozen backdrop:
+
+     • the sun/moon is a DOM orb riding an arc computed from the clock and
+       the real sunrise/sunset (open-meteo, seasonal fallback offline) — it
+       rises in the morning, peaks at noon and sets at dusk instead of
+       standing glued to one corner of a photograph;
+     • the six Bengali seasons each carry their own sunrise/sunset windows
+       and a colour wash, so a December dawn differs from a June one;
+     • the day's weather picks the photograph and hides the orb behind a
+       full cloud deck.
+
+   Everything is recomputed every minute through one pure function, so a
+   tab left open crosses dawn → day → dusk → night on its own. */
+
+const SEASONS = Object.freeze([
+  { key: 'sheet',   label: 'শীত',   from: [12, 15], to: [2, 14],  sunrise: 375, sunset: 1025 },
+  { key: 'basant',  label: 'বসন্ত',  from: [2, 15],  to: [4, 14],  sunrise: 355, sunset: 1085 },
+  { key: 'grishmo', label: 'গ্রীষ্ম',  from: [4, 15],  to: [6, 14],  sunrise: 315, sunset: 1120 },
+  { key: 'borsha',  label: 'বর্ষা',   from: [6, 15],  to: [8, 14],  sunrise: 325, sunset: 1110 },
+  { key: 'shorot',  label: 'শরৎ',   from: [8, 15],  to: [10, 14], sunrise: 340, sunset: 1075 },
+  { key: 'hemonto', label: 'হেমন্ত',  from: [10, 15], to: [12, 14], sunrise: 365, sunset: 1040 }
+]);
+
+const SKY_WEATHER_LABEL = Object.freeze({
+  clear: 'পরিষ্কার আকাশ', cloudy: 'মেঘলা আকাশ', rain: 'বৃষ্টির আবহাওয়া',
+  storm: 'ঝড়ের আবহাওয়া', fog: 'কুয়াশাচ্ছন্ন', heat: 'প্রচণ্ড গরম'
+});
+
+export function seasonFromDate(date = new Date()) {
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return SEASONS.find(season => {
+    const [fromMonth, fromDay] = season.from;
+    const [toMonth, toDay] = season.to;
+    const afterFrom = month > fromMonth || (month === fromMonth && day >= fromDay);
+    const beforeTo = month < toMonth || (month === toMonth && day <= toDay);
+    return fromMonth <= toMonth ? (afterFrom && beforeTo) : (afterFrom || beforeTo);
+  }) || SEASONS[0];
 }
 
-function skyFromWeather(code, isDay, tempC) {
+/* Local minutes since midnight → which arc the sun is on. The windows sit
+   around the real (or seasonal-fallback) sunrise/sunset, so the sky turns
+   with the length of the day instead of hard clock hours. */
+export function daypartFromClock(date = new Date(), times = null) {
+  const season = seasonFromDate(date);
+  const sunrise = Number(times?.sunrise) || season.sunrise;
+  const sunset = Number(times?.sunset) || season.sunset;
+  const minute = date.getHours() * 60 + date.getMinutes();
+  let daypart = 'night';
+  if (minute >= sunrise - 40 && minute < sunrise + 50) daypart = 'dawn';
+  else if (minute >= sunrise + 50 && minute < sunset - 50) daypart = 'day';
+  else if (minute >= sunset - 50 && minute < sunset + 45) daypart = 'dusk';
+  return { daypart, sunrise, sunset, season };
+}
+
+/* WMO weather codes → the visual condition. Temperature only adds 'heat'. */
+export function skyConditionFromWeather(code, tempC, daypart) {
   const n = Number(code);
-  if (Number(tempC) >= 34 && isDay && n <= 2) return 'heat';
+  const t = Number(tempC);
   if (n >= 95) return 'storm';
   if ((n >= 51 && n <= 67) || (n >= 80 && n <= 82)) return 'rain';
   if (n === 45 || n === 48) return 'fog';
-  if (n >= 2) return isDay ? 'cloudy' : 'clear-night';
-  return isDay ? 'clear-day' : 'clear-night';
+  if ((n >= 71 && n <= 77) || (n >= 85 && n <= 86)) return 'cloudy';
+  if (n >= 2) return 'cloudy';
+  if (t >= 34 && (daypart === 'day' || daypart === 'dawn')) return 'heat';
+  return 'clear';
 }
 
-function applyAuthSky(sky) {
+export function skyFromClock(date = new Date(), times = null) {
+  return { dawn: 'dawn', day: 'clear-day', dusk: 'dusk', night: 'clear-night' }[daypartFromClock(date, times).daypart];
+}
+
+export function skyFromWeather(code, tempC, date = new Date(), times = null) {
+  const { daypart } = daypartFromClock(date, times);
+  const condition = skyConditionFromWeather(code, tempC, daypart);
+  if (condition === 'storm' || condition === 'rain' || condition === 'fog') return condition;
+  if (condition === 'cloudy') return daypart === 'night' ? 'clear-night' : 'cloudy';
+  if (condition === 'heat') return 'heat';
+  return { dawn: 'dawn', day: 'clear-day', dusk: 'dusk', night: 'clear-night' }[daypart];
+}
+
+/* Where the sun/moon stands right now: an arc across the sky. x grows from
+   east (left) to west (right); y is height above the horizon band; the body
+   swells and warms near the horizon the way real light does. */
+export function orbFromClock(date = new Date(), times = null, celestial = 'sun') {
+  const { sunrise, sunset } = daypartFromClock(date, times);
+  const minute = date.getHours() * 60 + date.getMinutes();
+  const clamp01 = value => Math.max(0, Math.min(1, value));
+  let x; let y; let size; let warmth;
+  if (celestial === 'moon') {
+    const nightLength = (sunrise + 1440 - sunset) % 1440 || 720;
+    const elapsed = (minute - sunset + 1440) % 1440;
+    const u = clamp01(elapsed / nightLength);
+    x = 16 + 68 * u;
+    y = 30 - 18 * Math.sin(Math.PI * u);
+    size = 150 + 62 * (1 - Math.sin(Math.PI * u));
+    warmth = 0.08;
+  } else {
+    const t = clamp01((minute - sunrise) / Math.max(1, sunset - sunrise));
+    x = 14 + 72 * t;
+    y = 32 - 20 * Math.sin(Math.PI * t);
+    size = 168 + 86 * (1 - Math.sin(Math.PI * t));
+    warmth = 1 - Math.sin(Math.PI * t);
+  }
+  return { x, y, size, warmth, warmLevel: warmth > 0.62 ? 'high' : warmth > 0.3 ? 'mid' : 'low' };
+}
+
+function greetingFromHour(hour) {
+  if (hour < 5) return 'শুভ রাত্রি';
+  if (hour < 8) return 'শুভ ভোর';
+  if (hour < 12) return 'শুভ সকাল';
+  if (hour < 16) return 'শুভ দুপুর';
+  if (hour < 18) return 'শুভ বিকেল';
+  if (hour < 20) return 'শুভ সন্ধ্যা';
+  return 'শুভ রাত্রি';
+}
+
+/* One pure function decides the whole scene — tests drive it with any
+   clock, any weather and any sunrise/sunset. */
+export function authSkyState(date = new Date(), weather = null, times = null) {
+  const { daypart, sunrise, sunset, season } = daypartFromClock(date, times);
+  const sky = weather
+    ? skyFromWeather(weather.code, weather.tempC, date, { sunrise, sunset })
+    : skyFromClock(date, { sunrise, sunset });
+  const celestial = (sky === 'clear-night') ? 'moon' : (sky === 'cloudy' || sky === 'rain' || sky === 'storm' || sky === 'fog') ? '' : 'sun';
+  const orb = orbFromClock(date, { sunrise, sunset }, celestial || 'sun');
+  const condition = skyConditionFromWeather(weather?.code, weather?.tempC, daypart);
+  return {
+    sky, daypart, season, celestial,
+    orb,
+    note: `${greetingFromHour(date.getHours())} · ঋতু: ${season.label} · আবহাওয়া: ${SKY_WEATHER_LABEL[condition] || SKY_WEATHER_LABEL.clear}`
+  };
+}
+
+export function applyAuthState(state) {
   const screen = $('#authScreen');
   if (!screen) return;
-  screen.dataset.sky = sky;
+  /* The orb glides between minute paints, but the FIRST placement and a
+     sun↔moon swap must land instantly — never a slow flight from the CSS
+     fallback corner (or across the sky when the body changes). */
+  const orb = screen.querySelector('.auth-orb');
+  const instant = screen.dataset.orbSettle !== '1' || (screen.dataset.celestial || '') !== state.celestial;
+  if (instant && orb) orb.style.transition = 'none';
+  screen.dataset.sky = state.sky;
+  screen.dataset.daypart = state.daypart;
+  screen.dataset.season = state.season.key;
+  screen.dataset.celestial = state.celestial;
+  screen.dataset.orbWarm = state.orb.warmLevel;
+  screen.dataset.orbSettle = '1';
+  screen.style.setProperty('--orb-x', `${state.orb.x.toFixed(2)}%`);
+  screen.style.setProperty('--orb-y', `${state.orb.y.toFixed(2)}vh`);
+  screen.style.setProperty('--orb-size', `${Math.round(state.orb.size)}px`);
+  if (instant && orb) {
+    void orb.getBoundingClientRect();
+    orb.style.transition = '';
+  }
+  const note = $('#authSkyNote');
+  if (note) {
+    note.textContent = state.note;
+    note.hidden = false;
+  }
 }
 
-async function paintAuthWeather() {
-  applyAuthSky(skyFromClock());
+function readWeatherCache() {
   try {
     const cached = JSON.parse(sessionStorage.getItem(WEATHER_CACHE_KEY) || 'null');
-    if (cached?.sky && Date.now() - Number(cached.at || 0) < 30 * 60 * 1000) {
-      applyAuthSky(cached.sky);
-      return;
-    }
+    if (cached && Number.isFinite(Number(cached.at))) return cached;
   } catch { /* ignore bad cache */ }
-  try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${KANUNGOPARA.lat}&longitude=${KANUNGOPARA.lon}&current=weather_code,is_day,temperature_2m`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) return;
-    const data = await response.json();
-    const current = data?.current || {};
-    const sky = skyFromWeather(current.weather_code, Number(current.is_day) === 1, current.temperature_2m);
-    applyAuthSky(sky);
-    try { sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ sky, at: Date.now() })); } catch { /* quota */ }
-  } catch { /* offline: clock sky stays */ }
+  return null;
+}
+
+async function fetchWeatherSnapshot() {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${KANUNGOPARA.lat}&longitude=${KANUNGOPARA.lon}&current=weather_code,is_day,temperature_2m&daily=sunrise,sunset&timezone=Asia%2FDhaka`;
+  const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) return null;
+  const data = await response.json();
+  const current = data?.current || {};
+  const sunriseText = String(data?.daily?.sunrise?.[0] || '');
+  const sunsetText = String(data?.daily?.sunset?.[0] || '');
+  const toMinutes = text => {
+    const match = /T(\d{2}):(\d{2})/.exec(text);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+  };
+  return {
+    code: Number(current.weather_code),
+    tempC: Number(current.temperature_2m),
+    sunrise: toMinutes(sunriseText),
+    sunset: toMinutes(sunsetText),
+    at: Date.now()
+  };
+}
+
+/* Recompute the scene from clock + cached (or freshly fetched) weather.
+   The clock part always runs — even fully offline the sun still moves. */
+export async function paintAuthSky(now = new Date()) {
+  let snapshot = readWeatherCache();
+  if (!snapshot || Date.now() - Number(snapshot.at) > 30 * 60 * 1000) {
+    try {
+      const fresh = await fetchWeatherSnapshot();
+      if (fresh) {
+        snapshot = fresh;
+        try { sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(fresh)); } catch { /* quota */ }
+      }
+    } catch { /* offline: clock + season drive the sky */ }
+  }
+  const weather = snapshot ? { code: snapshot.code, tempC: snapshot.tempC } : null;
+  const times = snapshot ? { sunrise: snapshot.sunrise, sunset: snapshot.sunset } : null;
+  applyAuthState(authSkyState(now, weather, times));
+}
+
+let authSkyTimer = 0;
+function startAuthSkyClock() {
+  if (authSkyTimer) return;
+  authSkyTimer = window.setInterval(() => { void paintAuthSky(new Date()); }, 60 * 1000);
+  window.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void paintAuthSky(new Date());
+  });
 }
 
 /* ---------------------------------------------------------------------------
