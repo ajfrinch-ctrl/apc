@@ -121,6 +121,8 @@ test('the desk invents nothing: an empty amount, a one-letter query and a hidden
     const forged = document.createElement('button');
     forged.id = 'forgedPick';
     forged.dataset.payStudent = 'NO-STUDENT';
+    forged.textContent = 'Forged selection';
+    forged.style.cssText = 'position:fixed;top:0;left:0;width:160px;height:48px;z-index:9999;';
     document.body.append(forged);
   });
   await page.locator('#forgedPick').click();

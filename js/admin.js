@@ -49,7 +49,6 @@ import {
   staffRoleLabel
 } from './staff-directory.js';
 import { initStaffManagement, renderStaff } from './staff-management.js';
-import { mountStaffOverview, refreshStaffOverviews } from './staff-overview.js';
 import { ROLE_CAPABILITIES } from './admin-permissions.js';
 import { runMigrations } from './storage/migration.js';
 
@@ -124,13 +123,6 @@ async function enterPanel() {
   // Staff Management is wired once; it re-reads the directory on every render
   // and calls back so the dashboard, reports and security stay in sync.
   initStaffManagement({ onChanged: onStaffChanged });
-  /* Staff Management Overview — the same directory and the same dialogs as the
-     full স্টাফ ম্যানেজমেন্ট section, surfaced on the Profile. (Owner decision
-     2026-10-14: the Dashboard home no longer carries a staff overview — the
-     home keeps only the snapshot tiles and quick access.) Only rendered when
-     the role holds staff.manage (the mount card carries the capability marker
-     and enforceCapabilities drops the rest). */
-  mountStaffOverview({ mount: '#staffOverviewProfile', onNavigate: navigate, onToast: toast });
   await refreshStaffSnapshot();
   renderAll();
   // The Reports Module re-reads who is signed in and what they may see.
@@ -771,14 +763,14 @@ function renderRoles() {
 /* ---------- Data Management ---------- */
 
 const DATA_COLLECTIONS = Object.freeze([
-  { key: KEYS.students, label: 'শিক্ষার্থী (Roster)', hint: 'নিবন্ধন, শ্রেণি, স্ট্যাটাস', icon: 'students' },
-  { key: KEYS.transactions, label: 'লেনদেন (Finance)', hint: 'ফি আদায়ের রেকর্ড ও রসিদ তথ্য', icon: 'wallet' },
+  { key: KEYS.students, label: 'শিক্ষার্থী তালিকা', hint: 'নিবন্ধন, শ্রেণি, স্ট্যাটাস', icon: 'students' },
+  { key: KEYS.transactions, label: 'লেনদেনের হিসাব', hint: 'ফি আদায়ের রেকর্ড ও রসিদ তথ্য', icon: 'wallet' },
   { key: KEYS.notices, label: 'নোটিশ', hint: 'প্রকাশিত ঘোষণা', icon: 'notice' },
   { key: KEYS.routine, label: 'ক্লাস রুটিন', hint: 'সাপ্তাহিক ক্লাস ও শিক্ষক', icon: 'calendar' },
   { key: KEYS.teaching, label: 'একাডেমিক কার্যক্রম', hint: 'বাড়ির কাজ, উপস্থিতি, সাজেশন', icon: 'book' },
   { key: KEYS.exams, label: 'পরীক্ষা', hint: 'প্রশ্নপত্র, উত্তর ও ফলাফল', icon: 'exam' },
   { key: KEYS.settings, label: 'অ্যাপ সেটিংস', hint: 'কনফিগারেশন ও ব্র্যান্ডিং', icon: 'settings' },
-  { key: STAFF_DIRECTORY_KEY, label: 'স্টাফ ডিরেক্টরি', hint: 'Staff ID, রোল ও অ্যাসাইনমেন্ট', icon: 'staff' }
+  { key: STAFF_DIRECTORY_KEY, label: 'স্টাফ ডিরেক্টরি', hint: 'স্টাফ আইডি, ভূমিকা ও দায়িত্ব', icon: 'staff' }
 ]);
 
 function collectionCount(key) {
@@ -1055,20 +1047,20 @@ async function renderSecurity() {
   const passwordDue = state.staff.filter(staff => staff.mustChangePassword);
   const protectedStaff = state.staff.filter(staff => staff.protected);
   const rows = [
-    ['System Owner', escapeHtml(owner?.fullName || '—')],
+    ['সিস্টেম মালিক', escapeHtml(owner?.fullName || '—')],
     ['Owner Username', escapeHtml(owner?.username || '—')],
-    ['Owner Staff ID', ownerStaff ? `<span class="staff-id-badge">${escapeHtml(ownerStaff.staffId)}</span>` : '—'],
-    ['স্ট্যাটাস', '<span class="badge badge-approved">Protected • মুছে বা নিষ্ক্রিয় করা যায় না</span>'],
+    ['মালিকের স্টাফ আইডি', ownerStaff ? `<span class="staff-id-badge">${escapeHtml(ownerStaff.staffId)}</span>` : '—'],
+    ['স্ট্যাটাস', '<span class="badge badge-approved">সুরক্ষিত • মুছে বা নিষ্ক্রিয় করা যায় না</span>'],
     ['Session নীতি', `${bn(STAFF_SESSION_RULES.rememberDays.admin)} দিন (এই ডিভাইসে বাঁধা টোকেন) • ট্যাব-সেশন ট্যাব বন্ধ হলে শেষ`],
     ['Password নীতি', `${bn(STAFF_DIRECTORY_RULES.passwordMin)}–${bn(STAFF_DIRECTORY_RULES.passwordMax)} অক্ষর • PBKDF2 হ্যাশ • কখনো প্লেইন-টেক্সট নয়`],
     ['স্টাফ ম্যানেজমেন্ট', 'শুধু Admin • বাটন লুকানোই নয়, প্রতিটি পরিবর্তনে Admin সেশন যাচাই হয়'],
-    ['Student ID বনাম Staff ID', escapeHtml(STAFF_DIRECTORY_RULES.studentIdNote)]
+    ['শিক্ষার্থী আইডি বনাম স্টাফ আইডি', escapeHtml(STAFF_DIRECTORY_RULES.studentIdNote)]
   ];
   host.innerHTML = `
     <article class="admin-card">
       <header class="admin-card-head">
-        <div><p class="eyebrow">System Owner</p><h2>এডমিন পরিচয় ও সুরক্ষা</h2></div>
-        <span class="badge badge-approved">Protected</span>
+        <div><p class="eyebrow">সিস্টেম মালিক</p><h2>এডমিন পরিচয় ও সুরক্ষা</h2></div>
+        <span class="badge badge-approved">সুরক্ষিত</span>
       </header>
       <div class="security-list">
         ${rows.map(([label, value]) => `
@@ -1096,7 +1088,7 @@ async function renderSecurity() {
     </article>
     <article class="admin-card">
       <header class="admin-card-head">
-        <div><p class="eyebrow">Protected Accounts</p><h2>সুরক্ষিত অ্যাকাউন্ট</h2></div>
+        <div><p class="eyebrow">সুরক্ষিত অ্যাকাউন্ট</p><h2>সুরক্ষিত অ্যাকাউন্ট</h2></div>
         <span class="badge badge-approved">${bn(protectedStaff.length)} টি</span>
       </header>
       <div class="security-list">
@@ -1104,7 +1096,7 @@ async function renderSecurity() {
           <div class="security-row">
             <div>
               <dt><span class="staff-id-badge">${escapeHtml(staff.staffId)}</span> ${escapeHtml(staffRoleLabel(staff.role))}</dt>
-              <dd>${escapeHtml(staff.fullName)} — মুছে ফেলা ও নিষ্ক্রিয় করা বন্ধ, যাতে System Owner লক-আউট না হয়।</dd>
+              <dd>${escapeHtml(staff.fullName)} — মুছে ফেলা ও নিষ্ক্রিয় করা বন্ধ, যাতে সিস্টেম মালিক অ্যাকাউন্টে প্রবেশ হারিয়ে না ফেলেন।</dd>
             </div>
           </div>`).join('') || '<p class="admin-empty">কোনো সুরক্ষিত অ্যাকাউন্ট পাওয়া যায়নি।</p>'}
       </div>
@@ -1178,15 +1170,16 @@ async function renderAdminProfile() {
   if (!host) return;
   const account = await readStaffAccount('admin');
   const staff = state.staff.find(item => item.role === 'admin') || null;
+  const created = account?.createdAt ? new Date(account.createdAt) : null;
+  const joinedLabel = created && Number.isFinite(created.getTime()) ? dateLabel(created) : '—';
+  // Keep only the facts not already in the identity header (name, Login ID,
+  // Admin role); these detail rows render inside that same hero card.
   const rows = [
-    ['পূর্ণ নাম', escapeHtml(account?.fullName || '—')],
-    ['ইউজারনেম', escapeHtml(account?.username || '—')],
-    ['Staff ID', staff ? `<span class="staff-id-badge">${escapeHtml(staff.staffId)}</span>` : '—'],
-    ['Role', `${escapeHtml(staffRoleLabel('admin'))} • System Owner`],
+    ['স্টাফ আইডি', staff ? `<span class="staff-id-badge">${escapeHtml(staff.staffId)}</span>` : '—'],
     ['মোবাইল', escapeHtml(account?.mobile || '—')],
     ['ইমেইল', escapeHtml(account?.email || '—')],
-    ['স্ট্যাটাস', '<span class="badge badge-approved">Protected • সক্রিয়</span>'],
-    ['যোগদান', escapeHtml(String(account?.createdAt || '').slice(0, 10) || '—')]
+    ['স্ট্যাটাস', '<span class="badge badge-approved">সুরক্ষিত • সক্রিয়</span>'],
+    ['যোগদান', escapeHtml(joinedLabel)]
   ];
   // The same card fills the editable identity form: name, mobile, email.
   if ($('#adminProfileName')) $('#adminProfileName').value = account?.fullName || '';
@@ -1194,22 +1187,27 @@ async function renderAdminProfile() {
   if ($('#adminProfileEmail')) $('#adminProfileEmail').value = account?.email || '';
   if ($('#adminProfileUserId')) $('#adminProfileUserId').textContent = account?.username || '—';
 
-  const displayName = account?.fullName || 'Admin';
+  const displayName = account?.fullName || 'এডমিন';
   const initials = initialsOf(displayName);
   host.innerHTML = `
     <div class="admin-profile-hero">
-      <span class="admin-profile-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
-      <div class="admin-profile-identity">
-        <h2>${escapeHtml(displayName)}</h2>
-        <p class="admin-profile-meta">Login ID: ${escapeHtml(account?.username || '—')}</p>
+      <div class="admin-profile-hero-head">
+        <span class="admin-profile-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
+        <div class="admin-profile-identity">
+          <h2>${escapeHtml(displayName)}</h2>
+          <p class="admin-profile-meta">লগইন আইডি: ${escapeHtml(account?.username || '—')}</p>
+        </div>
+        <span class="admin-profile-status">এডমিন</span>
       </div>
-      <span class="admin-profile-status">Admin</span>
-    </div>
-    <dl class="profile-list">
-      ${rows.map(([label, value]) => `
-        <div class="profile-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`).join('')}
-    </dl>
-    <p class="finance-hint admin-profile-note">System Owner পরিচয় সুরক্ষিত: এই অ্যাকাউন্ট মুছে ফেলা, নিষ্ক্রিয় করা বা রোল বদল করা যায় না — ফলে কখনো লক-আউট হয় না।</p>`;
+      <dl class="profile-list admin-profile-facts">
+        ${rows.map(([label, value]) => `
+          <div class="profile-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`).join('')}
+      </dl>
+      <p class="finance-hint admin-profile-note">সিস্টেম মালিকের পরিচয় সুরক্ষিত: এই অ্যাকাউন্ট মুছে ফেলা, নিষ্ক্রিয় করা বা ভূমিকা বদল করা যায় না — তাই অ্যাকাউন্টে প্রবেশ বন্ধ হয়ে যায় না।</p>
+      <button class="admin-profile-edit" type="button" data-admin-profile-edit>
+        ${iconMarkup('edit', 'apc-icon-svg')}<span>প্রোফাইল সম্পাদনা</span>
+      </button>
+    </div>`;
 }
 
 /* ---------- Render everything ---------- */
@@ -1263,7 +1261,7 @@ function renderMigration() {
  * Academic Setup, the migration console) keep their own refresh entries.
  */
 const VIEW_REFRESHERS = {
-  dashboard: () => { renderDashboard(); refreshStaffOverviews(); },
+  dashboard: () => renderDashboard(),
   students: () => renderStudents(),
   settings: () => { renderAppManagement(); renderClasses(); },
   roles: () => renderRoles(),
@@ -1274,7 +1272,7 @@ const VIEW_REFRESHERS = {
   /* Arriving on the profile always lands on the settings menu: a group
      opened on an earlier visit must not still be open ("the part I
      clicked before is still showing" — the reported dead end). */
-  profile: () => { resetSettingsHub($('#adminSettingsHub')); renderAdminProfile(); refreshStaffOverviews(); },
+  profile: () => { resetSettingsHub('[data-settings-hub="admin"]'); renderAdminProfile(); },
   staff: () => { void renderStaff(); },
   reports: () => refreshReports($('#adminReports'))
 };
@@ -1306,7 +1304,6 @@ function renderAll() {
 /** Called by Staff Management after every create / edit / delete / status
  *  change, so the dashboard counters and reports never go stale. */
 function onStaffChanged() {
-  void refreshStaffOverviews();
   void refreshStaffSnapshot().then(() => {
     renderDashboard();
     if (viewExists('roles')) renderRoles();
@@ -1450,6 +1447,19 @@ $('#backupFileInput')?.addEventListener('change', event => {
 $('#factoryResetButton')?.addEventListener('click', openFactoryReset);
 
 $('#adminAccountLogout')?.addEventListener('click', exitPanel);
+
+$('#adminProfileCard')?.addEventListener('click', event => {
+  const edit = event.target.closest('[data-admin-profile-edit]');
+  if (!edit) return;
+  // Reuse the mounted Settings hub's account door; it reveals the existing
+  // profile form without creating a second editor or changing profile rules.
+  const accountDoor = $('[data-settings-hub="admin"] [data-settings-open="account"]');
+  if (accountDoor) accountDoor.click();
+  else $('[data-settings-hub="admin"]')?.__apcShowSettingsGroup?.('account');
+  const nameField = $('#adminProfileName');
+  nameField?.focus({ preventScroll: true });
+  nameField?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+});
 
 $('#adminProfileForm')?.addEventListener('submit', async event => {
   event.preventDefault();

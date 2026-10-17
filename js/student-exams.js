@@ -312,7 +312,7 @@ export function initStudentExams({ getStudent, getAccount }) {
      generated in the background: only the student's explicit solutions
      button can invoke downloadExamPDF. */
   let lastMinute = -1;
-  setInterval(() => {
+  window.setInterval(() => {
     clock(); sync();
     const now = nowEpoch();
     document.querySelectorAll('#examHubLiveList [data-live-exam]').forEach(card => {

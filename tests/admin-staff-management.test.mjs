@@ -67,6 +67,77 @@ test('the staff list opens with one permanent Staff ID per system role', async (
   assert.match(staffCard('STF-0001').textContent, /Protected/);
 });
 
+test('staff cards start collapsed and disclose details for one selected person at a time', async () => {
+  assert.equal(ctx.$$('#staffList .staff-card-details[hidden]').length, 4);
+  assert.equal(ctx.$$('#staffList .staff-details-toggle[aria-expanded="false"]').length, 4);
+  assert.equal(ctx.$$('#staffList .staff-card-mobile-summary').length, 4, 'every collapsed summary includes a mobile value or placeholder');
+  const owner = staffCard('STF-0001');
+  assert.equal(owner.querySelector('.staff-card-actions').closest('.staff-card-details'), owner.querySelector('.staff-card-details'));
+  assert.equal(owner.querySelector('.staff-card-actions').closest('.staff-card-details').hidden, true,
+    'View/Edit/More controls remain inside the collapsed details');
+  assert.match(owner.querySelector('.staff-card-name').textContent.trim(), /এডমিন/);
+
+  ctx.click(owner.querySelector('.staff-details-toggle'));
+  await ctx.waitFor(() => staffCard('STF-0001').querySelector('.staff-card-details').hidden === false);
+  const expandedOwner = staffCard('STF-0001');
+  assert.equal(expandedOwner.querySelector('.staff-details-toggle').getAttribute('aria-expanded'), 'true');
+  assert.match(expandedOwner.querySelector('.staff-card-details').textContent, /admin\.apc/);
+  assert.ok(expandedOwner.querySelector('.staff-card-details').textContent.includes('পাসওয়ার্ড'), 'expanded details explain password protection');
+  assert.ok(expandedOwner.querySelector('.staff-recent-activity'), 'expanded details include recent account activity');
+  assert.match(expandedOwner.querySelector('.staff-recent-activity').textContent, /সাম্প্রতিক কোনো অ্যাকাউন্ট কার্যক্রম নেই/);
+
+  ctx.click(staffCard('STF-0002').querySelector('.staff-details-toggle'));
+  await ctx.waitFor(() => staffCard('STF-0002').querySelector('.staff-card-details').hidden === false);
+  assert.equal(staffCard('STF-0001').querySelector('.staff-card-details').hidden, true);
+  assert.equal(staffCard('STF-0002').querySelector('.staff-details-toggle').getAttribute('aria-expanded'), 'true');
+  assert.equal(ctx.$$('#staffList .staff-details-toggle[aria-expanded="true"]').length, 1);
+
+  ctx.click(staffCard('STF-0002').querySelector('.staff-details-toggle'));
+  assert.equal(ctx.$$('#staffList .staff-card-details[hidden]').length, 4);
+});
+
+test('the staff list supports stable name, Staff ID, role and status sorting', async () => {
+  const control = ctx.$('#staffSort');
+  assert.ok(control, 'visible sort control is mounted');
+  const sortBy = value => {
+    control.value = value;
+    control.dispatchEvent(new ctx.window.Event('change', { bubbles: true }));
+    return [...ctx.$$('#staffList .staff-card')].map(card => card.dataset.staffCard);
+  };
+  assert.deepEqual(sortBy('id'), ['STF-0001', 'STF-0002', 'STF-0003', 'STF-0004']);
+  assert.deepEqual(sortBy('role'), ['STF-0001', 'STF-0002', 'STF-0003', 'STF-0004']);
+  const collator = new Intl.Collator('bn', { numeric: true, sensitivity: 'base' });
+  const currentIds = [...ctx.$$('#staffList .staff-card')].map(card => card.dataset.staffCard);
+  const expectedNameIds = [...currentIds].sort((a, b) => collator.compare(
+    staffCard(a).querySelector('.staff-card-name').textContent.trim(),
+    staffCard(b).querySelector('.staff-card-name').textContent.trim()
+  ));
+  assert.deepEqual(sortBy('status'), expectedNameIds, 'equal statuses use a predictable Bengali-name tiebreak');
+  const inactive = await createStaff({
+    fullName: 'Priority Inactive', password: 'Sort-2026', confirmPassword: 'Sort-2026', role: 'other', status: 'inactive'
+  });
+  const suspended = await createStaff({
+    fullName: 'Priority Suspended', password: 'Sort-2026', confirmPassword: 'Sort-2026', role: 'other', status: 'suspended'
+  });
+  assert.equal(inactive.ok, true, inactive.error);
+  assert.equal(suspended.ok, true, suspended.error);
+  await sync();
+  const statusOrder = sortBy('status');
+  const statusById = new Map((await listStaff()).map(record => [record.staffId, record.status]));
+  assert.deepEqual(statusOrder.map(staffId => statusById.get(staffId)),
+    ['active', 'active', 'active', 'active', 'inactive', 'suspended'],
+    'status priority is Active → Inactive → Suspended, with a stable name tiebreak inside each group');
+  assert.equal((await deleteStaff(inactive.staff.staffId)).ok, true);
+  assert.equal((await deleteStaff(suspended.staff.staffId)).ok, true);
+  await sync();
+  sortBy('id');
+  const unsortedNames = [...ctx.$$('#staffList .staff-card')].map(card => card.querySelector('.staff-card-name').textContent.trim());
+  const sortedNames = [...unsortedNames].sort(new Intl.Collator('bn', { numeric: true, sensitivity: 'base' }).compare);
+  sortBy('name');
+  const names = [...ctx.$$('#staffList .staff-card')].map(card => card.querySelector('.staff-card-name').textContent.trim());
+  assert.deepEqual(names, sortedNames, 'name sort uses Bengali collation consistently');
+});
+
 test('create builds a new staff account with the next unique Staff ID', async () => {
   ctx.click(ctx.$('#staffCreateButton'));
   await ctx.waitFor(() => Boolean(ctx.$('#staffForm')));
@@ -74,8 +145,12 @@ test('create builds a new staff account with the next unique Staff ID', async ()
   assert.equal(ctx.$('#staffField-username').tagName, 'DIV');
   assert.equal(ctx.$('#staffField-username-hidden').tagName, 'INPUT');
   assert.equal(ctx.$('#staffField-username-hidden').type, 'hidden');
+  const form = ctx.$('#staffForm');
+  assert.equal(form.dataset.currentCreateStep, '1');
   fill('#staffField-fullName', 'নতুন শিক্ষক');
   ctx.$('#staffField-fullName').dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
+  ctx.click(form.querySelector('[data-staff-step-next]'));
+  await ctx.waitFor(() => form.dataset.currentCreateStep === '2');
   fill('#staffField-password', 'Teacher-2026');
   fill('#staffField-confirmPassword', 'Teacher-2026');
   fill('#staffField-role', 'teacher');
@@ -84,8 +159,19 @@ test('create builds a new staff account with the next unique Staff ID', async ()
   fill('#staffField-subjects', 'উচ্চতর গণিত, পদার্থবিজ্ঞান');
   // Generated from the name + role: "First Name + Role + .apc".
   assert.equal(ctx.$('#staffField-username').textContent, 'notun.teacher.apc');
-  ctx.submit(ctx.$('#staffForm'));
+  ctx.click(form.querySelector('[data-staff-step-next]'));
+  await ctx.waitFor(() => form.dataset.currentCreateStep === '3');
+  assert.equal(form.querySelector('[data-staff-create-footer]').hidden, false);
+  ctx.submit(form);
   await ctx.waitFor(() => Boolean(staffCard('STF-0005')));
+  const newCard = staffCard('STF-0005');
+  assert.equal(newCard.querySelector('.staff-card-mobile-summary span').textContent, '01712345678',
+    'the collapsed summary now includes the mobile number');
+  ctx.click(newCard.querySelector('.staff-details-toggle'));
+  await ctx.waitFor(() => staffCard('STF-0005').querySelector('.staff-recent-activity-list li'));
+  assert.match(staffCard('STF-0005').querySelector('.staff-recent-activity').textContent, /তৈরি করেছেন/,
+    'the recent activity is rendered from the record history');
+  ctx.click(staffCard('STF-0005').querySelector('.staff-details-toggle'));
 
   const created = (await listStaff()).find(entry => entry.staffId === 'STF-0005');
   assert.equal(created.fullName, 'নতুন শিক্ষক');
@@ -132,6 +218,8 @@ test('a repeated name never produces a duplicate id — the number lands on the 
 
 test('edit changes the profile but the Staff ID stays locked', async () => {
   const before = (await listStaff()).find(entry => entry.staffId === 'STF-0005');
+  ctx.click(staffCard('STF-0005').querySelector('.staff-details-toggle'));
+  await ctx.waitFor(() => staffCard('STF-0005').querySelector('.staff-card-details').hidden === false);
   ctx.click(staffCard('STF-0005').querySelector('[data-staff-action="edit"]'));
   await ctx.waitFor(() => Boolean(ctx.$('#staffForm')));
   // The form shows the ID as read-only text; there is no editable ID field.
@@ -228,15 +316,24 @@ test('delete asks for confirmation and refuses when history is attached', async 
   const staff = (await listStaff()).find(entry => entry.staffId === 'STF-0005');
   assert.equal(staffActivitySummary(staff).hasHistory, true);
 
+  ctx.click(staffCard('STF-0005').querySelector('.staff-details-toggle'));
+  await ctx.waitFor(() => staffCard('STF-0005').querySelector('.staff-card-details').hidden === false);
   ctx.click(staffCard('STF-0005').querySelector('[data-staff-action="more"]'));
-  await ctx.waitFor(() => Boolean(staffCard('STF-0005').querySelector('[data-staff-action="delete"]')));
-  staffCard('STF-0005').querySelector('[data-staff-action="delete"]').click();
-  await ctx.waitFor(() => ctx.$('#staffModalBackdrop')?.hidden === false);
-  assert.match(ctx.$('#staffModalBody').textContent, /স্থায়ীভাবে মুছে ফেলতে চান/);
+  await ctx.waitFor(() => Boolean(ctx.$('#staffModalBackdrop.is-more-sheet #staffModalBody [data-staff-action="delete"]')));
+  assert.equal(ctx.$('#staffModalBackdrop').classList.contains('is-more-sheet'), true,
+    'More actions use the shared modal as a bottom sheet');
+  assert.equal(staffCard('STF-0005').querySelector('.staff-card-details').hidden, false,
+    'opening the sheet keeps the source card expanded');
+  ctx.$('#staffModalBody [data-staff-action="delete"]').click();
+  await ctx.waitFor(() => ctx.$('#staffModalBody').textContent.includes('স্থায়ীভাবে মুছে ফেলতে চান'));
+  assert.equal(ctx.$('#staffModalBackdrop').classList.contains('is-more-sheet'), false,
+    'the confirmation dialog replaces the action sheet');
   assert.match(ctx.$('#staffModalBody').textContent, /Cancel/);
   // History wins: the dialog offers deactivation instead of deletion.
   assert.match(ctx.$('#staffModalBody').textContent, /ইতিহাস/);
   assert.ok(ctx.$('#staffModalBody [data-staff-action="deactivate"]'));
+  ctx.click(ctx.$('#staffModalBody [data-staff-modal="close"]'));
+  await ctx.waitFor(() => ctx.$('#staffModalBackdrop').hidden);
 
   const refused = await deleteStaff('STF-0005');
   assert.equal(refused.ok, false);

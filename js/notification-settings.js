@@ -60,9 +60,9 @@ function waitForEngine(timeout = 10000) {
   if (ready()) return Promise.resolve(controller);
   return new Promise(resolve => {
     const started = Date.now();
-    const timer = setInterval(() => {
+    const timer = window.setInterval(() => {
       if (ready() || Date.now() - started > timeout) {
-        clearInterval(timer);
+        window.clearInterval(timer);
         resolve(controller);
       }
     }, 120);

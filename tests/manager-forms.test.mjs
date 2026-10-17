@@ -6,7 +6,7 @@
    add a routine entry were all silently dead. Each handler now captures the
    form synchronously; these tests fail if that regresses (jsdom throws the
    same TypeError, which surfaces as an unhandled rejection). */
-import test, { before } from 'node:test';
+import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
@@ -73,7 +73,9 @@ test('editing a notice from the Manager card persists its new category', async (
 
 test('editing a student from the Manager card saves the operational fields', async () => {
   await openView('students');
-  await ctx.waitFor(() => Boolean(ctx.$('[data-manager-action="edit-student"]')));
+  await ctx.waitFor(() => Boolean(ctx.$('[data-manager-student="S-EDIT"] .manager-student-details-toggle')));
+  ctx.click(ctx.$('[data-manager-student="S-EDIT"] .manager-student-details-toggle'));
+  await ctx.waitFor(() => ctx.$('[data-manager-student="S-EDIT"] .manager-student-details')?.hidden === false);
   ctx.click(ctx.$('[data-manager-action="edit-student"]'));
   await ctx.waitFor(() => Boolean(ctx.$('.manager-edit-form')));
   const form = ctx.$('.manager-edit-form');
@@ -123,3 +125,5 @@ test('adding a routine entry from the Manager form publishes it for every panel'
 test('no unhandled rejection escapes the three forms', () => {
   assert.deepEqual(ctx.jsdomErrors, []);
 });
+
+after(() => ctx?.window.close());

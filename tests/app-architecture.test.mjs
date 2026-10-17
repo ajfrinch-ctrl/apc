@@ -92,12 +92,15 @@ test('আরও keeps account routes, settings and help separate from academics'
   const ctx = await loadPage('student.html');
   const more = ctx.$('#profileView');
   assert.deepEqual(ctx.$$('#profileView .more-menu button').map(button => button.dataset.view).filter(Boolean),
-    ['my-profile', 'reports', 'notification-settings', 'student-fee', 'settings']);
+    ['my-profile', 'reports', 'notification-settings', 'student-fee']);
+  assert.equal(ctx.$('#settingsView'), null, 'the student has one compact More settings surface, not a duplicate settings page');
+  assert.ok(more.querySelector('[data-settings-toggle="theme"]'), 'the theme switch stays in More');
+  assert.ok(more.querySelector('#moreTrustedDeviceToggle'), 'the trusted-device switch stays in More');
   assert.ok(more.querySelector('[data-action="help"]'), 'সহায়তা remains reachable');
   const academic = [...more.querySelectorAll('[data-view],[data-action]')]
     .filter(node => ['courses', 'exams', 'homework', 'suggestion', 'question-bank'].includes(node.dataset.view || node.dataset.action));
   assert.deepEqual(academic, [], 'no academic item may hide inside আরও');
-  for (const view of ['my-profile', 'settings', 'student-fee']) {
+  for (const view of ['my-profile', 'student-fee']) {
     const panel = ctx.$(`[data-view-panel="${view}"]`);
     assert.ok(panel, `${view} panel missing`);
     assert.equal(panel.querySelector('.pay-back').dataset.view, 'profile', `${view} returns to আরও`);
@@ -150,7 +153,7 @@ test('every relocated feature still exists exactly once', () => {
   const required = [
     'learningList', 'learningSummary', 'learningFilters', 'courseHub', 'studentExamWorkspace', 'studentPracticeWorkspace',
     'teacherRoutineBoard', 'teacherRoutineList', 'teacherResultsBoard', 'teacherResultsList', 'noticeBoardList',
-    'studentReports', 'notificationSettings', 'studentFeeMount', 'darkModeToggle', 'trustedDeviceToggle',
+    'studentReports', 'notificationSettings', 'studentFeeMount', 'moreDarkModeToggle', 'moreTrustedDeviceToggle',
     'dashboardRoutineList', 'dashboardChallengeCard', 'dashboardExamCard', 'dashboardFeeCard', 'dailyQuoteCard'
   ];
   for (const id of required) {
@@ -189,7 +192,7 @@ test('the teacher bottom bar is exactly হোম / ক্লাস / শিক�
   const nav = teacherHtml.slice(teacherHtml.indexOf('<nav class="admin-bottom"'), teacherHtml.indexOf('</nav>', teacherHtml.indexOf('<nav class="admin-bottom"')));
   assert.deepEqual([...nav.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
     ['home', 'classes', 'students', 'exam', 'more']);
-  assert.deepEqual([...nav.matchAll(/<span>([^<]+)<\/span>/g)].map(match => nfc(match[1])),
+  assert.deepEqual([...nav.matchAll(/<span class="nav-label">([^<]+)<\/span>/g)].map(match => nfc(match[1])),
     ['হোম', 'ক্লাস', 'শিক্ষার্থী', 'পরীক্ষা', 'আরও'].map(nfc));
   for (const item of nav.split('<button').slice(1)) assert.match(item, /<svg/, 'every bottom-bar item keeps its icon');
 });
@@ -217,10 +220,14 @@ test('teacher Home is the launcher: welcome, one 3-column grid over existing scr
      এক ট্যাপে বিদ্যমান create form খোলে; অন্য টাইলগুলো বিদ্যমান স্ক্রিনে যায়। */
   const home = teacherHtml.slice(teacherHtml.indexOf('id="teacherHome"'), teacherHtml.indexOf('id="teacherRecords"'));
   assert.match(home, /teacher-home-grid/);
-  assert.deepEqual([...home.slice(home.indexOf('<nav class="teacher-home-grid"'), home.indexOf('</nav>', home.indexOf('<nav class="teacher-home-grid"'))).matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
+  const gridStart = home.indexOf('class="teacher-home-grid');
+  const gridEnd = home.indexOf('</nav>', gridStart);
+  const grid = home.slice(gridStart, gridEnd);
+  assert.deepEqual([...grid.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]),
     ['routine-view', 'homework', 'notice', 'online-exams', 'exam', 'courses'],
     'every grid tile routes to an existing screen');
-  assert.equal((home.match(/class="pay-tile"/g) || []).length, 0, 'home grid never copies the pay-tile shelf');
+  assert.equal((grid.match(/class="teacher-home-tile pay-tile"/g) || []).length, 6,
+    'teacher destinations use the same pay-tile components as the other portals');
   assert.equal((home.match(/data-new-activity=/g) || []).length, 1, 'exactly one home tile is the one-tap homework entry');
   assert.match(home, /data-teacher-view="homework"[^>]*data-new-activity="homework"/, 'the homework tile opens its existing create form directly');
   assert.equal(home.includes('teacherQuickActions'), false, 'home must not duplicate the create-tile shelf');
@@ -235,7 +242,7 @@ test('teacher Home is the launcher: welcome, one 3-column grid over existing scr
 
 test('teacher রুটিন is read-only: the Manager owns the schedule, the teacher records attendance', () => {
   const view = teacherHtml.slice(teacherHtml.indexOf('id="teacherRoutine"'), teacherHtml.indexOf('id="teacherAcademicReports"'));
-  assert.match(nfc(view), /read-only/);
+  assert.match(nfc(view), /শুধু-পঠন/);
   assert.match(nfc(view), /উপস্থিতি খুলুন/, 'attendance keeps a door from the routine screen');
   assert.doesNotMatch(view, /data-routine-(save|new|edit)|id="routineForm"/, 'no routine editor in the teacher panel');
   const source = read('js/teacher.js');
@@ -278,13 +285,17 @@ test('a teacher notice is class/batch-scoped and stays a notice, never a notific
 
 const managerHtml = read('manager.html');
 
-test('the Manager bottom bar is exactly হোম / শিক্ষার্থী / একাডেমিক / হিসাব / রিপোর্ট / আরও', () => {
+test('the Manager bottom bar has five shared seats and Reports/Advice stay in More', () => {
   const nav = managerHtml.slice(managerHtml.indexOf('<nav class="admin-bottom manager-bottom"'), managerHtml.indexOf('</nav>', managerHtml.indexOf('<nav class="admin-bottom manager-bottom"')));
   assert.deepEqual([...nav.matchAll(/data-manager-view="([a-z-]+)"/g)].map(match => match[1]),
-    ['dashboard', 'students', 'academic', 'finance', 'reports', 'more']);
+    ['dashboard', 'students', 'academic', 'finance', 'more']);
   assert.deepEqual([...nav.matchAll(/<span class="nav-label">([^<]+)<\/span>/g)].map(match => nfc(match[1])),
-    ['হোম', 'শিক্ষার্থী', 'একাডেমিক', 'হিসাব', 'রিপোর্ট', 'আরও'].map(nfc));
+    ['হোম', 'শিক্ষার্থী', 'একাডেমিক', 'হিসাব', 'আরও'].map(nfc));
   for (const item of nav.split('<button').slice(1)) assert.match(item, /<svg/, 'every bottom-bar item keeps its icon');
+  const more = managerHtml.slice(managerHtml.indexOf('id="managerMoreHub"'), managerHtml.indexOf('</nav>', managerHtml.indexOf('id="managerMoreHub"')));
+  assert.deepEqual([...more.matchAll(/data-manager-view="([a-z-]+)"/g)].map(match => match[1]),
+    ['profile', 'settings', 'reports', 'advice']);
+  assert.equal((nav.match(/data-manager-view="reports"/g) || []).length, 0, 'Reports is not a sixth seat');
 });
 
 test('Manager শিক্ষার্থী is one screen for the whole lifecycle, and অনুমোদন is a filter of it', () => {
@@ -318,7 +329,10 @@ test('Manager একাডেমিক is one hub over the eight sections plus t
   /* Nothing academic is duplicated in আরও. */
   const more = read('js/manager.js').slice(read('js/manager.js').indexOf('const MORE_MODULES'));
   const rows = [...more.slice(0, more.indexOf(']')).matchAll(/view: '([a-z-]+)'/g)].map(match => match[1]);
-  assert.deepEqual(rows, ['profile', 'settings'], 'আরও keeps only the structural modules');
+  assert.deepEqual(rows, ['profile', 'settings', 'reports', 'advice'], 'আরও holds Profile, Settings, Reports and Advice');
+  const moreMarkup = managerHtml.slice(managerHtml.indexOf('id="managerMoreHub"'), managerHtml.indexOf('</nav>', managerHtml.indexOf('id="managerMoreHub"')));
+  assert.deepEqual([...moreMarkup.matchAll(/data-manager-view="([a-z-]+)"/g)].map(match => match[1]), rows,
+    'the static More destinations match the route catalogue');
 });
 
 test('Manager হিসাব owns four segments: collection, approval, due and history', () => {
@@ -403,17 +417,18 @@ test('Cash Counter হোম is the day’s own ledger: no dashboard tiles, one 
 
 /* -------------------------------- Admin ------------------------------------- */
 
-test('the Admin bottom bar is exactly হোম / স্টাফ / রিপোর্ট / সিস্টেম / ডেটা / অ্যাকাউন্ট', () => {
+test('the Admin bottom bar has five shared seats; Data, Profile and Advice stay in More', () => {
   const html = read('admin.html');
   const nav = html.slice(html.indexOf('<nav class="admin-bottom"'), html.indexOf('</nav>', html.indexOf('<nav class="admin-bottom"')));
   assert.deepEqual([...nav.matchAll(/data-admin-view="([a-z-]+)"/g)].map(match => match[1]),
-    ['dashboard', 'staff', 'reports', 'system', 'data', 'profile']);
+    ['dashboard', 'staff', 'reports', 'system', 'more']);
   assert.deepEqual([...nav.matchAll(/<span class="nav-label">([^<]+)<\/span>/g)].map(match => nfc(match[1])),
-    ['হোম', 'স্টাফ', 'রিপোর্ট', 'সিস্টেম', 'ডেটা', 'অ্যাকাউন্ট'].map(nfc));
-  for (const seat of ['dashboard', 'staff', 'reports', 'system', 'data', 'profile'])
+    ['হোম', 'স্টাফ', 'রিপোর্ট', 'সিস্টেম', 'আরও'].map(nfc));
+  for (const seat of ['dashboard', 'staff', 'reports', 'system', 'more'])
     assert.ok(nav.includes(`data-admin-view="${seat}"`), `${seat} keeps a seat`);
   assert.doesNotMatch(nav, /data-admin-view="students"/, 'student management is not an Admin seat');
-  assert.doesNotMatch(html, /data-view-panel="more"/, 'the More container is retired');
+  const more = html.slice(html.indexOf('id="adminMoreMenu"'), html.indexOf('</nav>', html.indexOf('id="adminMoreMenu"')));
+  assert.deepEqual([...more.matchAll(/data-admin-view="([a-z-]+)"/g)].map(match => match[1]), ['data', 'profile', 'advice']);
 });
 
 test('Admin সিস্টেম and ডেটা are hubs over the screens that already own the work', () => {

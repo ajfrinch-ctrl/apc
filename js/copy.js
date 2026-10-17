@@ -47,7 +47,9 @@ export function initCopyChips() {
   document.addEventListener('keydown', async event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const chip = event.target.closest?.('[data-copy-target]');
-    if (!chip || chip.tagName === 'BUTTON') return;
+    if (!chip) return;
+    /* Buttons also need the explicit key path in the in-app WebView: prevent
+       the native synthetic click so Enter/Space can never copy twice. */
     event.preventDefault();
     await copyFrom(chip);
   });

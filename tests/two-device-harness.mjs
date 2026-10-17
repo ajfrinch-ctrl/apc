@@ -214,6 +214,10 @@ function buildAppCopy(cloudUrl) {
   rmSync(RUN_DIR, { recursive: true, force: true });
   mkdirSync(path.join(RUN_DIR, 'mock'), { recursive: true });
   cpSync(path.join(REPO_DIR, 'js'), path.join(RUN_DIR, 'js'), { recursive: true });
+  // The student profile card's optional QR download is a static module import;
+  // copy its local encoder too so the whole student feature chunk can boot in
+  // the isolated device tree (a failed lazy import otherwise hides Routine).
+  cpSync(path.join(REPO_DIR, 'vendor'), path.join(RUN_DIR, 'vendor'), { recursive: true });
   // The bridge imports its gate from ../sync and the SDK surface from
   // ../firebase; both must exist beside the copied js/ tree.
   cpSync(path.join(REPO_DIR, 'sync'), path.join(RUN_DIR, 'sync'), { recursive: true });

@@ -24,8 +24,10 @@ test('the group back button is a real back glyph, repainted for surfaces', () =>
 test('re-entering the Admin profile returns the hub to its group menu', () => {
   assert.match(hubSource, /export function resetSettingsHub/, 'the hub exposes a reset back to the group menu');
   assert.match(hubSource, /__apcShowSettingsGroup/, 'reset drives the mounted hub state, not just the DOM');
-  assert.match(adminSource, /resetSettingsHub\(\$\('#adminSettingsHub'\)\)/,
-    'arriving on the profile resets any group left open earlier');
+  assert.match(adminSource, /resetSettingsHub\('\[data-settings-hub="admin"\]'\)/,
+    'arriving on the real mounted profile hub resets any group left open earlier');
+  assert.match(adminSource, /mount:\s*'\[data-settings-hub="admin"\]'/,
+    'the reset target is the same element the Admin actually mounts');
 });
 
 test('group doors and the hub back path stay wired', () => {

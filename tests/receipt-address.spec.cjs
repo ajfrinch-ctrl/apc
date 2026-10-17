@@ -7,7 +7,7 @@ const TAGLINE = 'শিখতে থাকো, এগিয়ে যাও';
 const TX = { id:'RECEIPT-ADDRESS-TEST', receiptNo:'SAMPLE-ADDRESS', date:'১ অক্টোবর ২০২৬', studentName:'নমুনা শিক্ষার্থী', studentId:'DEMO-0001', className:'দশম শ্রেণি', feeType:'মাসিক বেতন', month:'অক্টোবর ২০২৬', method:'নগদ', amount:800, note:'পরীক্ষার নমুনা—প্রকৃত লেনদেন নয়', collectedBy:'নমুনা কাউন্টার' };
 
 for (const variant of ['combined-tagline','address-only','copied-address']) test(`receipt address appears once in preview, PDF and PNG (${variant})`, async ({ page }, info) => {
-  await page.goto('/offline-roles.html');
+  await page.goto('/demo/offline-roles.html');
   const config = { tagline: variant === 'address-only' ? ADDRESS : variant === 'combined-tagline' ? `${TAGLINE} • ${ADDRESS}` : TAGLINE,
     campusAddress: variant === 'copied-address' ? `${ADDRESS}\n${ADDRESS}` : ADDRESS };
   await page.evaluate(async ({ config, tx }) => {

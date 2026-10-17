@@ -12,7 +12,7 @@ const student = {
 for (const [width, height, dark] of [[320, 740], [360, 800], [390, 844], [412, 915], [768, 900, true], [1024, 900], [740, 360]]) {
   test(`student record fits ${width}×${height}${dark ? ' dark' : ''}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height });
-    await page.goto('/offline-roles.html');
+    await page.goto('/demo/offline-roles.html');
     await seed(page, 'admin');
     await page.evaluate(student => localStorage.setItem('activePlus.admin.students.v1', JSON.stringify([student])), student);
     await page.goto('/admin.html#students');

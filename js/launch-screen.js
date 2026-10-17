@@ -12,11 +12,17 @@
   tagline.textContent = 'শিখতে থাকো, এগিয়ে যাও';
   screen.append(logo, tagline);
   document.body.prepend(screen);
-  /* Boot-failure escape hatch: portals never carry a static link back to the
-     login page (isolation guard), so the deferred launch script wires the
-     button instead — it runs even when the panel module itself fails. */
+  /* Boot-failure escape hatch: keep the login link out of the normal loading
+     state, but reveal it after a long stall. This deferred script still wires
+     it even if the panel module itself fails. */
   const bootLink = document.getElementById('managerBootLink');
-  if (bootLink) bootLink.addEventListener('click', () => window.location.assign('./index.html'));
+  const managerBootScreen = document.getElementById('managerBootScreen');
+  if (bootLink) {
+    bootLink.addEventListener('click', () => window.location.assign('./index.html'));
+    if (managerBootScreen) setTimeout(() => {
+      if (managerBootScreen.isConnected && bootLink.isConnected) bootLink.hidden = false;
+    }, 12000);
+  }
   const started = performance.now();
   let timer;
   const dismiss = () => { clearTimeout(timer); screen.remove(); };

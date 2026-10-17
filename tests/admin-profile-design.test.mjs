@@ -1,12 +1,12 @@
-/* Admin Profile design — the identity card is a hero over a styled detail
-   grid, not an unstyled definition list.
+/* Admin Profile design — the hero card contains the signed-in Admin's full
+   profile facts and a shortcut to the existing edit form.
 
    Static guards on the shipped files (the behavioural profile contract —
    editable name/mobile/email, locked Login User ID — lives in
    admin-profile-user-id.test.mjs):
-     • js/admin.js renders the avatar/name/username hero and a semantic <dl>
-     • css/ui-wallet.css (the last, active skin) actually styles .profile-list
-       and .profile-row, scoped to the Admin profile view
+     • js/admin.js renders the avatar/name/Login ID, a semantic details list
+       and an edit action inside the same hero
+     • css/ui-wallet.css styles those rows within the gradient band, using tokens
      • the session card carries copy plus a labelled logout button with an icon,
        and the account forms explain themselves with a hint line
      • no new palette: the profile rules compose foundation tokens only
@@ -17,16 +17,20 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('the identity card renders an avatar hero and a semantic detail list', () => {
+test('the hero contains the Admin identity, all profile facts, and its existing edit shortcut', () => {
   const js = read('js/admin.js');
   const render = js.slice(js.indexOf('async function renderAdminProfile()'));
   const body = render.slice(0, render.indexOf('\n}\n', render.indexOf('host.innerHTML')));
   assert.match(body, /admin-profile-avatar/, 'initials avatar');
-  assert.match(body, /admin-profile-identity/, 'name + username identity block');
+  assert.match(body, /admin-profile-identity/, 'name + Login ID identity block');
   assert.match(body, /escapeHtml\(displayName\)/, 'the name is escaped before it is painted');
-  assert.match(body, /<dl class="profile-list">/, 'details are a real definition list');
-  assert.match(body, /<div class="profile-row"><dt>/, 'each row is a dt/dd pair');
+  assert.match(body, /<div class="admin-profile-hero">[\s\S]*?<dl class="profile-list admin-profile-facts">[\s\S]*?<button class="admin-profile-edit"[^>]*data-admin-profile-edit/,
+    'all profile facts and the edit shortcut are children of the same hero');
+  assert.match(body, /<div class="profile-row"><dt>/, 'each fact is a semantic dt/dd pair');
+  assert.match(body, /প্রোফাইল সম্পাদনা/, 'the edit action stays visible on the hero');
   assert.doesNotMatch(body, /Current Admin/, 'the old arrow badge copy is gone');
+  assert.match(js, /data-admin-profile-edit[\s\S]*?accountDoor\.click\(\)/,
+    'the hero edit action reuses the Account settings door');
 });
 
 test('the wallet skin styles the profile detail grid, scoped to the Admin profile', () => {
@@ -54,10 +58,15 @@ test('owner design 2026-10-16: a dark identity band over row-shaped group doors'
   // not inside the (initially hidden) account group.
   assert.ok(html.indexOf('id="adminProfileCard"') < html.indexOf('data-settings-hub="admin"'),
     'the identity card sits above the settings hub');
-  assert.match(js, /Login ID: \$\{escapeHtml\(account\?\.username/, 'the band names the Login ID');
-  assert.match(js, /<span class="admin-profile-status">Admin<\/span>/, 'the band carries the Admin pill');
+  assert.match(js, /লগইন আইডি: \$\{escapeHtml\(account\?\.username/, 'the band names the Login ID in Bengali');
+  assert.match(js, /<span class="admin-profile-status">এডমিন<\/span>/, 'the band carries the Admin pill in Bengali');
+  assert.match(js, /<dl class="profile-list admin-profile-facts">/, 'all remaining Admin facts are inside the hero band');
+  assert.match(js, /data-admin-profile-edit/, 'the hero keeps a profile edit action');
   assert.ok(css.includes('.admin-profile-hero {'), 'the band is styled');
-  assert.match(css, /\.admin-profile-hero \{[^}]*linear-gradient\(105deg, var\(--pay-hero-a\), var\(--pay-hero-b\)\)/,
+  assert.ok(css.includes('.admin-profile-edit {'), 'the edit action is styled inside the band');
+  assert.match(css, /\.admin-view\[data-view-panel="profile"\] > \.page-intro:first-child p\.profile-page-sub \{[^}]*color: var\(--color-text-secondary\)/,
+    'the page subtitle uses readable text-secondary ink on the light canvas');
+  assert.match(css, /\.admin-profile-hero \{[^}]*background: var\(--pay-hero-gradient\)/,
     'the band is the dark brand gradient, from tokens');
   assert.match(css, /\.admin-profile-hero::after \{[^}]*var\(--tone-mint\)/, 'a quiet teal wash closes the right edge');
 

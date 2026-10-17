@@ -1124,8 +1124,8 @@ let attemptTimer = null;
 /** A record left in the outbox (failed write, or an edit made before startup)
     is retried by itself, so nothing waits for a reload or a new click. */
 function schedulePendingFlush() {
-  clearInterval(pendingTimer);
-  pendingTimer = setInterval(() => {
+  window.clearInterval(pendingTimer);
+  pendingTimer = window.setInterval(() => {
     if (!ready || !navigator.onLine || !connected) return;
     const bridges = [...recordBridges.values()];
     if (!bridges.some(bridge => bridge.hasPending())) return;
@@ -1163,7 +1163,7 @@ export function stopRealtimeSync() {
   subscriptions.clear();
   stopStudent = null;
   studentListeningKey = null;
-  clearInterval(pendingTimer);
+  window.clearInterval(pendingTimer);
   // The watchdog interval remains installed but is inert while signed out.
 }
 window.addEventListener('apc-session-ended', stopRealtimeSync);
@@ -1209,7 +1209,7 @@ export async function startRealtimeSync() {
     setSyncStatus('connecting');
     for (const stop of subscriptions) stop();
     subscriptions.clear();
-    clearInterval(pendingTimer);
+    window.clearInterval(pendingTimer);
     stopStudent = null;
     studentListeningKey = null;
     try {
@@ -1316,7 +1316,7 @@ async function retryPartialSync() {
   })().finally(() => { partialRetry = null; });
   return partialRetry;
 }
-attemptTimer = setInterval(() => {
+attemptTimer = window.setInterval(() => {
   if (!navigator.onLine || !syncEnabled || booting) return;
   if (syncFailed) { void startRealtimeSync(); return; }
   if (!connected || !ready || !partialFailures.length || partialRetry) return;

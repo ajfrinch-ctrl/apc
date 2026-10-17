@@ -1,9 +1,8 @@
-/* §29 — one Settings structure for every role.
+/* §29 — one Settings structure for staff and the Cash Counter.
 
-   The five groups (অ্যাকাউন্ট · নোটিফিকেশন · অ্যাপ · নিরাপত্তা · ডেটা) must exist,
-   in that order, on every panel's own Settings surface, and no setting may appear
-   twice: the theme, the profile, the password, the logout and the notification
-   group are each owned by exactly one control per page.
+   The five groups (অ্যাকাউন্ট · নোটিফিকেশন · অ্যাপ · নিরাপত্তা · ডেটা) exist in
+   the same order on those role surfaces, with no duplicate control. Student
+   retains the approved inline More settings instead of a second Settings page.
 
    This file boots the Cash Counter (the page the hub fills the most) and checks
    the live result; the Manager case lives with the Manager shell test, where that
@@ -21,20 +20,30 @@ const GROUP_KEYS = SETTINGS_GROUPS.map(group => group.key);
 
 /* The hub root and the role it serves, per page. */
 const SURFACES = Object.freeze({
-  'student.html': { role: 'student', mount: '#settingsView' },
+  /* Student keeps its small inline More settings list by the approved layout;
+     staff and payment use the full five-group Settings hub. */
   'manager.html': { role: 'manager', mount: '[data-settings-hub="manager"]' },
   'teacher.html': { role: 'teacher', mount: '[data-settings-hub="teacher"]' },
   'admin.html': { role: 'admin', mount: '[data-settings-hub="admin"]' },
   'payment.html': { role: 'payment', mount: '#payMorePanel' }
 });
 
-test('every panel carries the same five groups, in the same order', () => {
+test('staff and counter Settings carry the same five groups, in the same order', () => {
   for (const [file, surface] of Object.entries(SURFACES)) {
     const html = read(file);
     assert.match(html, new RegExp(`data-settings-hub="${surface.role}"`), `${file}: hub marker`);
     const groups = [...html.matchAll(/data-settings-group="([a-z]+)"/g)].map(match => match[1]);
     assert.deepEqual(groups, GROUP_KEYS, `${file}: group order`);
   }
+});
+
+test('student Settings stay inline in More, with one theme and trusted-device control', () => {
+  const html = read('student.html');
+  assert.doesNotMatch(html, /id="settingsView"|data-view="settings"/, 'student More must not duplicate a separate Settings page');
+  assert.match(html, /id="moreDarkModeToggle"[^>]*data-settings-toggle="theme"|data-settings-toggle="theme"[^>]*id="moreDarkModeToggle"/);
+  assert.match(html, /id="moreTrustedDeviceToggle"[^>]*data-trusted-device-toggle|data-trusted-device-toggle[^>]*id="moreTrustedDeviceToggle"/);
+  const rows = [...html.matchAll(/data-settings-row="([a-z-]+)"/g)].map(match => match[1]);
+  assert.equal(new Set(rows).size, rows.length, 'student More duplicates a settings row');
 });
 
 test('a row marker appears at most once per key on a page', () => {
@@ -105,6 +114,40 @@ test('the counter gets all five groups and exactly one control per setting', () 
   const notification = hub.querySelector('[data-settings-group="notification"]');
   assert.equal(notification.dataset.settingsOwner, 'notification');
   assert.ok(notification.querySelector('.notification-settings-mount'), 'notification settings mount missing');
+});
+
+test('Cash Counter More re-entry clears stale Settings groups on repeated navigation', async () => {
+  const hub = ctx.$('#payMorePanel');
+  await ctx.waitFor(() => Boolean(hub.querySelector('[data-settings-groups]')));
+  const nav = hub.querySelector('[data-settings-groups]');
+  const groups = [...hub.querySelectorAll('[data-settings-group]')];
+
+  ctx.click(ctx.$('.admin-bottom [data-pay-section="more"]'));
+  await ctx.flush(2);
+  ctx.click(hub.querySelector('[data-settings-open="security"]'));
+  await ctx.flush(2);
+  assert.equal(hub.hidden, false);
+  assert.equal(nav.hidden, true);
+  assert.equal(hub.querySelector('[data-settings-group="security"]').hidden, false);
+
+  // Re-tapping More while it is already selected must return to the menu.
+  ctx.click(ctx.$('.admin-bottom [data-pay-section="more"]'));
+  await ctx.flush(2);
+  assert.equal(nav.hidden, false);
+  assert.ok(groups.every(group => group.hidden));
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.paySection, 'more');
+
+  ctx.click(hub.querySelector('[data-settings-open="account"]'));
+  await ctx.flush(2);
+  assert.equal(hub.querySelector('[data-settings-group="account"]').hidden, false);
+  ctx.click(ctx.$('.admin-bottom [data-pay-section="home"]'));
+  await ctx.flush(2);
+  ctx.click(ctx.$('.admin-bottom [data-pay-section="more"]'));
+  await ctx.flush(2);
+  assert.equal(nav.hidden, false, 'returning from Home restores the More group menu');
+  assert.ok(groups.every(group => group.hidden), 'the previous Account content does not leak into More');
+  assert.equal(ctx.$$('.pay-panel:not([hidden])').length, 1, 'exactly one Counter page is visible');
+  ctx.click(ctx.$('.admin-bottom [data-pay-section="home"]'));
 });
 
 test('the theme row the hub adds switches the stored theme', async () => {

@@ -37,13 +37,17 @@ test('staff management: create, edit, deactivate, reset password and delete', as
   // The four system roles are already here with permanent Staff IDs.
   await expect(page.locator('#staffList .staff-card')).toHaveCount(4);
   await expect(page.locator('#staffList .staff-id-badge').first()).toContainText('STF-0001');
-  // Create a Teacher: the ID is assigned, never typed.
+  // Create a Teacher through the three steps: the Login User ID is generated,
+  // never typed, and assignment comes after identity and role/contact details.
   await page.locator('#staffCreateButton').click();
   await page.locator('#staffField-fullName').fill('আপগ্রেড শিক্ষক');
-  await page.locator('#staffField-username').fill('upgrade.teacher.apc');
+  await page.locator('#staffForm [data-staff-create-step="1"] [data-staff-step-next]').click();
   await page.locator('#staffField-password').fill('Upgrade-2026');
   await page.locator('#staffField-confirmPassword').fill('Upgrade-2026');
   await page.locator('#staffField-role').selectOption('teacher');
+  await expect(page.locator('#staffField-username')).toHaveText(/\.teacher\.apc$/);
+  await page.locator('#staffForm [data-staff-create-step="2"] [data-staff-step-next]').click();
+  await expect(page.locator('#staffForm [data-staff-create-step="3"]')).toBeVisible();
   await page.locator('#staffField-subjects').fill('পদার্থবিজ্ঞান');
   await page.locator('#staffForm button[type=submit]').click();
   const card = page.locator('#staffList .staff-card', { hasText: 'আপগ্রেড শিক্ষক' });
@@ -52,37 +56,44 @@ test('staff management: create, edit, deactivate, reset password and delete', as
   // A password is never shown anywhere in the list.
   await expect(page.locator('#staffList')).not.toContainText('Upgrade-2026');
   // Edit: the Staff ID is locked, everything else is editable.
+  await card.locator('.staff-details-toggle').click();
   await card.locator('[data-staff-action=edit]').click();
   await expect(page.locator('#staffField-staffId')).toHaveCount(0);
   await page.locator('#staffField-mobile').fill('01799887766');
   await page.locator('#staffForm button[type=submit]').click();
   await expect(card).toContainText('01799887766');
   // More → Deactivate, then back to active.
+  await card.locator('.staff-details-toggle').click();
   await card.locator('[data-staff-action=more]').click();
-  await card.locator('[data-staff-action=status]').click();
-  await expect(card).toContainText('নিষ্ক্রিয়');
+  await page.locator('#staffModalBody [data-staff-action=status][data-next-status=inactive]').click();
+  await expect(card).toContainText('নিষ্ক্রিয়');
+  await card.locator('.staff-details-toggle').click();
   await card.locator('[data-staff-action=more]').click();
-  await card.locator('[data-staff-action=status]').click();
-  await expect(card).toContainText('সক্রিয়');
+  await page.locator('#staffModalBody [data-staff-action=status][data-next-status=active]').click();
+  await expect(card).toContainText('সক্রিয়');
   // More → Reset password: never displayed, change forced on next login.
+  await card.locator('.staff-details-toggle').click();
   await card.locator('[data-staff-action=more]').click();
-  await card.locator('[data-staff-action=reset]').click();
+  await page.locator('#staffModalBody [data-staff-action=reset]').click();
   await page.locator('#staffField-newPassword').fill('Reset-2026');
-  await page.locator('#staffField-confirmNewPassword').fill('Reset-2026');
-  await page.locator('#staffForm button[type=submit]').click();
-  await expect(card).toContainText('পাসওয়ার্ড বদল');
+  await page.locator('#staffField-confirmPassword').fill('Reset-2026');
+  await page.locator('#staffPasswordForm button[type=submit]').click();
+  await expect(page.locator('.admin-toast')).toContainText('পাসওয়ার্ড রিসেট');
   // More → Delete needs a confirmation modal; cancel keeps the account.
+  await card.locator('.staff-details-toggle').click();
   await card.locator('[data-staff-action=more]').click();
-  await card.locator('[data-staff-action=delete]').click();
-  await expect(page.locator('#staffModalBody')).toContainText('স্থায়ীভাবে মুছে ফেলতে চান');
+  await page.locator('#staffModalBody [data-staff-action=delete]').click();
+  await expect(page.locator('#staffModalBody')).toContainText('স্থায়ীভাবে মুছে ফেলতে চান');
   await page.locator('#staffModalBody [data-staff-modal=close]').click();
   await expect(card).toBeVisible();
   // The current Admin is protected: no delete, no deactivate, no role change.
   const owner = page.locator('#staffList .staff-card').filter({ hasText: 'STF-0001' });
   await expect(owner).toContainText('Protected');
+  await owner.locator('.staff-details-toggle').click();
   await owner.locator('[data-staff-action=more]').click();
-  await expect(owner.locator('[data-staff-action=delete]')).toHaveCount(0);
-  await expect(owner.locator('[data-staff-action=status]')).toHaveCount(0);
+  await expect(page.locator('#staffModalBody [data-staff-action=delete]')).toHaveCount(0);
+  await expect(page.locator('#staffModalBody [data-staff-action=status]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
   // সিস্টেম → সেটিংস still saves the branding form from here.
   await bottom(page, 'admin', 'system');
   await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();

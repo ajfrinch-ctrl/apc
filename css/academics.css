@@ -7,15 +7,12 @@
    Layout only — every colour comes from a token in css/foundation.css, so the
    light/dark/AMOLED themes keep working without a rule here. */
 
-/* ---------- The two "add" forms: side by side on a wide screen ---------- */
+/* ---------- The two "add" forms: one phone-width column ---------- */
 .academics-tools{display:grid;gap:var(--space-4);margin-bottom:var(--space-4)}
 .academics-form{display:grid;gap:var(--space-3);align-content:start;padding:var(--space-5);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);min-width:0}
 .academics-form label{display:grid;gap:var(--space-2);margin:0;font-size:var(--font-sm);font-weight:600;min-width:0}
 .academics-form input{min-width:0}
 .academics-form .admin-btn{width:100%}
-@media(min-width:720px){
-  .academics-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
 
 /* ---------- One class: name + on/off switch + its subject ticks ---------- */
 .academics-class{padding:var(--space-5);margin-bottom:var(--space-4);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);min-width:0}
@@ -65,3 +62,8 @@
 .academics-status{margin:0 0 var(--space-4);padding:var(--space-3) var(--space-4);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface-muted);color:var(--color-text-secondary);font-size:var(--font-sm);overflow-wrap:anywhere}
 .academics-status[hidden]{display:none}
 .admin-error-text{color:var(--color-danger)}
+
+/* Keep the historical paper layout when printing; screen viewports stay phone-only. */
+@media print and (min-width: 720px) {
+  .academics-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

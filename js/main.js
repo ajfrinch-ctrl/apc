@@ -9,7 +9,6 @@ import { escapeHtml } from './sanitize.js';
 import { $, setAuthMessage, showFeedback } from './ui.js';
 import { renderStudent, openStudentApp, showAuthScreen, setView, viewRouteFromHash } from './shell.js';
 import { initAppearance } from './appearance.js';
-import { initCopyChips } from './copy.js';
 import { activeStaffRoles } from './staff-auth.js';
 import { staffPanelPath } from './login.js';
 import { switchAuthTab, initLogin } from './login.js';
@@ -17,8 +16,6 @@ import { initRegister } from './register.js';
 import { initRecovery } from './recovery.js';
 import { requestLogout, initLogout } from './logout.js';
 import { initNavigation } from './navigation.js';
-import { initInstallPrompt, installApp } from './install.js';
-import { initDynamicTheme } from './theme.js';
 import { initFixedShell } from './fixed-shell.js';
 import { loadStudentFeatures } from './student-features.js';
 
@@ -325,7 +322,7 @@ function handleAction(action) {
       openProfileEditor(state.student);
       break;
     case 'install':
-      installApp();
+      void import('./install.js').then(({ installApp }) => installApp());
       break;
     case 'show-offline':
       showFeedback('তোমার তথ্য এই ডিভাইসেই নিরাপদে সংরক্ষিত আছে');
@@ -439,10 +436,14 @@ if (navigator.onLine && new URLSearchParams(location.search).get('fbtest') === '
     .then(({ testFirebaseOnlineConnection }) => testFirebaseOnlineConnection())
     .catch(() => {});
 }
-initDynamicTheme();
+// Time/weather decoration is non-critical to first paint; keep it in its own
+// async chunk rather than charging login and dashboard boot for a minute timer.
+void import('./theme.js').then(({ initDynamicTheme }) => initDynamicTheme());
 initAppearance();
-initCopyChips();
-initInstallPrompt();
+// Clipboard and install prompts are progressive enhancements. Loading these
+// after the shell is interactive keeps first paint lean without changing them.
+void import('./copy.js').then(({ initCopyChips }) => initCopyChips());
+void import('./install.js').then(({ initInstallPrompt }) => initInstallPrompt());
 void import('./service-worker.js').then(({ registerServiceWorker }) => registerServiceWorker()).catch(() => {});
 initLogin({
   state,

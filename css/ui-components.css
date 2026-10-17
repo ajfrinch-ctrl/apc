@@ -17,9 +17,9 @@ table{width:100%;border-collapse:collapse;font-size:var(--font-sm);table-layout:
 /* Keep modal close controls on their own compact column. */
 .admin-modal-header,.modal-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}.admin-modal-close,.modal-close{grid-column:2;grid-row:1}.admin-modal-header>div,.modal-header>div{min-width:0}.pay-success{display:flex;align-items:flex-start;gap:var(--space-2)}.pay-success>div{min-width:0}.pay-toast{pointer-events:none;bottom:calc(88px + var(--safe-bottom));font-size:var(--font-sm)}.receipt-download-hint{font-size:var(--font-sm);font-weight:400;color:var(--color-text-secondary);margin-top:var(--space-4)}
 
-/* ---- Staff Management Overview (Admin Profile / Dashboard) ----------------
-   A compact view onto the one staff directory: one row per person (identity →
-   role → responsibility → status) with quick actions, filters and paging. */
+/* ---- Optional Staff Management Overview ----------------------------------
+   Admin Account/Profile does not embed this overview; the dedicated Staff
+   view owns staff counts, search and management. */
 .staff-overview-card{min-width:0}
 .staff-overview-toolbar{display:flex;flex-wrap:wrap;gap:var(--space-3);margin-block:var(--space-3)}
 .staff-overview-search{flex:1 1 12rem;min-width:0;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-text);font-size:var(--font-sm)}

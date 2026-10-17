@@ -150,8 +150,8 @@
     margin-top:16px;
   }
   .staff-card-actions { border-top:1px solid var(--color-border);padding-top:12px; }
-  .staff-more-menu { padding:8px;margin-top:12px;border:1px solid var(--color-border);border-radius:12px;background:var(--color-bg); }
-  .staff-more-item { width:100%;justify-content:flex-start;border:0;text-align:left; }
+  .staff-more-menu { padding:0;margin:0;border:0;border-radius:0;background:transparent; }
+  .staff-more-item { width:100%;justify-content:flex-start;text-align:left; }
   .staff-form-section { margin-top:24px; }
   .staff-form-section-title { display:flex;align-items:center;gap:10px;padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid var(--color-border); }
   .staff-section-number { font:600 12px/28px system-ui,sans-serif;text-align:center;min-width:28px;background:var(--color-surface-muted);border-radius:8px;color:var(--color-primary); }
@@ -221,7 +221,6 @@
     .manager-profile-list { grid-template-columns:minmax(0,1fr);gap:16px; }
     .manager-filter-row { grid-template-columns:minmax(0,1fr); }
     .exam-summary dl { grid-template-columns:minmax(0,1fr); }
-    .staff-card-head>.badge { margin-left:56px; }
   }
 }
 @media screen {

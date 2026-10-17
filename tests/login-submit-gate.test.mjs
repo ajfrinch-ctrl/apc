@@ -31,7 +31,7 @@ test('a saved account and legacy skip flag cannot create a login session; a wron
   const panelCtx = await loadPage('student.html', { seed: panelSeed });
   const { initProfile } = await import('../js/profile.js');
   initProfile({ state: { account, student: account.student } });
-  const trusted = panelCtx.$('#trustedDeviceToggle');
+  const trusted = panelCtx.$('#moreTrustedDeviceToggle');
   trusted.checked = true;
   trusted.dispatchEvent(new panelCtx.window.Event('change'));
   await panelCtx.waitFor(() => trusted.checked === false);

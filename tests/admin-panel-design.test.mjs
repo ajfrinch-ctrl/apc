@@ -26,7 +26,7 @@ test('every remaining Admin view opens with a subtitle under its title', () => {
 
 test('hub rows end in a chevron icon, never a text arrow, and the audit view uses the svg back button', () => {
   assert.doesNotMatch(html, /<span aria-hidden="true">→<\/span>/, 'no text arrows in hub rows');
-  assert.equal((html.match(/admin-menu-arrow/g) || []).length, 6, 'system + data hub rows carry the arrow slot');
+  assert.equal((html.match(/admin-menu-arrow/g) || []).length, 9, 'system, data and More hub rows carry the arrow slot');
   const audit = viewOf('audit');
   assert.match(audit, /data-icon="back"/, 'the audit back button is the shared svg');
   assert.doesNotMatch(audit, />←<\/button>/, 'no text back arrow');

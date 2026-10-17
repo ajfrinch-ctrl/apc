@@ -43,17 +43,20 @@ before(async () => {
 });
 after(() => ctx?.window.close());
 
-test('the create form runs its steps and a failed submit stays retryable', async () => {
+test('the three-step create wizard validates before creating an account', async () => {
   ctx.click(ctx.$('#staffCreateButton'));
   await ctx.waitFor(() => Boolean(ctx.$('#staffForm')));
   const form = ctx.$('#staffForm');
 
-  // The three numbered sections of the flow are on one form sheet.
+  // The three numbered sections are navigable rather than shown as one long form.
   assert.equal(form.querySelectorAll('.staff-form-section-block').length, 3, '৩টি ধাপ: পরিচয়, রোল ও যোগাযোগ, দায়িত্ব');
+  assert.equal(form.dataset.currentCreateStep, '1');
   assert.ok(form.querySelector('#staffField-username[data-auto-id]'), 'Login User ID স্বয়ংক্রিয়');
   assert.ok(form.querySelector('#staffAssignmentFields[data-role="teacher"]'), 'teacher দায়িত্ব অংশ দেখায়');
+  assert.equal(form.querySelector('[data-staff-create-step="2"]').hidden, true);
+  assert.equal(form.querySelector('[data-staff-create-step="3"]').hidden, true);
+  assert.equal(form.querySelector('[data-staff-create-footer]').hidden, true);
 
-  // Step ১–২: identity + role + password + status.
   const set = (id, value) => {
     const el = form.querySelector(id);
     el.value = value;
@@ -62,17 +65,22 @@ test('the create form runs its steps and a failed submit stays retryable', async
     return el;
   };
   set('#staffField-fullName', 'Karim Uddin');
-  set('#staffField-password', 'Karim-2026');
-  set('#staffField-confirmPassword', 'Karim-2026');
-  set('#staffField-status', 'active');
+  ctx.click(form.querySelector('[data-staff-step-next]'));
+  await ctx.waitFor(() => form.dataset.currentCreateStep === '2');
 
-  // First submit with a broken confirm → error shown, form stays open.
+  // A bad password confirmation blocks the next step without creating a record.
+  set('#staffField-password', 'Karim-2026');
   set('#staffField-confirmPassword', 'Wrong-2026');
-  ctx.submit(form);
+  set('#staffField-status', 'active');
+  ctx.click(form.querySelector('[data-staff-step-next]'));
   await ctx.waitFor(() => !ctx.$('#staffFormError').hidden);
-  assert.ok(ctx.$('#staffForm'), 'একটি ব্যর্থ submit অ্যাকাউন্ট অর্ধেক তৈরি করে না — ফর্ম খোলা থাকে');
+  assert.equal(form.dataset.currentCreateStep, '2');
+  assert.ok(ctx.$('#staffForm'), 'একটি ব্যর্থ validation-এ ফর্ম খোলা থাকে');
   assert.equal((await listStaff()).some(item => item.fullName === 'Karim Uddin'), false, 'কোনো অর্ধেক রেকর্ড তৈরি হয়নি');
   set('#staffField-confirmPassword', 'Karim-2026');
+  ctx.click(form.querySelector('[data-staff-step-next]'));
+  await ctx.waitFor(() => form.dataset.currentCreateStep === '3');
+  assert.equal(form.querySelector('[data-staff-create-footer]').hidden, false, 'শেষ ধাপে submit দেখা যায়');
 
   // Step ৩: multi-class, multi-subject duty matrix (teacher only).
   const classesField = form.querySelector('#staffField-classes');
@@ -181,7 +189,7 @@ test('signed in, the teacher panel shows exactly the ticked classes', async () =
     if (teacherReady) await teacherReady;
     await page.waitFor(() => page.$('#teacherShell').hidden === false);
     await page.waitFor(() => [...page.$('#teacherClassFilter').options]
-      .some(option => option.textContent === 'সব assigned class'));
+      .some(option => option.textContent === 'সব নির্ধারিত শ্রেণি'));
 
     const options = [...page.$('#teacherClassFilter').options].map(option => nfc(option.textContent));
     for (const className of Object.keys(ticked)) {

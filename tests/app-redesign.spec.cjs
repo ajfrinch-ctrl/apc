@@ -1,12 +1,30 @@
 const {test,expect}=require('./fixtures.cjs');
 const {enterPortal}=require('./portal-session.cjs');
 test.use({serviceWorkers:'block'});
+
+test('wide print media retains the original paper grids instead of the phone shell',async({page})=>{
+ await page.setViewportSize({width:1280,height:900});
+ await enterPortal(page,'admin');
+ const screenShell=await page.locator('#adminShell').boundingBox();
+ expect(screenShell.width).toBe(430);
+ await page.emulateMedia({media:'print'});
+ const printed=await page.evaluate(()=>({
+  shell:document.querySelector('#adminShell').getBoundingClientRect().width,
+  stats:getComputedStyle(document.querySelector('.admin-hero-stats')).gridTemplateColumns.split(' ').length,
+  features:getComputedStyle(document.querySelector('#adminFeatureGrid')).gridTemplateColumns.split(' ').length,
+  nav:getComputedStyle(document.querySelector('#adminShell > .admin-bottom')).display
+ }));
+ expect(printed.shell).toBeGreaterThan(1200);
+ expect(printed.stats).toBe(4);
+ expect(printed.features).toBe(3);
+ expect(printed.nav).toBe('none');
+});
 for(const width of [320,390,1280]) for(const role of ['login','admin','manager','teacher','payment','student']) {
  test(`${role} redesigned at ${width}`,async({page},info)=>{
   await page.setViewportSize({width,height:844});
   if(role==='login') await page.goto('/index.html');
   else if(role==='student') {
-   await page.goto('/offline-roles.html');
+   await page.goto('/demo/offline-roles.html');
    await page.evaluate(async()=>{
     const s=await import('/js/storage.js');
     await s.persistAccount({username:'review.student',mobile:'01700000000',pin:'123456',status:'active',student:{id:'REVIEW-1',name:'রায়হান আহমেদ',className:'অষ্টম শ্রেণি'}});
@@ -18,16 +36,151 @@ for(const width of [320,390,1280]) for(const role of ['login','admin','manager',
   await expect(page.locator('.launch-screen')).toHaveCount(0);
   await page.evaluate(()=>document.fonts.ready);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  if(role==='payment') {
-   const bounds=await page.locator('#payShell').boundingBox();
-   expect(bounds.width).toBe(width);
-   expect(bounds.x).toBe(0);
+  const phoneWidth=Math.min(width,430);
+  const shellSelector=role==='login'?'#authScreen':role==='student'?'#appShell':role==='payment'?'#payShell':`#${role}Shell`;
+  const shellBounds=await page.locator(shellSelector).boundingBox();
+  expect(shellBounds.width).toBe(phoneWidth);
+  expect(shellBounds.x).toBe((width-phoneWidth)/2);
+  if(role!=='login') {
+   await page.evaluate(()=>document.documentElement.dataset.theme='light');
+   const lightChrome=await page.evaluate(()=>({
+    top:getComputedStyle(document.querySelector('.app-topbar')).backgroundColor,
+    topText:getComputedStyle(document.querySelector('.app-topbar')).color,
+    bottom:getComputedStyle(document.querySelector('.bottom-nav,.admin-bottom'),'::before').backgroundColor
+   }));
+   expect(lightChrome.top).toBe('rgb(14, 122, 85)');
+   expect(lightChrome.topText).toBe('rgb(255, 255, 255)');
+   expect(lightChrome.bottom).not.toBe('rgb(255, 255, 255)');
+   expect(lightChrome.bottom).not.toBe('rgba(0, 0, 0, 0)');
+   if(role==='manager') {
+    const home=await page.evaluate(()=>{
+     const panel=document.querySelector('.manager-view[data-view-panel="dashboard"]');
+     const intro=panel.querySelector('.manager-home-intro');
+     const summary=panel.querySelector('.manager-home-summary');
+     return {
+      heroCards:panel.querySelectorAll('.hero-slider, .admin-hero').length,
+      introVisible:!!intro && getComputedStyle(intro).display==='flex',
+      headingColor:getComputedStyle(intro.querySelector('h1')).color,
+      summaryBackground:getComputedStyle(summary).backgroundColor,
+      tileBackgrounds:[...summary.querySelectorAll('.manager-kpi-grid > .admin-stat-tile')].map(el=>getComputedStyle(el).backgroundColor)
+     };
+    });
+    expect(home.heroCards).toBe(0);
+    expect(home.introVisible).toBe(true);
+    expect(home.headingColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(home.summaryBackground).toBe('rgba(0, 0, 0, 0)');
+    expect(home.tileBackgrounds).toHaveLength(3);
+    expect(home.tileBackgrounds.every(color=>color!=='rgba(0, 0, 0, 0)')).toBe(true);
+   }
+   if(role==='student') {
+    const hero=await page.evaluate(()=>{
+     const identity=document.querySelector('#homeView .student-home-welcome');
+     const adviceBand=document.querySelector('#homeView .hero-slider');
+     const summary=document.querySelector('#homeView .pay-hero.pay-hero-summary');
+     const card=summary.querySelector('.study-progress-card');
+     const statsRow=card.querySelector('.study-progress-stats:not(#homeRealStatsRow)');
+     const stats=[...statsRow.children];
+     const title=card.querySelector('#homeTitle');
+     return {
+      adviceBand:getComputedStyle(adviceBand).backgroundImage,
+      adviceArtFilter:getComputedStyle(adviceBand.querySelector('.hero-slide--advice .hero-slide__art img')).filter,
+      identityBackground:getComputedStyle(identity).backgroundImage,
+      greeting:getComputedStyle(identity.querySelector('.pay-greeting')).color,
+      name:getComputedStyle(identity.querySelector('.pay-hero-name')).color,
+      meta:getComputedStyle(identity.querySelector('.pay-hero-meta')).color,
+      progress:getComputedStyle(card).backgroundImage,
+      blur:getComputedStyle(card).backdropFilter,
+      title:getComputedStyle(title).color,
+      titleSize:getComputedStyle(title).fontSize,
+      subtitle:getComputedStyle(card.querySelector('.study-progress-subtitle')).color,
+      subtitleSize:getComputedStyle(card.querySelector('.study-progress-subtitle')).fontSize,
+      weights:[...statsRow.querySelectorAll('strong, small')].map(el=>getComputedStyle(el).fontWeight),
+      labels:[...statsRow.querySelectorAll('small')].map(el=>getComputedStyle(el).color),
+      stats:stats.map(el=>getComputedStyle(el).backgroundColor),
+      realStats:[...card.querySelectorAll('#homeRealStatsRow > div')].map(el=>getComputedStyle(el).backgroundColor)
+     };
+    });
+    expect(hero.adviceBand).toContain('linear-gradient');
+    expect(hero.adviceBand).toContain('rgb(45, 66, 127)');
+    expect(hero.adviceBand).not.toContain('rgb(15, 118, 110)');
+    expect(hero.adviceArtFilter).toContain('grayscale(1)');
+    expect(hero.identityBackground).toBe('none');
+    expect(hero.greeting).not.toBe('rgb(255, 255, 255)');
+    expect(hero.name).toBe('rgb(23, 26, 24)');
+    expect(hero.meta).not.toBe('rgb(255, 255, 255)');
+    expect(hero.progress).toContain('linear-gradient');
+    expect(hero.blur).toBe('none');
+    expect(hero.title).toBe('rgb(23, 26, 24)');
+    expect(hero.titleSize).toBe('20px');
+    expect(hero.subtitle).toBe('rgb(23, 26, 24)');
+    expect(hero.subtitleSize).toBe('16px');
+    expect(hero.weights.every(weight=>Number(weight)>=700)).toBe(true);
+    expect(hero.labels.every(color=>color==='rgb(23, 26, 24)')).toBe(true);
+    expect(new Set(hero.stats).size).toBe(3);
+    expect(new Set(hero.realStats).size).toBe(4);
+   }
+   const nav=page.locator(role==='student'?'.bottom-nav':'.admin-bottom');
+   const navBounds=await nav.boundingBox();
+   expect(navBounds.width).toBe(phoneWidth);
+   expect(navBounds.x).toBe((width-phoneWidth)/2);
+   expect(await nav.evaluate(el=>getComputedStyle(el).position)).toBe('fixed');
   }
   await page.screenshot({path:info.outputPath('screen.png')});
   const nav=page.locator('.admin-bottom:visible button,.bottom-nav:visible button');
   for(let i=0;i<await nav.count();i++) {
    await nav.nth(i).click();
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  if(role!=='login') {
+   await page.evaluate(()=>document.documentElement.dataset.theme='dark');
+   const darkChrome=await page.evaluate(()=>({
+    top:getComputedStyle(document.querySelector('.app-topbar')).backgroundColor,
+    topText:getComputedStyle(document.querySelector('.app-topbar')).color,
+    bottom:getComputedStyle(document.querySelector('.bottom-nav,.admin-bottom'),'::before').backgroundColor
+   }));
+   expect(darkChrome.top).toBe('rgb(14, 43, 31)');
+   expect(darkChrome.topText).toBe('rgb(244, 246, 250)');
+   expect(darkChrome.bottom).not.toBe('rgb(11, 13, 16)');
+   expect(darkChrome.bottom).not.toBe('rgba(0, 0, 0, 0)');
+   if(role==='manager') {
+    const home=await page.evaluate(()=>{
+     const panel=document.querySelector('.manager-view[data-view-panel="dashboard"]');
+     const intro=panel.querySelector('.manager-home-intro');
+     const summary=panel.querySelector('.manager-home-summary');
+     return {
+      heroCards:panel.querySelectorAll('.hero-slider, .admin-hero').length,
+      introVisible:!!intro && getComputedStyle(intro).display==='flex',
+      headingColor:getComputedStyle(intro.querySelector('h1')).color,
+      summaryBackground:getComputedStyle(summary).backgroundColor,
+      firstTile:getComputedStyle(summary.querySelector('.manager-kpi-grid > .admin-stat-tile')).backgroundColor
+     };
+    });
+    expect(home.heroCards).toBe(0);
+    expect(home.introVisible).toBe(true);
+    expect(home.headingColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(home.summaryBackground).toBe('rgba(0, 0, 0, 0)');
+    expect(home.firstTile).not.toBe('rgba(0, 0, 0, 0)');
+   }
+   if(role==='student') {
+    const hero=await page.evaluate(()=>{
+     const identity=document.querySelector('#homeView .student-home-welcome');
+     const adviceBand=document.querySelector('#homeView .hero-slider');
+     const card=document.querySelector('#homeView .study-progress-card');
+     return {
+      adviceBand:getComputedStyle(adviceBand).backgroundImage,
+      adviceArtFilter:getComputedStyle(adviceBand.querySelector('.hero-slide--advice .hero-slide__art img')).filter,
+      name:getComputedStyle(identity.querySelector('.pay-hero-name')).color,
+      title:getComputedStyle(card.querySelector('#homeTitle')).color,
+      summary:getComputedStyle(card.querySelector('.study-progress-subtitle')).color
+     };
+    });
+    expect(hero.adviceBand).toContain('rgb(20, 40, 73)');
+    expect(hero.adviceBand).not.toContain('rgb(8, 97, 116)');
+    expect(hero.adviceArtFilter).toContain('grayscale(1)');
+    expect(hero.name).toBe('rgb(244, 246, 250)');
+    expect(hero.title).toBe('rgb(244, 246, 250)');
+    expect(hero.summary).toBe('rgb(244, 246, 250)');
+   }
   }
  });
 }
@@ -38,15 +191,26 @@ for (const role of ['admin','manager','teacher']) test(`${role} secondary screen
  await enterPortal(page,role);
  await page.evaluate(()=>document.documentElement.dataset.theme='dark');
  const views = role==='admin' ? ['staff','students','reports','roles','data','backup','security','settings','profile']
-   : role==='manager' ? ['students','academic','classes','teachers','finance','cash-counter','notices','routine','exams','results','reports','profile']
+   : role==='manager' ? ['students','academic','classes','teachers','finance','cash-counter','notices','routine','exams','results','reports','profile','settings']
    : ['students','classes','routine-view','homework','online-exams','suggestion','reports','profile'];
  for(const view of views) {
-  if(role==='teacher'||role==='manager') await page.evaluate(({view,role})=>document.querySelector(`[data-${role}-view="${view}"]`).click(),{view,role});
-  else await page.evaluate(view=>location.hash=view,view);
+  if(role==='teacher') {
+   await page.evaluate(view=>document.querySelector(`[data-teacher-view="${view}"]`).click(),view);
+  } else if(role==='manager' && view==='cash-counter') {
+   await page.evaluate(()=>{ location.hash='cash-counter'; });
+  } else if(role==='manager' && view==='results') {
+   await page.evaluate(()=>{
+    document.querySelector('[data-manager-view="academic"]').click();
+    document.querySelector('[data-academic-section="results"]').click();
+   });
+  } else if(role==='manager') {
+   await page.evaluate(view=>document.querySelector(`[data-manager-view="${view}"]`).click(),view);
+  } else await page.evaluate(view=>location.hash=view,view);
   await page.waitForTimeout(75);
   const visible=role==='teacher'?page.locator('.teacher-view:visible'):page.locator(`.${role==='admin'?'admin':'manager'}-view.active`);
   await expect(visible).toBeVisible();
-  if(role!=='teacher') await expect(visible).toHaveAttribute('data-view-panel',view);
+  if(role!=='teacher') await expect(visible).toHaveAttribute('data-view-panel',view==='cash-counter'?'finance':view);
+  if(role==='manager' && view==='cash-counter') await expect(page.locator('[data-finance-panel="approval"]')).toBeVisible();
   const bad=await visible.evaluate(el=>[...el.querySelectorAll('input,select,textarea,button')].filter(x=>{
    const strip=x.closest('.chip-row');
    if(strip && /^(auto|scroll)$/.test(getComputedStyle(strip).overflowX)) return false;
@@ -64,6 +228,45 @@ for (const role of ['admin','manager','teacher']) test(`${role} secondary screen
   await page.screenshot({path:info.outputPath('staff-form.png')});
   await page.keyboard.press('Escape');
  }
+});
+
+test('birthday hero keeps its celebration colors and readable text',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await page.goto('/demo/offline-roles.html');
+ await page.evaluate(async()=>{
+  const storage=await import('/js/storage.js');
+  await storage.persistAccount({username:'birthday.review',mobile:'01700000000',pin:'123456',status:'active',student:{id:'BIRTHDAY-1',name:'রায়হান আহমেদ',className:'অষ্টম শ্রেণি'}});
+  await storage.persistSession(true);
+ });
+ await page.goto('/index.html');
+ await expect(page.locator('#appShell')).toBeVisible();
+ await page.evaluate(()=>{
+  document.documentElement.dataset.theme='light';
+  document.documentElement.setAttribute('data-birthday','');
+ });
+ const light=await page.evaluate(()=>{
+  const hero=document.querySelector('#homeView .pay-hero');
+  const style=getComputedStyle(hero,'::before');
+  return {
+   display:style.display,
+   background:style.backgroundImage,
+   greeting:getComputedStyle(hero.querySelector('.pay-greeting')).color,
+   name:getComputedStyle(hero.querySelector('.pay-hero-name')).color,
+   meta:getComputedStyle(hero.querySelector('.pay-hero-meta')).color,
+   avatar:getComputedStyle(hero.querySelector('.pay-avatar')).color,
+   link:getComputedStyle(hero.querySelector('.pay-hero-link')).color
+  };
+ });
+ expect(light.display).toBe('block');
+ expect(light.background).toContain('rgb(246, 193, 90)');
+ for(const key of ['greeting','name','meta','avatar','link']) expect(light[key]).toBe('rgb(59, 36, 16)');
+ await page.evaluate(()=>document.documentElement.dataset.theme='dark');
+ const dark=await page.locator('#homeView .pay-hero').evaluate(el=>({
+  background:getComputedStyle(el,'::before').backgroundImage,
+  name:getComputedStyle(el.querySelector('.pay-hero-name')).color
+ }));
+ expect(dark.background).toContain('rgb(255, 138, 122)');
+ expect(dark.name).toBe('rgb(59, 36, 16)');
 });
 
 test('registration uses readable full-width fields on mobile',async({page},info)=>{

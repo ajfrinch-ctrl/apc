@@ -1,25 +1,11 @@
-/* Admin Profile staff surface + Staff Management Overview widget.
-
-   Two acceptance points locked down on the real admin.html + js/admin.js:
-     • Staff Creation lives ONLY in the Staff Management section — the Admin
-       Profile carries no create form, no create button and no duplicate
-       management path (Issue: "remove staff creation from Admin Profile")
-     • the Profile carries the Staff Management Overview: a searchable,
-       filterable, paginated directory with quick actions that drive the
-       exact same dialogs/mutations as the full section (Issue: "integrated
-       staff management from Admin Profile/Dashboard"). The Dashboard mount
-       was removed by owner decision on 2026-10-14, and this suite now
-       guards that the home stays free of it.
-*/
+/* Admin Profile stays focused on the signed-in Admin's own identity/settings;
+   the staff count and full directory live only in Staff Management. */
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
-import { createStaff, listStaff, setStaffStatus } from '../js/staff-directory.js';
-import { refreshStaffOverviews } from '../js/staff-overview.js';
 
 const DEMO_OFF = { 'activePlus.demo.autofill.v1': 'off' };
-const nfc = value => String(value || '').normalize('NFC');
 let ctx;
 
 before(async () => {
@@ -29,6 +15,7 @@ before(async () => {
   await import('../js/admin.js');
   await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
   await ctx.waitFor(() => ctx.$$('#staffList .staff-card').length >= 4);
+  await ctx.waitFor(() => ctx.$$('#adminProfileCard .profile-row').length === 5);
 });
 after(() => ctx?.window.close());
 
@@ -38,105 +25,55 @@ test('Staff Creation lives only inside the Staff Management section', () => {
   const staffView = ctx.$('.admin-view[data-view-panel="staff"]');
   assert.ok(staffView.contains(createButtons[0]), 'it belongs to the Staff Management view');
 
-  // The Admin Profile must carry no staff-creation surface at all.
   const profile = ctx.$('.admin-view[data-view-panel="profile"]');
   assert.equal(profile.querySelector('#staffCreateButton'), null);
   assert.equal(profile.querySelector('#staffForm'), null, 'no create/edit staff form on the profile');
   assert.equal(profile.querySelector('[data-staff-action="delete"]'), null);
   assert.equal(profile.querySelector('[data-staff-action="confirm-delete"]'), null);
-  assert.equal(nfc(profile.textContent).includes(nfc('স্টাফ ক্রিয়েট')), false, 'no create affordance copy on the profile');
-  // The profile keeps the admin's OWN identity/password forms only.
-  assert.ok(profile.querySelector('#adminProfileForm'));
-  assert.ok(profile.querySelector('#adminPasswordForm'));
+  assert.ok(profile.querySelector('#adminProfileForm'), 'the Admin can still edit their own profile');
+  assert.ok(profile.querySelector('#adminPasswordForm'), 'the Admin can still change their own password');
 });
 
-test('the Overview mounts on the Profile behind the staff.manage capability — and not on the Dashboard', () => {
-  const widget = ctx.$('#staffOverviewProfile');
-  assert.ok(widget, '#staffOverviewProfile exists');
-  assert.equal(widget.dataset.adminCap, 'staff.manage');
-  assert.ok(widget.querySelector('[data-overview-list]'), 'the profile overview has a list surface');
-  // Owner decision 2026-10-14: the home keeps only snapshot tiles and quick
-  // access — no staff overview card on the Dashboard.
-  assert.equal(ctx.$('#staffOverviewHome'), null, 'no staff overview mounts on the Dashboard home');
-  assert.equal(ctx.$('.admin-view[data-view-panel="dashboard"] .staff-overview-card'), null,
-    'the dashboard carries no staff overview card');
+test('the Admin hero card contains identity and every profile fact in one place', () => {
+  const profile = ctx.$('.admin-view[data-view-panel="profile"]');
+  const card = ctx.$('#adminProfileCard');
+  const hero = card.querySelector('.admin-profile-hero');
+  assert.ok(hero, 'identity and details hero remains visible');
+  assert.match(hero.textContent, /এডমিন/);
+  assert.match(hero.textContent, /admin\.apc/);
+  assert.ok(hero.querySelector('.admin-profile-facts'), 'the facts grid lives inside the hero');
+  assert.ok(hero.querySelector('[data-admin-profile-edit]'), 'the hero retains a profile edit option');
+  assert.equal([...card.children].some(child => child.classList.contains('profile-list')), false,
+    'no separate details list sits below the hero');
+
+  const labels = [...hero.querySelectorAll('.profile-row dt')].map(node => node.textContent.trim());
+  assert.deepEqual(labels, ['স্টাফ আইডি', 'মোবাইল', 'ইমেইল', 'স্ট্যাটাস', 'যোগদান']);
+  assert.equal(labels.includes('পূর্ণ নাম'), false, 'the name is already in the hero');
+  assert.equal(labels.includes('ইউজারনেম'), false, 'the Login ID is already in the hero');
+  assert.equal(labels.includes('ভূমিকা'), false, 'the Admin role is already in the hero');
+
+  // Keep the Account/Profile section limited to the Admin's own account.
+  // Staff counts and the full searchable directory belong on the Staff tab.
+  assert.equal(profile.querySelector('#staffOverviewProfile'), null, 'Profile has no staff summary card');
+  assert.equal(profile.querySelector('.staff-overview-card'), null);
+  assert.equal(profile.querySelector('.staff-overview-count'), null);
+  assert.equal(profile.querySelector('[data-overview-action="open-full"]'), null);
+  assert.ok(staffViewHasDirectory(ctx), 'the dedicated Staff view still holds the searchable directory');
 });
 
-test('the overview lists staff with identity, role and status — searchable and filterable', async () => {
-  const created = await createStaff({
-    fullName: 'Nurul Islam', password: 'Nurul-2026', confirmPassword: 'Nurul-2026', role: 'teacher',
-    assignment: { classes: ['অষ্টম শ্রেণি'], subjects: ['গণিত'], batches: [] }
-  });
-  assert.equal(created.ok, true, created.error);
-  await refreshStaffOverviews();
-  await ctx.flush();
-
-  const widget = ctx.$('#staffOverviewProfile');
-  const rows = () => [...widget.querySelectorAll('[data-overview-staff]')];
-  assert.ok(rows().length >= 5, 'seeded system staff + the new teacher');
-  const teacherRow = rows().find(row => row.dataset.overviewStaff === created.staff.staffId);
-  assert.ok(teacherRow, 'the new teacher is listed');
-  assert.match(teacherRow.textContent, /Nurul Islam/);
-  assert.match(teacherRow.textContent, /STF-/);
-  assert.match(nfc(teacherRow.textContent), /শিক্ষক/);
-  assert.match(nfc(teacherRow.textContent), /গণিত/, 'the assigned subject is the responsibility line');
-
-  // Search narrows the list without a reload.
-  const search = widget.querySelector('[data-overview-search]');
-  search.value = 'nurul';
-  search.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
-  assert.equal(rows().length, 1);
-  assert.match(rows()[0].textContent, /Nurul Islam/);
-
-  // Role filter.
-  search.value = '';
-  search.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
-  const roleFilter = widget.querySelector('[data-overview-role]');
-  roleFilter.value = 'teacher';
-  roleFilter.dispatchEvent(new ctx.window.Event('change', { bubbles: true }));
-  assert.ok(rows().length >= 1);
-  assert.ok(rows().every(row => nfc(row.textContent).includes(nfc('শিক্ষক'))));
-  roleFilter.value = 'all';
-  roleFilter.dispatchEvent(new ctx.window.Event('change', { bubbles: true }));
-
-  // Status filter: deactivate through the data layer, then filter.
-  await setStaffStatus(created.staff.staffId, 'inactive');
-  await refreshStaffOverviews();
-  await ctx.flush();
-  const statusFilter = widget.querySelector('[data-overview-status]');
-  statusFilter.value = 'inactive';
-  statusFilter.dispatchEvent(new ctx.window.Event('change', { bubbles: true }));
-  assert.ok(rows().some(row => row.dataset.overviewStaff === created.staff.staffId), 'inactive filter shows the record');
-  statusFilter.value = 'all';
-  statusFilter.dispatchEvent(new ctx.window.Event('change', { bubbles: true }));
-  await setStaffStatus(created.staff.staffId, 'active');
-  await refreshStaffOverviews();
+test('the hero edit shortcut opens and focuses the existing Account profile form', async () => {
+  const button = ctx.$('#adminProfileCard [data-admin-profile-edit]');
+  assert.ok(button);
+  ctx.click(button);
+  const form = ctx.$('#adminProfileForm');
+  await ctx.waitFor(() => form.closest('[data-settings-group]')?.hidden === false);
+  assert.equal(form.closest('[data-settings-group]').dataset.settingsGroup, 'account');
+  assert.equal(ctx.window.document.activeElement, ctx.$('#adminProfileName'));
+  ctx.click(ctx.$('[data-settings-hub="admin"] [data-settings-hub-back]'));
+  await ctx.waitFor(() => ctx.$('[data-settings-hub="admin"] [data-settings-groups]').hidden === false);
 });
 
-test('quick actions run the shared mutations; paging keeps pages small; the shortcut opens the full section', async () => {
-  const widget = ctx.$('#staffOverviewProfile');
-  const staff = await listStaff();
-  const teacher = staff.find(record => record.role === 'teacher' && record.kind !== 'system');
-  assert.ok(teacher, 'the created teacher exists');
-
-  // Activate/Deactivate quick action → same setStaffStatus path.
-  const row = () => widget.querySelector(`[data-overview-staff="${teacher.staffId}"]`);
-  assert.ok(row(), 'row visible on the current page');
-  const toggle = row().querySelector('[data-overview-action="status"]');
-  assert.ok(toggle, 'the quick action is offered');
-  ctx.click(toggle);
-  let status = 'active';
-  for (let i = 0; i < 100 && status !== 'inactive'; i += 1) {
-    await new Promise(resolve => setTimeout(resolve, 20));
-    status = (await listStaff()).find(item => item.staffId === teacher.staffId)?.status || status;
-  }
-  assert.equal(status, 'inactive', 'the quick action ran the shared status mutation');
-  // Restore.
-  await setStaffStatus(teacher.staffId, 'active');
-  await refreshStaffOverviews();
-
-  // The "full management" shortcut opens the Staff Management section.
-  ctx.click(widget.querySelector('[data-overview-action="open-full"]'));
-  await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="staff"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-view[data-view-panel="staff"]').classList.contains('active'), true);
-});
+function staffViewHasDirectory(context) {
+  const view = context.$('.admin-view[data-view-panel="staff"]');
+  return Boolean(view?.querySelector('#staffList .staff-card') && view.querySelector('#staffSearch'));
+}

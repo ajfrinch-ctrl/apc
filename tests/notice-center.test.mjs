@@ -8,7 +8,7 @@
  *
  * jsdom only; the tray/notification-permission parts need a browser and live in
  * the Playwright specs. */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
@@ -23,10 +23,16 @@ const PAGES = Object.freeze([
 ]);
 
 const markup = file => new JSDOM(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')).window.document;
+const liveContexts = [];
+async function livePage(...args) { const ctx = await loadPage(...args); liveContexts.push(ctx); return ctx; }
+after(() => liveContexts.forEach(ctx => ctx.window.close()));
 
 /* Icons are inline SVG (js/icons.js; no sprite, no <use>): an icon must be
    present and drawable — it carries its own shapes. */
-const drawable = svg => Boolean(svg && svg.querySelector('path, rect, circle, line, polyline, polygon'));
+/* A topbar icon is "drawable" when it paints something the user can see: the
+   soft-3d set draws its glyphs as an <image> child; older vector shapes also
+   count. */
+const drawable = svg => Boolean(svg && svg.querySelector('image, path, rect, circle, line, polyline, polygon'));
 
 /** The bar a signed-in person sees: brand + slogan + bell + sign-out. */
 function shellBar(document, exitId) {
@@ -119,7 +125,8 @@ test('every panel shares the APC topbar; teacher also shows the teacher identity
       // (js/appearance.js exposes THEME_LABEL for the full name).
       assert.ok(themeSwitch.textContent.includes('গাঢ় থিম'), `${page.file}: the switch label changed`);
       assert.ok(themeSwitch.textContent.includes('AMOLED'), `${page.file}: the switch lost its theme explanation`);
-      const checkbox = themeSwitch.querySelector('#darkModeToggle');
+      const themeId = page.file === 'student.html' ? '#moreDarkModeToggle' : '#darkModeToggle';
+      const checkbox = themeSwitch.querySelector(themeId);
       assert.ok(checkbox && checkbox.type === 'checkbox', `${page.file}: the switch is not wired to the theme checkbox`);
       assert.ok(themeSwitch.querySelector('.toggle-switch i'), `${page.file}: the switch lost its track`);
       const shape = normalised(bar);
@@ -131,7 +138,7 @@ test('every panel shares the APC topbar; teacher also shows the teacher identity
 });
 
 test('the bell shows the unread count; the inbox filters unread/all and marks read on request', async () => {
-  const ctx = await loadPage('manager.html');
+  const ctx = await livePage('manager.html');
   const { mountNoticeCenter, noticeCenter } = await import('../js/notice-center.js');
   const read = new Set();
   const items = [
@@ -206,12 +213,12 @@ test('the bell shows the unread count; the inbox filters unread/all and marks re
   assert.equal(modal.hidden, true, 'Escape did not close the inbox');
 
   // The login screen keeps its brand-only bar (no bell to wire there).
-  const index = await loadPage('index.html');
+  const index = await livePage('index.html');
   assert.equal(index.$('#authScreen .app-topbar button'), null, 'the login bar grew a button');
 });
 
 test('a receipt that cannot be saved keeps the message list honest', async () => {
-  const ctx = await loadPage('teacher.html');
+  const ctx = await livePage('teacher.html');
   // A fresh module instance: the inbox is a singleton per page load.
   const { mountNoticeCenter } = await import('../js/notice-center.js?unsaveable');
   const items = [{ key: 'notice:N9:r1', source: 'notices', sourceId: 'N9', kind: 'notice', title: 'নোটিশ', body: 'পাঠ', at: 0, audience: 'সকল শিক্ষার্থী' }];
@@ -238,7 +245,7 @@ test('a receipt that cannot be saved keeps the message list honest', async () =>
 });
 
 test('the redesigned dark-mode switch really flips the theme', async () => {
-  const ctx = await loadPage('admin.html');
+  const ctx = await livePage('admin.html');
   const { initAppearance, APPEARANCE_KEY } = await import('../js/appearance.js');
   initAppearance();
   const checkbox = ctx.$('.theme-switch #darkModeToggle');

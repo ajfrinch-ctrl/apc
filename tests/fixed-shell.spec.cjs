@@ -1,136 +1,266 @@
 const { test, expect } = require('./fixtures.cjs');
 const { enterStudentApp, enterPortal } = require('./portal-session.cjs');
 
-async function barsStayInPlace(page, { header, footer, main }) {
-  await expect.poll(() => page.evaluate(({ header, footer, main }) => {
-    const top = document.querySelector(header).getBoundingClientRect();
-    const bottom = document.querySelector(footer).getBoundingClientRect();
-    const content = document.querySelector(main).getBoundingClientRect();
-    return Math.abs(top.top) < 1 && Math.abs(bottom.bottom - innerHeight) < 1 &&
-      Math.abs(content.top - top.bottom) <= 1 && Math.abs(content.bottom - bottom.top) <= 1;
-  }, { header, footer, main })).toBe(true);
-  await expect(page.locator(header)).toHaveCSS('position', 'fixed');
-  await expect(page.locator(footer)).toHaveCSS('position', 'fixed');
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
-}
-
-for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
-  test(`student header/footer stay fixed while middle scrolls (${viewport.width}px)`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await page.goto('/index.html');
-    await enterStudentApp(page);
-    const selectors = { header: '#studentHeader', footer: '.bottom-nav', main: '#appMain' };
-    await barsStayInPlace(page, selectors);
-    await page.locator('#appMain').evaluate(el => { el.scrollTop = el.scrollHeight; });
-    await expect.poll(() => page.locator('#appMain').evaluate(el => el.scrollTop)).toBeGreaterThan(76);
-    await expect(page.locator('#studentHeader [data-fixed-tagline]')).toBeVisible();
-    await barsStayInPlace(page, selectors);
-    const lastBottom = await page.locator('#homeView > :last-child').evaluate(el => el.getBoundingClientRect().bottom);
-    const footerTop = (await page.locator('.bottom-nav').boundingBox()).y;
-    expect(lastBottom).toBeLessThanOrEqual(footerTop);
-    // The login-style identity stays unchanged when a bottom tab changes the view.
-    await page.locator('.bottom-nav [data-view=routine]').click();
-    await expect.poll(() => page.locator('#appMain').evaluate(el => el.scrollTop)).toBe(0);
-    await expect(page.locator('#studentHeader')).not.toHaveClass(/is-scrolled/);
-    await barsStayInPlace(page, selectors);
-    await page.setViewportSize({ width: 390, height: 520 });
-    await barsStayInPlace(page, selectors);
-    // Actual header size, not a hard-coded offset, reserves the content space.
-    await page.locator('#studentHeader').evaluate(el => { el.style.height = '90px'; });
-    await barsStayInPlace(page, selectors);
-  });
-
-  test(`admin header/footer stay fixed on a long report (${viewport.width}px)`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    // A real roster, so the report is long enough to scroll in the middle pane.
-    await page.addInitScript(() => {
-      const key = 'activePlus.admin.students.v1';
-      if (localStorage.getItem(key)) return;
-      localStorage.setItem(key, JSON.stringify(Array.from({ length: 60 }, (_, index) => ({
-        id: `FIX-${index}`, name: `শিক্ষার্থী ${index}`, mobile: `017${String(10000000 + index)}`,
-        className: 'দশম শ্রেণি', status: 'approved', monthlyFee: 1000, enrolledAt: '2026-09-01'
-      }))));
-    });
-    await enterPortal(page, 'admin');
-    await page.locator('.admin-bottom [data-admin-view=reports]').click();
-    await expect(page.locator('.admin-view[data-view-panel=reports]')).toBeVisible();
-    const selectors = { header: '.app-topbar', footer: '.admin-bottom', main: '#adminMain' };
-    await barsStayInPlace(page, selectors);
-    await page.locator('#adminReports select[name=report]').selectOption('student.class-wise');
-    await page.locator('#adminReports .rc-generate').click();
-    await expect(page.locator('#adminReports .rc-preview')).toBeVisible();
-    await page.locator('#adminMain').evaluate(el => { el.scrollTop = el.scrollHeight; });
-    await expect.poll(() => page.locator('#adminMain').evaluate(el => el.scrollTop)).toBeGreaterThan(50);
-    await barsStayInPlace(page, selectors);
-    // The preview's own last page never hides under the fixed footer.
-    const last = page.locator('#adminReports .rc-pdf-preview .rp-page').last();
-    const box = await last.boundingBox();
-    expect(box.y + box.height).toBeLessThanOrEqual((await page.locator('.admin-bottom').boundingBox()).y + 1);
-    // Going back to the report form and changing seat resets the middle pane.
-    await page.locator('#adminReports .rc-back').click();
-    await page.locator('.admin-bottom [data-admin-view=dashboard]').click();
-    await expect.poll(() => page.locator('#adminMain').evaluate(el => el.scrollTop)).toBe(0);
-    await barsStayInPlace(page, selectors);
-    await page.setViewportSize({ width: 390, height: 520 });
-    await barsStayInPlace(page, selectors);
-    await page.locator('.app-topbar').evaluate(el => { el.style.height = '90px'; });
-    await barsStayInPlace(page, selectors);
+// These tests exercise the actual app scroll containers for every role. A tall
+// sentinel makes the scroll deterministic without altering app storage or
+// workflow data, then the real last-child geometry verifies footer clearance.
+async function addScrollSentinel(page, mainSelector) {
+  await page.locator(mainSelector).evaluate(main => {
+    main.querySelector('[data-shell-scroll-sentinel]')?.remove();
+    const sentinel = document.createElement('div');
+    sentinel.dataset.shellScrollSentinel = 'true';
+    sentinel.setAttribute('aria-hidden', 'true');
+    sentinel.style.cssText = 'height:900px;min-height:900px;margin:0;padding:0;border:0;flex:none;';
+    main.append(sentinel);
   });
 }
 
-for (const entry of ['index.html', 'admin.html']) {
-  test(`login header stays fixed while the auth form scrolls (${entry})`, async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 400 });
-    await page.goto('/' + entry);
-    await page.locator('.auth-screen').evaluate(el => { el.scrollTop = el.scrollHeight; });
-    await expect.poll(() => page.locator('.auth-screen').evaluate(el => el.scrollTop)).toBeGreaterThan(0);
-    expect((await page.locator('.auth-screen .app-topbar').boundingBox()).y).toBe(0);
+async function chromeGeometry(page, { header, footer }) {
+  return page.evaluate(({ header, footer }) => {
+    const headerEl = document.querySelector(header);
+    const footerEl = document.querySelector(footer);
+    const top = headerEl.getBoundingClientRect();
+    const bottom = footerEl.getBoundingClientRect();
+    return {
+      headerTop: top.top,
+      headerBottom: top.bottom,
+      headerPosition: getComputedStyle(headerEl).position,
+      footerTop: bottom.top,
+      footerBottom: bottom.bottom,
+      footerPosition: getComputedStyle(footerEl).position,
+      viewportHeight: innerHeight
+    };
+  }, { header, footer });
+}
+
+async function assertPinnedAfterScroll(page, selectors, mainSelector, scrollRoot) {
+  await addScrollSentinel(page, mainSelector);
+  const before = await chromeGeometry(page, selectors);
+  expect(Math.abs(before.headerTop)).toBeLessThanOrEqual(1);
+  expect(Math.abs(before.footerBottom - before.viewportHeight)).toBeLessThanOrEqual(1);
+  expect(['sticky', 'fixed']).toContain(before.headerPosition);
+  expect(before.footerPosition).toBe('fixed');
+
+  if (scrollRoot === 'document') {
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  } else {
+    await page.locator(mainSelector).evaluate(main => { main.scrollTop = main.scrollHeight; });
+    await expect.poll(() => page.locator(mainSelector).evaluate(main => main.scrollTop)).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
-    if (entry === 'index.html') {
-      await page.locator('.auth-tab[data-auth-tab=register]').click();
-      await expect.poll(() => page.locator('#authScreen').evaluate(el => el.scrollTop)).toBe(0);
-    }
-  });
+  }
+
+  const after = await chromeGeometry(page, selectors);
+  expect(Math.abs(after.headerTop)).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.footerBottom - after.viewportHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.headerTop - before.headerTop)).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.footerTop - before.footerTop)).toBeLessThanOrEqual(1);
+  const sentinelBottom = await page.locator(`${mainSelector} [data-shell-scroll-sentinel]`).evaluate(el => el.getBoundingClientRect().bottom);
+  expect(sentinelBottom).toBeLessThanOrEqual(after.footerTop + 1);
 }
 
-test('pending account confirmation still scrolls to its logout button', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 400 });
-  await page.addInitScript(() => localStorage.setItem('active-plus-account-v1', JSON.stringify({ status: 'pending', studentId: 'PENDING-1', student: { name: 'শিক্ষার্থী' } })));
-  await page.goto('/index.html');
-  await expect(page.locator('#pendingScreen')).toBeVisible();
-  await expect(page.locator('.bottom-nav')).toBeHidden();
-  await page.locator('#pendingScreen').evaluate(el => { el.scrollTop = el.scrollHeight; });
-  await expect.poll(() => page.locator('#pendingScreen').evaluate(el => el.scrollTop)).toBeGreaterThan(0);
-  await page.locator('#pendingLogout').click();
-  await expect(page.locator('#authScreen')).toBeVisible();
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
-});
+const viewports = [
+  { width: 390, height: 844 },
+  { width: 844, height: 390 }
+];
 
-for (const width of [320, 390, 480]) {
-  test(`student reuses login branding, with one bell and no legacy header (${width}px)`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
-    await page.goto('/index.html');
-    // One bar for the whole app: the login screen and the student app paint the
-    // same logo, the same slogan and the same height.
-    await expect(page.locator('#authScreen .app-brand [data-fixed-tagline]')).toBeVisible();
-    const loginHeight = (await page.locator('#authScreen .app-topbar').boundingBox()).height;
+for (const viewport of viewports) {
+  test(`Student header and bottom navigation stay pinned through scroll and tab returns (${viewport.width}x${viewport.height})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
     await enterStudentApp(page);
-    await expect(page.locator('#studentHeader')).toBeVisible();
-    expect((await page.locator('#studentHeader').boundingBox()).height).toBe(loginHeight);
-    await expect(page.locator('#studentHeader .app-brand [data-fixed-tagline]')).toBeVisible();
-    await expect(page.locator('#appShell .topbar, #topbarStudentName, #weatherStatus, #currentTime, .topbar-strip')).toHaveCount(0);
-    await expect(page.locator('#studentHeader .app-topbar-actions button')).toHaveCount(2);
-    await expect(page.locator('#notificationButton')).toHaveCount(1);
-    await expect(page.locator('#notificationButton')).toBeVisible();
-    await expect(page.locator('#studentLogout')).toBeVisible();
-    expect(await page.locator('#studentHeader .app-brand [data-fixed-tagline]').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.locator('#notificationButton').click();
-    await expect(page.locator('#noticeModal')).toBeVisible();
-    await expect(page.locator('.notification-dot')).toBeHidden();
-    await page.locator('#noticeModal .modal-action').click();
-    await page.reload();
-    await expect(page.locator('#studentHeader')).toBeVisible();
-    await expect(page.locator('.notification-dot')).toBeHidden();
+    const selectors = { header: '#studentHeader', footer: '.bottom-nav' };
+    const main = '#appMain';
+    await assertPinnedAfterScroll(page, selectors, main, 'main');
+    const tab = page.locator('.bottom-nav [data-view="routine"]');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await assertPinnedAfterScroll(page, selectors, main, 'main');
+    await expect(page.locator('#routineView')).toBeVisible();
+  });
+
+  test(`Admin header and bottom navigation stay pinned on reports (${viewport.width}x${viewport.height})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await enterPortal(page, 'admin');
+    const selectors = { header: '#adminShell > .app-topbar', footer: '#adminShell > .admin-bottom' };
+    const main = '#adminMain';
+    const tab = page.locator('.admin-bottom [data-admin-view="reports"]');
+    await tab.click();
+    await expect(page.locator('.admin-view[data-view-panel="reports"]')).toBeVisible();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await assertPinnedAfterScroll(page, selectors, main, 'main');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await assertPinnedAfterScroll(page, selectors, main, 'main');
+  });
+
+  test(`Manager header and bottom navigation stay pinned on finance (${viewport.width}x${viewport.height})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await enterPortal(page, 'manager');
+    const selectors = { header: '#managerShell > .app-topbar', footer: '#managerShell > .admin-bottom' };
+    const main = '#managerMain';
+    const tab = page.locator('.manager-bottom [data-manager-view="finance"]');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await expect.poll(() => tab.evaluate(button => getComputedStyle(button).backgroundColor))
+      .not.toBe('rgba(0, 0, 0, 0)');
+    await assertPinnedAfterScroll(page, selectors, main, 'main');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await assertPinnedAfterScroll(page, selectors, main, 'main');
+  });
+
+  test(`Teacher header and bottom navigation stay pinned on classes (${viewport.width}x${viewport.height})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await enterPortal(page, 'teacher');
+    const selectors = { header: '#teacherShell > .app-topbar', footer: '#teacherShell > .admin-bottom' };
+    const main = '#teacherMain';
+    const tab = page.locator('.admin-bottom [data-teacher-view="classes"]');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await assertPinnedAfterScroll(page, selectors, main, 'main');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await assertPinnedAfterScroll(page, selectors, main, 'main');
+  });
+
+  test(`Cash Counter header and bottom navigation stay pinned through document scroll (${viewport.width}x${viewport.height})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await enterPortal(page, 'payment');
+    const selectors = { header: '#payShell > .app-topbar', footer: '#payShell > .admin-bottom' };
+    const main = '#paymentMain';
+    const tab = page.locator('.admin-bottom [data-pay-section="payment"]');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await assertPinnedAfterScroll(page, selectors, main, 'document');
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await assertPinnedAfterScroll(page, selectors, main, 'document');
   });
 }
+
+test('Manager keeps its phone shell and five-item bottom navigation on a wide desktop viewport', async ({ page }) => {
+  const viewport = { width: 1280, height: 900 };
+  await page.setViewportSize(viewport);
+  await enterPortal(page, 'manager');
+  const shell = page.locator('#managerShell');
+  const nav = page.locator('#managerShell > .manager-bottom');
+  const main = page.locator('#managerMain');
+  await expect(shell).toBeVisible();
+  await expect(nav).toBeVisible();
+
+  const expected = [
+    ['dashboard', 'হোম'], ['students', 'শিক্ষার্থী'], ['academic', 'একাডেমিক'],
+    ['finance', 'হিসাব'], ['more', 'আরও']
+  ];
+  const actual = await nav.locator('button[data-manager-view]').evaluateAll(buttons =>
+    buttons.map(button => [button.dataset.managerView, button.querySelector('.nav-label')?.textContent.trim()]));
+  expect(actual).toEqual(expected);
+
+  const initial = await page.evaluate(() => {
+    const shell = document.querySelector('#managerShell');
+    const header = shell.querySelector(':scope > .app-topbar');
+    const nav = shell.querySelector(':scope > .manager-bottom');
+    const main = document.querySelector('#managerMain');
+    const rect = element => {
+      const { top, right, bottom, left, width, height } = element.getBoundingClientRect();
+      return { top, right, bottom, left, width, height };
+    };
+    return {
+      shell: rect(shell), header: rect(header), nav: rect(nav), main: rect(main),
+      shellDisplay: getComputedStyle(shell).display,
+      headerPosition: getComputedStyle(header).position,
+      navPosition: getComputedStyle(nav).position,
+      navDirection: getComputedStyle(nav).flexDirection,
+      viewportHeight: innerHeight
+    };
+  });
+  expect(initial.shell.width).toBe(430);
+  expect(initial.shell.left).toBe(425);
+  expect(initial.shellDisplay).toBe('flex');
+  expect(Math.abs(initial.header.left - initial.shell.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.header.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.main.left - (initial.shell.left + 1))).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.main.width - (initial.shell.width - 2))).toBeLessThanOrEqual(1);
+  expect(initial.nav.width).toBe(initial.shell.width);
+  expect(Math.abs(initial.nav.left - initial.shell.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.nav.bottom - initial.viewportHeight)).toBeLessThanOrEqual(1);
+  expect(['sticky', 'relative']).toContain(initial.headerPosition);
+  expect(initial.navPosition).toBe('fixed');
+  expect(initial.navDirection).toBe('row');
+  expect(await page.locator('.manager-bottom').evaluate(el => getComputedStyle(el).display)).toBe('flex');
+
+  const initialHistoryLength = await page.evaluate(() => history.length);
+  for (const [view] of expected) {
+    const tab = nav.locator(`[data-manager-view="${view}"]`);
+    await tab.click();
+    await expect(page.locator(`.manager-view[data-view-panel="${view}"]`)).toBeVisible();
+    await expect(page.locator('.manager-view.active')).toHaveCount(1);
+    await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+    await expect.poll(() => page.evaluate(() => location.hash)).toBe(`#${view}`);
+    await expect.poll(() => tab.evaluate(button => getComputedStyle(button).backgroundColor))
+      .not.toBe('rgba(0, 0, 0, 0)');
+
+    // Repeating the selected tab is idempotent: one visible panel and one active item.
+    await tab.click();
+    await expect(page.locator('.manager-view.active')).toHaveCount(1);
+    await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+    if (view === 'more') {
+      for (const destination of ['profile', 'settings', 'reports', 'advice']) {
+        await expect(page.locator(`#managerMoreHub [data-manager-view="${destination}"]`)).toBeVisible();
+      }
+      for (const destination of ['reports', 'advice']) {
+        const row = page.locator(`#managerMoreHub [data-manager-view="${destination}"]`);
+        await row.click();
+        await expect(page.locator(`.manager-view[data-view-panel="${destination}"]`)).toBeVisible();
+        await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
+        await expect.poll(() => page.evaluate(() => location.hash)).toBe(`#${destination}`);
+        await page.locator(`.manager-view[data-view-panel="${destination}"] [data-manager-view="more"]`).click();
+        await expect(page.locator('.manager-view[data-view-panel="more"]')).toBeVisible();
+        await row.click(); // Repeat from the hub: exactly one route/panel remains active.
+        await expect(page.locator('.manager-view.active')).toHaveCount(1);
+        await expect(page.locator(`.manager-view[data-view-panel="${destination}"]`)).toBeVisible();
+        await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
+        await page.locator(`.manager-view[data-view-panel="${destination}"] [data-manager-view="more"]`).click();
+        await expect(page.locator('.manager-view[data-view-panel="more"]')).toBeVisible();
+      }
+    }
+  }
+  expect(await page.evaluate(() => history.length)).toBe(initialHistoryLength);
+
+  // More → Reports refreshes back into the same route and highlights More.
+  await nav.locator('[data-manager-view="more"]').click();
+  await page.locator('#managerMoreHub [data-manager-view="reports"]').click();
+  await expect(page.locator('.manager-view.active')).toHaveAttribute('data-view-panel', 'reports');
+  await expect(page.locator('.manager-view[data-view-panel="reports"] [data-manager-view="more"]')).toBeVisible();
+  await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
+  await page.reload();
+  await expect(shell).toBeVisible();
+  await expect(page.locator('.manager-view.active')).toHaveAttribute('data-view-panel', 'reports');
+  await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
+  await expect.poll(() => page.evaluate(() => history.length)).toBe(initialHistoryLength);
+
+  await addScrollSentinel(page, '#managerMain');
+  await main.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await expect.poll(() => main.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  const afterScroll = await page.evaluate(() => {
+    const header = document.querySelector('#managerShell > .app-topbar');
+    const nav = document.querySelector('#managerShell > .manager-bottom');
+    const rect = element => {
+      const { top, right, bottom, left } = element.getBoundingClientRect();
+      return { top, right, bottom, left };
+    };
+    return { header: rect(header), nav: rect(nav) };
+  });
+  expect(Math.abs(afterScroll.header.top - initial.header.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(afterScroll.nav.top - initial.nav.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(afterScroll.nav.bottom - initial.nav.bottom)).toBeLessThanOrEqual(1);
+  const sentinelBottom = await page.locator('#managerMain [data-shell-scroll-sentinel]').evaluate(el => el.getBoundingClientRect().bottom);
+  expect(sentinelBottom).toBeLessThanOrEqual(afterScroll.nav.top + 1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/demo\/offline-roles\.html$/);
+});

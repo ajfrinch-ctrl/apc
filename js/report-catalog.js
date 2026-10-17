@@ -45,10 +45,10 @@ export const CATEGORIES = Object.freeze([
 
 export const PERIODS = Object.freeze([
   { id: 'all', label: 'সব সময়' },
-  { id: 'daily', label: 'Daily (একদিন)' },
-  { id: 'weekly', label: 'Weekly (সপ্তাহ)' },
-  { id: 'monthly', label: 'Monthly (মাস)' },
-  { id: 'custom', label: 'Custom Date Range' }
+  { id: 'daily', label: 'দৈনিক (এক দিন)' },
+  { id: 'weekly', label: 'সাপ্তাহিক' },
+  { id: 'monthly', label: 'মাসিক' },
+  { id: 'custom', label: 'নিজস্ব তারিখসীমা' }
 ]);
 
 export const FILTER_META = Object.freeze({

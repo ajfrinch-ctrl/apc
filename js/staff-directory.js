@@ -235,7 +235,7 @@ async function seedSystemRecords() {
       kind: 'system',
       role: staffRole,
       systemRole,
-      fullName: clean(account?.fullName || (systemRole === 'admin' ? 'System Owner (Admin)' : `প্রাথমিক ${staffRole} অ্যাকাউন্ট`), 100),
+      fullName: clean(account?.fullName || (systemRole === 'admin' ? 'সিস্টেম মালিক (এডমিন)' : `প্রাথমিক ${staffRole} অ্যাকাউন্ট`), 100),
       username: normalizeStaffUsername(account?.username || spec.username),
       mobile: clean(account?.mobile || ''),
       email: clean(account?.email || ''),

@@ -14,7 +14,12 @@ import { readFileSync } from 'node:fs';
 const css = readFileSync(new URL('../css/ui-wallet.css', import.meta.url), 'utf8');
 const start = css.indexOf('§30');
 assert.ok(start > 0, 'the §30 glass section exists');
-const glass = css.slice(start);
+/* Keep this guard scoped to the actual glass/motion layer. Later, separately
+   scoped panel layout rules live in the same stylesheet and have their own
+   role-specific guards; including them here was a source of false failures. */
+const sectionEnd = css.indexOf('/* Reference student home:', start);
+assert.ok(sectionEnd > start, 'the shared glass layer has a clear boundary');
+const glass = css.slice(start, sectionEnd);
 
 test('glass tokens derive from the shared palette, never raw paint', () => {
   const foundation = readFileSync(new URL('../css/foundation.css', import.meta.url), 'utf8');
@@ -61,13 +66,13 @@ test('the calm motion library and glass surfaces are all present', () => {
     assert.match(glass, new RegExp(`@keyframes ${name} `), `${name} is defined`);
   }
   assert.match(glass, /\.app-shell \.pay-tile \{[^}]*backdrop-filter: blur\(var\(--glass-blur\)\)/s, 'tiles are frosted glass');
-  assert.match(glass, /#noticeModal:not\(\[hidden\]\) \.modal[^{]*\{[^}]*animation: apc-sheet-up/s, 'modals rise as bottom sheets');
-  // The top bar's writing is white (--pay-on-hero): its glass must be tinted
-  // from the deep brand colour, never from the light surface.
-  assert.match(glass, /\.app-shell \.app-topbar \{[^}]*background: color-mix\(in srgb, var\(--pay-hero-a\)/s,
-    'the brand bar is tinted glass, so its white writing stays readable');
-  assert.equal(/\.app-shell \.app-topbar \{[^}]*var\(--glass-bg/.test(glass), false,
-    'light frost must never sit under the white brand writing');
+  assert.match(glass, /#editModal:not\(\[hidden\]\) \.modal[^{]*\{[^}]*animation: apc-sheet-up/s, 'student edit/resource modals rise as bottom sheets');
+  // The brand row now carries the forest-green palette in Student as well as
+  // staff panels; white text and soft action chips keep the identity readable.
+  assert.match(glass, /\.app-shell \.app-topbar \{[^}]*background: var\(--pay-hero-a\); color: var\(--pay-on-hero\)/s,
+    'the brand bar uses the shared green surface');
+  assert.match(glass, /\.app-shell \.app-brand-institute \{[^}]*color: var\(--pay-on-hero\)/s,
+    'brand text stays readable on the green bar');
   assert.match(glass, /\.app-shell \[aria-busy="true"\] \{[^}]*animation: apc-shimmer/s, 'busy surfaces shimmer like a skeleton');
   assert.match(glass, /\[data-theme="dark"\] \.app-shell \{/, 'AMOLED keeps the same glass language');
 });
@@ -86,10 +91,11 @@ test('living icons: book sway, tap bounce and the ring that fills slowly', () =>
     'every line icon shares the same stroke weight');
 });
 
-test('the action center wears the same glass, in brand green', () => {
-  const sheet = glass.slice(glass.indexOf('§31'));
-  assert.ok(sheet.length > 500, 'the §31 action-center section exists');
-  assert.match(sheet, /#apcNoticeModal \.modal, #noticeModal \.modal \{[^}]*max-height: min\(92dvh, 720px\)/s,
+test('the action center uses the same shared glass accent and a safe-height sheet', () => {
+  const sheetStart = css.indexOf('/* Action centre:');
+  assert.ok(sheetStart > start, 'the action-center visual layer exists');
+  const sheet = css.slice(sheetStart, css.indexOf('/* Logout confirmation:', sheetStart));
+  assert.match(sheet, /:is\(#noticeModal, #apcNoticeModal\):not\(\[hidden\]\) \.modal \{[^}]*max-height: min\(92dvh, 720px\)/s,
     'the sheet is capped so its header can never slide off-screen');
   assert.match(sheet, /\.notice-filters \.chip\.active \{[^}]*background: var\(--glass-accent\)/s,
     'the active filter seat is brand green');

@@ -92,7 +92,7 @@ test('tapping an ID chip copies the live value and confirms with a toast', async
   });
 
   document.getElementById('studentId').textContent = 'APC-2026-0007';
-  ctx.click(document.querySelector('.profile-card [data-copy-target]'));
+  ctx.click(document.querySelector('#myProfileView [data-copy-target]'));
   await ctx.waitFor(() => copied !== null);
   assert.equal(copied, 'APC-2026-0007');
   assert.match(document.querySelector('.feedback-toast')?.textContent || '', /কপি হয়েছে/);
@@ -106,7 +106,7 @@ test('the placeholder dash chip never copies and Enter copies from the keyboard'
     value: { writeText: async text => { copied = text; } }
   });
 
-  const chip = document.querySelector('.profile-card [data-copy-target]');
+  const chip = document.querySelector('#myProfileView [data-copy-target]');
   document.getElementById('studentId').textContent = '—';
   ctx.click(chip);
   await ctx.flush();

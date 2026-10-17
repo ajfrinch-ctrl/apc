@@ -97,6 +97,10 @@ for (const [file, [script, shellId]] of Object.entries(PANEL_SHELLS)) {
     await import(`${script}?lockdown=${file}`);
     await ctx.waitFor(() => Boolean(ctx.$('#apcPanelLock')));
     assert.equal(ctx.$(shellId).hidden, true, 'the panel stays shut');
+    if (file === 'manager.html') {
+      assert.equal(ctx.$('#managerBootScreen'), null, 'a rejected Manager session reveals its existing in-place lock instead of leaving the loader up');
+      assert.equal(ctx.$('#managerBootLink'), null, 'the boot-only login fallback is removed after the lock is ready');
+    }
     assert.deepEqual(navigationErrors(ctx), [], 'no automatic hand-off to another page');
     assert.equal(ctx.$('#apcPanelLock').querySelectorAll('a[href]').length, 0);
   });

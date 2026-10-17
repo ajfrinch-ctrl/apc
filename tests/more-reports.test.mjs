@@ -1,6 +1,6 @@
 /* More menus are compact entry points. Builders belong to their own page;
    navigation must not rewrite a payment, clear a draft or change report access. */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { adminStudents } from '../js/admin-data.js';
@@ -8,8 +8,11 @@ import { ROSTER_KEY } from '../js/office-data.js';
 import { TRANSACTIONS_KEY } from '../js/finance-data.js';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
 
+const contexts = [];
 async function studentPage() {
-  return loadPage('student.html', { seed: { 'activePlus.demo.autofill.v1': 'off', [TRANSACTIONS_KEY]: '[]' } });
+  const ctx = await loadPage('student.html', { seed: { 'activePlus.demo.autofill.v1': 'off', [TRANSACTIONS_KEY]: '[]' } });
+  contexts.push(ctx);
+  return ctx;
 }
 
 async function counterPage() {
@@ -18,6 +21,7 @@ async function counterPage() {
   } });
   await provisionStaff('payment');
   seedStaffSession(ctx.window, 'payment');
+  contexts.push(ctx);
   await import(`../js/payment.js?more-menu=144-${Math.random()}`);
   await ctx.waitFor(() => !ctx.$('#payShell').hidden);
   await ctx.waitFor(() => !ctx.$('#payProfileCollect')?.disabled || ctx.$('#payLoadError').hidden);
@@ -28,7 +32,9 @@ test('student More contains a report menu row, never an always-open report build
   const ctx = await studentPage();
   const more = ctx.$('#profileView');
   assert.equal(more.querySelector('#studentReports'), null);
-  const menu = more.querySelector('.pay-grid [data-view="reports"]');
+  /* The More menu is the panel's row list (নতুন থিম): the report entrance is a
+     row there, never an always-open report builder. */
+  const menu = more.querySelector('.more-menu [data-view="reports"]');
   assert.ok(menu, 'reports is a named More menu entry');
   assert.match(menu.textContent, /আমার রিপোর্ট/);
   assert.equal(ctx.$('#studentReports').closest('[data-view-panel]').dataset.viewPanel, 'reports');
@@ -85,3 +91,5 @@ test('only an explicit identity search opens a brief/payment entry; cancel clear
   assert.equal($('#payQuickProfile').textContent,'');
   assert.equal(window.localStorage.getItem(TRANSACTIONS_KEY),before);
 });
+
+after(() => contexts.forEach(ctx => ctx.window.close()));

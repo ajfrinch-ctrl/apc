@@ -16,7 +16,7 @@
 
    Presentation only — no storage, no routing rules and no business logic. */
 
-import { ADMIN_BOTTOM_NAV, ADMIN_SYSTEM_NAV, ADMIN_DATA_NAV, ADMIN_FEATURE_TILES, enforceCapabilities } from './admin-permissions.js';
+import { ADMIN_BOTTOM_NAV, ADMIN_SYSTEM_NAV, ADMIN_DATA_NAV, ADMIN_MORE_NAV, ADMIN_FEATURE_TILES, enforceCapabilities } from './admin-permissions.js';
 import { iconElement, paintIcon } from './icons.js';
 
 /* The bottom bar and the "More" menu use the same icon language, so a section
@@ -159,6 +159,7 @@ export function initAdminPanelShell({ access, onNavigate } = {}) {
   const bottomButtons = renderBottomBar(document.querySelector('.admin-bottom'), bottomEntries, navigate);
   const systemItems = renderHub(document, '#adminSystemMenu', 'system', ADMIN_SYSTEM_NAV, access, navigate);
   const dataItems = renderHub(document, '#adminDataMenu', 'data', ADMIN_DATA_NAV, access, navigate);
+  const moreItems = renderHub(document, '#adminMoreMenu', 'more', ADMIN_MORE_NAV, access, navigate);
   const tiles = renderFeatureGrid(document.querySelector('#adminFeatureGrid'), tileEntries, navigate);
 
   // System overview title uses the same icon language as the navigation.
@@ -178,7 +179,7 @@ export function initAdminPanelShell({ access, onNavigate } = {}) {
 
   renderTopBar();
 
-  return { access, removed, bottomEntries, tileEntries, bottomButtons, systemItems, dataItems, tiles };
+  return { access, removed, bottomEntries, tileEntries, bottomButtons, systemItems, dataItems, moreItems, tiles };
 }
 
 export { iconElement, paintIcon };

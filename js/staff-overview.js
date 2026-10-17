@@ -1,13 +1,13 @@
-/* Staff Management Overview — the compact directory surface that lives on the
-   Admin Profile. (It also sat on the Dashboard home until 2026-10-14, when
-   the owner asked for it to live only here and in the full section.)
+/* Optional compact Staff Management Overview renderer.
+
+   Admin Account/Profile does not mount this widget; the dedicated Staff
+   Management view remains the canonical searchable directory and owns every
+   management action. Count-only mode omits rows, search, credentials,
+   assignments and mutation controls.
 
    This is a VIEW onto the one Staff Management system, never a second one:
-   every row is a js/staff-directory.js record and every quick action opens the
-   exact same dialog (or runs the exact same mutation) as the full স্টাফ
-   ম্যানেজমেন্ট section — js/staff-management.js's openProfile / openEdit /
-   changeStatus. A shortcut button leads to that full section for everything
-   else (create, reset password, delete).
+   every row is a js/staff-directory.js record. Optional non-compact embeds use
+   the same openProfile / openEdit / changeStatus actions as the main section.
 
    Presentation and wiring only — no storage key, no role rule and no new
    permission: visibility is the `staff.manage` capability on the mount card
@@ -15,7 +15,7 @@
    session. */
 
 import { listStaff, canManageStaff, STAFF_ROLE_META, STAFF_STATUS } from './staff-directory.js';
-import { openProfile, openEdit, changeStatus, refreshStaffList } from './staff-management.js';
+import { openProfile, openEdit, changeStatus } from './staff-management.js';
 import { escapeHtml } from './sanitize.js';
 import { toBanglaNumber } from './ui.js';
 
@@ -26,7 +26,7 @@ const PAGE_SIZE_COMPACT = 4;
 const mounted = [];
 
 /** One compact row: identity, role, responsibility and status, then actions. */
-function rowHtml(record, { canManage }) {
+function rowHtml(record, { canManage, compact }) {
   const meta = STAFF_ROLE_META[record.role] || STAFF_ROLE_META.other;
   const status = STAFF_STATUS[record.status] || STAFF_STATUS.inactive;
   const assignment = record.assignment || {};
@@ -48,13 +48,13 @@ function rowHtml(record, { canManage }) {
         <p class="staff-overview-meta">
           <span class="staff-id-badge">${escapeHtml(record.staffId)}</span>
           <span class="staff-tag role-${escapeHtml(record.role)}">${escapeHtml(meta.labelBn)}</span>
-          <span class="staff-overview-login">${escapeHtml(record.username)}</span>
+          ${compact ? '' : `<span class="staff-overview-login">${escapeHtml(record.username)}</span>`}
         </p>
-        ${dutyText ? `<p class="staff-overview-duty">${escapeHtml(dutyText)}</p>` : ''}
+        ${!compact && dutyText ? `<p class="staff-overview-duty">${escapeHtml(dutyText)}</p>` : ''}
       </div>
       <div class="staff-overview-side">
         <span class="badge ${status.className}">${escapeHtml(status.label)}</span>
-        ${canManage ? `
+        ${canManage && !compact ? `
         <div class="staff-overview-actions">
           <button class="mini-btn" type="button" data-overview-action="view" data-staff-id="${escapeHtml(record.staffId)}">দেখুন</button>
           <button class="mini-btn" type="button" data-overview-action="edit" data-staff-id="${escapeHtml(record.staffId)}">সম্পাদনা</button>
@@ -64,7 +64,7 @@ function rowHtml(record, { canManage }) {
     </article>`;
 }
 
-function shellHtml({ title, compact, withSearch }) {
+function shellHtml({ title, compact, countOnly, withSearch }) {
   return `
     <header class="admin-card-head">
       <div><h2>${escapeHtml(title)}</h2></div>
@@ -82,8 +82,8 @@ function shellHtml({ title, compact, withSearch }) {
         ${Object.entries(STAFF_STATUS).map(([key, meta]) => `<option value="${escapeHtml(key)}">${escapeHtml(meta.label)}</option>`).join('')}
       </select>
     </div>` : ''}
-    <p class="staff-overview-count" data-overview-count role="status" aria-live="polite"></p>
-    <div class="staff-overview-list" data-overview-list></div>
+    <div class="staff-overview-count" data-overview-count role="status" aria-live="polite"></div>
+    ${countOnly ? '' : '<div class="staff-overview-list" data-overview-list></div>'}
     ${compact ? '' : `
     <div class="staff-overview-pager">
       <button class="mini-btn" type="button" data-overview-action="prev">আগের</button>
@@ -95,9 +95,9 @@ function shellHtml({ title, compact, withSearch }) {
 /**
  * Mount one overview widget.
  * @param {{ mount: string|Element, onNavigate?: (view: string) => void,
- *          onToast?: (text: string) => void, compact?: boolean, title?: string }} options
+ *          onToast?: (text: string) => void, compact?: boolean, countOnly?: boolean, title?: string }} options
  */
-export function mountStaffOverview({ mount, onNavigate, onToast, compact = false, title = 'স্টাফ ম্যানেজমেন্ট ওভারভিউ' } = {}) {
+export function mountStaffOverview({ mount, onNavigate, onToast, compact = false, countOnly = false, title = 'স্টাফ ম্যানেজমেন্ট ওভারভিউ' } = {}) {
   const root = typeof mount === 'string' ? document.querySelector(mount) : mount;
   if (!root || root.dataset.overviewReady === '1') {
     const existing = mounted.find(item => item.root === root);
@@ -107,10 +107,12 @@ export function mountStaffOverview({ mount, onNavigate, onToast, compact = false
   root.dataset.overviewReady = '1';
   const notify = typeof onToast === 'function' ? onToast : () => {};
   const navigate = typeof onNavigate === 'function' ? onNavigate : () => {};
-  const state = { query: '', role: 'all', status: 'all', page: 1, rows: [], canManage: false, compact, title };
+  const state = { query: '', role: 'all', status: 'all', page: 1, rows: [], canManage: false, compact, countOnly, title };
   const api = { root, state, refresh: () => refreshOne(api) };
 
-  root.innerHTML = shellHtml({ title, compact, withSearch: true });
+  root.classList.toggle('is-compact', compact);
+  root.classList.toggle('is-count-only', countOnly);
+  root.innerHTML = shellHtml({ title, compact, countOnly, withSearch: !compact && !countOnly });
   const listHost = root.querySelector('[data-overview-list]');
   const countHost = root.querySelector('[data-overview-count]');
   const pageHost = root.querySelector('[data-overview-page]');
@@ -137,22 +139,30 @@ export function mountStaffOverview({ mount, onNavigate, onToast, compact = false
     const slice = rows.slice((state.page - 1) * pageSize, state.page * pageSize);
     if (countHost) countHost.textContent = rows.length ? `${bn(rows.length)} জন স্টাফ` : 'কোনো স্টাফ পাওয়া যায়নি';
     if (pageHost) pageHost.textContent = `${bn(state.page)} / ${bn(pages)}`;
-    listHost.innerHTML = slice.length
-      ? slice.map(record => rowHtml(record, { canManage: state.canManage })).join('')
-      : '<p class="admin-empty">এই ফিল্টারে কোনো স্টাফ নেই।</p>';
+    if (listHost) {
+      listHost.innerHTML = slice.length
+        ? slice.map(record => rowHtml(record, { canManage: state.canManage, compact: state.compact })).join('')
+        : '<p class="admin-empty">এই ফিল্টারে কোনো স্টাফ নেই।</p>';
+    }
     root.querySelectorAll('[data-overview-action="prev"]').forEach(button => { button.disabled = state.page <= 1; });
     root.querySelectorAll('[data-overview-action="next"]').forEach(button => { button.disabled = state.page >= pages; });
   };
 
   const load = async () => {
-    listHost.innerHTML = '<p class="admin-empty">লোড হচ্ছে…</p>';
+    if (listHost) listHost.innerHTML = '<p class="admin-empty">লোড হচ্ছে…</p>';
+    else if (countHost) countHost.textContent = 'স্টাফের সংখ্যা লোড হচ্ছে…';
     try {
       const [rows, canManage] = await Promise.all([listStaff(), canManageStaff()]);
       state.rows = rows;
       state.canManage = canManage;
       paint();
     } catch (error) {
-      listHost.innerHTML = `<div class="admin-empty" role="alert"><p>${escapeHtml(error?.message || 'স্টাফ তালিকা লোড হয়নি।')}</p><button class="mini-btn" type="button" data-overview-action="retry">আবার চেষ্টা করুন</button></div>`;
+      const message = escapeHtml(error?.message || 'স্টাফ তালিকা লোড হয়নি।');
+      if (listHost) {
+        listHost.innerHTML = `<div class="admin-empty" role="alert"><p>${message}</p><button class="mini-btn" type="button" data-overview-action="retry">আবার চেষ্টা করুন</button></div>`;
+      } else if (countHost) {
+        countHost.innerHTML = `<span role="alert">${message}</span> <button class="mini-btn" type="button" data-overview-action="retry">আবার চেষ্টা করুন</button>`;
+      }
     }
   };
   api.reload = load;

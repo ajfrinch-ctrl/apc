@@ -160,6 +160,16 @@ test('the theme switch shows exactly the theme the app is in', () => {
       assert.doesNotMatch(html, /id="darkModeToggle"/); // Latest scope removes extra counter settings, not saved AMOLED support.
       continue;
     }
+    if (page === 'student') {
+      /* The approved student layout keeps options inline in More. It uses the
+         same native switch and appearance module as staff, without a duplicate
+         Settings route. */
+      const row = html.match(/<label class="more-menu-row more-toggle theme-switch">[\s\S]{0,1400}?<\/label>/);
+      assert.ok(row, 'student.html has no More theme switch row');
+      assert.match(row[0], /<input type="checkbox" data-settings-toggle="theme" id="moreDarkModeToggle">/);
+      assert.match(row[0], /<span class="more-setting-copy"><strong>[^<]+<\/strong><small>[^<]+<\/small><\/span>/);
+      continue;
+    }
     const row = html.match(/<label class="settings-toggle theme-switch">[\s\S]{0,1400}?<\/label>/);
     assert.ok(row, `${page}.html has no theme switch row`);
     assert.match(row[0], /<span class="toggle-switch"><input type="checkbox" id="darkModeToggle"><i><\/i><\/span>/,

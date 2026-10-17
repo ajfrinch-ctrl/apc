@@ -57,6 +57,6 @@ for (const theme of ['light', 'dark']) test(`all colour/glyph artwork renders wi
     await page.setViewportSize({ width, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
-  if (theme === 'dark') await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  if (theme === 'dark') await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(errors).toEqual([]);
 });

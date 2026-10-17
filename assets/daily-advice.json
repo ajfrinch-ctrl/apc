@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "timeZone": "Asia/Dhaka",
+  "maxLength": 140,
+  "items": [
+    { "id": "ADV-001", "text": "আজ যা শিখবে, কাল সেটাই তোমার আত্মবিশ্বাস।", "source": "Active Plus Coaching", "active": true, "order": 1, "createdBy": "seed", "createdAt": 0 },
+    { "id": "ADV-002", "text": "প্রতিদিন অল্প অল্প করে পড়ো, বড় সাফল্য ছোট অভ্যাস থেকেই আসে।", "source": "Active Plus Coaching", "active": true, "order": 2, "createdBy": "seed", "createdAt": 0 },
+    { "id": "ADV-003", "text": "ভুল করলে থেমো না, ভুলই সেরা শিক্ষক।", "source": "Active Plus Coaching", "active": true, "order": 3, "createdBy": "seed", "createdAt": 0 },
+    { "id": "ADV-004", "text": "প্রশ্ন করতে লজ্জা পেয়ো না, না জানাটা দোষ নয়।", "source": "Active Plus Coaching", "active": true, "order": 4, "createdBy": "seed", "createdAt": 0 },
+    { "id": "ADV-005", "text": "নিজের সাথে প্রতিযোগিতা করো, গতকালের চেয়ে একটু ভালো হও।", "source": "Active Plus Coaching", "active": true, "order": 5, "createdBy": "seed", "createdAt": 0 }
+  ]
+}

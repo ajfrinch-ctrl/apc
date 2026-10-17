@@ -2,7 +2,7 @@ import { guardianDraft } from './guardian-message.js';
 import { taka, addTaka } from './money.js';
 import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
 import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
-import { mountSettingsHub } from './settings-hub.js';
+import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
 import { decideRegistration, DECISION_MESSAGES, DECIDED_EVENT } from './registration-review.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
@@ -35,12 +35,10 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const bn = value => String(value ?? 0).replace(/\d/g, digit => '০১২৩৪৫৬৭৮৯'[digit]);
 const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
-/* The Manager architecture (docs/APP-ARCHITECTURE.md §2): the bottom bar is
-   হোম · শিক্ষার্থী · একাডেমিক · হিসাব · রিপোর্ট · আরও. Every screen that used to
-   have its own seat keeps exactly one home; the two old names still resolve so
-   a bookmark or a saved refresh never lands nowhere. */
+/* The Manager keeps five bottom seats. Reports and the advice editor live in
+   More; their route names and data hooks remain unchanged. */
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'profile', 'settings', 'more']);
+const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'advice', 'profile', 'settings', 'more']);
 const LEGACY_VIEWS = Object.freeze({
   approvals: { view: 'students', scope: 'pending' },
   'cash-counter': { view: 'finance', segment: 'approval' }
@@ -65,12 +63,14 @@ const FINANCE_SEGMENTS = Object.freeze(['collection', 'approval', 'due', 'histor
    what actually happens inside. Academic work lives in একাডেমিক, money in হিসাব. */
 const MORE_MODULES = Object.freeze([
   { view: 'profile', icon: 'user', label: 'আমার প্রোফাইল' },
-  { view: 'settings', icon: 'settings', label: 'সেটিংস' }
+  { view: 'settings', icon: 'settings', label: 'সেটিংস' },
+  { view: 'reports', icon: 'reports', label: 'রিপোর্ট' },
+  { view: 'advice', icon: 'book', label: 'দৈনিক পরামর্শ' }
 ]);
 const dayLabel = Object.freeze({ sat: 'শনিবার', sun: 'রবিবার', mon: 'সোমবার', tue: 'মঙ্গলবার', wed: 'বুধবার', thu: 'বৃহস্পতিবার' });
 const statusLabel = Object.freeze({ approved: 'সক্রিয়', pending: 'অপেক্ষমাণ', inactive: 'নিষ্ক্রিয়', rejected: 'বাতিল' });
 let students = loadRoster(), notices = loadNotices(), routine = loadRoutine(), transactions = [], exams = { exams: [], attempts: [] }, teaching = { activities: [] }, managerAccount = null;
-let activeView = 'dashboard', studentScope = 'all', cashScope = 'pending', routineDay = 'sat', examStarted = false, managerBusy = false;
+let activeView = 'dashboard', studentScope = 'all', expandedStudentId = null, cashScope = 'pending', routineDay = 'sat', examStarted = false, managerBusy = false;
 let financeSegment = 'collection', academicScope = 'all', academicClass = 'all';
 /* One examination workspace for the panel; একাডেমিক → প্রশ্নব্যাংক / পরীক্ষা
    deep-link into its own screens instead of rendering a second copy. */
@@ -129,19 +129,20 @@ function renderView(view) {
   const seat = view === 'dashboard' ? 'dashboard'
     : view === 'students' ? 'students'
       : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
-        : view === 'finance' ? 'finance'
-          : view === 'reports' ? 'reports' : 'more';
+        : view === 'finance' ? 'finance' : 'more';
   $$('.manager-bottom [data-manager-view]').forEach(button => {
     const active = button.dataset.managerView === seat;
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   });
+  // Each return to Settings starts at its group menu, never a stale subsection.
+  if (view === 'settings') resetSettingsHub('[data-settings-hub="manager"]');
   // Refresh reopens this page: the open view lives in the URL. It is remembered
   // before the panels render, so a renderer that ever fails can still not send
   // the next refresh back to the dashboard.
   rememberRoute(view);
   if (view === 'dashboard') renderDashboard();
-  if (view === 'students') renderStudents();
+  if (view === 'students') { expandedStudentId = null; renderStudents(); }
   if (view === 'academic') renderAcademic();
   if (view === 'academic-records') renderAcademicRecords();
   if (view === 'classes') renderClasses();
@@ -173,23 +174,56 @@ function renderDashboard() {
   const todayPayments = transactions.filter(tx => isFinalizedTransaction(tx) && tx.date === today);
   const totalToday = todayPayments.reduce((sum, tx) => addTaka(sum, tx.amount), 0);
   const todayKey = routineDayForToday();
-  const todaysClasses = Object.hasOwn(routine, todayKey) ? (routine[todayKey]?.classes?.length || 0) : null;
+  const todaysClasses = routine[todayKey]?.classes?.length || 0;
   safeSetText('#managerToday', today);
   safeSetText('#mgrTotalStudents', bn(students.length)); safeSetText('#mgrActiveStudents', bn(approved.length));
-  safeSetText('#mgrTodayCollection', money(totalToday)); safeSetText('#mgrTodayClasses', todaysClasses == null ? '—' : bn(todaysClasses));
+  safeSetText('#mgrTodayCollection', money(totalToday)); safeSetText('#mgrTodayClasses', bn(todaysClasses));
 }
-function routineDayForToday(date = new Date()) { return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()]; }
+function routineDayForToday(date = new Date()) {
+  const key = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Dhaka', weekday: 'short' }).format(date).toLowerCase();
+  return ({ sat: 'sat', sun: 'sun', mon: 'mon', tue: 'tue', wed: 'wed', thu: 'thu', fri: 'fri' })[key] || 'sat';
+}
 function searchValue() { return String($('#managerStudentSearch')?.value || '').trim().toLocaleLowerCase(); }
-/* The shared rule: the Student ID (full, short, Bangla digits or with dashes
+/* The shared rule: the শিক্ষার্থী আইডি (full, short, Bangla digits or with dashes
    removed) always finds the student; name, guardian and mobiles match too. */
 function studentMatches(student, query) { return !query || matchesStudentQuery(student, query); }
-/** শিক্ষার্থী: one screen for the whole student lifecycle. Every row is the same
-    roster record the student app reads; the pending queue is the same list,
-    filtered — never a second copy of a student. */
+function managerStudentDetailsId(studentId) {
+  return `manager-student-details-${String(studentId || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+}
+function managerStudentDetailsToggle(student, detailsId) {
+  const expanded = expandedStudentId === student.id;
+  return `<button class="manager-student-details-toggle" type="button" data-manager-action="toggle-student-details" data-id="${escapeHtml(student.id)}" aria-expanded="${expanded}" aria-controls="${escapeHtml(detailsId)}"><span>${expanded ? 'কম দেখান' : 'বিস্তারিত'}</span><span class="manager-student-chevron" aria-hidden="true"></span></button>`;
+}
+function managerStudentEmpty(title, description, kind = 'search') {
+  const icon = kind === 'done'
+    ? '<path d="m5 12 4 4L19 6"/><circle cx="12" cy="12" r="9"/>'
+    : '<circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/>';
+  return `<div class="admin-empty manager-student-empty" role="status"><span class="manager-student-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icon}</svg></span><strong>${escapeHtml(title)}</strong><span>${escapeHtml(description)}</span></div>`;
+}
+function managerStudentVisibleMeta(student) {
+  return `<div class="manager-student-visible-meta"><span><small>শ্রেণি</small>${escapeHtml(student.className || 'নির্ধারিত নয়')}</span><span><small>ব্যাচ</small>${escapeHtml(student.group || 'নির্ধারিত নয়')}</span></div>`;
+}
+function managerStudentDetailGroup(title, content) {
+  return `<section class="manager-student-detail-group"><h3>${escapeHtml(title)}</h3>${content}</section>`;
+}
+function managerStudentDetailsMarkup(student, fee) {
+  const className = escapeHtml(student.className || 'ক্লাস নির্ধারিত নয়');
+  const group = escapeHtml(student.group || 'ব্যাচ নির্ধারিত নয়');
+  const contact = managerStudentDetailGroup('যোগাযোগ', `<p>শিক্ষার্থী ${escapeHtml(student.mobile || '—')}</p><p>অভিভাবক ${escapeHtml(student.guardianMobile || '—')}</p>`);
+  if (student.status === 'pending') {
+    return `<div class="manager-student-detail-grid">${managerStudentDetailGroup('আবেদনের তথ্য', `<p>শ্রেণি ${className} • ${group}</p><p>আবেদন ${escapeHtml(student.enrolledAt || 'তারিখ নেই')}</p>`)}${contact}</div>`;
+  }
+  const progress = managerStudentDetailGroup('অগ্রগতি', `<p>মাসিক বকেয়া ${money(fee.due)}</p><p>উপস্থিতি ${student.attendance == null ? '—' : `${escapeHtml(student.attendance)}%`} • গড় ফল ${student.average == null ? '—' : escapeHtml(student.average)}</p>`);
+  return `<div class="manager-student-detail-grid">${managerStudentDetailGroup('শ্রেণি ও ব্যাচ', `<p>${className} • ${group}</p>`)}${contact}${progress}</div>`;
+}
+/** শিক্ষার্থী: one screen for the whole student lifecycle. The pending queue is
+    the canonical home for pending registrations; the all-roster list contains
+    every other status so an application can never appear twice. */
 function renderStudents() {
   const query = searchValue();
-  const pending = students.filter(student => student.status === 'pending');
-  safeSetText('#managerPendingBadge', `${bn(pending.length)} অপেক্ষমাণ`);
+  const pendingCount = students.filter(student => student.status === 'pending').length;
+  const pending = students.filter(student => student.status === 'pending' && studentMatches(student, query));
+  safeSetText('#managerPendingBadge', `${bn(pendingCount)} অপেক্ষমাণ`);
   /* The chips always show the filter actually in force — including one set by a
      shortcut or by an old link (dashboard → অনুমোদন, #approvals). */
   $$('[data-student-scope]').forEach(chip => {
@@ -197,24 +231,109 @@ function renderStudents() {
     chip.classList.toggle('active', active);
     chip.setAttribute('aria-pressed', String(active));
   });
+
   const queue = $('#managerStudentQueue');
   if (queue) {
-    queue.innerHTML = pending.length ? pending.map(student => `<article class="manager-record is-pending-registration"><div class="manager-record-head"><div><p class="eyebrow">${escapeHtml(student.id || 'Application')}</p><h2>${escapeHtml(student.name || 'নাম নেই')}</h2></div><span class="badge badge-pending">অপেক্ষমাণ</span></div><p>শ্রেণি ${escapeHtml(student.className || '—')} • ${escapeHtml(student.group || 'Batch নেই')}</p><p>মোবাইল ${escapeHtml(student.mobile || '—')} • অভিভাবক ${escapeHtml(student.guardianMobile || '—')}</p><p class="manager-meta">আবেদন: ${escapeHtml(student.enrolledAt || 'তারিখ নেই')}</p><div class="manager-actions"><button class="mini-btn approve" type="button" data-manager-action="approve-student" data-id="${escapeHtml(student.id)}">Approve</button><button class="mini-btn reject" type="button" data-manager-action="reject-student" data-id="${escapeHtml(student.id)}">Reject</button><button class="mini-btn" type="button" data-manager-action="view-student" data-id="${escapeHtml(student.id)}">প্রোফাইল</button></div><div class="manager-student-extra" hidden></div></article>`).join('') : '';
-  }
-  const list = students.filter(student => (studentScope === 'all' || student.status === studentScope) && studentMatches(student, query));
-  $('#managerStudentList').innerHTML = list.length ? list.map(student => {
-    const fee = studentFeeSummary(student, transactions);
-    const tone = student.status === 'approved' ? 'badge-approved' : student.status === 'pending' ? 'badge-pending' : student.status === 'inactive' ? 'badge-inactive' : 'badge-rejected';
-    /* Register, approve, edit, activate/deactivate, reset — the same roster row
-       through one set of actions. A rejection is a decision, deactivation is a
-       pause: they stay different statuses. */
-    const lifecycle = student.status === 'approved'
-      ? `<button class="mini-btn reject" type="button" data-manager-action="deactivate-student" data-id="${escapeHtml(student.id)}">Deactivate</button>`
-      : student.status === 'inactive'
-        ? `<button class="mini-btn approve" type="button" data-manager-action="activate-student" data-id="${escapeHtml(student.id)}">Activate</button>`
+    queue.hidden = false;
+    queue.innerHTML = pending.length
+      ? pending.map(student => {
+        const detailsId = managerStudentDetailsId(student.id);
+        const detailsOpen = expandedStudentId === student.id;
+        return `<article class="manager-record manager-student-card is-pending-registration" data-manager-student="${escapeHtml(student.id)}">
+          <div class="manager-record-head manager-student-head">
+            <div class="manager-student-identity">
+              <h2>${escapeHtml(student.name || 'নাম নেই')}</h2>
+              <p class="manager-meta">শিক্ষার্থী ID: ${escapeHtml(student.id || 'ভর্তি আবেদন')}</p>
+            </div>
+            <div class="manager-student-summary-side">
+              <span class="badge badge-pending">অপেক্ষমাণ</span>
+              ${managerStudentDetailsToggle(student, detailsId)}
+            </div>
+          </div>
+          ${managerStudentVisibleMeta(student)}
+          <div class="manager-student-details" id="${escapeHtml(detailsId)}"${detailsOpen ? '' : ' hidden'}>
+            ${managerStudentDetailsMarkup(student)}
+            <div class="manager-actions manager-student-actions">
+              <button class="mini-btn approve manager-student-action-primary" type="button" data-manager-action="approve-student" data-id="${escapeHtml(student.id)}">অনুমোদন</button>
+              <button class="mini-btn reject manager-student-action-secondary" type="button" data-manager-action="reject-student" data-id="${escapeHtml(student.id)}">বাতিল</button>
+              <button class="mini-btn manager-student-action-secondary" type="button" data-manager-action="view-student" data-id="${escapeHtml(student.id)}">প্রোফাইল</button>
+            </div>
+            <div class="manager-student-extra" hidden></div>
+          </div>
+        </article>`;
+      }).join('')
+      : (studentScope === 'pending' || (!query && pendingCount === 0))
+        ? managerStudentEmpty(
+          query ? 'এই খোঁজে কোনো অপেক্ষমাণ আবেদন নেই' : 'এখন কোনো অপেক্ষমাণ আবেদন নেই',
+          query ? 'নাম, শিক্ষার্থী ID বা মোবাইল নম্বর বদলে আবার খুঁজুন।' : 'নতুন ভর্তি আবেদন এলে এখানে দেখা যাবে।',
+          'done'
+        )
         : '';
-    return `<article class="manager-record" data-manager-student="${escapeHtml(student.id)}"><div class="manager-record-head"><div><h2>${escapeHtml(student.name || 'নাম নেই')}</h2><p class="manager-meta">${escapeHtml(student.id)} • ${escapeHtml(student.className || 'ক্লাস নেই')} ${student.group ? `• ${escapeHtml(student.group)}` : ''}</p></div><span class="badge ${tone}">${escapeHtml(statusLabel[student.status] || student.status || 'অজানা')}</span></div><p>মোবাইল ${escapeHtml(student.mobile || '—')} • বকেয়া ${money(fee.due)} • উপস্থিতি ${student.attendance == null ? '—' : `${escapeHtml(student.attendance)}%`} • গড় ফল ${student.average == null ? '—' : escapeHtml(student.average)}</p><div class="manager-actions"><button class="mini-btn" type="button" data-manager-action="view-student" data-id="${escapeHtml(student.id)}">প্রোফাইল</button><button class="mini-btn" type="button" data-manager-action="guardian-draft" data-id="${escapeHtml(student.id)}">অভিভাবককে জানান</button><button class="mini-btn" type="button" data-manager-action="edit-student" data-id="${escapeHtml(student.id)}">তথ্য সম্পাদনা</button>${lifecycle}<button class="mini-btn" type="button" data-manager-action="reset-password" data-id="${escapeHtml(student.id)}">পাসওয়ার্ড রিসেট</button></div><div class="manager-student-extra" hidden></div></article>`;
-  }).join('') : '<p class="admin-empty">কোনো শিক্ষার্থী মেলেনি।</p>';
+  }
+
+  const list = students.filter(student => student.status !== 'pending'
+    && (studentScope === 'all' || student.status === studentScope)
+    && studentMatches(student, query));
+  const listHost = $('#managerStudentList');
+  if (!listHost) return;
+  if (list.length) {
+    const knownStatuses = ['approved', 'inactive', 'rejected'];
+    const statusOrder = [...knownStatuses, ...new Set(list
+      .map(student => student.status || 'unknown')
+      .filter(status => status !== 'pending' && !knownStatuses.includes(status)))];
+    listHost.innerHTML = statusOrder.map(status => {
+      const rows = list.filter(student => (student.status || 'unknown') === status);
+      if (!rows.length) return '';
+      const groupKey = String(status || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '-') || 'unknown';
+      const groupLabel = statusLabel[status] || (status === 'unknown' ? 'অন্যান্য' : status);
+      const cards = rows.map(student => {
+        const fee = studentFeeSummary(student, transactions);
+        const tone = status === 'approved' ? 'badge-approved' : status === 'inactive' ? 'badge-inactive' : status === 'rejected' ? 'badge-rejected' : 'badge-inactive';
+        /* Edit, activate/deactivate, reset and profile actions stay on the same
+           roster record; only their placement moves inside its disclosure. */
+        const lifecycle = status === 'approved'
+          ? `<button class="mini-btn reject manager-student-action-secondary" type="button" data-manager-action="deactivate-student" data-id="${escapeHtml(student.id)}">Deactivate</button>`
+          : status === 'inactive'
+            ? `<button class="mini-btn approve manager-student-action-primary" type="button" data-manager-action="activate-student" data-id="${escapeHtml(student.id)}">Activate</button>`
+            : '';
+        const detailsId = managerStudentDetailsId(student.id);
+        const detailsOpen = expandedStudentId === student.id;
+        return `<article class="manager-record manager-student-card" data-manager-student="${escapeHtml(student.id)}">
+          <div class="manager-record-head manager-student-head">
+            <div class="manager-student-identity">
+              <h2>${escapeHtml(student.name || 'নাম নেই')}</h2>
+              <p class="manager-meta">শিক্ষার্থী ID: ${escapeHtml(student.id)}</p>
+            </div>
+            <div class="manager-student-summary-side">
+              <span class="badge ${tone}">${escapeHtml(statusLabel[status] || status || 'অজানা')}</span>
+              ${managerStudentDetailsToggle(student, detailsId)}
+            </div>
+          </div>
+          ${managerStudentVisibleMeta(student)}
+          <div class="manager-student-details" id="${escapeHtml(detailsId)}"${detailsOpen ? '' : ' hidden'}>
+            ${managerStudentDetailsMarkup(student, fee)}
+            <div class="manager-actions manager-student-actions">
+              <button class="mini-btn manager-student-action-secondary" type="button" data-manager-action="view-student" data-id="${escapeHtml(student.id)}">প্রোফাইল</button>
+              <button class="mini-btn manager-student-action-secondary" type="button" data-manager-action="guardian-draft" data-id="${escapeHtml(student.id)}">অভিভাবককে জানান</button>
+              <button class="mini-btn ${status === 'inactive' ? 'manager-student-action-secondary' : 'manager-student-action-primary'}" type="button" data-manager-action="edit-student" data-id="${escapeHtml(student.id)}">তথ্য সম্পাদনা</button>
+              ${lifecycle}
+              <button class="mini-btn manager-student-action-secondary" type="button" data-manager-action="reset-password" data-id="${escapeHtml(student.id)}">পাসওয়ার্ড রিসেট</button>
+            </div>
+            <div class="manager-student-extra" hidden></div>
+          </div>
+        </article>`;
+      }).join('');
+      return `<section class="manager-student-status-group" data-student-status-group="${escapeHtml(groupKey)}" aria-labelledby="managerStudentGroup-${escapeHtml(groupKey)}"><div class="manager-student-status-heading"><h3 id="managerStudentGroup-${escapeHtml(groupKey)}">${escapeHtml(groupLabel)}</h3><span class="manager-student-status-count">${bn(rows.length)} জন</span></div>${cards}</section>`;
+    }).join('');
+  } else if (studentScope === 'pending' || (studentScope === 'all' && pending.length)) {
+    listHost.innerHTML = '';
+  } else {
+    const stateLabel = studentScope === 'inactive' ? 'নিষ্ক্রিয়' : studentScope === 'rejected' ? 'বাতিল' : 'সক্রিয়';
+    listHost.innerHTML = managerStudentEmpty(
+      query ? 'এই খোঁজে কোনো শিক্ষার্থী নেই' : `${stateLabel} শিক্ষার্থী নেই`,
+      query ? 'নাম, শিক্ষার্থী ID বা মোবাইল নম্বর দিয়ে আবার খুঁজুন।' : 'অন্য একটি অবস্থা বেছে নিন বা শিক্ষার্থী খুঁজুন।'
+    );
+  }
 }
 function renderRoutineClassOptions() {
   const select = $('#managerRoutineClass'), selected = select.value;
@@ -229,7 +348,7 @@ function renderClasses() {
     const classStudents = students.filter(student => student.className === className && student.status !== 'rejected');
     const groups = [...new Set(classStudents.map(student => student.group).filter(Boolean))];
     const teacherNames = [...new Set(Object.values(routine).flatMap(info => info.classes).filter(item => item.className === className).map(item => item.teacher).filter(Boolean))];
-    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(className)}</h2><p class="manager-meta">${escapeHtml(classCodes[className] || '')}</p></div><span class="badge badge-approved">${bn(classStudents.length)} শিক্ষার্থী</span></div><p>Batch/Group: ${escapeHtml(groups.join(', ') || 'তথ্য নেই')}</p><p>Assigned teacher: ${escapeHtml(teacherNames.join(', ') || 'রুটিনে নেই')}</p></article>`;
+    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(className)}</h2><p class="manager-meta">${escapeHtml(classCodes[className] || '')}</p></div><span class="badge badge-approved">${bn(classStudents.length)} শিক্ষার্থী</span></div><p>ব্যাচ/বিভাগ: ${escapeHtml(groups.join(', ') || 'তথ্য নেই')}</p><p>নির্ধারিত শিক্ষক: ${escapeHtml(teacherNames.join(', ') || 'রুটিনে নেই')}</p></article>`;
   }).join('');
 }
 /** Step 3 of the assignment form: only the subjects Admin enabled for the
@@ -252,13 +371,13 @@ function renderTeacherSubjectPicker(className, selected = [], { preferSelected =
   pickerClass = className;
   if (!className) {
     box.innerHTML = '<p class="admin-empty">আগে ক্লাস নির্বাচন করুন — তারপর সেই ক্লাসের বিষয়গুলো দেখবেন।</p>';
-    if (note) note.textContent = 'Admin-এর ক্লাস ও বিষয় সেটআপ থেকেই এই তালিকা আসে।';
+    if (note) note.textContent = 'এডমিনের ক্লাস ও বিষয় সেটআপ থেকেই এই তালিকা আসে।';
     return;
   }
   const options = selectableSubjects(className, { includeLegacy: chosen });
   box.innerHTML = options.length
     ? options.map(name => `<label class="manager-subject-option"><input type="checkbox" name="subject" value="${escapeHtml(name)}" ${chosen.includes(name) ? 'checked' : ''}> ${escapeHtml(name)}</label>`).join('')
-    : '<p class="admin-empty">এই ক্লাসের জন্য Admin কোনো বিষয় চালু করেননি — Admin → ক্লাস ও বিষয় সেটআপ থেকে চালু করুন।</p>';
+    : '<p class="admin-empty">এই ক্লাসের জন্য এডমিন কোনো বিষয় চালু করেননি — এডমিনের ক্লাস ও বিষয় সেটআপ থেকে চালু করুন।</p>';
   if (note) note.textContent = options.length ? `${bn(options.length)}টি বিষয় চালু আছে — একাধিক টিক দিতে পারবেন।` : '';
 }
 /** Put the assignment form in create or edit mode, honestly. */
@@ -332,10 +451,10 @@ async function renderTeachers() {
   const cards = assignments.map(item => {
     const subjects = (item.subjects && item.subjects.length ? item.subjects : [item.subject]).filter(Boolean);
     const chips = subjects.map(name => `<span class="manager-subject-chip">${escapeHtml(name)}<button class="mini-btn reject" type="button" data-manager-action="delete-teacher-subject" data-id="${escapeHtml(item.id)}" data-subject="${escapeHtml(name)}" aria-label="${escapeHtml(name)} সরান">×</button></span>`).join('');
-    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.className)}${item.group ? ` • ${escapeHtml(item.group)}` : ''}</h2><p class="manager-meta">${escapeHtml(item.teacherName)} • ${bn(subjects.length)}টি বিষয়</p><div class="manager-subject-chips">${chips}</div></div><div class="manager-record-actions"><button class="mini-btn" type="button" data-manager-action="edit-teacher-assignment" data-id="${escapeHtml(item.id)}">সম্পাদনা</button><button class="mini-btn reject" type="button" data-manager-action="delete-teacher-assignment" data-id="${escapeHtml(item.id)}">Assignment সরান</button></div></div></article>`;
+    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.className)}${item.group ? ` • ${escapeHtml(item.group)}` : ''}</h2><p class="manager-meta">${escapeHtml(item.teacherName)} • ${bn(subjects.length)}টি বিষয়</p><div class="manager-subject-chips">${chips}</div></div><div class="manager-record-actions"><button class="mini-btn" type="button" data-manager-action="edit-teacher-assignment" data-id="${escapeHtml(item.id)}">সম্পাদনা</button><button class="mini-btn reject" type="button" data-manager-action="delete-teacher-assignment" data-id="${escapeHtml(item.id)}">দায়িত্ব সরান</button></div></div></article>`;
   });
   const routineRows = [...schedule.entries()].flatMap(([name, items]) => items.map(item => `<li>${escapeHtml(name)} — ${escapeHtml(item)}</li>`));
-  $('#managerTeacherList').innerHTML = `${cards.join('') || '<p class="admin-empty">এখনো কোনো Teacher class/batch assignment নেই। Teacher panel-এ assignment না থাকলে academic data access বন্ধ থাকবে।</p>'}<article class="manager-record"><h2>Routine schedule</h2><p>নিচের routine entries আলাদা schedule data; এগুলো নিজেরা Teacher access grant করে না।</p><ul>${routineRows.join('') || '<li>কোনো routine assignment নেই।</li>'}</ul><p class="manager-meta">সংরক্ষিত teaching activities: ${bn(activityCount)}</p></article>`;
+  $('#managerTeacherList').innerHTML = `${cards.join('') || '<p class="admin-empty">এখনো কোনো শিক্ষক-শ্রেণি/ব্যাচের দায়িত্ব নেই। দায়িত্ব না থাকলে শিক্ষক একাডেমিক তথ্য দেখতে পারবেন না।</p>'}<article class="manager-record"><h2>রুটিনের সময়সূচি</h2><p>নিচের রুটিনগুলো আলাদা সময়সূচির তথ্য; এগুলো নিজেরা শিক্ষকের প্রবেশাধিকার দেয় না।</p><ul>${routineRows.join('') || '<li>কোনো রুটিনের দায়িত্ব নেই।</li>'}</ul><p class="manager-meta">সংরক্ষিত শিক্ষাদান কার্যক্রম: ${bn(activityCount)}</p></article>`;
 }
 /* ---- একাডেমিক hub ---------------------------------------------------------- */
 
@@ -425,15 +544,19 @@ function renderFinance() {
     safeSetText('#mgrFinanceCounterMonth', money(monthRows.reduce((sum, tx) => addTaka(sum, tx.amount), 0)));
     safeSetText('#mgrFinanceMonthCount', bn(monthRows.length));
     safeSetText('#mgrFinanceCollectionNote', pending.length
-      ? `${bn(pending.length)}টি কাউন্টার এন্ট্রি অনুমোদনের অপেক্ষায় — “পেমেন্ট অনুমোদন” বিভাগে যান।`
-      : 'সব কাউন্টার এন্ট্রি নিষ্পত্তি হয়েছে।');
+      ? `${bn(pending.length)}টি পেমেন্ট অনুমোদনের অপেক্ষায়।`
+      : 'এখন কোনো পেমেন্ট অনুমোদনের অপেক্ষায় নেই।');
+    const collectionList = $('#managerCollectionPendingList');
+    if (collectionList) collectionList.innerHTML = pending.length
+      ? newestTransactions(pending).slice(0, 3).map(collectionPaymentCard).join('')
+      : '<p class="manager-finance-empty">নতুন পেমেন্ট এলে এখানে দেখা যাবে।</p>';
   }
 
   if (financeSegment === 'approval') {
     const selected = transactions.filter(tx => cashScope === 'all' || (cashScope === 'approved' ? (tx.status || 'approved') === 'approved' : tx.status === cashScope));
     $('#managerCashList').innerHTML = newestTransactions(selected).length
       ? newestTransactions(selected).map(tx => transactionCard(tx, true)).join('')
-      : '<p class="admin-empty">এই filter-এ কোনো Cash Counter entry নেই।</p>';
+      : '<p class="admin-empty">এই বাছাইয়ে ক্যাশ কাউন্টারের কোনো তথ্য নেই।</p>';
     pressTiles('[data-cash-scope]', button => button.dataset.cashScope === cashScope);
   }
 
@@ -465,13 +588,23 @@ function renderFinance() {
     const search = ($('#managerPaymentSearch')?.value || '').trim().toLocaleLowerCase();
     const status = $('#managerPaymentStatus')?.value || 'all';
     const list = newestTransactions(transactions).filter(tx => (status === 'all' || (tx.status || 'approved') === status) && (!search || `${tx.studentName} ${tx.studentId} ${tx.id} ${tx.receiptNo}`.toLocaleLowerCase().includes(search)));
-    $('#managerPaymentList').innerHTML = list.length ? list.map(tx => transactionCard(tx, false)).join('') : '<p class="admin-empty">কোনো payment record নেই।</p>';
+    $('#managerPaymentList').innerHTML = list.length ? list.map(tx => transactionCard(tx, false)).join('') : '<p class="admin-empty">কোনো পেমেন্টের তথ্য নেই।</p>';
   }
 }
 function transactionCard(tx, allowReview) {
   const status = tx.status || 'approved';
   const text = status === 'pending' ? 'অনুমোদন বাকি' : status === 'rejected' ? 'বাতিল' : 'অনুমোদিত';
-  return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(tx.studentName || 'শিক্ষার্থী তথ্য নেই')}</h2><p class="manager-meta">${escapeHtml(tx.studentId || '')} • ${escapeHtml(tx.className || '')} • ${escapeHtml(tx.receiptNo || tx.id)}</p></div><span class="badge ${status === 'approved' ? 'badge-approved' : status === 'pending' ? 'badge-pending' : 'badge-rejected'}">${text}</span></div><p><strong>${money(tx.amount)}</strong> • ${escapeHtml(tx.date || 'তারিখ নেই')} • ${escapeHtml(tx.method || 'মাধ্যম নেই')}</p><p>${escapeHtml(tx.feeType || '')} • ${escapeHtml(tx.month || '')} • Counter: ${escapeHtml(tx.collectedBy || 'পুরোনো রেকর্ড')}</p>${tx.trxRef ? `<p>Reference: ${escapeHtml(tx.trxRef)}</p>` : ''}${tx.note ? `<p>Note: ${escapeHtml(tx.note)}</p>` : ''}${tx.reviewNote ? `<p class="manager-status-warning">Review: ${escapeHtml(tx.reviewNote)}</p>` : ''}<p class="manager-meta">Review history: ${bn((tx.reviewHistory || []).length)} • ${escapeHtml(tx.reviewedBy || '—')}</p>${allowReview && status === 'pending' ? `<div class="manager-actions"><button class="mini-btn approve" type="button" data-manager-action="approve-payment" data-id="${escapeHtml(tx.id)}">Approve</button><button class="mini-btn reject" type="button" data-manager-action="reject-payment" data-id="${escapeHtml(tx.id)}">Reject</button></div>` : ''}</article>`;
+  return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(tx.studentName || 'শিক্ষার্থী তথ্য নেই')}</h2><p class="manager-meta">${escapeHtml(tx.studentId || '')} • ${escapeHtml(tx.className || '')} • ${escapeHtml(tx.receiptNo || tx.id)}</p></div><span class="badge ${status === 'approved' ? 'badge-approved' : status === 'pending' ? 'badge-pending' : 'badge-rejected'}">${text}</span></div><p><strong>${money(tx.amount)}</strong> • ${escapeHtml(tx.date || 'তারিখ নেই')} • ${escapeHtml(tx.method || 'মাধ্যম নেই')}</p><p>${escapeHtml(tx.feeType || '')} • ${escapeHtml(tx.month || '')} • আদায়কারী: ${escapeHtml(tx.collectedBy || 'পুরোনো রেকর্ড')}</p>${tx.trxRef ? `<p>লেনদেন রেফারেন্স: ${escapeHtml(tx.trxRef)}</p>` : ''}${tx.note ? `<p>মন্তব্য: ${escapeHtml(tx.note)}</p>` : ''}${tx.reviewNote ? `<p class="manager-status-warning">পর্যালোচনা: ${escapeHtml(tx.reviewNote)}</p>` : ''}<p class="manager-meta">পর্যালোচনার ইতিহাস: ${bn((tx.reviewHistory || []).length)} • ${escapeHtml(tx.reviewedBy || '—')}</p>${allowReview && status === 'pending' ? `<div class="manager-actions"><button class="mini-btn approve" type="button" data-manager-action="approve-payment" data-id="${escapeHtml(tx.id)}">অনুমোদন</button><button class="mini-btn reject" type="button" data-manager-action="reject-payment" data-id="${escapeHtml(tx.id)}">বাতিল</button></div>` : ''}</article>`;
+}
+function collectionPaymentCard(tx) {
+  const name = String(tx.studentName || 'শিক্ষার্থী তথ্য নেই');
+  const initial = [...name.trim()][0] || 'শ';
+  return `<article class="manager-collection-row" data-pending-payment="${escapeHtml(tx.id)}">
+    <div class="manager-collection-avatar" aria-hidden="true">${escapeHtml(initial)}</div>
+    <div class="manager-collection-person"><strong>${escapeHtml(name)}</strong><small>${escapeHtml(tx.className || 'শ্রেণি নেই')} • ${escapeHtml(tx.month || 'মাস উল্লেখ নেই')}</small></div>
+    <div class="manager-collection-payment"><strong>${money(tx.amount)}</strong><small>${escapeHtml(tx.method || 'মাধ্যম নেই')}</small></div>
+    <div class="manager-collection-actions"><button class="manager-icon-action approve" type="button" data-manager-action="approve-payment" data-id="${escapeHtml(tx.id)}" aria-label="${escapeHtml(name)}-এর পেমেন্ট অনুমোদন" title="অনুমোদন">✓</button><button class="manager-icon-action reject" type="button" data-manager-action="reject-payment" data-id="${escapeHtml(tx.id)}" aria-label="${escapeHtml(name)}-এর পেমেন্ট বাতিল" title="বাতিল">×</button></div>
+  </article>`;
 }
 /** The Cash Counter review queue is a segment of হিসাব, not a second screen. */
 function renderCashCounter() { financeSegment = 'approval'; renderFinance(); }
@@ -500,8 +633,8 @@ function renderNotices() {
   renderNoticeScopes();
   $('#managerNoticeList').innerHTML = notices.length ? notices.map(item => {
     const category = noticeCategoryInfo(noticeCategory(item));
-    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.title)}</h2><p class="manager-meta"><span class="notice-category-admin" data-notice-category="${category.id}">${category.label}</span> • ${escapeHtml(noticeScopeText(item))} • ${escapeHtml(item.audience || 'সকল শিক্ষার্থী')} • ${escapeHtml(item.date || '')}</p></div><div class="manager-actions"><button class="mini-btn" data-manager-action="edit-notice" data-id="${escapeHtml(item.id)}" type="button">Edit</button><button class="mini-btn reject" data-manager-action="delete-notice" data-id="${escapeHtml(item.id)}" type="button">Delete</button></div></div><p>${escapeHtml(item.body)}</p></article>`;
-  }).join('') : '<p class="admin-empty">কোনো operational notice নেই।</p>';
+    return `<article class="manager-record"><div class="manager-record-head"><div><h2>${escapeHtml(item.title)}</h2><p class="manager-meta"><span class="notice-category-admin" data-notice-category="${category.id}">${category.label}</span> • ${escapeHtml(noticeScopeText(item))} • ${escapeHtml(item.audience || 'সকল শিক্ষার্থী')} • ${escapeHtml(item.date || '')}</p></div><div class="manager-actions"><button class="mini-btn" data-manager-action="edit-notice" data-id="${escapeHtml(item.id)}" type="button">সম্পাদনা</button><button class="mini-btn reject" data-manager-action="delete-notice" data-id="${escapeHtml(item.id)}" type="button">মুছুন</button></div></div><p>${escapeHtml(item.body)}</p></article>`;
+  }).join('') : '<p class="admin-empty">কার্যকর কোনো নোটিশ নেই।</p>';
 }
 function routineTodayKey(offset = 0) {
   return WEEK_DAYS[(new Date().getDay() + 1 + offset) % 7];
@@ -585,7 +718,7 @@ function renderRoutine() {
   if ($('#managerRoutineDayTitle')) $('#managerRoutineDayTitle').textContent = `${dayLabel[routineDay] || routineDay} — রুটিনে ক্লাস যোগ করুন`;
   const rows = routine[routineDay]?.classes || [];
   if ($('#managerRoutineList')) {
-    $('#managerRoutineList').innerHTML = rows.length ? rows.map((item, index) => `<article class="manager-record"><div class="manager-record-head"><h2>${escapeHtml(item.subject || 'বিষয় নেই')}</h2><span class="badge badge-approved">${escapeHtml(item.time || 'সময় নেই')}</span></div><p>${escapeHtml(item.className || '')} • ${escapeHtml(item.teacher || '')} • ${escapeHtml(item.room || '')}</p><div class="manager-actions"><button type="button" class="mini-btn" data-manager-action="edit-routine" data-index="${index}">Edit</button><button type="button" class="mini-btn reject" data-manager-action="delete-routine" data-index="${index}">Delete</button></div></article>`).join('') : '<p class="admin-empty">এই দিনের routine record নেই।</p>';
+    $('#managerRoutineList').innerHTML = rows.length ? rows.map((item, index) => `<article class="manager-record"><div class="manager-record-head"><h2>${escapeHtml(item.subject || 'বিষয় নেই')}</h2><span class="badge badge-approved">${escapeHtml(item.time || 'সময় নেই')}</span></div><p>${escapeHtml(item.className || '')} • ${escapeHtml(item.teacher || '')} • ${escapeHtml(item.room || '')}</p><div class="manager-actions"><button type="button" class="mini-btn" data-manager-action="edit-routine" data-index="${index}">সম্পাদনা</button><button type="button" class="mini-btn reject" data-manager-action="delete-routine" data-index="${index}">মুছুন</button></div></article>`).join('') : '<p class="admin-empty">এই দিনের রুটিনের তথ্য নেই।</p>';
   }
   const classField = $('#managerRoutineForm [name=className]');
   if (classField) classField.value ||= '';
@@ -617,7 +750,7 @@ async function loadOperationalData() {
   exams = examData.status === 'fulfilled' ? examData.value : { exams: [], attempts: [] };
   teaching = teachingData.status === 'fulfilled' ? teachingData.value : { activities: [] };
   if (activeView === 'dashboard') renderDashboard();
-  if (activeView === 'students') renderStudents();
+  if (activeView === 'students') { expandedStudentId = null; renderStudents(); }
   if (activeView === 'academic') renderAcademic();
   if (activeView === 'academic-records') renderAcademicRecords();
   if (activeView === 'classes') renderClasses();
@@ -636,13 +769,13 @@ async function approveStudent(studentId, decision) {
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি। আবার প্রবেশ করুন।', true);
   const student = students.find(row => row.id === studentId);
   if (!student || student.status !== 'pending') return toast('এই নিবন্ধনে আর সিদ্ধান্ত নেওয়া যাবে না।', true);
-  const note = decision === 'rejected' ? window.prompt('Reject করার কারণ লিখুন (আবশ্যক):', '')?.trim() : '';
+  const note = decision === 'rejected' ? window.prompt('বাতিলের কারণ লিখুন (আবশ্যক):', '')?.trim() : '';
   if (decision === 'rejected' && !note) return;
   managerBusy = true;
   try {
     // Shared with the Admin panel and the notification review dialog.
     const result = await decideRegistration(studentId, decision, { role: 'manager', note });
-    if (!result.ok) throw new Error(DECISION_MESSAGES[result.reason] || 'Student decision সংরক্ষণ হয়নি।');
+    if (!result.ok) throw new Error(DECISION_MESSAGES[result.reason] || 'শিক্ষার্থী-সংক্রান্ত সিদ্ধান্ত সংরক্ষণ হয়নি।');
     await loadOperationalData(); toast(decision === 'approved' ? 'Registration অনুমোদিত হয়েছে।' : 'Registration কারণসহ বাতিল হয়েছে।');
   } catch (error) { toast(error.message || 'সিদ্ধান্ত সংরক্ষণ হয়নি।', true); }
   finally { managerBusy = false; }
@@ -668,14 +801,14 @@ async function toggleStudentStatus(studentId, status) {
 }
 
 /** Password reset uses the device's own account record, exactly like the Admin
-    panel's reset: the student's mobile number and Student ID never change. */
+    panel's reset: the student's mobile number and শিক্ষার্থী আইডি never change. */
 function openStudentPasswordReset(student) {
   const account = loadAccount();
   const isLocal = account?.student?.id === student.id || account?.studentId === student.id;
   $('#managerModalKicker').textContent = 'অ্যাকাউন্ট নিরাপত্তা';
   $('#managerModalTitle').textContent = `${student.name} — পাসওয়ার্ড রিসেট`;
   $('#managerModalBody').innerHTML = `<p class=\"modal-copy\">${isLocal
-    ? 'নতুন পাসওয়ার্ড দিন, অথবা ফাঁকা রেখে নিশ্চিত করুন — তখন একটি র‍্যান্ডম ৬ সংখ্যার পাসওয়ার্ড তৈরি হবে এবং একবারই দেখানো হবে। Student ID ও মোবাইল নম্বর অপরিবর্তিত থাকবে।'
+    ? 'নতুন পাসওয়ার্ড দিন, অথবা ফাঁকা রেখে নিশ্চিত করুন — তখন একটি র‍্যান্ডম ৬ সংখ্যার পাসওয়ার্ড তৈরি হবে এবং একবারই দেখানো হবে। শিক্ষার্থী আইডি ও মোবাইল নম্বর অপরিবর্তিত থাকবে।'
     : 'এই শিক্ষার্থীর অ্যাকাউন্ট এই ব্রাউজারে নেই — সেটি নিজের ডিভাইস থেকে পাসওয়ার্ড বদলাবে। রিসেট শুধু ডেমো।'}</p>
     <label class=\"finance-field\"><span>নতুন পাসওয়ার্ড (৪–৬ সংখ্যা, ফাঁকা রাখলে র‍্যান্ডম হবে)</span><input id=\"managerPinInput\" type=\"password\" inputmode=\"numeric\" autocomplete=\"new-password\" maxlength=\"6\"></label>
     <div class=\"pin-box\" id=\"managerPinBox\" hidden></div>
@@ -735,13 +868,13 @@ async function reviewPayment(id, decision) {
 }
 function studentProfile(student) {
   const fee = studentFeeSummary(student, transactions);
-  return `<dl class="manager-profile-list"><div><small>Student ID</small><strong>${escapeHtml(student.id)}</strong></div><div><small>Status</small><strong>${escapeHtml(statusLabel[student.status] || student.status)}</strong></div><div><small>Class / Batch</small><strong>${escapeHtml(student.className || '—')} • ${escapeHtml(student.group || '—')}</strong></div><div><small>Student mobile</small><strong>${escapeHtml(student.mobile || '—')}</strong></div><div><small>Guardian mobile</small><strong>${escapeHtml(student.guardianMobile || '—')}</strong></div><div><small>Monthly due</small><strong>${money(fee.due)}</strong></div><div><small>Attendance summary</small><strong>${student.attendance == null ? '—' : `${escapeHtml(student.attendance)}%`}</strong></div><div><small>Average/result summary</small><strong>${student.average == null ? '—' : escapeHtml(student.average)}</strong></div></dl>`;
+  return `<dl class="manager-profile-list"><div><small>শিক্ষার্থী আইডি</small><strong>${escapeHtml(student.id)}</strong></div><div><small>অবস্থা</small><strong>${escapeHtml(statusLabel[student.status] || student.status)}</strong></div><div><small>শ্রেণি / ব্যাচ</small><strong>${escapeHtml(student.className || '—')} • ${escapeHtml(student.group || '—')}</strong></div><div><small>শিক্ষার্থীর মোবাইল</small><strong>${escapeHtml(student.mobile || '—')}</strong></div><div><small>অভিভাবকের মোবাইল</small><strong>${escapeHtml(student.guardianMobile || '—')}</strong></div><div><small>মাসিক বকেয়া</small><strong>${money(fee.due)}</strong></div><div><small>উপস্থিতির সারাংশ</small><strong>${student.attendance == null ? '—' : `${escapeHtml(student.attendance)}%`}</strong></div><div><small>গড় ফলাফলের সারাংশ</small><strong>${student.average == null ? '—' : escapeHtml(student.average)}</strong></div></dl>`;
 }
 function showStudentEditor(card, student) {
   const root = card.querySelector('.manager-student-extra');
   root.hidden = false;
   const classNames = listClasses().filter(item => item.active !== false).map(item => item.name);
-  root.innerHTML = `<form class="manager-form manager-edit-form"><label>নাম<input name="name" maxlength="100" required value="${escapeHtml(student.name || '')}"></label><label>Student mobile<input name="mobile" maxlength="32" value="${escapeHtml(student.mobile || '')}"></label><label>Guardian mobile<input name="guardianMobile" maxlength="32" value="${escapeHtml(student.guardianMobile || '')}"></label><label>ক্লাস<select name="className" required>${classNames.map(name => `<option value="${escapeHtml(name)}" ${name === student.className ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label><label>Batch / Group<input name="group" maxlength="80" value="${escapeHtml(student.group || '')}"></label><label>মাসিক ফি<input name="monthlyFee" type="number" min="0" max="1000000" step="1" value="${Number(student.monthlyFee ?? DEFAULT_MONTHLY_FEE)}"></label><button class="admin-btn primary" type="submit">পরিবর্তন সংরক্ষণ</button></form>`;
+  root.innerHTML = `<form class="manager-form manager-edit-form"><label>নাম<input name="name" maxlength="100" required value="${escapeHtml(student.name || '')}"></label><label>শিক্ষার্থীর মোবাইল<input name="mobile" maxlength="32" value="${escapeHtml(student.mobile || '')}"></label><label>অভিভাবকের মোবাইল<input name="guardianMobile" maxlength="32" value="${escapeHtml(student.guardianMobile || '')}"></label><label>ক্লাস<select name="className" required>${classNames.map(name => `<option value="${escapeHtml(name)}" ${name === student.className ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label><label>ব্যাচ / বিভাগ<input name="group" maxlength="80" value="${escapeHtml(student.group || '')}"></label><label>মাসিক ফি<input name="monthlyFee" type="number" min="0" max="1000000" step="1" value="${Number(student.monthlyFee ?? DEFAULT_MONTHLY_FEE)}"></label><button class="admin-btn primary" type="submit">পরিবর্তন সংরক্ষণ</button></form>`;
   root.querySelector('form').addEventListener('submit', async event => {
     event.preventDefault();
     /* Captured now: an async handler resumes after the dispatch is over, when
@@ -753,7 +886,7 @@ function showStudentEditor(card, student) {
     try {
       await updateStudentOperationalInfo(student.id, { ...fields, monthlyFee: Number(fields.monthlyFee) });
       students = loadRoster();
-      await loadOperationalData(); toast('Student operational information আপডেট হয়েছে।');
+      await loadOperationalData(); toast('শিক্ষার্থীর পরিচালনাগত তথ্য হালনাগাদ হয়েছে।');
     } catch (error) {
       toast(error.message || 'পরিবর্তন সংরক্ষণ হয়নি।', true);
     } finally { managerBusy = false; }
@@ -775,11 +908,11 @@ async function changeRoutine(index) {
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
   const item = routine[routineDay]?.classes?.[index]; if (!item) return;
   const subject = window.prompt('বিষয়', item.subject); if (subject == null || !subject.trim()) return;
-  const teacher = window.prompt('Teacher assignment', item.teacher); if (teacher == null || !teacher.trim()) return;
+  const teacher = window.prompt('শিক্ষক দায়িত্ব', item.teacher); if (teacher == null || !teacher.trim()) return;
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
   item.subject = subject.trim().slice(0, 80); item.teacher = teacher.trim().slice(0, 100);
-  if (!saveRoutine(routine)) return toast('Routine সংরক্ষণ হয়নি।', true);
-  void loadOperationalData(); toast('Routine assignment আপডেট হয়েছে।');
+  if (!saveRoutine(routine)) return toast('রুটিন সংরক্ষণ হয়নি।', true);
+  void loadOperationalData(); toast('রুটিনের দায়িত্ব হালনাগাদ হয়েছে।');
 }
 
 /* আরও markup is static in manager.html (#managerMoreHub). Do not inject rows. */
@@ -801,10 +934,11 @@ $$('[data-manager-view]').forEach(button => button.addEventListener('click', () 
   pressTiles('[data-student-scope]', item => item.dataset.studentScope === studentScope);
   pressTiles('[data-finance-segment]', item => item.dataset.financeSegment === financeSegment);
 }));
-$('#managerStudentSearch').addEventListener('input', renderStudents);
-$('#managerStudentSearch').addEventListener('search', renderStudents);
+$('#managerStudentSearch').addEventListener('input', () => { expandedStudentId = null; renderStudents(); });
+$('#managerStudentSearch').addEventListener('search', () => { expandedStudentId = null; renderStudents(); });
 $$('[data-student-scope]').forEach(button => button.addEventListener('click', () => {
   studentScope = button.dataset.studentScope;
+  expandedStudentId = null;
   pressTiles('[data-student-scope]', item => item === button); renderStudents();
 }));
 function handleStudentAction(button) {
@@ -812,6 +946,13 @@ function handleStudentAction(button) {
   const card = button.closest('.manager-record');
   const extra = card?.querySelector('.manager-student-extra');
   const action = button.dataset.managerAction;
+  if (action === 'toggle-student-details') {
+    expandedStudentId = expandedStudentId === student.id ? null : student.id;
+    renderStudents();
+    $$('#managerStudentQueue [data-manager-action="toggle-student-details"], #managerStudentList [data-manager-action="toggle-student-details"]')
+      .find(toggle => toggle.dataset.id === student.id)?.focus({ preventScroll: true });
+    return;
+  }
   if (action === 'guardian-draft') {
     const kind = window.prompt('বার্তার ধরন: absence / result / due', 'due');
     if (kind) { try { const fee = studentFeeSummary(student, transactions); window.open(guardianDraft(student, kind, fee.due), '_blank', 'noopener,noreferrer'); } catch (error) { window.alert(error.message); } }
@@ -848,6 +989,9 @@ $('#managerPaymentList').addEventListener('click', event => {
   const button = event.target.closest('[data-manager-action]'); if (button) void reviewPayment(button.dataset.id, button.dataset.managerAction === 'approve-payment' ? 'approved' : 'rejected');
 });
 $('#managerCashList').addEventListener('click', event => {
+  const button = event.target.closest('[data-manager-action]'); if (button) void reviewPayment(button.dataset.id, button.dataset.managerAction === 'approve-payment' ? 'approved' : 'rejected');
+});
+$('#managerCollectionPendingList')?.addEventListener('click', event => {
   const button = event.target.closest('[data-manager-action]'); if (button) void reviewPayment(button.dataset.id, button.dataset.managerAction === 'approve-payment' ? 'approved' : 'rejected');
 });
 $$('[data-cash-scope]').forEach(button => button.addEventListener('click', () => { cashScope = button.dataset.cashScope; renderCashCounter(); }));
@@ -925,6 +1069,7 @@ $('#managerAcademicFilters').addEventListener('click', event => {
 });
 ['managerAcademicSearch', 'managerAcademicClass'].forEach(id => $('#' + id).addEventListener(id.includes('Search') ? 'input' : 'change', renderAcademicRecords));
 $$('[data-finance-segment]').forEach(button => button.addEventListener('click', () => { financeSegment = button.dataset.financeSegment; renderFinance(); }));
+$('#managerFinanceApprovalLink')?.addEventListener('click', () => { financeSegment = 'approval'; renderFinance(); });
 $('#managerDueSearch')?.addEventListener('input', renderFinance);
 $('#managerDueClass')?.addEventListener('change', renderFinance);
 $('#managerRoutineDays').addEventListener('click', event => { const button = event.target.closest('[data-routine-day]'); if (!button) return; routineDay = button.dataset.routineDay; renderRoutine(); });
@@ -934,7 +1079,7 @@ $('#managerRoutineList').addEventListener('click', async event => {
   if (button.dataset.managerAction === 'edit-routine') await changeRoutine(index);
   if (button.dataset.managerAction === 'delete-routine' && window.confirm('এই routine entry মুছবেন?')) {
     if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
-    rows.splice(index, 1); if (!saveRoutine(routine)) return toast('Routine সংরক্ষণ হয়নি।', true); renderRoutine(); toast('Routine entry মুছে ফেলা হয়েছে।');
+    rows.splice(index, 1); if (!saveRoutine(routine)) return toast('রুটিন সংরক্ষণ হয়নি।', true); renderRoutine(); toast('রুটিনের তথ্য মুছে ফেলা হয়েছে।');
   }
 });
 $('#managerTeacherAssignmentForm').addEventListener('change', event => {
@@ -951,7 +1096,7 @@ $('#managerTeacherAssignmentForm').addEventListener('submit', async event => {
     await saveTeacherAssignment({ id: editingAssignmentId, className: data.get('className'), group: data.get('group'), subjects, teacherUsername: data.get('teacherUsername') });
     const wasEditing = Boolean(editingAssignmentId);
     editingAssignmentId = '';
-    form.reset(); await renderTeachers(); await loadOperationalData(); toast(wasEditing ? 'Teacher assignment হালনাগাদ হয়েছে' : 'Teacher assignment সংরক্ষণ হয়েছে।');
+    form.reset(); await renderTeachers(); await loadOperationalData(); toast(wasEditing ? 'শিক্ষকের দায়িত্ব হালনাগাদ হয়েছে' : 'শিক্ষকের দায়িত্ব সংরক্ষণ হয়েছে।');
   } catch (error) { toast(error.message || 'Assignment সংরক্ষণ হয়নি।', true); }
 });
 $('#managerTeacherAssignmentForm').addEventListener('click', event => {
@@ -982,10 +1127,10 @@ $('#managerTeacherList').addEventListener('click', async event => {
     return;
   }
   const button = event.target.closest('[data-manager-action="delete-teacher-assignment"]');
-  if (!button || !window.confirm('এই Teacher assignment সরাবেন?')) return;
+  if (!button || !window.confirm('এই শিক্ষকের দায়িত্ব সরাবেন?')) return;
   if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
-  try { await deleteTeacherAssignment(button.dataset.id); await renderTeachers(); toast('Teacher assignment সরানো হয়েছে।'); }
-  catch (error) { toast(error.message || 'Assignment সরানো হয়নি।', true); }
+  try { await deleteTeacherAssignment(button.dataset.id); await renderTeachers(); toast('শিক্ষকের দায়িত্ব সরানো হয়েছে।'); }
+  catch (error) { toast(error.message || 'দায়িত্ব সরানো হয়নি।', true); }
 });
 $('#managerRoutineForm').addEventListener('submit', async event => {
   event.preventDefault();
@@ -1003,19 +1148,25 @@ $('#managerRoutineForm').addEventListener('submit', async event => {
   const className = String(data.get('className') || '').trim();
   const group = String(data.get('group') || '').trim();
   routine[routineDay].classes.push({ id: newId('RTN'), className, classId: normalizeClassId(className), group, sectionId: normalizeSectionId(group), subject: String(data.get('subject')).trim(), teacher: teacherName, teacherName, teacherId, room: String(data.get('room')).trim(), time: label, rawTime: time, duration: 60, period, tag: 'প্রকাশিত', tone: 'green', createdAt: new Date().toISOString(), status: 'published' });
-  if (!saveRoutine(routine)) return toast('Routine সংরক্ষণ হয়নি।', true);
-  form.reset(); routineDay = routineDay; renderRoutine(); toast('Routine প্রকাশিত হয়েছে।');
+  if (!saveRoutine(routine)) return toast('রুটিন সংরক্ষণ হয়নি।', true);
+  form.reset(); routineDay = routineDay; renderRoutine(); toast('রুটিন প্রকাশিত হয়েছে।');
 });
 $('#managerChangePassword').addEventListener('click', () => openStaffPasswordDialog({ role: 'manager', mode: 'change' }));
 /* One door per panel: no route of ours leaves manager.html for another panel. */
 installPanelGuard();
 void rememberPanelPage();
 
+function dismissManagerBoot() {
+  document.getElementById('managerBootScreen')?.remove();
+  document.getElementById('managerBootLink')?.remove();
+}
+
 async function enterManager() {
   /* A missing session locks the page in place — it never jumps to another
      page on its own (js/panel-lockdown.js). */
   if (!(await hasStaffSession('manager'))) {
     await lockPanel({ role: 'manager.html', reason: 'ম্যানেজার প্যানেল শুধু ম্যানেজার ইউজারনেম ও পাসওয়ার্ড দিয়ে খোলে।' });
+    dismissManagerBoot();
     return;
   }
   managerAccount = await readStaffAccount('manager');
@@ -1028,9 +1179,9 @@ async function enterManager() {
   try { const allStaff = await listStaff(); cachedDirectoryTeachers = allStaff.filter(s => s.role === 'teacher' && s.status === 'active'); } catch { cachedDirectoryTeachers = []; }
   if (!managerAccount) {
     await lockPanel({ role: 'manager.html', clear: 'manager', reason: 'এই ডিভাইসে ম্যানেজার অ্যাকাউন্টের রেকর্ড নেই — লগইন পেজ থেকে আবার প্রবেশ করুন।' });
+    dismissManagerBoot();
     return;
   }
-  $('#managerBootLink')?.remove();
   document.getElementById('appEntryError')?.remove();
   $('#managerShell').hidden = false;
   ensureExamWorkspace();
@@ -1038,7 +1189,9 @@ async function enterManager() {
   // page this panel knows.
   const wanted = routeName();
   renderView(normalizeView(wanted) ? wanted : 'dashboard');
-  onRouteChange(name => { const next = normalizeView(name); if (next && next.view !== activeView) renderView(name); });
+  onRouteChange(name => { const next = normalizeView(name); if (next && (next.view !== activeView || name !== next.view)) renderView(name); });
+  // Auth is now validated and the real panel is painted; only now uncover it.
+  dismissManagerBoot();
   await loadOperationalData();
   /* One Settings structure for every role (§29). The hub fills নিরাপত্তা ও ডেটা
      and mounts the notification rows — the Manager's profile card, password row

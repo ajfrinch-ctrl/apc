@@ -1,5 +1,5 @@
 /* Requested counter only: no roster/dues/contacts/history, query-only identity,
-   simple payment and exact RYYMMDDNNN receipts, including real offline download. */
+   simple payment and current device-prefixed serial receipts, including offline download. */
 const { test, expect } = require('./fixtures.cjs');
 const { seed } = require('./portal-session.cjs');
 test.use({serviceWorkers:'block',reducedMotion:'reduce',timezoneId:'Asia/Dhaka'});
@@ -9,11 +9,12 @@ async function prepare(page,scene={width:390,theme:'light'}) {
  await page.setViewportSize({width:scene.width,height:844});
  await page.addInitScript(theme=>localStorage.setItem('active-plus-appearance-v2',theme),scene.theme);
  await page.clock.setFixedTime(new Date(DATE));
- await page.goto('/offline-roles.html');await seed(page,'payment');
+ await page.goto('/demo/offline-roles.html');await seed(page,'payment');
+ await page.evaluate(()=>localStorage.setItem('activePlus.devicePrefix.v1','C1234ABCD'));
  await page.evaluate(({person,date})=>{
   const now=new Date(date).getTime();
   localStorage.setItem('activePlus.admin.students.v1',JSON.stringify([person]));
-  const tx={id:'TODAY',studentId:person.id,studentName:'আজকের নমুনা',receiptNo:'R261001001',amount:500,method:'নগদ (Cash)',feeType:'মাসিক বেতন',month:'অক্টোবর ২০২৬',recordedAt:now,collectedBy:'পেমেন্ট কাউন্টার',status:'approved',className:person.className,mobile:person.mobile};
+  const tx={id:'TODAY',studentId:person.id,studentName:'আজকের নমুনা',receiptNo:'C1234ABCD-000005',amount:500,method:'নগদ (Cash)',feeType:'মাসিক বেতন',month:'অক্টোবর ২০২৬',recordedAt:now,collectedBy:'পেমেন্ট কাউন্টার',status:'approved',className:person.className,mobile:person.mobile};
   localStorage.setItem('activePlus.admin.transactions.v1',JSON.stringify([tx,{...tx,id:'OLD',studentName:'OLD-HISTORY',recordedAt:now-86400000},{...tx,id:'FUTURE',studentName:'FUTURE-HISTORY',recordedAt:now+86400000},{...tx,id:'OTHER',studentName:'OTHER-COLLECTOR',counterUsername:'other.apc'}]));
  },{person,date:DATE});
  await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
@@ -62,13 +63,13 @@ for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:12
   await prepare(page,scene);await openPayment(page,person.uniqueRoll);
   await expect(page.locator('#payFeeAmount')).toHaveValue('');await expect(page.locator('#payFeeMethod')).toHaveValue('নগদ (Cash)');
   await page.locator('#payFeeAmount').fill('800');await page.locator('#paySaveButton').click();
-  await expect(page.locator('#payReceiptBackdrop')).toBeVisible();await expect(page.locator('#payReceiptSub')).toHaveText('রসিদ নং: R261001002');
+  await expect(page.locator('#payReceiptBackdrop')).toBeVisible();await expect(page.locator('#payReceiptSub')).toHaveText('রসিদ নং: C1234ABCD-000006');
   await privateFieldsAbsent(page);
   const tx=await page.evaluate(()=>JSON.parse(localStorage.getItem('activePlus.admin.transactions.v1')));
-  expect(tx).toHaveLength(5);expect(tx[0]).toMatchObject({amount:800,status:'pending',receiptNo:'R261001002',className:person.className});
+  expect(tx).toHaveLength(5);expect(tx[0]).toMatchObject({amount:800,status:'pending',receiptNo:'C1234ABCD-000006',className:person.className});
   await expect(page.locator('#payReceiptBody')).not.toContainText(person.className);await expect(page.locator('#payReceiptBody')).toContainText('অনুমোদন বাকি');
   const waiting=page.waitForEvent('download');await page.locator('#payReceiptDownload').click();
-  const pdf=await waiting;expect(pdf.suggestedFilename()).toBe('R261001002.pdf');
+  const pdf=await waiting;expect(pdf.suggestedFilename()).toBe('C1234ABCD-000006.pdf');
   expect(require('fs').readFileSync(await pdf.path()).toString('latin1').startsWith('%PDF-1.4')).toBe(true);
   await page.keyboard.press('Escape');await expect(page.locator('#payReceiptBackdrop')).toBeHidden();
   await expect(page.locator('#payTodayList .pay-activity-row')).toHaveCount(2);
@@ -89,7 +90,7 @@ test('simultaneous tabs allocate distinct short receipts under the shared real l
  const fields={studentId:person.id,amount:700,feeType:'মাসিক বেতন',month:'অক্টোবর ২০২৬',method:'নগদ (Cash)'};
  const write=(tab)=>tab.evaluate(async input=>{const {saveCounterPayment}=await import('/js/counter-data.js');return (await saveCounterPayment(input)).transaction.receiptNo;},fields);
  const numbers=await Promise.all([write(page),write(other)]);
- expect(new Set(numbers)).toEqual(new Set(['R261001002','R261001003']));
+ expect(new Set(numbers)).toEqual(new Set(['C1234ABCD-000006','C1234ABCD-000007']));
 });
 test('ending the counter session purges its identity/receipt surfaces as the shared guard locks it',async({page})=>{
  await prepare(page);await openPayment(page);await page.locator('#payFeeAmount').fill('800');await page.locator('#paySaveButton').click();
@@ -111,6 +112,6 @@ test.describe('offline minimal counter',()=>{
   await openPayment(page,'নমুনা রাইসা');await page.locator('#payFeeAmount').fill('800');await page.locator('#paySaveButton').click();
   await expect(page.locator('#payReceiptBackdrop')).toBeVisible();await privateFieldsAbsent(page);
   const waiting=page.waitForEvent('download');await page.locator('#payReceiptDownload').click();
-  expect((await waiting).suggestedFilename()).toBe('R261001002.pdf');
+  expect((await waiting).suggestedFilename()).toBe('C1234ABCD-000006.pdf');
  });
 });

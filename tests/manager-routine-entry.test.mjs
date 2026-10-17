@@ -1,6 +1,6 @@
 /* A direct visit to Routine must populate the required class select.
    jsdom submit alone does not exercise native required-select validation. */
-import test, { before } from 'node:test';
+import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
@@ -48,3 +48,5 @@ test('the unchanged guarded form really saves the selected class on a direct vis
   assert.equal(row.status,'published');
   assert.deepEqual(ctx.jsdomErrors,[]);
 });
+
+after(() => ctx?.window.close());

@@ -30,15 +30,17 @@
 স্টাফ সাইন-ইন হয় `index.html`-এর শেয়ার্ড কার্ড দিয়ে; প্যানেল শুধু ডিভাইস-বাউন্ড
 সেশন পড়ে খোলে (`js/panel-lockdown.js` অন্য প্যানেলের পাতা আটকায়)।
 
-### ১.২ বর্তমান navigation (এটাই যেটা বদলাবে)
+### ১.২ Shared navigation (বর্তমান পাঁচ-tab map)
 
-| প্যানেল | বর্তমান bottom bar |
-| --- | --- |
-| Student | হোম · পড়াশোনা · রুটিন · **ফলাফল** · আরও |
-| Teacher | হোম · শিক্ষার্থী · উপস্থিতি · পরীক্ষা · আরও |
-| Manager | হোম · শিক্ষার্থী · **অনুমোদন** · আরও |
-| Cash Counter | (bottom bar নেই) আজকের লেনদেন · রিপোর্ট + sticky টুলবার |
-| Admin | ড্যাশবোর্ড · স্টাফ · শিক্ষার্থী · রিপোর্ট · আরও |
+প্রতিটি role-এ একই পাঁচটি navigation seat থাকে; কাজের নাম ও permission role অনুযায়ী বদলায়।
+
+| প্যানেল | পাঁচটি bottom tab | More hub-এ রাখা |
+| --- | --- | --- |
+| Student | হোম · পড়াশোনা · রুটিন · পরীক্ষা · আরও | প্রোফাইল, রিপোর্ট, নোটিফিকেশন, ফি, সেটিংস, সহায়তা |
+| Teacher | হোম · ক্লাস · শিক্ষার্থী · পরীক্ষা · আরও | রিপোর্ট ও প্রোফাইল/সেটিংস |
+| Manager | হোম · শিক্ষার্থী · একাডেমিক · হিসাব · আরও | রিপোর্ট, দৈনিক পরামর্শ, প্রোফাইল, সেটিংস |
+| Cash Counter | হোম · শিক্ষার্থী · পেমেন্ট · রিপোর্ট · আরও | নিজের সেশন/প্রোফাইল |
+| Admin | হোম · স্টাফ · রিপোর্ট · সিস্টেম · আরও | ডেটা, প্রোফাইল, দৈনিক পরামর্শ |
 
 ### ১.৩ বর্তমান view ও feature-এর বাড়ি
 
@@ -88,22 +90,24 @@
 
 ---
 
-## ২। চূড়ান্ত Navigation Map (v178 লক্ষ্য)
+## ২। বর্তমান role-specific Navigation Map
 
 ### Student
 `🏠 হোম` · `📚 পড়াশোনা` · `🗓 রুটিন` · `📝 পরীক্ষা` · `👤 আরও`
 
 ### Teacher
-`🏠 হোম` · `📚 একাডেমিক` · `🗓 রুটিন` · `📊 ফলাফল` · `👤 আরও`
+`🏠 হোম` · `👥 ক্লাস` · `👨‍🎓 শিক্ষার্থী` · `📝 পরীক্ষা` · `👤 আরও`
 
 ### Manager
-`🏠 হোম` · `👨‍🎓 শিক্ষার্থী` · `📚 একাডেমিক` · `💰 হিসাব` · `📊 রিপোর্ট` · `👤 আরও`
+`🏠 হোম` · `👨‍🎓 শিক্ষার্থী` · `📚 একাডেমিক` · `💰 হিসাব` · `👤 আরও`
 
 ### Cash Counter
 `🏠 হোম` · `👨‍🎓 শিক্ষার্থী` · `💰 পেমেন্ট` · `📊 রিপোর্ট` · `👤 আরও`
 
 ### Admin
-`🏠 হোম` · `👥 স্টাফ` · `📊 রিপোর্ট` · `⚙️ সিস্টেম` · `💾 ডেটা` · `👤 অ্যাকাউন্ট`
+`🏠 হোম` · `👥 স্টাফ` · `📊 রিপোর্ট` · `⚙️ সিস্টেম` · `👤 আরও`
+
+Manager-এর রিপোর্ট/পরামর্শ ও Admin-এর ডেটা/প্রোফাইল/পরামর্শ More hub-এ থাকে; route, capability ও কাজ অক্ষত।
 
 ---
 
@@ -134,8 +138,7 @@
 | 👨‍🎓 শিক্ষার্থী | Pending Registration · Active · Inactive; Profile/Class/Batch/Subject/Contact/Status; Approve · Reject · Edit · Activate · Deactivate · Password Reset |
 | 📚 একাডেমিক | বাড়ির কাজ · সাজেশন · প্রশ্নব্যাংক · পরীক্ষা · ফলাফল · রুটিন · নোটিশ · উপকরণ + Teacher management (list/assignment/class/subject/active-inactive) |
 | 💰 হিসাব | Fee Collection · Payment Approval · Due · Payment History |
-| 📊 রিপোর্ট | Report Center (dropdown → Date/Filter → Generate → Preview → PDF) |
-| 👤 আরও | প্রোফাইল · সেটিংস · Session · লগআউট |
+| 👤 আরও | Report Center · দৈনিক পরামর্শ · প্রোফাইল · সেটিংস · Session · লগআউট |
 
 ### Cash Counter
 | Section | ভিতরে |
@@ -153,8 +156,7 @@
 | 👥 স্টাফ | Manager/Teacher/Cash Counter তৈরি · Edit · Activate · Deactivate · Delete + Role permission matrix |
 | 📊 রিপোর্ট | System-wide রিপোর্ট |
 | ⚙️ সিস্টেম | System settings · Security (session/password policy) · Sync/Cloud |
-| 💾 ডেটা | Backup/Restore · Data management · Storage |
-| 👤 অ্যাকাউন্ট | Admin profile · Password · লগআউট |
+| 👤 আরও | Data Management · Backup/Restore · Admin profile · দৈনিক পরামর্শ |
 
 ---
 
@@ -242,7 +244,7 @@ Topbar-এর উপরের বর্ডার রঙই একমাত্র
 
 ### Phase 3 — Manager panel (এই রিলিজে যা হয়েছে)
 
-Manager bottom bar এখন ঠিক **হোম · শিক্ষার্থী · একাডেমিক · হিসাব · রিপোর্ট · আরও** (ছয়টি seat)।
+Manager bottom bar-এ পাঁচটি seat: **হোম · শিক্ষার্থী · একাডেমিক · হিসাব · আরও**। রিপোর্ট ও Advice More hub-এ;
 প্রতিটি পুরোনো screen-ই আছে — শুধু তার বাড়ি ঠিক হয়েছে; পুরোনো নাম (`approvals`, `cash-counter`) আগের
 bookmark-ও নতুন বাড়িতে নিয়ে যায়:
 
@@ -252,8 +254,7 @@ bookmark-ও নতুন বাড়িতে নিয়ে যায়:
 | 👨‍🎓 শিক্ষার্থী | **নিবন্ধন অপেক্ষমাণ · সক্রিয় · নিষ্ক্রিয় · বাতিল** filter + search; Approve · Reject · Edit · Activate · Deactivate · Password Reset — সবই **এক roster record**, অনুমোদন তালিকা এই screen-এরই অংশ |
 | 📚 একাডেমিক | এক hub, ৮টি কার্ড: বাড়ির কাজ · সাজেশন · প্রশ্নব্যাংক · উপকরণ · পরীক্ষা · ফলাফল · রুটিন · নোটিশ + **শিক্ষক ব্যবস্থাপনা** |
 | 💰 হিসাব | ৪টি বিভাগ: **আদায় · পেমেন্ট অনুমোদন · বকেয়া · পেমেন্ট ইতিহাস** — সবই একই ledger |
-| 📊 রিপোর্ট | Report Center (dropdown → Date/Filter → Generate → Preview → PDF) |
-| 👤 আরও | ক্লাস ও ব্যাচ · ম্যানেজার প্রোফাইল · লগআউট |
+| 👤 আরও | Report Center · দৈনিক পরামর্শ · ক্লাস ও ব্যাচ · ম্যানেজার প্রোফাইল · সেটিংস · লগআউট |
 
 - **এক জায়গা, এক interface:** প্রশ্নব্যাংক/পরীক্ষা সেই একই examination workspace (`js/exam-manager.js`),
   উপকরণ সেই একই course editor — hub-কার্ড শুধু `open(...)` দিয়ে সেখানে নিয়ে যায়।
@@ -291,9 +292,8 @@ bookmark-ও নতুন বাড়িতে নিয়ে যায়:
 
 ### Phase 5 — Admin panel (এই রিলিজে যা হয়েছে)
 
-Admin-এর bottom bar এখন ঠিক **হোম · স্টাফ · রিপোর্ট · সিস্টেম · ডেটা · অ্যাকাউন্ট** (ছয়টি seat)।
-আগের ছড়ানো “আরও” মেনু তুলে দিয়ে কাজ দুটি hub-এ ভাগ করা হয়েছে, আর প্রতিটি hub-কার্ড সেই screen-ই
-খোলে যেটি আগে থেকেই ওই কাজের মালিক:
+Admin-এর bottom bar-এ পাঁচটি seat: **হোম · স্টাফ · রিপোর্ট · সিস্টেম · আরও**। ডেটা, প্রোফাইল ও দৈনিক পরামর্শ
+More hub-এ; প্রতিটি hub-কার্ড সেই screen-ই খোলে যেটি আগে থেকেই ওই কাজের মালিক:
 
 | Seat | ভিতরে |
 | --- | --- |
@@ -301,8 +301,7 @@ Admin-এর bottom bar এখন ঠিক **হোম · স্টাফ · �
 | 👥 স্টাফ | Manager/Teacher/Cash Counter তৈরি · Edit · Activate · Deactivate · Delete + রয়্যালটি-ম্যাট্রিক্স |
 | 📊 রিপোর্ট | System-wide Report Center (`#adminReports`) |
 | ⚙️ সিস্টেম | hub: Roles & Permissions · সিকিউরিটি · সিস্টেম সেটিংস · ক্লাস ও বিষয় |
-| 💾 ডেটা | Data Management + hub-কার্ড **ব্যাকআপ ও রিস্টোর** |
-| 👤 অ্যাকাউন্ট | Admin প্রোফাইল · পাসওয়ার্ড · থিম · লগআউট (topbar-এর exit সব সময় উপস্থিত) |
+| 👤 আরও | Data Management · **ব্যাকআপ ও রিস্টোর** · Admin প্রোফাইল · পাসওয়ার্ড · থিম · দৈনিক পরামর্শ · লগআউট (topbar-এর exit সব সময় উপস্থিত) |
 
 - **Admin শিক্ষার্থী অ্যাকাউন্ট বানায় না:** শিক্ষার্থী নিজে নিবন্ধন করে, আর Admin/Manager কেবল
   `নিবন্ধন অনুমোদন`-এ সিদ্ধান্ত দেয় (owner decision 2026-09-30 অপরিবর্তিত)। সেই review screen হোমের
@@ -310,14 +309,15 @@ Admin-এর bottom bar এখন ঠিক **হোম · স্টাফ · �
 - **হিসাব/রুটিন/নোটিশ/পরীক্ষা Admin-এর প্যানেলে নেই:** ফি আদায়, রুটিন, নোটিশ, পরীক্ষা প্রকাশ —
   প্রতিটি সেই রোলের নিজের প্যানেলে (Manager/Teacher/Cash Counter)। এই রিলিজে কোনো প্রতিলিপি তৈরি হয়নি।
 - **Seat হাইলাইট:** hub-এর ভিতরের screen খোলা থাকলে hub-এর seat-ই lit থাকে (`VIEW_SEAT`) — যেমন
-  সিকিউরিটি খুললে সিস্টেম, ব্যাকআপ খুললে ডেটা, নিবন্ধন অনুমোদন খুললে হোম।
+  সিকিউরিটি খুললে সিস্টেম, ডেটা/প্রোফাইল/Advice খুললে More, নিবন্ধন অনুমোদন খুললে হোম।
 - **একটাই ডেটা পথ:** স্টাফ CRUD `js/staff-auth.js` + `js/staff-directory.js`, ডেটা/ব্যাকআপ
   `js/admin-data.js` + `js/backup-merge.js`; কোনো নতুন store বা দ্বিতীয় তালিকা যোগ হয়নি।
 
 ### Phase 6 — Settings (এই রিলিজে যা হয়েছে)
 
-প্রতিটি role-এর Settings এখন **একই পাঁচটি group, একই ক্রমে** — Student আরও→সেটিংস, Teacher/Manager
-প্রোফাইল (নাম এখন সেটিংস), Admin অ্যাকাউন্ট seat, আর Cash Counter-এর আরও। কাঠামোর মালিক
+স্টাফ ও Cash Counter-এর পূর্ণ Settings hub এখন **একই পাঁচটি group, একই ক্রমে** — Teacher/Manager
+প্রোফাইল (নাম এখন সেটিংস), Admin অ্যাকাউন্ট seat, আর Cash Counter-এর আরও। শিক্ষার্থীর সর্বশেষ
+layout-এ সেটিংসের ছোট তালিকা আরও-তেই থাকে; আলাদা Settings screen নেই। কাঠামোর মালিক
 `js/settings-hub.js`; ভিতরের কাজ যার, ঘর তার:
 
 | Group | কী থাকে | কে owns |
@@ -373,9 +373,9 @@ Preview → PDF**, আর Generate-এর আগে preview খোলে না:
 | **1a** | Student nav: `হোম / পড়াশোনা / রুটিন / পরীক্ষা / আরও`; ফলাফল পরীক্ষার ভিতরে, nav থেকে সরানো | ✅ এই রিলিজে |
 | **1b** | Student `পড়াশোনা` → ৫টি section (আমার কোর্স / বাড়ির কাজ / সাজেশন / প্রশ্নব্যাংক / উপকরণ) + পরীক্ষা view-তে ৪ tab | ✅ এই রিলিজে |
 | 2 | Teacher: `একাডেমিক` ছাতার নিচে বাড়ির কাজ/সাজেশন/প্রশ্নব্যাংক/উপকরণ/পরীক্ষা/নোটিশ + হোম-এ Quick actions, nav-এ ফলাফল | ✅ এই রিলিজে |
-| 3 | Manager: `শিক্ষার্থী` (অনুমোদন merge) · `একাডেমিক` · `হিসাব` · `রিপোর্ট` — nav ষষ্ঠ আইটেমসহ | ✅ এই রিলিজে |
+| 3 | Manager-এর পাঁচ tab: `শিক্ষার্থী` · `একাডেমিক` · `হিসাব`; রিপোর্ট ও দৈনিক পরামর্শ More-এ | ✅ এই রিলিজে |
 | 4 | Cash Counter: ৫-আইটেম bottom bar (হোম/শিক্ষার্থী/পেমেন্ট/রিপোর্ট/আরও) | ✅ এই রিলিজে |
-| 5 | Admin: `স্টাফ / রিপোর্ট / সিস্টেম / ডেটা / অ্যাকাউন্ট`; শিক্ষার্থী view সরানো | ✅ এই রিলিজে |
+| 5 | Admin-এর পাঁচ tab: `স্টাফ / রিপোর্ট / সিস্টেম / আরও`; ডেটা, প্রোফাইল ও দৈনিক পরামর্শ More-এ | ✅ এই রিলিজে |
 | 6 | সব Role-এর Settings এক কাঠামো (Account/Notification/App/Security/Data) | ✅ এই রিলিজে — `js/settings-hub.js` |
 | 6b | Report Center চূড়ান্ত sweep (empty state এক ভাষায়, সাজেশন রিপোর্ট, সব report × সব role) | ✅ এই রিলিজে |
 | 7 | প্রতিটি Role-এ E2E QA (Teacher→Student ৯টি workflow) | ✅ এই রিলিজে — `tests/workflows-e2e.test.mjs` ৭টি + `tests/registration-approval-login.test.mjs` (Manager approval workflow) |
@@ -387,16 +387,16 @@ Preview → PDF**, আর Generate-এর আগে preview খোলে না:
 
 ### Phase 2 — Teacher panel (এই রিলিজে যা হয়েছে)
 
-Teacher panel-এর bottom bar এখন ঠিক **হোম · একাডেমিক · রুটিন · ফলাফল · আরও** — কোনো আইটেম যোগ হয়নি,
-শুধু কাজের বাড়ি ঠিক হয়েছে। প্রতিটি পুরোনো screen অপরিবর্তিত, শুধু এক জায়গা থেকে খোলে:
+Teacher panel-এ একই পাঁচ-seat shell: **হোম · ক্লাস · শিক্ষার্থী · পরীক্ষা · আরও**। বিদ্যমান view-গুলো role
+permission ও route বজায় রেখে map করা; সব একাডেমিক workflow আগের মতোই উপলভ্য:
 
 | Seat | কী থাকে | কোথা থেকে খোলে |
 | --- | --- | --- |
-| 🏠 হোম | ৪টি Quick action (`+ বাড়ির কাজ`, `+ সাজেশন`, `+ প্রশ্ন`, `+ পরীক্ষা`) + সাম্প্রতিক কাজ + pending | `#teacherQuickActions` |
-| 📚 একাডেমিক | ৬টি কার্ড: বাড়ির কাজ · সাজেশন · প্রশ্নব্যাংক · উপকরণ · পরীক্ষা · নোটিশ | `#teacherAcademic` → পুরোনো screen-ই |
-| 🗓 রুটিন | Manager-এর বানানো রুটিন — **view-only**, সঙ্গে “উপস্থিতি খুলুন →” | `#teacherRoutine` |
-| 📊 ফলাফল | ক্লাস টেস্টের নম্বর/ফলাফল নথি + অনলাইন পরীক্ষার workspace-এ deep link | `teacherRecords` (type `exam`) + `#teacherOnlineExams` |
-| 👤 আরও | শিক্ষার্থী · আমার ক্লাস · রিপোর্ট · আমার প্রোফাইল — একাডেমিক কিছুই এখানে নেই | `#teacherMore` |
+| 🏠 হোম | Quick action, সাম্প্রতিক কাজ, pending এবং একাডেমিক/নোটিশ shortcut | `#teacherHome` |
+| 📚 ক্লাস | নিজের ক্লাস ও একাডেমিক কাজের hub | `#teacherClasses` / `#teacherAcademic` |
+| 👨‍🎓 শিক্ষার্থী | অনুমোদিত scope-এ শিক্ষার্থী তালিকা | `#teacherStudents` |
+| 📝 পরীক্ষা | নম্বর/ফলাফল ও অনলাইন পরীক্ষার workspace | `#teacherRecords` / `#teacherOnlineExams` |
+| 👤 আরও | রিপোর্ট · আমার ক্লাস · প্রোফাইল/সেটিংস | `#teacherMore` |
 
 - **এক জায়গা, এক interface:** প্রশ্নব্যাংক/পরীক্ষা `js/exam-manager.js`-এর একই workspace;
   হাব-কার্ড শুধু `open('bank'|'exams'|…)` দিয়ে সেই screen-এ যায় — দ্বিতীয় copy নেই।

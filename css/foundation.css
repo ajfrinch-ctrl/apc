@@ -11,14 +11,15 @@
    define a second palette (§ AMOLED block there is strict overrides only). */
 :root{
  --logout-confirm-bg:#E24B4A;--logout-confirm-text:#fff;
- --color-bg:#f7f8fc;--color-surface:#fff;--color-surface-muted:#edf1fa;--color-border:#dfe6f3;
- --color-text:#1f2a44;--color-text-secondary:#51607a;--color-text-muted:#61708b;
- --color-primary:#1e3a8a;--color-primary-hover:#182f74;--color-success:#0e7a55;--color-warning:#875b0c;--color-danger:#b91c1c;
+ --color-bg:#fafbfa;--color-surface:#fff;--color-surface-muted:#f5f7f6;--color-border:#e3e9e6;
+ --color-text:#171a18;--color-text-secondary:#59625d;--color-text-muted:#6b746f;
+ --color-primary:#0e7a55;--color-primary-hover:#0b6548;--color-accent:var(--color-primary);--color-on-accent:#fff;
+ --color-success:#0e7a55;--color-warning:#875b0c;--color-danger:#b91c1c;
  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;--space-7:48px;
  --radius-sm:9px;--radius-md:14px;--radius-lg:18px;
  --font-xs:12px;--font-sm:14px;--font-md:16px;--font-lg:20px;--font-xl:28px;--font-2xl:36px;
  --shadow-sm:0 3px 14px #20365306;--shadow-dialog:0 12px 36px #202b3c18;
- --modal-backdrop:#17243866;
+ --modal-backdrop:#17243866;--modal-backdrop-soft:rgba(23,36,56,.60);
  /* Glass design tokens (§30 student interior): derived from the palette
     above, so dark/AMOLED inherit the same language through --color-surface. */
  --glass-bg:color-mix(in srgb, var(--color-surface) 58%, transparent);
@@ -39,37 +40,36 @@
  --glass-border:rgba(32,54,83,.10);--glass-edge:rgba(255,255,255,.9);
  --glass-shadow:0 10px 30px rgba(23,42,71,.10);--glass-shadow-strong:0 24px 60px rgba(23,42,71,.20);
  --glass-blur-thin:6px;
- --ambient-1:rgba(59,130,246,.20);--ambient-2:rgba(30,58,138,.14);--ambient-3:rgba(69,201,161,.14);
+ --ambient-1:rgba(16,133,92,.16);--ambient-2:rgba(14,122,85,.10);--ambient-3:rgba(69,201,161,.14);
  --ambient-4:rgba(255,138,110,.13);
  /* Modern colour: one second brand hue for gradients, and the five tints the
     dashboard tiles carry in their class names. They never replace the palette
     above — they are the colour that keeps the flat baseline from looking like a
     form on paper. Tints sit on top of a surface as a wash, never as a new one. */
- --brand-2:#3b82f6;
+ --brand-2:#18a278;
  --tone-blue:#3b82f6;--tone-blue-soft:rgba(59,130,246,.14);
  --tone-mint:#0e9f6e;--tone-mint-soft:rgba(16,185,129,.14);
  --tone-amber:#d97706;--tone-amber-soft:rgba(245,158,11,.16);
  --tone-violet:#6d4dfa;--tone-violet-soft:rgba(122,92,255,.14);
- --tone-rose:#d6415d;--tone-rose-soft:rgba(219,77,103,.14);
- --ring-track:rgba(30,58,138,.16);
- --accent-glow:0 12px 28px rgba(30,58,138,.26);--card-glow:0 14px 34px rgba(23,42,110,.10);
- /* Pay skin (css/ui-wallet.css): the hero band, icon discs and the floating
-    action of the wallet-style layout. Colours only — the skin arranges them.
-    Same blue/green brand as before; nothing here is a second palette, it is the
-    brand blue stepped into a band, a disc tint and a lift. */
- --pay-hero-a:#1e3a8a;--pay-hero-b:#16296b;--pay-on-hero:#fff;--pay-on-hero-soft:#dbe4ff;
- --pay-hero-chip:rgba(255,255,255,.14);--pay-hero-line:rgba(255,255,255,.30);
- --pay-disc:#e7ecfa;--pay-disc-ink:#1e3a8a;
- --pay-fab-a:#3b82f6;--pay-fab-b:#1e3a8a;--pay-on-fab:#fff;
- --pay-shadow:0 1px 2px rgba(15,28,72,.06),0 8px 22px rgba(15,28,72,.08);--pay-nav-shadow:rgba(15,28,72,.16);
+ --tone-rose:#d6415d;--tone-rose-soft:rgba(219,77,103,.14);--tone-coral:#df5b32;--tone-coral-soft:rgba(223,91,50,.14);
+ --ring-track:rgba(14,122,85,.16);
+ --accent-glow:0 12px 28px rgba(14,122,85,.20);--card-glow:0 14px 34px rgba(14,95,67,.09);
+ /* Pay skin (css/ui-wallet.css): the shared green brand band, icon discs and
+    action colors. Components only arrange these palette tokens. */
+ --pay-hero-a:#0e7a55;--pay-hero-b:#0b6548;--pay-on-hero:#fff;--pay-on-hero-soft:#e4f4ec;
+ --pay-hero-gradient:linear-gradient(130deg,#0e7a55 0%,#0f766e 48%,#373a9b 100%);
+ --pay-hero-chip:rgba(255,255,255,.14);--pay-hero-line:rgba(255,255,255,.30);--pay-hero-stat-chip:rgba(0,0,0,.22);
+ --pay-disc:#e5f2eb;--pay-disc-ink:#0e7a55;
+ --pay-fab-a:#18a278;--pay-fab-b:#0e7a55;--pay-on-fab:#fff;
+ --pay-shadow:0 1px 2px rgba(10,55,39,.05),0 8px 22px rgba(10,75,50,.08);--pay-nav-shadow:rgba(14,58,42,.12);
  --pay-success:#0e7a55;--pay-success-soft:#e2f6ee;
- --pay-logo-shadow:0 2px 8px rgba(6,24,58,.20);--pay-fab-shadow:0 8px 18px rgba(36,89,179,.28);
+ --pay-logo-shadow:0 2px 8px rgba(6,42,29,.12);--pay-fab-shadow:0 8px 18px rgba(12,100,70,.22);
  /* Paper is deliberately invariant: the receipt preview mirrors a printable
     document even when the surrounding app is AMOLED. */
  --pay-paper:#fff;--pay-paper-ink:#213047;--pay-paper-muted:#56677e;--pay-paper-line:#dce5f0;--pay-paper-tint:#edf3fc;--pay-paper-success:#187346;
  /* Active Plus Color: the illustration paints, centrally themed like every
     other surface. Blue/green remain the brand; warm accents distinguish services. */
- --icon-outline:#1a3480;--icon-on-color:#fff;
+ --icon-outline:#0b6548;--icon-on-color:#fff;
  --icon-blue:#3d8bff;--icon-blue-back:#b9d6ff;--icon-mint:#0fbf86;--icon-mint-back:#9eecc9;
  --icon-gold:#ffc107;--icon-coral:#ff7a4d;--icon-violet:#9a7dff;
  --icon-paper:#fff;--icon-paper-back:#e3edf7;
@@ -85,12 +85,13 @@ html[data-theme=dark]{
  color-scheme:dark;
  --color-bg:#000;--color-surface:#0b0d10;--color-surface-muted:#171a20;--color-border:#2b303a;
  --color-text:#f4f6fa;--color-text-secondary:#b7bec9;--color-text-muted:#8e96a3;
- --color-primary:#5ea9ff;--color-primary-hover:#8ac2ff;--color-success:#5cd68f;--color-warning:#f2c56d;--color-danger:#ff8d92;
+ --color-primary:#5cd68f;--color-primary-hover:#8de8b1;--color-accent:var(--color-primary);--color-on-accent:#062016;
+ --color-success:#5cd68f;--color-warning:#f2c56d;--color-danger:#ff8d92;
  /* AMOLED: a drop shadow on black is invisible and still costs paint on every
      scroll — surfaces separate with borders instead, dialogs with one deep
      shadow so the backdrop still reads as a layer. */
  --shadow-sm:none;--shadow-dialog:0 24px 70px #000;
- --modal-backdrop:#000000d9;
+ --modal-backdrop:#000000d9;--modal-backdrop-soft:rgba(0,0,0,.60);
  /* Glass on true black: the panels are mostly the canvas itself (5 % white) so
     the pixels that stay off keep staying off; the rim and the ambient glow are
     what make them read as glass. Shadow is a zero-alpha placeholder — a black
@@ -101,28 +102,29 @@ html[data-theme=dark]{
  --glass-border:rgba(255,255,255,.12);--glass-edge:rgba(255,255,255,.10);
  --glass-shadow:0 0 0 rgba(0,0,0,0);--glass-shadow-strong:0 28px 70px rgba(0,0,0,.75);
  --glass-blur-thin:8px;
- --ambient-1:rgba(94,169,255,.16);--ambient-2:rgba(146,110,255,.14);--ambient-3:rgba(69,201,161,.09);
+ --ambient-1:rgba(92,214,143,.14);--ambient-2:rgba(33,166,122,.12);--ambient-3:rgba(69,201,161,.09);
  --ambient-4:rgba(255,138,110,.08);
  /* Same five tints, lifted for the black canvas: colour is what keeps an AMOLED
     screen from reading as a grey-on-black terminal. */
- --brand-2:#a08cff;
+ --brand-2:#71e5aa;
  --tone-blue:#6fb2ff;--tone-blue-soft:rgba(111,178,255,.16);
  --tone-mint:#54e0a4;--tone-mint-soft:rgba(84,224,164,.14);
  --tone-amber:#ffcf70;--tone-amber-soft:rgba(255,207,112,.14);
  --tone-violet:#b3a3ff;--tone-violet-soft:rgba(179,163,255,.16);
- --tone-rose:#ff9aab;--tone-rose-soft:rgba(255,154,171,.14);
- --ring-track:rgba(94,169,255,.22);
- --accent-glow:0 16px 40px rgba(94,169,255,.30);--card-glow:0 0 0 rgba(0,0,0,0);
- /* Pay skin on black: the band is a deep navy that fades to the canvas, the disc
-    is a faint wash of the lifted blue, and nothing casts a shadow. */
- --pay-hero-a:#0e2b56;--pay-hero-b:#050c18;--pay-on-hero:#f4f6fa;--pay-on-hero-soft:#c3d3ea;
- --pay-hero-chip:rgba(255,255,255,.10);--pay-hero-line:rgba(255,255,255,.20);
- --pay-disc:rgba(94,169,255,.16);--pay-disc-ink:#7fbcff;
- --pay-fab-a:#74b9ff;--pay-fab-b:#438fe9;--pay-on-fab:#04101f;
+ --tone-rose:#ff9aab;--tone-rose-soft:rgba(255,154,171,.14);--tone-coral:#ffac8a;--tone-coral-soft:rgba(255,172,138,.14);
+ --ring-track:rgba(92,214,143,.22);
+ --accent-glow:0 16px 40px rgba(92,214,143,.22);--card-glow:0 0 0 rgba(0,0,0,0);
+ /* AMOLED: the band is deep forest green fading to black; the same lifted
+    green accent remains legible without adding shadows to the true-black canvas. */
+ --pay-hero-a:#0e2b1f;--pay-hero-b:#050c08;--pay-on-hero:#f4f6fa;--pay-on-hero-soft:#c3ead4;
+ --pay-hero-gradient:linear-gradient(130deg,#075a3e 0%,#086174 48%,#30266f 100%);
+ --pay-hero-chip:rgba(255,255,255,.10);--pay-hero-line:rgba(255,255,255,.20);--pay-hero-stat-chip:rgba(0,0,0,.30);
+ --pay-disc:rgba(92,214,143,.16);--pay-disc-ink:#7fe2a7;
+ --pay-fab-a:#74d99b;--pay-fab-b:#43b67b;--pay-on-fab:#04101f;
  --pay-shadow:none;--pay-nav-shadow:rgba(0,0,0,0);--pay-logo-shadow:none;--pay-fab-shadow:none;
  --pay-success:#5cd68f;--pay-success-soft:rgba(92,214,143,.14);
- /* The same illustrations on AMOLED: lifted colours, navy paper and no glow. */
- --icon-outline:#e4f0ff;--icon-on-color:#0c243c;
+ /* The same illustrations on AMOLED: lifted colours, forest paper and no glow. */
+ --icon-outline:#e4f5e9;--icon-on-color:#0c243c;
  --icon-blue:#7ec0ff;--icon-blue-back:#1c3f6c;--icon-mint:#4eecc0;--icon-mint-back:#145244;
  --icon-gold:#ffd56a;--icon-coral:#ff9a6a;--icon-violet:#c9b4ff;
  --icon-paper:#1d2b40;--icon-paper-back:#293d58;

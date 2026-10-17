@@ -55,6 +55,7 @@ export const CAPABILITIES = Object.freeze({
   SECURITY_MANAGE: 'security.manage',
   SETTINGS_MANAGE: 'settings.manage',
   PROFILE_VIEW: 'profile.view',
+  ADVICE_MANAGE: 'advice.manage',
 
   /* Student registration approval: Manager and — by owner decision
      2026-09-30 — Admin (js/registration-review.js is the shared path). */
@@ -90,7 +91,8 @@ const ADMIN = Object.freeze([
   CAPABILITIES.BACKUP_MANAGE,
   CAPABILITIES.SECURITY_MANAGE,
   CAPABILITIES.SETTINGS_MANAGE,
-  CAPABILITIES.PROFILE_VIEW
+  CAPABILITIES.PROFILE_VIEW,
+  CAPABILITIES.ADVICE_MANAGE
 ]);
 
 /* Kept for completeness so the same helper can drive any staff panel later.
@@ -131,28 +133,28 @@ export const VIEW_CAPABILITIES = Object.freeze({
   security: CAPABILITIES.SECURITY_MANAGE,
   academics: CAPABILITIES.SETTINGS_MANAGE,
   settings: CAPABILITIES.SETTINGS_MANAGE,
-  profile: CAPABILITIES.PROFILE_VIEW
+  profile: CAPABILITIES.PROFILE_VIEW,
+  more: CAPABILITIES.PROFILE_VIEW,
+  advice: CAPABILITIES.ADVICE_MANAGE
 });
 
-/** The bottom bar: হোম · স্টাফ · রিপোর্ট · সিস্টেম · ডেটা · অ্যাকাউন্ট.
- *  `order` keeps the tab order stable no matter which entries survive the
- *  capability filter. */
+/** Five shared seats: হোম · স্টাফ · রিপোর্ট · সিস্টেম · আরও.
+ *  Data, profile and advice remain available from the More hub. */
 export const ADMIN_BOTTOM_NAV = Object.freeze([
   { view: 'dashboard', label: 'হোম', icon: 'dashboard', capability: CAPABILITIES.DASHBOARD, order: 1 },
   { view: 'staff', label: 'স্টাফ', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 2 },
   { view: 'reports', label: 'রিপোর্ট', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 3 },
   { view: 'system', label: 'সিস্টেম', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 },
-  { view: 'data', label: 'ডেটা', icon: 'data', capability: CAPABILITIES.DATA_MANAGE, order: 5 },
-  { view: 'profile', label: 'অ্যাকাউন্ট', icon: 'profile', capability: CAPABILITIES.PROFILE_VIEW, order: 6 }
+  { view: 'more', label: 'আরও', icon: 'more', capability: CAPABILITIES.PROFILE_VIEW, order: 5 }
 ]);
 
 /** সিস্টেম hub cards — each opens a screen that already owns its work. */
 export const ADMIN_SYSTEM_NAV = Object.freeze([
-  { view: 'roles', label: 'Roles & Permissions', hint: 'রোলভিত্তিক অনুমতির ম্যাট্রিক্স', icon: 'roles', capability: CAPABILITIES.ROLES_MANAGE, order: 1 },
+  { view: 'roles', label: 'রোল ও অনুমতি', hint: 'রোলভিত্তিক অনুমতির ম্যাট্রিক্স', icon: 'roles', capability: CAPABILITIES.ROLES_MANAGE, order: 1 },
   { view: 'security', label: 'সিকিউরিটি', hint: 'সেশন, পাসওয়ার্ড নীতি ও সুরক্ষিত অ্যাকাউন্ট', icon: 'security', capability: CAPABILITIES.SECURITY_MANAGE, order: 2 },
-  { view: 'settings', label: 'সিস্টেম সেটিংস', hint: 'অ্যাপ কন্ট্রোল, ব্র্যান্ডিং ও নোটিশ', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 3 },
-  { view: 'academics', label: 'ক্লাস ও বিষয়', hint: 'ক্লাস, বিষয় ও শিক্ষক ম্যাপিংয়ের একক কেন্দ্র', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 },
-  { view: 'migration', label: 'ভি-টু সিংক মাইগ্রেশন', hint: 'টিচার লিংক ও রোস্টার — কাটওভারের প্রস্তুতি', icon: 'security', capability: CAPABILITIES.SECURITY_MANAGE, order: 5 }
+  { view: 'settings', label: 'সিস্টেম সেটিংস', hint: 'অ্যাপ নিয়ন্ত্রণ, ব্র্যান্ডিং ও নোটিশ', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 3 },
+  { view: 'academics', label: 'ক্লাস ও বিষয়', hint: 'ক্লাস, বিষয় ও শিক্ষক ম্যাপিংয়ের একক কেন্দ্র', icon: 'classes', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 },
+  { view: 'migration', label: 'ভি-টু সিংক মাইগ্রেশন', hint: 'শিক্ষক সংযোগ ও রোস্টার — কাটওভারের প্রস্তুতি', icon: 'data', capability: CAPABILITIES.SECURITY_MANAGE, order: 5 }
 ]);
 
 /** ডেটা hub cards — data management, then the one backup screen. */
@@ -161,10 +163,17 @@ export const ADMIN_DATA_NAV = Object.freeze([
   { view: 'audit', label: 'নম্বর/উপস্থিতি অডিট লগ', hint: 'সম্পাদনার ইতিহাস ও কারণ দেখুন', icon: 'reports', capability: CAPABILITIES.BACKUP_MANAGE, order: 2 }
 ]);
 
+/** More hub destinations keep their stable route names and original gates. */
+export const ADMIN_MORE_NAV = Object.freeze([
+  { view: 'data', label: 'ডেটা ও ব্যাকআপ', hint: 'রেকর্ড, স্টোরেজ, ব্যাকআপ ও অডিট', icon: 'data', capability: CAPABILITIES.DATA_MANAGE, order: 1 },
+  { view: 'profile', label: 'আমার অ্যাকাউন্ট', hint: 'পরিচয়, পাসওয়ার্ড ও পছন্দ', icon: 'profile', capability: CAPABILITIES.PROFILE_VIEW, order: 2 },
+  { view: 'advice', label: 'দৈনিক পরামর্শ', hint: 'পরামর্শ যোগ, সম্পাদনা ও পিন', icon: 'book', capability: CAPABILITIES.ADVICE_MANAGE, order: 3 }
+]);
+
 /** Which seat lights up for a view that lives inside a hub. */
 export const VIEW_SEAT = Object.freeze({
   roles: 'system', security: 'system', settings: 'system', academics: 'system', migration: 'system',
-  backup: 'data', audit: 'data',
+  data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more',
   students: 'dashboard'
 });
 

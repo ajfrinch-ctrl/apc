@@ -10,7 +10,8 @@ for (const width of [320, 390, 1024]) {
     await expect(page.locator('#dashboardPendingSummary')).not.toContainText('লোড');
     const grid = page.locator('#studentServices');
     const routine = page.locator('.dashboard-today-section');
-    expect((await grid.boundingBox()).y).toBeLessThan((await routine.boundingBox()).y);
+    await expect(page.locator('.hero-slider')).toBeVisible();
+    expect((await routine.boundingBox()).y).toBeLessThan((await grid.boundingBox()).y);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator('#notificationButton')).toBeVisible();
     await page.locator('#studentServices [data-view="exams"]').click();

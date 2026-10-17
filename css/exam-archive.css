@@ -106,7 +106,9 @@
   .exam-table td[data-label="অ্যাকশন"]::before{content:''}
   .exam-record,.exam-identity .exam-record{grid-template-columns:minmax(0,1fr)}
 }
-@media (min-width:721px){
-  .exam-counters{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .exam-filters{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+/* Keep multi-column exam summaries in print/PDF output only. */
+@media print and (min-width: 721px) {
+  .exam-counters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .exam-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

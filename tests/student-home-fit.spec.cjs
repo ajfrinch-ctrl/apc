@@ -1,6 +1,6 @@
-/* The owner's empty student home should fill one regular phone screen without
-   placing the "no classes" card under the raised footer action. Fixtures stay
-   in disposable contexts; actual auth, storage and calendar rendering run. */
+/* The owner's empty student home keeps the "no classes" card reachable above
+   the raised footer action while the carousel and overview scroll in the app.
+   Fixtures stay disposable; actual auth, storage and calendar rendering run. */
 const { test, expect } = require('./fixtures.cjs');
 const { enterStudentApp } = require('./portal-session.cjs');
 test.use({ serviceWorkers: 'block', reducedMotion: 'reduce', locale: 'bn-BD', timezoneId: 'Asia/Dhaka' });
@@ -15,31 +15,35 @@ async function prepare(page, theme, viewport) {
   await page.evaluate(() => document.fonts.ready);
 }
 async function fits(page) {
+  await page.locator('.dashboard-empty-card').scrollIntoViewIfNeeded();
   await expect.poll(() => page.evaluate(() => {
-    const main = document.querySelector('#appMain').getBoundingClientRect();
+    const mainElement = document.querySelector('#appMain');
+    const main = mainElement.getBoundingClientRect();
     const card = document.querySelector('.dashboard-empty-card').getBoundingClientRect();
     const fab = document.querySelector('.bottom-nav > :nth-child(3) .nav-chip').getBoundingClientRect();
     const footer = document.querySelector('.bottom-nav').getBoundingClientRect();
     return card.top >= main.top && card.bottom <= fab.top - 4 && card.left >= 0 && card.right <= innerWidth &&
       Math.abs(main.bottom - footer.top) <= 1 && Math.abs(footer.bottom - innerHeight) <= 1 &&
-      document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight + 1;
+      document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight + 1 &&
+      mainElement.scrollHeight >= mainElement.clientHeight;
   })).toBe(true);
+  await page.locator('#appMain').evaluate(element => { element.scrollTop = 0; });
 }
 
 for (const viewport of [{ width:320, height:740 }, { width:360, height:800 }, { width:390, height:844 }, { width:412, height:915 }]) {
-  for (const theme of ['light','dark']) test(`empty student home fits ${viewport.width}×${viewport.height} (${theme})`, async ({ page }) => {
+  for (const theme of ['light','dark']) test(`empty student home keeps its card clear of the footer at ${viewport.width}×${viewport.height} (${theme})`, async ({ page }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await prepare(page, theme, viewport);
     await fits(page);
-    await expect(page.locator('#studentServices .pay-tile')).toHaveCount(8);
+    await expect(page.locator('#studentServices .pay-tile')).toHaveCount(6);
     expect(await page.locator('#studentServices .pay-tile').evaluateAll(items => items.every(item => {
       const box = item.getBoundingClientRect();
       return box.width >= 44 && box.height >= 44;
     }))).toBe(true);
     expect(await page.locator('.dashboard-empty-copy').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     expect(await page.locator('#appMain').evaluate(el => el.scrollTop)).toBe(0);
-    await page.getByRole('button', { name: 'রুটিন খুলুন', exact: true }).click();
+    await page.locator('.dashboard-today-section .dashboard-text-link').click();
     await expect(page.locator('#routineView')).toBeVisible();
     await page.locator('.bottom-nav [data-view="home"]').click();
     await fits(page);
@@ -64,7 +68,7 @@ for (const viewport of [{ width:320, height:568 }, { width:844, height:390 }]) t
   expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
   expect(box.y).toBeGreaterThanOrEqual(main.y - 1);
   expect(box.y + box.height).toBeLessThanOrEqual(main.y + main.height + 1);
-  await page.getByRole('button', { name:'রুটিন খুলুন', exact:true }).click();
+  await page.locator('.dashboard-today-section .dashboard-text-link').click();
   await expect(page.locator('#routineView')).toBeVisible();
   await expect(page.locator('.bottom-nav')).toBeVisible();
 });

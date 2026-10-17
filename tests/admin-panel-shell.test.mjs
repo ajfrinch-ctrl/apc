@@ -52,7 +52,8 @@ test('the Admin role keeps system control only — no daily operations', () => {
     CAPABILITIES.BACKUP_MANAGE,
     CAPABILITIES.SECURITY_MANAGE,
     CAPABILITIES.SETTINGS_MANAGE,
-    CAPABILITIES.PROFILE_VIEW
+    CAPABILITIES.PROFILE_VIEW,
+    CAPABILITIES.ADVICE_MANAGE
   ]) {
     assert.equal(access.has(capability), true, `Admin must keep ${capability}`);
   }
@@ -96,12 +97,12 @@ test('hash routes resolve only to known views', () => {
   assert.equal(routeFromHash('#approvals'), null);
   assert.equal(routeFromHash('#/students'), 'students');
   for (const view of Object.keys(VIEW_CAPABILITIES)) assert.equal(routeFromHash(`#${view}`), view);
-  assert.equal(routeFromHash('#more'), null, 'the More container is gone — six seats say where work lives');
+  assert.equal(routeFromHash('#more'), 'more', 'the shared More hub is a valid Admin route');
 });
 
 test('the bottom bar renders one icon + label per permitted tab', () => {
   const items = ctx.$$('.admin-bottom button');
-  assert.deepEqual(items.map(button => button.dataset.adminView), ['dashboard', 'staff', 'reports', 'system', 'data', 'profile']);
+  assert.deepEqual(items.map(button => button.dataset.adminView), ['dashboard', 'staff', 'reports', 'system', 'more']);
   for (const button of items) {
     // Exactly one icon, drawn inside a fixed container: the chip.
     const chip = button.querySelector('.nav-chip');
@@ -213,7 +214,7 @@ test('nothing outside the Admin role survives in the DOM', () => {
   assert.equal(ctx.$('#studentLedgerList'), null);
   assert.equal(ctx.$('.reports-group-title'), null);
   // System sections are untouched.
-  for (const view of ['dashboard', 'staff', 'system', 'roles', 'students', 'reports', 'data', 'backup', 'security', 'settings', 'profile']) {
+  for (const view of ['dashboard', 'staff', 'reports', 'system', 'more', 'roles', 'students', 'data', 'backup', 'security', 'settings', 'profile', 'advice']) {
     assert.equal(ctx.$$(`[data-admin-view="${view}"]`).length > 0, true, `${view} should still be reachable`);
   }
 });
@@ -239,7 +240,15 @@ test('a hash route opens a permitted view and moves the active tab', async () =>
 
   ctx.window.location.hash = '#backup';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="backup"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'data');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
+
+  ctx.window.location.hash = '#profile';
+  await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="profile"]').classList.contains('active'));
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
+
+  ctx.window.location.hash = '#advice';
+  await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="advice"]').classList.contains('active'));
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
 
   ctx.window.location.hash = '#students';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'));
@@ -252,6 +261,61 @@ test('a hash route opens a permitted view and moves the active tab', async () =>
   assert.equal(ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'), true);
   assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'dashboard');
   ctx.window.location.hash = '';
+});
+
+test('Account → Security → Account reopens the correct Admin content on every return', async () => {
+  const hub = ctx.$('[data-settings-hub="admin"]');
+  const moreSeat = ctx.$('.admin-bottom [data-admin-view="more"]');
+  const accountRow = ctx.$('#adminMoreMenu [data-admin-view="profile"]');
+  const systemSeat = ctx.$('.admin-bottom [data-admin-view="system"]');
+  const openAccount = async () => { ctx.click(moreSeat); await ctx.flush(3); ctx.click(accountRow); await ctx.flush(4); };
+  await ctx.waitFor(() => Boolean(hub.querySelector('[data-settings-groups]')));
+  const groupNav = hub.querySelector('[data-settings-groups]');
+  const groups = [...hub.querySelectorAll('[data-settings-group]')];
+  const onlyVisibleGroup = key => {
+    assert.equal(groups.filter(section => !section.hidden).length, 1, 'exactly one Account group is visible');
+    assert.equal(hub.querySelector(`[data-settings-group="${key}"]`).hidden, false, `${key} content is visible`);
+    assert.equal(hub.querySelector(`[data-settings-group="${key === 'account' ? 'security' : 'account'}"]`).hidden, true,
+      'the other group must not leak into the visible page');
+  };
+
+  await openAccount();
+  assert.equal(ctx.$('.admin-view.active')?.dataset.viewPanel, 'profile');
+  ctx.click(hub.querySelector('[data-settings-open="account"]'));
+  await ctx.flush(2);
+  onlyVisibleGroup('account');
+
+  // Open Security, leave the Account surface, then return via the Account seat.
+  ctx.click(hub.querySelector('[data-settings-hub-back]'));
+  ctx.click(hub.querySelector('[data-settings-open="security"]'));
+  await ctx.flush(2);
+  onlyVisibleGroup('security');
+  ctx.click(systemSeat);
+  await ctx.flush(4);
+  ctx.click(ctx.$('#adminSystemMenu .admin-more-item[data-admin-view="security"]'));
+  await ctx.flush(4);
+  assert.equal(ctx.$('.admin-view.active')?.dataset.viewPanel, 'security');
+  assert.equal(ctx.$$('.admin-view.active').length, 1, 'Security is the only open Admin page');
+  await openAccount();
+  assert.equal(ctx.$('.admin-view.active')?.dataset.viewPanel, 'profile');
+  assert.equal(ctx.$$('.admin-view.active').length, 1, 'Account is the only open Admin page');
+  assert.equal(groupNav.hidden, false, 'returning to Account restores its group menu');
+  assert.ok(groups.every(section => section.hidden), 'no stale Security/Account section remains open');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
+
+  // Repeat the same route click, then open both groups in sequence.
+  await openAccount();
+  assert.equal(groupNav.hidden, false, 'a repeated Account entry remains idempotent');
+  ctx.click(hub.querySelector('[data-settings-open="account"]'));
+  await ctx.flush(2);
+  onlyVisibleGroup('account');
+  ctx.click(hub.querySelector('[data-settings-hub-back]'));
+  ctx.click(hub.querySelector('[data-settings-open="security"]'));
+  await ctx.flush(2);
+  onlyVisibleGroup('security');
+
+  ctx.click(ctx.$('.admin-bottom [data-admin-view="dashboard"]'));
+  await ctx.flush(2);
 });
 
 test('a role with no capability leaves the panel empty — menus, cards and routes', async () => {

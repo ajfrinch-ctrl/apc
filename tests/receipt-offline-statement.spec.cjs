@@ -168,7 +168,7 @@ test('first PDF and PNG after an offline PWA reload are plain monochrome stateme
 test('the real counter saves a pending payment and downloads its simple statement completely offline', async ({ page, context }, info) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.addInitScript(() => localStorage.setItem('active-plus-appearance-v2', 'dark'));
-  await page.goto('/offline-roles.html');
+  await page.goto('/demo/offline-roles.html');
   await seed(page, 'payment');
   await page.evaluate(async address => {
     const { adminStudents } = await import('/js/admin-data.js');
@@ -181,6 +181,8 @@ test('the real counter saves a pending payment and downloads its simple statemen
   await expect(page.locator('#payShell')).toBeVisible();
   await readyOfflineShell(page, context);
   await expect(page.locator('#payShell')).toBeVisible();
+  await page.locator('.admin-bottom [data-pay-section="students"]').click();
+  await expect(page.locator('#payStudentsPanel')).toBeVisible();
   await page.locator('#payStudentSearch').fill('AP-1024');
   await page.locator('#paySearchResults .fee-search-result').click();
   await expect(page.locator('#payProfileCollect')).toBeEnabled();

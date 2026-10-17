@@ -24,20 +24,62 @@ test('the staff toolbar and create action speak Bengali under a subtitled title'
   assert.match(view, /class="staff-page-sub"/, 'the page says what lives here');
   assert.ok(view.includes('<p class="staff-filter-label">রোল</p>'), 'role filter is labelled in Bengali');
   assert.ok(view.includes('<p class="staff-filter-label">স্ট্যাটাস</p>'), 'status filter is labelled in Bengali');
+  assert.ok(view.includes('id="staffSort"'), 'the staff list exposes a labelled sort control');
   assert.ok(view.includes('নতুন স্টাফ তৈরি করুন'), 'the create action says what it does');
   assert.doesNotMatch(view, /স্টাফ ক্রিয়েট|staff-filter-label">Role<|staff-filter-label">Status</, 'no leftover English/awkward labels');
 });
 
 test('staff card and More-menu actions are Bengali, identifiers untouched', () => {
   const js = read('js/staff-management.js');
-  for (const label of ['দেখুন', 'সম্পাদনা', 'আরও', 'পাসওয়ার্ড রিসেট', 'নিষ্ক্রিয় করুন', 'সক্রিয় করুন', 'স্থগিত করুন', 'মুছে ফেলুন']) {
+  for (const label of ['দেখুন', 'সম্পাদনা', 'বিস্তারিত', 'কম দেখান', 'আরও', 'পাসওয়ার্ড রিসেট', 'নিষ্ক্রিয় করুন', 'সক্রিয় করুন', 'স্থগিত করুন', 'মুছে ফেলুন']) {
     assert.ok(js.includes(label), `action "${label}" is Bengali`);
   }
   assert.doesNotMatch(js, /<span>View<\/span>|<span>Edit<\/span>|<span>More<\/span>|<span>Reset Password<\/span>|<span>Suspend<\/span>|<span>Delete<\/span>/,
     'no English card actions remain');
+  assert.match(js, /staff-card-details[^`]*\$\{detailsOpen \? '' : ' hidden'\}/,
+    'secondary staff information is collapsed by default');
+  assert.match(js, /aria-expanded="\$\{detailsOpen\}"/, 'the detail toggle exposes its state to assistive technology');
   assert.ok(js.includes('Staff ID:'), 'the permanent Staff ID label stays');
   assert.ok(js.includes('Protected'), 'the protected marker other suites look for stays');
   assert.match(js, /const initialsOf =/, 'avatars share the two-initial rule');
+});
+
+test('the card summary includes mobile, details include activity, and More actions live in a sheet', () => {
+  const js = read('js/staff-management.js');
+  const card = js.slice(js.indexOf('function staffCard(record)'), js.indexOf('function renderList()'));
+  assert.match(card, /class="staff-card-summary-line"[\s\S]*?staff-id-badge[\s\S]*?staff-tag role-[\s\S]*?staff-card-mobile-summary[\s\S]*?className/,
+    'summary carries Staff ID, role and mobile beside the name while status remains visible');
+  assert.ok(card.includes("record.mobile || 'মোবাইল নেই'"), 'the collapsed summary states when a mobile number is missing');
+  const detailsStart = card.indexOf('class="staff-card-details"');
+  const actionsStart = card.indexOf('class="staff-card-actions"');
+  assert.ok(detailsStart >= 0 && actionsStart > detailsStart, 'View/Edit/More render within the details disclosure');
+  assert.ok(card.includes('class="staff-password-note"'), 'expanded details contain an explicit security note');
+  assert.match(card, /পাসওয়ার্ড এখানে দেখানো হয় না|প্রথম লগইনে পাসওয়ার্ড বদল করতে হবে/,
+    'no real password is rendered; the user is told how password protection works');
+  assert.ok(card.includes('class="staff-recent-activity"'), 'expanded details include recent account activity');
+  assert.ok(js.includes('record.history.slice(-2).reverse()'), 'recent activity comes from the record history');
+
+  const actions = js.slice(js.indexOf('function staffMoreActionsHtml'), js.indexOf('function staffCard(record)'));
+  assert.match(actions, /!record\.protected[\s\S]*?data-staff-action="delete"/,
+    'protected System Owner does not get destructive status/delete actions');
+  assert.match(js, /openModal\('স্টাফ অ্যাকশন',[\s\S]*?\{ sheet: true \}/,
+    'More opens the existing shared modal in sheet mode');
+  assert.ok(js.includes('restoreMoreTriggerFocus'), 'closing the sheet restores keyboard focus');
+});
+
+test('new staff creation is a real three-step wizard; edit remains a single save form', () => {
+  const js = read('js/staff-management.js');
+  const form = js.slice(js.indexOf('function staffFormHtml'), js.indexOf('function collectForm'));
+  assert.ok(form.includes('data-staff-create-step="${step}"'), 'the step helper stamps each section with its state');
+  for (const step of ['stepAttrs(1)', 'stepAttrs(2)', 'stepAttrs(3)']) assert.ok(form.includes(step), `${step} renders`);
+  assert.ok(form.includes('data-staff-step-next') && form.includes('data-staff-step-back'), 'step navigation is explicit');
+  assert.ok(form.includes('data-staff-create-footer'), 'submit appears only at the final step');
+  assert.ok(js.includes('function validateCreateStep(form, step)'), 'each transition validates its own data');
+  assert.ok(js.includes('function showCreateStep(form, requestedStep)'), 'step state updates are centralized');
+  assert.match(js, /aria-current="step"/, 'the current step is announced to assistive technology');
+  const css = read('css/ui-wallet.css');
+  assert.ok(css.includes('.staff-create-progress {'), 'the progress indicator has dedicated styling');
+  assert.ok(css.includes('.staff-step-actions .admin-btn {'), 'mobile step buttons keep usable tap targets');
 });
 
 test('the create/edit form buttons take the foot of the modal, never a squeezed column', () => {
@@ -74,7 +116,9 @@ test('the skin tones role tags and separates protected / inactive cards with tok
   }
   assert.ok(css.includes('.staff-card.is-protected {'), 'protected cards are marked');
   assert.ok(css.includes('.staff-card.is-inactive {'), 'inactive cards recede');
-  assert.ok(css.includes('.staff-more-item.danger {'), 'the delete row reads as danger');
+  assert.ok(css.includes('.staff-modal.is-more-sheet .staff-more-item.danger {'), 'the delete row reads as danger inside its sheet');
+  assert.ok(css.includes('.staff-modal-backdrop.is-more-sheet .staff-modal {'), 'More is anchored as a bottom sheet');
+  assert.ok(css.includes('.staff-recent-activity-list {'), 'recent activity is styled as a readable event list');
   const section = css.slice(css.indexOf('/* 21 ')).replace(/\/\*[\s\S]*?\*\//g, '');
   assert.doesNotMatch(section, /#[\da-f]{3,8}\b|\brgba?\(|\bhsla?\(/i, 'staff colours belong in foundation.css');
 });

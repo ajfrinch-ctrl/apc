@@ -18,7 +18,11 @@ test('the active wallet skin parses, is screen-only and resolves its palette tok
   const defined = new Set([...read('css/foundation.css').matchAll(/(--[a-z0-9-]+)\s*:/g)].map(match => match[1]));
   // Per-component variables are deliberately not global palette entries.
   // --tile-index is set inline per quick-access tile by the admin shell.
-  ['--tone', '--tone-soft', '--progress', '--tile-index'].forEach(name => defined.add(name));
+  ['--tone', '--tone-soft', '--stat-tone', '--progress', '--tile-index'].forEach(name => defined.add(name));
+  // Palette channels scoped to one component/tile (not global palette tokens).
+  for (const [, name] of css.matchAll(/(--[a-z0-9-]*(?:ink|index))\s*:/g)) defined.add(name);
+  // The Manager roster uses local semantic tones for each status group.
+  for (const [, name] of css.matchAll(/(--manager-status-(?:tone|soft))\s*:/g)) defined.add(name);
   for (const [, token] of css.matchAll(/var\((--[a-z0-9-]+)/g)) {
     assert.ok(defined.has(token), 'undefined token ' + token);
   }
@@ -37,6 +41,21 @@ test('all portals retain the same uncluttered two-action brand bar', () => {
     assert.equal(bar.querySelectorAll('button').length, 2, 'identity/settings belong in the hero or More, not the appbar');
     assert.match(bar.querySelector('[data-fixed-tagline]').textContent, /শিখতে থাকো/);
   }
+});
+
+test('top and bottom bars carry the green brand color in light and AMOLED themes', () => {
+  assert.match(css, /\.app-topbar \{\s*background: var\(--pay-hero-a\); color: var\(--pay-on-hero\);/,
+    'the topbar uses the shared green with high-contrast text');
+  assert.match(css, /\.app-topbar-icon \{[^}]*color: var\(--pay-on-hero\)[^}]*background: var\(--pay-hero-chip\)/s,
+    'topbar actions remain clear on the colored surface');
+  assert.match(css, /\.bottom-nav::before, \.admin-bottom::before \{[^}]*color-mix\(in srgb, var\(--color-primary\) 12%, var\(--color-surface\)\)/s,
+    'the bottom bar gets a visible brand-tinted surface');
+  assert.match(css, /\.bottom-link\.active \.nav-chip, \.admin-bottom-item\.active \.nav-chip \{\s*background: var\(--color-primary\)[^}]*color: var\(--pay-on-fab\)/,
+    'active routes use a filled, readable brand chip');
+  assert.match(css, /html\[data-theme="dark"\] \.bottom-nav::before, html\[data-theme="dark"\] \.admin-bottom::before \{[^}]*color-mix\(in srgb, var\(--color-primary\) 16%, var\(--color-surface\)\)/s,
+    'the bottom bar remains visibly tinted on AMOLED');
+  assert.match(css, /\.manager-shell > \.manager-bottom > \.admin-bottom-item\.active \{\s*background: var\(--pay-hero-a\)/,
+    'Manager keeps its filled active item');
 });
 
 test('student, manager and teacher have real, named service shortcuts', () => {
@@ -84,7 +103,9 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
     assert.equal(button.getAttribute('data-view'), parent);
     assert.ok(button.getAttribute('aria-label'));
     assert.ok(button.querySelector('svg'));
-    assert.ok(['home', 'profile', 'courses', 'exams', 'routine', 'classes'].includes(parent), 'back ' + parent);
+    /* 'my-profile' is the ID-card's parent route: the digital card is a
+       sub-screen of আমার প্রোফাইল, so its back button returns there. */
+    assert.ok(['home', 'profile', 'my-profile', 'courses', 'exams', 'routine', 'classes'].includes(parent), 'back ' + parent);
   }
   for (const [name, attribute, target, min] of [
     ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 11]
@@ -103,7 +124,7 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
   }
   /* Admin: a screen inside a hub returns to that hub; the rest go home. */
   const adminBacks = [...doc('admin').querySelectorAll('.pay-back')].map(button => button.getAttribute('data-admin-view'));
-  assert.deepEqual(adminBacks, ['dashboard', 'dashboard', 'system', 'system', 'dashboard', 'dashboard', 'dashboard', 'data', 'data', 'system', 'system', 'system', 'dashboard']);
+  assert.deepEqual(adminBacks, ['dashboard', 'dashboard', 'system', 'system', 'dashboard', 'dashboard', 'more', 'data', 'data', 'system', 'system', 'system', 'more', 'more']);
   for (const name of ['admin', 'manager', 'teacher']) {
     for (const row of doc(name).querySelectorAll('.admin-more-item')) {
       assert.ok(row.querySelector('.admin-more-icon, .admin-more-copy'), name + ' hub row has no icon slot');
@@ -123,11 +144,13 @@ test('hero band covers the whole hero and the summary card straddles its edge', 
   assert.match(css, /#homeView\.is-empty-routine \.study-progress-card \{ margin-top: 0;/);
 });
 
-test('the home exams banner spans both columns on the wide dashboard', () => {
+test('student home keeps the same phone-width layout on wide browsers', () => {
   const home = doc('student');
   assert.ok(home.querySelector('#homeView #dashboardExamCard'), 'the exam banner is on Home');
-  assert.match(css, /@media \(min-width: 1000px\)[\s\S]*?\.student-home-view #dashboardExamCard \{ grid-column: 1 \/ -1; \}/,
-    'the two-column desktop grid must not leave the exam banner half-width');
+  assert.doesNotMatch(css, /@media \(min-width:\s*1000px\)/,
+    'wide viewports must not enable the retired two-column student dashboard');
+  assert.match(css, /@media screen and \(min-width: 431px\)[\s\S]*?\.student-home-view \.pay-grid, #homeView #studentServices[\s\S]*?repeat\(3, minmax\(0, 1fr\)\)/,
+    'wide browsers keep the same three-column phone service grid');
 });
 
 test('exam workspace rows keep one even gap with no dead space', () => {
@@ -230,4 +253,15 @@ for (const theme of ['light', 'dark']) test(`wallet hero, card, status and paper
     const ratio = contrast(rgb(tokens.get(ink)), rgb(tokens.get(background), surface));
     assert.ok(ratio >= minimum, `${theme}: ${ink} on ${background} is only ${ratio.toFixed(2)}:1`);
   }
+});
+
+test('birthday hero keeps the colorful band visible and its ink above AA contrast', () => {
+  const foundation = read('css/foundation.css');
+  const stops = foundation.match(/--birthday-hero:([^;]+);/)[1].match(/#[0-9a-f]{6}/gi);
+  const ink = rgb(foundation.match(/--birthday-ink:([^;]+);/)[1]);
+  assert.equal(stops.length, 3, 'the celebration blend keeps all three colors');
+  for (const stop of stops) assert.ok(contrast(ink, rgb(stop)) >= 4.5, `birthday text on ${stop}`);
+  assert.match(css, /html\[data-birthday\] \.pay-hero::before \{ display: block; background: var\(--birthday-hero\); \}/);
+  assert.match(css, /html\[data-birthday\] body\.student-reference #homeView \.pay-hero::before \{ display: block; \}/);
+  assert.match(css, /html\[data-birthday\] body\.student-reference #homeView \.pay-hero :is\(\.pay-greeting, \.pay-hero-name, \.pay-hero-meta, \.pay-hero-link\)/);
 });

@@ -8,10 +8,11 @@ const PERSON={id:'S261001001',name:'নমুনা রাইসা',nameEn:'Sam
 const DATE='2026-10-01T10:00:00Z';
 async function prepare(page,scene={width:390,theme:'light'}) {
  await page.setViewportSize({width:scene.width,height:844});await page.addInitScript(theme=>localStorage.setItem('active-plus-appearance-v2',theme),scene.theme);
- await page.clock.setFixedTime(new Date(DATE));await page.goto('/offline-roles.html');await seed(page,'payment');
+ await page.clock.setFixedTime(new Date(DATE));await page.goto('/demo/offline-roles.html');await seed(page,'payment');
+ await page.evaluate(()=>localStorage.setItem('activePlus.devicePrefix.v1','C1234ABCD'));
  await page.evaluate(({person,date})=>{
   localStorage.setItem('activePlus.admin.students.v1',JSON.stringify([person]));const now=new Date(date).getTime();
-  const tx={id:'IMMUTABLE-1',transactionNo:'T26007',receiptNo:'R261001001',studentId:person.id,studentName:person.name,feeType:'মাসিক বেতন',month:'অক্টোবর ২০২৬',amount:400,method:'নগদ (Cash)',recordedAt:now,collectedBy:'পেমেন্ট কাউন্টার',status:'approved',note:'PRIVATE-NOTE',mobile:person.mobile,address:person.address};
+  const tx={id:'IMMUTABLE-1',transactionNo:'T26007',receiptNo:'C1234ABCD-000005',studentId:person.id,studentName:person.name,feeType:'মাসিক বেতন',month:'অক্টোবর ২০২৬',amount:400,method:'নগদ (Cash)',recordedAt:now,collectedBy:'পেমেন্ট কাউন্টার',status:'approved',note:'PRIVATE-NOTE',mobile:person.mobile,address:person.address};
   localStorage.setItem('activePlus.admin.transactions.v1',JSON.stringify([tx,{...tx,id:'OLDER',transactionNo:'T26006',receiptNo:'R260930001',recordedAt:now-86400000}]));
  },{person:PERSON,date:DATE});
  await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');await expect(page.locator('.launch-screen')).toHaveCount(0);
@@ -63,7 +64,8 @@ test('serial T IDs continue across concurrent tabs and a date change without alt
  const write=tab=>tab.evaluate(async input=>{const {saveCounterPayment}=await import('/js/counter-data.js');return (await saveCounterPayment(input)).transaction;},fields);
  const transactions=await Promise.all([write(page),write(other)]);expect(new Set(transactions.map(tx=>tx.transactionNo))).toEqual(new Set(['T26008','T26009']));
  expect(new Set(transactions.map(tx=>tx.id)).size).toBe(2);expect(transactions.every(tx=>tx.id!==tx.transactionNo)).toBe(true);
- await page.clock.setFixedTime(new Date('2026-10-02T10:00:00Z'));const next=await write(page);expect(next.transactionNo).toBe('T26010');expect(next.receiptNo).toBe('R261002001');
+ expect(new Set(transactions.map(tx=>tx.receiptNo))).toEqual(new Set(['C1234ABCD-000006','C1234ABCD-000007']));
+ await page.clock.setFixedTime(new Date('2026-10-02T10:00:00Z'));const next=await write(page);expect(next.transactionNo).toBe('T26010');expect(next.receiptNo).toBe('C1234ABCD-000008');
 });
 test('reports do not discard an unsaved simple payment or expose its raw phone query',async({page})=>{
  await prepare(page);await studentsSeat(page);await page.locator('#payStudentSearch').fill(PERSON.guardianMobile);await page.locator('#paySearchResults .fee-search-result').click();await page.locator('#payProfileCollect').click();await page.locator('#payFeeAmount').fill('975');

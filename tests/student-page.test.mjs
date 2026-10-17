@@ -5,15 +5,18 @@
    centre bell, the profile edit round-trip and the logout hand-off. A
    regression in any of these fails here loudly instead of reaching a
    student's phone. */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 
 const APPEARANCE_KEY = 'active-plus-appearance-v2';
+const contexts = [];
+after(() => contexts.forEach(ctx => ctx.window.close()));
 
 /** A freshly booted student app on the real page (same seed as the UI sweep). */
 async function boot({ extraSeed = {} } = {}) {
   const ctx = await loadPage('student.html', { seed: { 'activePlus.demo.autofill.v1': 'off', ...extraSeed } });
+  contexts.push(ctx);
   const { window } = ctx;
   const { hashPassword } = await import('../js/password-hash.js');
   const pinHash = await hashPassword('246810');

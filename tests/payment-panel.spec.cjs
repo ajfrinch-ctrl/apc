@@ -17,7 +17,10 @@ const STUDENTS = 'activePlus.admin.students.v1';
    roster a manager's import would have left behind. */
 async function seedRoster(page) {
   const { adminStudents } = await import('../js/admin-data.js');
-  const roster = adminStudents.filter(student => student.status === 'approved');
+  const roster = adminStudents.filter(student => student.status === 'approved').map((student, index) => ({
+    ...student,
+    uniqueRoll: student.uniqueRoll || `PAY-E2E-${String(index + 1).padStart(3, '0')}`
+  }));
   await page.addInitScript(({ key, rows }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(rows));
   }, { key: STUDENTS, rows: roster });
@@ -60,6 +63,7 @@ test('the counter changes its own password from Settings; only that password sig
 
   // Settings → অ্যাকাউন্ট carries the same one password row every staff panel has.
   await page.locator('[data-pay-section="more"]').click();
+  await page.locator('#payMorePanel [data-settings-open="account"]').click();
   const row = page.locator('#payMorePanel [data-settings-row="password"]');
   await expect(row).toHaveCount(1);
   await row.click();
@@ -81,11 +85,15 @@ test('the counter changes its own password from Settings; only that password sig
   await page.locator('.staff-pw-form button[type=submit]').click();
   await expect(page.locator('.staff-pw-backdrop')).toBeHidden();
 
-  // The record holds a PBKDF2 hash; the typed password is nowhere in storage.
+  // The account is encrypted at rest; inspect the PBKDF2 record through the
+  // supported reader and assert the ciphertext does not contain the password.
   const stored = await page.evaluate(() => localStorage.getItem('activePlus.paymentAccount.v1'));
   expect(stored).toBeTruthy();
   expect(stored).not.toContain('Apc-Counter-2026');
-  const record = JSON.parse(stored);
+  const record = await page.evaluate(async () => {
+    const { readStaffAccount } = await import('/js/staff-auth.js');
+    return readStaffAccount('payment');
+  });
   expect(record.password.algo).toBe('PBKDF2');
   expect(record.password.digest).toMatch(/^[0-9a-f]{64}$/);
 
@@ -120,7 +128,7 @@ test('the counter desk opens on হোম with the five counter tabs and nothing
   await expect(page.locator('#payTodayList')).toContainText('আজ এখনও কোনো লেনদেন নেই।');
 });
 
-test('search resolves identity only: name, Student ID and roll — never phone, class or guardian', async ({ page }) => {
+test('search resolves name, ID, roll and exact phones but never class or guardian name', async ({ page }) => {
   const [student] = await seedRoster(page);
   await enter(page);
   await page.locator('nav.admin-bottom [data-pay-section="students"]').click();
@@ -132,13 +140,23 @@ test('search resolves identity only: name, Student ID and roll — never phone, 
     await expect(page.locator('#paySearchResults .fee-search-result')).toContainText(student.id);
   }
 
-  // Nothing but identity is rendered — no dues, class, phone or guardian.
-  const card = await page.locator('#paySearchResults').textContent();
-  expect(card).not.toContain('বকেয়া');
-  expect(card).not.toContain(String(student.mobile || '01700000000'));
+  // A phone lookup is exact and returns only masked contact values, not the
+  // entered number or any dues/class/guardian-name/address data.
+  for (const query of [student.mobile, student.guardianMobile]) {
+    await page.locator('#payStudentSearch').fill(String(query));
+    const result = page.locator('#paySearchResults .fee-search-result');
+    await expect(result).toHaveCount(1);
+    const card = await page.locator('#paySearchResults').textContent();
+    expect(card).toContain(student.name);
+    expect(card).not.toContain(String(query));
+    expect(card).not.toContain('বকেয়া');
+    expect(card).not.toContain(student.className);
+    expect(card).not.toContain(student.fatherName);
+    expect(card).not.toContain(student.address);
+  }
 
-  // A phone number, the class and the guardian name are not search keys.
-  for (const query of [String(student.mobile || '01700000000'), String(student.className), String(student.guardianMobile || '01800000000')]) {
+  // Class and guardian names are never search keys.
+  for (const query of [String(student.className), String(student.fatherName)]) {
     await page.locator('#payStudentSearch').fill(query);
     await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(0);
   }
@@ -166,7 +184,8 @@ test('verify → entry → receipt: a pending slip, a stored entry and a receipt
 
   // Durable save first, then the slip — and it is provisional, not final.
   await expect(page.locator('#payReceiptBackdrop')).toBeVisible();
-  await expect(page.locator('#payReceiptSub')).toContainText('রসিদ নং: R');
+  const receiptNumber = (await page.locator('#payReceiptSub').innerText()).replace(/^রসিদ নং:\s*/, '');
+  expect(receiptNumber).toMatch(/^C[0-9A-F]{8}-\d{6}$/);
   await expect(page.locator('#payReceiptBody')).toContainText('৳৮০০');
   await expect(page.locator('#payReceiptTitle')).toContainText('অস্থায়ী পেমেন্ট স্লিপ');
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('activePlus.admin.transactions.v1') || '[]'));
@@ -177,7 +196,7 @@ test('verify → entry → receipt: a pending slip, a stored entry and a receipt
 
   const pdf = page.waitForEvent('download');
   await page.locator('#payReceiptDownload').click();
-  expect((await pdf).suggestedFilename()).toMatch(/^R\d{9}\.pdf$/);
+  expect((await pdf).suggestedFilename()).toBe(`${receiptNumber}.pdf`);
 
   // The entry is on the counter's own day list; closing lands on হোম.
   await page.locator('#payReceiptClose').click();

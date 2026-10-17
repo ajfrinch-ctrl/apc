@@ -55,7 +55,7 @@ async function enterPortal(page, role, panel = role) {
   if (!target) throw new Error(`unknown portal: ${panel}`);
   // Seed on a page of the same origin that is not the panel, so the panel's own
   // boot check cannot race the provisioning.
-  await page.goto('/offline-roles.html');
+  await page.goto('/demo/offline-roles.html');
   await seed(page, role);
   await page.goto(`/${target}`);
   await page.waitForLoadState('networkidle');
@@ -63,14 +63,14 @@ async function enterPortal(page, role, panel = role) {
 }
 
 /** Sign a student in on the shared card and open the student app. */
-async function enterStudentApp(page, { id = 'AP-1024', name = 'রাইসা', className = 'দশম শ্রেণি', waitForNetworkIdle = true } = {}) {
+async function enterStudentApp(page, { id = 'AP-1024', name = 'রাইসা', className = 'দশম শ্রেণি', group = '', waitForNetworkIdle = true } = {}) {
   const account = {
     mobile: '01700000000',
     registrationMobile: '01700000000',
     username: 'raisa.islam',
     pin: '246810',
     status: 'active',
-    student: { id, name, className }
+    student: { id, name, className, ...(group ? { group } : {}) }
   };
   await page.addInitScript(key => {
     localStorage.setItem(key, localStorage.getItem(key));

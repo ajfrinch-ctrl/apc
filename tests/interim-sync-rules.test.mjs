@@ -81,6 +81,44 @@ test('the app nodes work for the signed-in device', () => {
   ok('system/connectivityProbe/diag-abc123', null);
 });
 
+test('the direct advice bank is readable by signed-in users and writable only by active Admin/Manager claims', () => {
+  const admin = { uid: 'admin-1', token: { role: 'admin', status: 'active', mustChangePassword: false } };
+  const manager = { uid: 'manager-1', token: { role: 'manager', status: 'active', mustChangePassword: false } };
+  const teacher = { uid: 'teacher-1', token: { role: 'teacher', status: 'active', mustChangePassword: false } };
+  const inactiveAdmin = { uid: 'admin-2', token: { role: 'admin', status: 'inactive', mustChangePassword: false } };
+  const temporaryManager = { uid: 'manager-2', token: { role: 'manager', status: 'active', mustChangePassword: true } };
+  const path = V1('adviceBank');
+  const record = { text: 'আজ মনোযোগ দিয়ে শুরু করো।', source: 'Active Plus Coaching', active: true,
+    order: 1, createdBy: 'manager-1', createdAt: 1 };
+  const bank = { 'ADV-001': record };
+  for (const user of [anon, teacher, inactiveAdmin, temporaryManager, null]) {
+    assert.equal(sim.canRead(user, path, { activePlusSync: { v1: { adviceBank: bank } } }), Boolean(user), 'read follows sign-in');
+  }
+  assert.equal(sim.canWrite(anon, `${path}/ADV-001`, record, { activePlusSync: { v1: { adviceBank: bank } } }), false,
+    'anonymous sync identity cannot edit advice');
+  assert.equal(sim.canWrite(teacher, `${path}/ADV-001`, record, { activePlusSync: { v1: { adviceBank: bank } } }), false,
+    'Teacher cannot edit advice');
+  assert.equal(sim.canWrite(inactiveAdmin, `${path}/ADV-001`, record, { activePlusSync: { v1: { adviceBank: bank } } }), false,
+    'inactive Admin cannot edit advice');
+  assert.equal(sim.canWrite(temporaryManager, `${path}/ADV-001`, record, { activePlusSync: { v1: { adviceBank: bank } } }), false,
+    'a forced-password-change Manager cannot edit advice');
+  for (const user of [admin, manager]) {
+    assert.equal(sim.canRead(user, path, { activePlusSync: { v1: { adviceBank: bank } } }), true);
+    assert.equal(sim.canWrite(user, `${path}/ADV-001`, record, { activePlusSync: { v1: { adviceBank: bank } } }), true,
+      `${user.token.role} may edit a valid record`);
+    assert.equal(sim.canWrite(user, `${path}/ADV-002`, { ...record, text: 'ক'.repeat(141) },
+      { activePlusSync: { v1: { adviceBank: bank } } }), false, 'the server rejects text over 140 characters');
+    assert.equal(sim.canWrite(user, `${path}/ADV-002`, { ...record, active: 'yes' },
+      { activePlusSync: { v1: { adviceBank: bank } } }), false, 'active must remain boolean');
+    assert.equal(sim.canWrite(user, `${path}/ADV-002`, { ...record, pinned: true },
+      { activePlusSync: { v1: { adviceBank: bank } } }), false, 'the direct record rejects obsolete pin fields');
+  }
+  assert.equal(sim.canWrite(manager, path, { 'ADV-001': record, 'ADV-002': { ...record, order: 2 } },
+    { activePlusSync: { v1: {} } }), true, 'the transaction can seed records directly under adviceBank');
+  assert.equal(sim.canWrite(manager, path, { items: { 'ADV-001': record } },
+    { activePlusSync: { v1: { adviceBank: bank } } }), false, 'legacy wrappers are not written back');
+});
+
 test('the connectivity probe accepts only {at:number} and refuses free storage', () => {
   const probe = key => `activePlusSync/v1/system/connectivityProbe/${key}`;
   const ok = (path, value) => assert.equal(sim.canWrite(anon, path, value, cloud()), true, `write ${path}`);

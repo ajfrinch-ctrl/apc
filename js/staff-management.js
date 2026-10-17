@@ -1,8 +1,9 @@
 /* Staff Management UI — the Admin Panel's staff module.
 
-   Mobile-first: every staff member is one glass card (name → Staff ID → role →
-   mobile → status) with **View | Edit | More**; More holds Reset Password,
-   Activate/Deactivate and Delete.
+   Mobile-first: each person opens as a compact summary (name → Staff ID →
+   role → status → mobile). A disclosure button reveals login/mobile/assignment
+   and recent activity; View | Edit | More remain available, and More opens a
+   bottom sheet holding Reset Password, Activate/Deactivate and Delete.
 
    Rules this UI enforces (and js/staff-directory.js enforces again server-side):
 
@@ -28,6 +29,7 @@ import {
   STAFF_ROLE_META,
   STAFF_STATUS,
   STAFF_STATUS_KEYS,
+  STAFF_DIRECTORY_RULES,
   canManageStaff,
   createStaff,
   deleteStaff,
@@ -43,6 +45,7 @@ import {
 } from './staff-directory.js';
 
 const bn = toBanglaNumber;
+const staffCollator = new Intl.Collator('bn', { numeric: true, sensitivity: 'base' });
 const $ = selector => document.querySelector(selector);
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 
@@ -50,9 +53,12 @@ const state = {
   query: '',
   role: 'all',
   status: 'all',
+  sort: 'default',
   staff: [],
   counts: null,
   openMore: null,
+  openDetails: null,
+  pendingMoreFocusId: null,
   canManage: false,
   ready: false
 };
@@ -152,6 +158,15 @@ function roleAssignmentFields(role, knownClasses = []) {
    Modal plumbing (one reusable glass dialog)
    ------------------------------------------------------------------------ */
 
+function restoreMoreTriggerFocus(staffId) {
+  const card = $$('#staffList .staff-card').find(item => item.dataset.staffCard === staffId);
+  const more = card?.querySelector('.more-btn');
+  const disclosure = card?.querySelector('.staff-details-toggle');
+  const target = more && !more.closest('[hidden]') ? more : disclosure;
+  (target || $('#staffSearch') || $('#staffSort') || $('#staffCreateButton'))?.focus({ preventScroll: true });
+  state.pendingMoreFocusId = null;
+}
+
 function modalShell() {
   let backdrop = $('#staffModalBackdrop');
   if (backdrop) return backdrop;
@@ -159,8 +174,9 @@ function modalShell() {
   backdrop.className = 'admin-modal-backdrop staff-modal-backdrop';
   backdrop.id = 'staffModalBackdrop';
   backdrop.hidden = true;
+  backdrop.dataset.staffMoreSheet = '0';
   backdrop.innerHTML = `
-    <section class="admin-modal staff-modal" role="dialog" aria-modal="true" aria-labelledby="staffModalTitle">
+    <section class="admin-modal staff-modal" role="dialog" aria-modal="true" aria-labelledby="staffModalTitle" tabindex="-1">
       <div class="admin-modal-header">
         <div><p class="eyebrow" id="staffModalKicker">Staff</p><h2 id="staffModalTitle">—</h2></div>
         <button class="admin-modal-close" type="button" data-staff-modal="close" aria-label="বন্ধ করুন">${icon('close', 'modal-close-icon')}</button>
@@ -172,29 +188,69 @@ function modalShell() {
     if (event.target === backdrop) closeModal();
     if (event.target.closest('[data-staff-modal="close"]')) closeModal();
   });
+  backdrop.querySelector('#staffModalBody').addEventListener('click', async event => {
+    const button = event.target.closest('[data-staff-action]');
+    if (!button) return;
+    const { staffAction: action, staffId, nextStatus } = button.dataset;
+    if (backdrop.dataset.staffMoreSheet === '1') {
+      closeModal({ restoreFocus: false });
+      if (action === 'reset') await openReset(staffId);
+      else if (action === 'status') {
+        await changeStatus(staffId, nextStatus || 'inactive');
+        restoreMoreTriggerFocus(staffId);
+      } else if (action === 'delete') await openDelete(staffId);
+      return;
+    }
+    if (action === 'edit') {
+      closeModal({ restoreFocus: false });
+      await openEdit(staffId);
+    } else if (action === 'confirm-delete') {
+      await confirmDelete(staffId);
+    } else if (action === 'deactivate') {
+      closeModal({ restoreFocus: false });
+      await changeStatus(staffId, 'inactive');
+      restoreMoreTriggerFocus(staffId);
+    }
+  });
   return backdrop;
 }
 
-function openModal(kicker, title, bodyHtml, { wide = false } = {}) {
+function openModal(kicker, title, bodyHtml, { wide = false, sheet = false } = {}) {
   const backdrop = modalShell();
   $('#staffModalKicker').textContent = kicker;
   $('#staffModalTitle').textContent = title;
   const body = $('#staffModalBody');
   body.innerHTML = bodyHtml;
-  backdrop.querySelector('.staff-modal').classList.toggle('is-wide', wide);
+  const dialog = backdrop.querySelector('.staff-modal');
+  dialog.classList.toggle('is-wide', wide);
+  dialog.classList.toggle('is-more-sheet', sheet);
+  backdrop.classList.toggle('is-more-sheet', sheet);
+  backdrop.dataset.staffMoreSheet = sheet ? '1' : '0';
   backdrop.hidden = false;
-  document.body.classList.add('staff-modal-open');
+  document.body.classList.add('admin-modal-open');
   const focusable = body.querySelector('input:not([type=hidden]), select, textarea, button');
   focusable?.focus({ preventScroll: true });
   return body;
 }
 
-function closeModal() {
+function closeModal({ restoreFocus = true } = {}) {
   const backdrop = $('#staffModalBackdrop');
   if (!backdrop) return;
+  const wasMoreSheet = backdrop.dataset.staffMoreSheet === '1';
   backdrop.hidden = true;
+  backdrop.dataset.staffMoreSheet = '0';
+  delete backdrop.dataset.moreStaffId;
+  backdrop.classList.remove('is-more-sheet');
+  backdrop.querySelector('.staff-modal')?.classList.remove('is-more-sheet');
   $('#staffModalBody').innerHTML = '';
-  document.body.classList.remove('staff-modal-open');
+  document.body.classList.remove('admin-modal-open');
+  if (wasMoreSheet) {
+    state.openMore = null;
+    renderList();
+  }
+  if (restoreFocus && state.pendingMoreFocusId) {
+    restoreMoreTriggerFocus(state.pendingMoreFocusId);
+  }
 }
 
 function modalError(message) {
@@ -252,50 +308,92 @@ function filteredStaff() {
   });
 }
 
+function sortStaff(rows) {
+  if (state.sort === 'default') return rows;
+  const statusRank = { active: 0, inactive: 1, suspended: 2 };
+  return [...rows].sort((a, b) => {
+    if (state.sort === 'name') return staffCollator.compare(a.fullName || '', b.fullName || '');
+    if (state.sort === 'id') return staffCollator.compare(a.staffId || '', b.staffId || '');
+    if (state.sort === 'role') {
+      const roleOrder = (STAFF_ROLE_META[a.role]?.order ?? 99) - (STAFF_ROLE_META[b.role]?.order ?? 99);
+      return roleOrder || staffCollator.compare(a.fullName || '', b.fullName || '');
+    }
+    if (state.sort === 'status') {
+      const statusOrder = (statusRank[a.status] ?? 99) - (statusRank[b.status] ?? 99);
+      return statusOrder || staffCollator.compare(a.fullName || '', b.fullName || '');
+    }
+    return 0;
+  });
+}
+
+function staffMoreActionsHtml(record) {
+  const staffId = escapeHtml(record.staffId);
+  return `
+    <div class="staff-more-menu" role="group" aria-label="স্টাফ অ্যাকশন">
+      <button class="staff-more-item" type="button" data-staff-action="reset" data-staff-id="${staffId}">${icon('key', 'staff-inline-icon')}<span>পাসওয়ার্ড রিসেট</span></button>
+      ${!record.protected ? `<button class="staff-more-item" type="button" data-staff-action="status" data-staff-id="${staffId}" data-next-status="${record.status === 'active' ? 'inactive' : 'active'}">
+        ${icon(record.status === 'active' ? 'pause' : 'checkCircle', 'staff-inline-icon')}
+        <span>${record.status === 'active' ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন'}</span>
+      </button>` : ''}
+      ${record.status === 'active' && !record.protected ? `<button class="staff-more-item" type="button" data-staff-action="status" data-staff-id="${staffId}" data-next-status="suspended">${icon('pause', 'staff-inline-icon')}<span>স্থগিত করুন</span></button>` : ''}
+      ${!record.protected ? `<button class="staff-more-item danger" type="button" data-staff-action="delete" data-staff-id="${staffId}">${icon('trash', 'staff-inline-icon')}<span>মুছে ফেলুন</span></button>` : ''}
+    </div>`;
+}
+
 function staffCard(record) {
   const meta = STAFF_ROLE_META[record.role] || STAFF_ROLE_META.other;
   const status = STAFF_STATUS[record.status] || STAFF_STATUS.inactive;
   const moreOpen = state.openMore === record.staffId;
+  const detailsOpen = state.openDetails === record.staffId;
   const initials = escapeHtml(initialsOf(record.fullName));
+  const detailId = `staff-details-${String(record.staffId || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
   const assignment = [
     ...(record.assignment?.classes || []),
     ...(record.assignment?.subjects || []),
     record.assignment?.counter,
     record.assignment?.designation
   ].filter(Boolean).slice(0, 3);
+  const history = Array.isArray(record.history) ? record.history.slice(-2).reverse() : [];
+  const activity = history.length
+    ? `<ul class="staff-recent-activity-list">${history.map(entry => `
+        <li><small>${escapeHtml(String(entry.at || '').slice(0, 10))}</small><span>${escapeHtml(entry.detail || entry.action || 'কার্যক্রম')}</span></li>`).join('')}
+      </ul>`
+    : '<p class="staff-recent-activity-empty">সাম্প্রতিক কোনো অ্যাকাউন্ট কার্যক্রম নেই।</p>';
   return `
     <article class="staff-card${record.status === 'active' ? '' : ' is-inactive'}${record.protected ? ' is-protected' : ''}" data-staff-card="${escapeHtml(record.staffId)}">
       <div class="staff-card-head">
         <span class="staff-avatar" aria-hidden="true">${initials}</span>
         <div class="staff-card-identity">
           <strong class="staff-card-name">${escapeHtml(record.fullName)}</strong>
-          <p class="staff-card-line"><span class="staff-id-badge">Staff ID: ${escapeHtml(record.staffId)}</span></p>
-          <p class="staff-card-line">
+          <div class="staff-card-summary-line">
+            <span class="staff-id-badge">Staff ID: ${escapeHtml(record.staffId)}</span>
             <span class="staff-tag role-${escapeHtml(record.role)}">${escapeHtml(meta.labelBn)}</span>
-            <span class="staff-tag muted">${escapeHtml(record.username)}</span>
-          </p>
-          <p class="staff-card-line">
-            <span class="staff-meta">${icon('phone', 'staff-inline-icon')} ${escapeHtml(record.mobile || 'মোবাইল নেই')}</span>
-          </p>
-          ${assignment.length ? `<p class="staff-card-line"><span class="staff-meta">${icon('book', 'staff-inline-icon')} ${escapeHtml(assignment.join(' • '))}</span></p>` : ''}
+            <span class="staff-card-mobile-summary" aria-label="মোবাইল নম্বর">${icon('phone', 'staff-inline-icon')}<span>${escapeHtml(record.mobile || 'মোবাইল নেই')}</span></span>
+            ${record.protected ? '<span class="staff-tag protected">Protected</span>' : ''}
+          </div>
         </div>
-        <span class="badge ${status.className}">${escapeHtml(status.label)}</span>
+        <div class="staff-card-head-side">
+          <span class="badge ${status.className}">${escapeHtml(status.label)}</span>
+          <button class="staff-details-toggle" type="button" data-staff-action="toggle-details" data-staff-id="${escapeHtml(record.staffId)}" aria-expanded="${detailsOpen}" aria-controls="${escapeHtml(detailId)}">
+            ${icon('chevron-down', 'staff-details-chevron')}
+            <span>${detailsOpen ? 'কম দেখান' : 'বিস্তারিত'}</span>
+          </button>
+        </div>
       </div>
-      ${record.protected ? '<p class="staff-protected-note">' + icon('shield', 'staff-inline-icon') + ' Current Admin → Protected • এই পরিচয় মুছে বা নিষ্ক্রিয় করা যায় না</p>' : ''}
-      ${record.mustChangePassword ? '<p class="staff-password-note">' + icon('lock', 'staff-inline-icon') + ' প্রথম লগইনে পাসওয়ার্ড বদল করতে হবে</p>' : ''}
-      <div class="staff-card-actions">
-        <button class="mini-btn" type="button" data-staff-action="view" data-staff-id="${escapeHtml(record.staffId)}">${icon('eye', 'staff-inline-icon')}<span>দেখুন</span></button>
-        <button class="mini-btn" type="button" data-staff-action="edit" data-staff-id="${escapeHtml(record.staffId)}">${icon('edit', 'staff-inline-icon')}<span>সম্পাদনা</span></button>
-        <button class="mini-btn more-btn" type="button" data-staff-action="more" data-staff-id="${escapeHtml(record.staffId)}" aria-expanded="${moreOpen}">${icon('more', 'staff-inline-icon')}<span>আরও</span></button>
-      </div>
-      <div class="staff-more-menu"${moreOpen ? '' : ' hidden'}>
-        <button class="staff-more-item" type="button" data-staff-action="reset" data-staff-id="${escapeHtml(record.staffId)}">${icon('key', 'staff-inline-icon')}<span>পাসওয়ার্ড রিসেট</span></button>
-        <button class="staff-more-item" type="button" data-staff-action="status" data-staff-id="${escapeHtml(record.staffId)}" data-next-status="${record.status === 'active' ? 'inactive' : 'active'}">
-          ${icon(record.status === 'active' ? 'pause' : 'checkCircle', 'staff-inline-icon')}
-          <span>${record.status === 'active' ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন'}</span>
-        </button>
-        ${record.status === 'active' && !record.protected ? `<button class="staff-more-item" type="button" data-staff-action="status" data-staff-id="${escapeHtml(record.staffId)}" data-next-status="suspended">${icon('pause', 'staff-inline-icon')}<span>স্থগিত করুন</span></button>` : ''}
-        <button class="staff-more-item danger" type="button" data-staff-action="delete" data-staff-id="${escapeHtml(record.staffId)}">${icon('trash', 'staff-inline-icon')}<span>মুছে ফেলুন</span></button>
+      <div class="staff-card-details" id="${escapeHtml(detailId)}"${detailsOpen ? '' : ' hidden'}>
+        <p class="staff-card-line"><span class="staff-meta">Login User ID: <strong>${escapeHtml(record.username)}</strong></span></p>
+        <p class="staff-card-line"><span class="staff-meta">${icon('phone', 'staff-inline-icon')} ${escapeHtml(record.mobile || 'মোবাইল নেই')}</span></p>
+        ${assignment.length ? `<p class="staff-card-line"><span class="staff-meta">${icon('book', 'staff-inline-icon')} ${escapeHtml(assignment.join(' • '))}</span></p>` : ''}
+        ${record.protected ? '<p class="staff-protected-note">' + icon('shield', 'staff-inline-icon') + ' Current Admin → Protected • এই পরিচয় মুছে বা নিষ্ক্রিয় করা যায় না</p>' : ''}
+        <p class="staff-password-note">${icon('lock', 'staff-inline-icon')} ${record.mustChangePassword ? 'প্রথম লগইনে পাসওয়ার্ড বদল করতে হবে' : 'পাসওয়ার্ড এখানে দেখানো হয় না; বদলাতে আরও → পাসওয়ার্ড রিসেট ব্যবহার করুন'}</p>
+        <section class="staff-recent-activity" aria-label="সাম্প্রতিক কার্যক্রম">
+          <h3>সাম্প্রতিক কার্যক্রম</h3>${activity}
+        </section>
+        <div class="staff-card-actions">
+          <button class="mini-btn" type="button" data-staff-action="view" data-staff-id="${escapeHtml(record.staffId)}">${icon('eye', 'staff-inline-icon')}<span>দেখুন</span></button>
+          <button class="mini-btn" type="button" data-staff-action="edit" data-staff-id="${escapeHtml(record.staffId)}">${icon('edit', 'staff-inline-icon')}<span>সম্পাদনা</span></button>
+          <button class="mini-btn more-btn" type="button" data-staff-action="more" data-staff-id="${escapeHtml(record.staffId)}" aria-haspopup="dialog" aria-expanded="${moreOpen}" aria-controls="staffModalBackdrop">${icon('more', 'staff-inline-icon')}<span>আরও</span></button>
+        </div>
       </div>
     </article>`;
 }
@@ -303,7 +401,7 @@ function staffCard(record) {
 function renderList() {
   const host = $('#staffList');
   if (!host) return;
-  const rows = filteredStaff();
+  const rows = sortStaff(filteredStaff());
   const counter = $('#staffCountBadge');
   if (counter) {
     counter.textContent = rows.length
@@ -323,6 +421,10 @@ let renderGeneration = 0;
 export async function renderStaff() {
   const host = $('#staffList');
   if (!host) return;
+  // Detail disclosure and overflow actions are transient UI state: every
+  // fresh entry/refresh starts collapsed so old cards cannot re-open themselves.
+  state.openMore = null;
+  state.openDetails = null;
   /* Every call takes a number; only the newest may touch the DOM. A slow read
      that lands after a newer one can never overwrite it with stale rows. */
   const generation = ++renderGeneration;
@@ -433,7 +535,7 @@ function staffFormHtml(record) {
     { name: 'fullName', label: 'পূর্ণ নাম', required: true, value: record?.fullName },
     { name: 'username', label: 'Login User ID (স্বয়ংক্রিয়)', type: 'auto-id', value: record?.username, hint: 'নিয়ম: First Name + Role + .apc — যেমন rasal.teacher.apc। স্বয়ংক্রিয়ভাবে তৈরি হয়, পরিবর্তন করা যায় না' },
     ...(editing ? [] : [
-      { name: 'password', label: 'পাসওয়ার্ড', type: 'password', required: true, hint: '৬–৩২ অক্ষর' },
+      { name: 'password', label: 'পাসওয়ার্ড', type: 'password', required: true, hint: `${bn(STAFF_DIRECTORY_RULES.passwordMin)}–${bn(STAFF_DIRECTORY_RULES.passwordMax)} অক্ষর` },
       { name: 'confirmPassword', label: 'পাসওয়ার্ড নিশ্চিত করুন', type: 'password', required: true }
     ]),
     { name: 'role', label: 'রোল', type: 'select', required: true, options: roleOptions, value: role },
@@ -443,30 +545,42 @@ function staffFormHtml(record) {
     { name: 'joiningDate', label: 'যোগদানের তারিখ', type: 'date', value: record?.joiningDate || '' },
     { name: 'address', label: 'ঠিকানা (ঐচ্ছিক)', max: 300, value: record?.address }
   ];
+  const stepAttrs = step => editing ? '' : ` data-staff-create-step="${step}"${step > 1 ? ' hidden' : ''}`;
+  const sectionClass = editing ? 'staff-form-section-block' : 'staff-form-section-block staff-create-step';
+  const stepper = editing ? '' : `
+      <ol class="staff-create-progress" aria-label="স্টাফ তৈরির ধাপ">
+        <li data-staff-step-indicator="1" aria-current="step"><span>১</span><small>অ্যাকাউন্ট</small></li>
+        <li data-staff-step-indicator="2"><span>২</span><small>রোল ও যোগাযোগ</small></li>
+        <li data-staff-step-indicator="3"><span>৩</span><small>দায়িত্ব</small></li>
+      </ol>`;
   return `
-    <form id="staffForm" class="staff-form staff-create-form${editing ? ' is-editing' : ' is-creating'}" novalidate>
-      ${editing ? `<div class="staff-form-notice">${icon('lock', 'staff-inline-icon')}<span>Staff ID <strong>${escapeHtml(record.staffId)}</strong> — স্থায়ী পরিচয়, পরিবর্তন করা যাবে না</span></div>` : `<div class="staff-create-guide"><span class="staff-guide-icon" aria-hidden="true">${icon('staff', 'staff-inline-icon')}</span><div><strong>৩টি সহজ ধাপে অ্যাকাউন্ট তৈরি</strong><small>পরিচিতি দিন, রোল বাছুন, তারপর দায়িত্বের তথ্য পূরণ করুন।</small></div></div>`}
-      <div class="staff-form-section-block">
-        <div class="staff-form-section-title"><span class="staff-section-number">১</span><div><strong>অ্যাকাউন্টের তথ্য</strong><small>স্টাফের পরিচয় ও লগইন তথ্য দিন</small></div></div>
+    <form id="staffForm" class="staff-form staff-create-form${editing ? ' is-editing' : ' is-creating'}" novalidate${editing ? '' : ' data-current-create-step="1"'}>
+      ${editing ? `<div class="staff-form-notice">${icon('lock', 'staff-inline-icon')}<span>Staff ID <strong>${escapeHtml(record.staffId)}</strong> — স্থায়ী পরিচয়, পরিবর্তন করা যাবে না</span></div>` : `<div class="staff-create-guide"><span class="staff-guide-icon" aria-hidden="true">${icon('staff', 'staff-inline-icon')}</span><div><strong>৩টি সহজ ধাপে অ্যাকাউন্ট তৈরি</strong><small>প্রথমে পরিচিতি, এরপর রোল ও যোগাযোগ, শেষে দায়িত্ব দিন।</small></div></div>`}
+      ${stepper}
+      <p class="finance-error" id="staffFormError" role="alert" hidden></p>
+      <section class="${sectionClass}"${stepAttrs(1)} aria-label="অ্যাকাউন্টের তথ্য">
+        <div class="staff-form-section-title"><span class="staff-section-number">১</span><div><strong>অ্যাকাউন্টের তথ্য</strong><small>স্টাফের পরিচয় ও লগইন আইডি দেখুন</small></div></div>
         <div class="staff-form-grid">
           ${identityFields.slice(0, 2).map(spec => fieldRow(spec, spec.value)).join('')}
         </div>
-      </div>
-      <div class="staff-form-section-block">
+        ${editing ? '' : `<div class="staff-step-actions"><button class="admin-btn primary" type="button" data-staff-step-next>পরবর্তী: রোল ও যোগাযোগ</button><button class="admin-btn ghost" type="button" data-staff-modal="close">বাতিল</button></div>`}
+      </section>
+      <section class="${sectionClass}"${stepAttrs(2)} aria-label="রোল ও যোগাযোগ">
         <div class="staff-form-section-title"><span class="staff-section-number">২</span><div><strong>রোল ও যোগাযোগ</strong><small>রোল নির্বাচন করলে Login User ID স্বয়ংক্রিয়ভাবে তৈরি হবে</small></div></div>
         <div class="staff-form-grid">
           ${identityFields.slice(2).map(spec => fieldRow(spec, spec.value)).join('')}
         </div>
-      </div>
-      <div class="staff-assignment staff-form-section-block" id="staffAssignmentFields" data-role="${escapeHtml(role)}">
+        ${editing ? '' : `<div class="staff-step-actions"><button class="admin-btn ghost" type="button" data-staff-step-back>পেছনে</button><button class="admin-btn primary" type="button" data-staff-step-next>পরবর্তী: দায়িত্ব</button><button class="admin-btn ghost" type="button" data-staff-modal="close">বাতিল</button></div>`}
+      </section>
+      <section class="staff-assignment ${sectionClass}" id="staffAssignmentFields" data-role="${escapeHtml(role)}"${stepAttrs(3)} aria-label="দায়িত্ব">
         <div class="staff-form-section-title"><span class="staff-section-number">৩</span><div><strong id="staffAssignmentTitle">${escapeHtml(STAFF_ROLE_META[role]?.labelBn || 'স্টাফ')} — দায়িত্ব</strong><small>এই রোল অনুযায়ী প্রয়োজনীয় দায়িত্বের তথ্য দিন</small></div></div>
         <div class="staff-form-grid">
           ${roleAssignmentFields(role, assignment.classes).map(spec => fieldRow(spec, spec.name === 'classes' ? assignment.classes : assignment[spec.name])).join('')}
         </div>
         <div class="staff-class-subjects" id="staffClassSubjects"></div>
-      </div>
-      <div class="staff-form-footer">
-        <p class="finance-error" id="staffFormError" role="alert" hidden></p>
+        ${editing ? '' : `<div class="staff-step-actions"><button class="admin-btn ghost" type="button" data-staff-step-back>পেছনে</button></div>`}
+      </section>
+      <div class="staff-form-footer" data-staff-create-footer${editing ? '' : ' hidden'}>
         <div class="modal-actions">
           <button class="admin-btn primary" type="submit">${icon('save', 'staff-inline-icon')}<span>${editing ? 'তথ্য সংরক্ষণ করুন' : 'স্টাফ অ্যাকাউন্ট তৈরি করুন'}</span></button>
           <button class="admin-btn ghost" type="button" data-staff-modal="close">বাতিল</button>
@@ -578,8 +692,54 @@ function refreshAutoId(form, record = null) {
   if (hidden) hidden.value = id;
 }
 
+function validateCreateStep(form, step) {
+  clearModalError();
+  const focusError = (control, message) => {
+    control?.setAttribute('aria-invalid', 'true');
+    modalError(message);
+    control?.focus({ preventScroll: true });
+    return false;
+  };
+  if (step === 1) {
+    const name = form.querySelector('#staffField-fullName');
+    if (!String(name?.value || '').trim()) return focusError(name, 'পূর্ণ নাম লিখুন।');
+  }
+  if (step === 2) {
+    const role = form.querySelector('#staffField-role');
+    if (!CREATABLE_STAFF_ROLES.includes(role?.value)) return focusError(role, 'স্টাফের জন্য একটি বৈধ ভূমিকা বাছুন।');
+    const password = form.querySelector('#staffField-password');
+    const confirm = form.querySelector('#staffField-confirmPassword');
+    const value = String(password?.value || '');
+    if (value.length < STAFF_DIRECTORY_RULES.passwordMin || value.length > STAFF_DIRECTORY_RULES.passwordMax) {
+      return focusError(password, `পাসওয়ার্ড ${bn(STAFF_DIRECTORY_RULES.passwordMin)}–${bn(STAFF_DIRECTORY_RULES.passwordMax)} অক্ষরের হতে হবে।`);
+    }
+    if (value !== String(confirm?.value || '')) return focusError(confirm, 'দুটি পাসওয়ার্ড মিলছে না।');
+  }
+  return true;
+}
+
+function showCreateStep(form, requestedStep) {
+  const sections = [...form.querySelectorAll('[data-staff-create-step]')];
+  if (!sections.length) return 0;
+  const step = Math.max(1, Math.min(sections.length, Number(requestedStep) || 1));
+  form.dataset.currentCreateStep = String(step);
+  sections.forEach(section => { section.hidden = Number(section.dataset.staffCreateStep) !== step; });
+  form.querySelectorAll('[data-staff-step-indicator]').forEach(indicator => {
+    if (Number(indicator.dataset.staffStepIndicator) === step) indicator.setAttribute('aria-current', 'step');
+    else indicator.removeAttribute('aria-current');
+  });
+  const footer = form.querySelector('[data-staff-create-footer]');
+  if (footer) footer.hidden = step !== sections.length;
+  const activeSection = sections.find(section => Number(section.dataset.staffCreateStep) === step);
+  activeSection?.querySelector('input:not([type="hidden"]), select, textarea, button')?.focus({ preventScroll: true });
+  const body = $('#staffModalBody');
+  if (body) body.scrollTop = 0;
+  return step;
+}
+
 function wireForm(form, record) {
   const assignmentHost = form.querySelector('#staffAssignmentFields');
+  if (!record) showCreateStep(form, 1);
   form.querySelector('#staffField-classes')?.addEventListener('change', () => renderClassMatrix(form, record));
   renderClassMatrix(form, record);
   form.querySelector('#staffField-fullName')?.addEventListener('input', () => refreshAutoId(form, record));
@@ -600,8 +760,31 @@ function wireForm(form, record) {
     renderClassMatrix(form, null);
   });
 
+  if (!record) {
+    form.addEventListener('click', event => {
+      const next = event.target.closest('[data-staff-step-next]');
+      const back = event.target.closest('[data-staff-step-back]');
+      if (!next && !back) return;
+      event.preventDefault();
+      const current = Number(form.dataset.currentCreateStep) || 1;
+      if (next) {
+        if (validateCreateStep(form, current)) showCreateStep(form, current + 1);
+      } else showCreateStep(form, current - 1);
+    });
+    form.addEventListener('input', event => {
+      event.target.removeAttribute('aria-invalid');
+      if (form.querySelector('[aria-invalid="true"]')) return;
+      clearModalError();
+    });
+  }
+
   form.addEventListener('submit', async event => {
     event.preventDefault();
+    if (!record && (Number(form.dataset.currentCreateStep) || 1) < 3) {
+      const current = Number(form.dataset.currentCreateStep) || 1;
+      if (validateCreateStep(form, current)) showCreateStep(form, current + 1);
+      return;
+    }
     clearModalError();
     const submit = form.querySelector('[type="submit"]');
     const fields = collectForm(form);
@@ -616,6 +799,14 @@ function wireForm(form, record) {
       : await createStaff(fields);
     if (submit) { submit.disabled = false; submit.removeAttribute('aria-busy'); }
     if (!result.ok) {
+      const errors = Object.entries(result.errors || {});
+      if (!record && errors.length) {
+        const names = errors.map(([name]) => name);
+        const targetStep = names.some(name => ['fullName', 'username'].includes(name)) ? 1
+          : names.some(name => ['password', 'confirmPassword', 'role', 'status', 'mobile', 'email', 'joiningDate', 'address'].includes(name)) ? 2
+            : 3;
+        showCreateStep(form, targetStep);
+      }
       modalError(result.error || 'সংরক্ষণ করা যায়নি।');
       if (result.errors) {
         for (const [name, message] of Object.entries(result.errors)) {
@@ -631,6 +822,25 @@ function wireForm(form, record) {
     toastSafe(record ? 'স্টাফ তথ্য হালনাগাদ করা হয়েছে' : `স্টাফ তৈরি হয়েছে — Staff ID ${result.staff.staffId}`);
     await refresh();
   });
+}
+
+/* ---------------------------------------------------------------------------
+   More actions — the shared staff dialog presents them as a bottom sheet
+   ------------------------------------------------------------------------ */
+
+async function openMoreSheet(staffId) {
+  const record = state.staff.find(item => item.staffId === staffId) || await findStaff(staffId);
+  if (!record) {
+    state.openMore = null;
+    state.pendingMoreFocusId = null;
+    renderList();
+    toastSafe('স্টাফ অ্যাকাউন্ট পাওয়া যায়নি।');
+    return;
+  }
+  state.pendingMoreFocusId = staffId;
+  openModal('স্টাফ অ্যাকশন', `${record.fullName} — আরও`, staffMoreActionsHtml(record), { sheet: true });
+  const backdrop = $('#staffModalBackdrop');
+  if (backdrop) backdrop.dataset.moreStaffId = record.staffId;
 }
 
 /* ---------------------------------------------------------------------------
@@ -727,9 +937,10 @@ async function openReset(staffId) {
       return;
     }
     form.reset();
-    closeModal();
+    closeModal({ restoreFocus: false });
     toastSafe(`${record.fullName} — পাসওয়ার্ড রিসেট হয়েছে (পরবর্তী লগইনে বদল করতে হবে)`);
     await refresh();
+    restoreMoreTriggerFocus(staffId);
   });
 }
 
@@ -757,18 +968,20 @@ async function confirmDelete(staffId) {
   if (!result.ok) {
     if (result.code === 'PROTECTED' || result.code === 'HISTORY') {
       const fallback = await setStaffStatus(staffId, 'inactive');
-      closeModal();
+      closeModal({ restoreFocus: false });
       toastSafe(fallback.ok ? 'ইতিহাস অক্ষত রেখে অ্যাকাউন্ট নিষ্ক্রিয় করা হয়েছে' : (result.error || 'মুছে ফেলা যায়নি'));
       await refresh();
+      restoreMoreTriggerFocus(staffId);
       return;
     }
     modalError(result.error || 'মুছে ফেলা যায়নি।');
     return;
   }
   state.openMore = null;
-  closeModal();
+  closeModal({ restoreFocus: false });
   toastSafe('স্টাফ অ্যাকাউন্ট মুছে ফেলা হয়েছে');
   await refresh();
+  restoreMoreTriggerFocus(staffId);
 }
 
 async function changeStatus(staffId, status) {
@@ -819,6 +1032,7 @@ export function initStaffManagement({ onChanged } = {}) {
   $('#staffSearch')?.addEventListener('input', event => {
     state.query = event.target.value || '';
     state.openMore = null;
+    state.openDetails = null;
     renderList();
   });
 
@@ -826,6 +1040,8 @@ export function initStaffManagement({ onChanged } = {}) {
     const input = $('#staffSearch');
     if (input) input.value = '';
     state.query = '';
+    state.openMore = null;
+    state.openDetails = null;
     renderList();
     input?.focus();
   });
@@ -834,6 +1050,8 @@ export function initStaffManagement({ onChanged } = {}) {
     const chip = event.target.closest('[data-staff-role]');
     if (!chip) return;
     state.role = chip.dataset.staffRole;
+    state.openMore = null;
+    state.openDetails = null;
     renderRoleFilter();
     renderList();
   });
@@ -842,7 +1060,16 @@ export function initStaffManagement({ onChanged } = {}) {
     const chip = event.target.closest('[data-staff-status]');
     if (!chip) return;
     state.status = chip.dataset.staffStatus;
+    state.openMore = null;
+    state.openDetails = null;
     renderStatusFilter();
+    renderList();
+  });
+
+  $('#staffSort')?.addEventListener('change', event => {
+    state.sort = event.target.value || 'default';
+    state.openMore = null;
+    state.openDetails = null;
     renderList();
   });
 
@@ -850,9 +1077,21 @@ export function initStaffManagement({ onChanged } = {}) {
     const button = event.target.closest('[data-staff-action]');
     if (!button) return;
     const { staffAction, staffId, nextStatus } = button.dataset;
-    if (staffAction === 'more') {
-      state.openMore = state.openMore === staffId ? null : staffId;
+    if (staffAction === 'toggle-details') {
+      const willOpen = state.openDetails !== staffId;
+      state.openMore = null;
+      state.openDetails = willOpen ? staffId : null;
       renderList();
+      const replacement = $$('#staffList [data-staff-action="toggle-details"]')
+        .find(candidate => candidate.dataset.staffId === staffId);
+      replacement?.focus({ preventScroll: true });
+      return;
+    }
+    if (staffAction === 'more') {
+      state.openDetails = staffId;
+      state.openMore = staffId;
+      renderList();
+      await openMoreSheet(staffId);
       return;
     }
     state.openMore = null;
@@ -867,12 +1106,36 @@ export function initStaffManagement({ onChanged } = {}) {
   });
 
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !$('#staffModalBackdrop')?.hidden) closeModal();
+    const backdrop = $('#staffModalBackdrop');
+    if (!backdrop || backdrop.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [...backdrop.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter(element => !element.closest('[hidden]') && element.getAttribute('aria-hidden') !== 'true');
+    if (!focusable.length) {
+      event.preventDefault();
+      backdrop.querySelector('.staff-modal')?.focus({ preventScroll: true });
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !backdrop.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus({ preventScroll: true });
+    } else if (!event.shiftKey && (document.activeElement === last || !backdrop.contains(document.activeElement))) {
+      event.preventDefault();
+      first.focus({ preventScroll: true });
+    }
   });
 
   state.wired = true;
 }
 
-/* The Staff Management Overview widget (Admin Profile / Dashboard) drives the
-   exact same dialogs and mutations — one management system, surfaced twice. */
+/* The dedicated Staff view owns staff mutations and the searchable directory.
+   The Account/Profile section is reserved for the signed-in Admin's account. */
 export { STAFF_ROLE_META, STAFF_STATUS, openProfile, openEdit, changeStatus, openReset, refresh as refreshStaffList };

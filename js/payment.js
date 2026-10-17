@@ -37,6 +37,9 @@ function showCounterView(view) {
     seat.classList.toggle('active',active);
     if(active)seat.setAttribute('aria-current','page');else seat.removeAttribute('aria-current');
   });
+  // The counter's More surface is its Settings hub; every return starts at the
+  // group menu instead of retaining a previous subsection.
+  if(target==='more') resetSettingsHub('#payMorePanel');
   return true;
 }
 const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
@@ -228,7 +231,7 @@ new MutationObserver(() => {
 
 let day=new Date().toDateString();
 const checkDay=()=>{const current=new Date().toDateString();if(current!==day){day=current;$('#payCurrentDate').textContent=new Intl.DateTimeFormat('bn-BD',{day:'numeric',month:'long',year:'numeric'}).format(new Date());void refreshToday();}};
-setInterval(checkDay,30000);
+window.setInterval(checkDay,30000);
 window.addEventListener('focus',checkDay); document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDay();});
 
 installPanelGuard(); void rememberPanelPage();

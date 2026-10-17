@@ -2,7 +2,7 @@
    (welcome + 3-column launcher grid + আজকের ক্লাস + সর্বশেষ ৩টি কাজ), bulk
    marking, grouping and paging. The Playwright spec covers CRUD end to end;
    this file covers the management layer added on top of it. */
-import test, { before } from 'node:test';
+import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { teachingRepository, todayISO } from '../js/teaching-data.js';
@@ -42,7 +42,7 @@ before(async () => {
     /* The shell unhides before reload() has read the roster and assignments, so
        wait for the class pickers reload() rewrites — that is the first frame
        that carries real data, and every assertion below reads from it. */
-    ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব assigned class')
+    ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব নির্ধারিত শ্রেণি')
   });
   assert.equal($('#teacherShell').hidden, false, 'the panel must open');
 });
@@ -252,7 +252,7 @@ test('the records screen keeps the class scope picker the home no longer needs',
   assert.equal(titles().includes('অনার্সের কাজ'), false, 'another class drops out of the list');
 
   pick('all');
-  assert.ok(titles().includes('অনার্সের কাজ'), 'সব assigned class brings everything back');
+  assert.ok(titles().includes('অনার্সের কাজ'), 'সব নির্ধারিত শ্রেণি brings everything back');
   assert.equal($('#teacherTodayClassCount').textContent, '০টি ক্লাস', 'no manager routine is seeded in this panel');
 });
 
@@ -272,6 +272,44 @@ test('Teacher Settings is the shared five-group hub, with no duplicated control'
     assert.equal(hub.querySelectorAll(`[data-settings-row="${key}"]`).length, 1, key);
   }
   assert.equal(hub.querySelector('[data-settings-group="notification"]').dataset.settingsOwner, 'notification');
+});
+
+test('Teacher Settings re-entry clears a previously open group and keeps one active screen', async () => {
+  const hub = $('[data-settings-hub="teacher"]');
+  await ctx.waitFor(() => Boolean(hub.querySelector('[data-settings-groups]')));
+  const nav = hub.querySelector('[data-settings-groups]');
+  const groups = [...hub.querySelectorAll('[data-settings-group]')];
+  const openProfile = async () => {
+    ctx.click($('.admin-bottom [data-teacher-view="more"]'));
+    await ctx.waitFor(() => $('#teacherMore').hidden === false);
+    ctx.click($('#teacherMore [data-teacher-view="profile"]'));
+    await ctx.waitFor(() => $('#teacherProfile').hidden === false);
+  };
+
+  await openProfile();
+  ctx.click(hub.querySelector('[data-settings-open="security"]'));
+  await ctx.flush(2);
+  assert.equal(hub.querySelector('[data-settings-group="security"]').hidden, false);
+  assert.equal(nav.hidden, true);
+
+  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  await ctx.waitFor(() => $('#teacherHome').hidden === false);
+  await openProfile();
+  assert.equal($$('.teacher-view:not([hidden])').length, 1, 'exactly one Teacher screen is visible');
+  assert.equal(nav.hidden, false, 're-entering Settings restores the group menu');
+  assert.ok(groups.every(group => group.hidden), 'no stale Security group remains visible');
+  assert.equal($('.admin-bottom [aria-current="page"]').dataset.teacherView, 'more');
+
+  ctx.click(hub.querySelector('[data-settings-open="account"]'));
+  await ctx.flush(2);
+  assert.equal(hub.querySelector('[data-settings-group="account"]').hidden, false);
+  assert.equal(hub.querySelector('[data-settings-group="security"]').hidden, true);
+  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  await ctx.waitFor(() => $('#teacherHome').hidden === false);
+  await openProfile();
+  assert.equal(nav.hidden, false, 'a repeated Account → Settings return is idempotent');
+  assert.ok(groups.every(group => group.hidden));
+  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
 });
 
 test('the grid doors open their own screens and the routine lives on one screen', async () => {
@@ -307,3 +345,5 @@ test('the exam seat lands on one CTA and four doors, not a nine-tile shelf', asy
   assert.equal($('#teacherExamWorkspace').hidden, false, 'CTA opens the workspace home');
   assert.ok($('#teacherExamWorkspace [data-exam-action="new-mcq"]'), 'create buttons live one tap in');
 });
+
+after(() => ctx?.window.close());

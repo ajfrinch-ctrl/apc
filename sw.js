@@ -1,3 +1,10 @@
+// v363: shared Dhaka-time advice bank, accessible home carousel, semantic skin, and role navigation polish.
+// v356: dashboard heroes use a colorful, high-contrast gradient and distinct readable metric cards.
+// v352: Admin Staff Management adds sorting, secure card details and a three-step create flow.
+// v350: Manager student cards are compact disclosures; pending applications live only in the review queue.
+// v349: Admin Dashboard Quick Access spans the grid at every viewport, with its icon above the label.
+// v348: Staff cards start compact; the inline disclosure opens one selected person's extra details on demand.
+// v347: Staff Management action menus reset on navigation/filters; the Profile hero no longer repeats name, login, role or the full staff directory.
 // v251: the home homework tile opens the existing assignment form in one tap;
 //       its class/subject/status fields, store and save path remain unchanged.
 // v250: the Teacher name is also visible in the responsive topbar identity slot;
@@ -113,7 +120,7 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 340;
+const CACHE_VERSION = 363;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',
@@ -163,9 +170,7 @@ const APP_SHELL = [
   './assets/icons/ai-3d/backup.svg',
   './assets/icons/ai-3d/bell.svg',
   './assets/icons/ai-3d/bolt.svg',
-  './assets/icons/ai-3d/book.png',
   './assets/icons/ai-3d/book.svg',
-  './assets/icons/ai-3d/calendar.png',
   './assets/icons/ai-3d/calendar.svg',
   './assets/icons/ai-3d/chat.svg',
   './assets/icons/ai-3d/check.svg',
@@ -179,7 +184,6 @@ const APP_SHELL = [
   './assets/icons/ai-3d/delete.svg',
   './assets/icons/ai-3d/download.svg',
   './assets/icons/ai-3d/edit.svg',
-  './assets/icons/ai-3d/exam.png',
   './assets/icons/ai-3d/exam.svg',
   './assets/icons/ai-3d/eye.svg',
   './assets/icons/ai-3d/filter.svg',
@@ -220,7 +224,6 @@ const APP_SHELL = [
   './assets/icons/ai-3d/upload.svg',
   './assets/icons/ai-3d/user.svg',
   './assets/icons/ai-3d/users.svg',
-  './assets/icons/ai-3d/wallet.png',
   './assets/icons/ai-3d/wallet.svg',
   './assets/icons/ai-3d/warning.svg',
   './assets/icons/ai-3d/whatsapp.svg',
@@ -361,6 +364,20 @@ const APP_SHELL = [
   './js/course-editor.js',
   './js/daily-quote.js',
   './assets/daily-quotes.json',
+  './js/daily-advice.js',
+  './assets/daily-advice.json',
+  './js/home-hero.js',
+  './js/home-hero-entry.js',
+  './js/advice-admin.js',
+  './js/advice-admin-entry.js',
+  './assets/home-hero/hero-study.avif',
+  './assets/home-hero/hero-study.webp',
+  './assets/home-hero/hero-class.avif',
+  './assets/home-hero/hero-class.webp',
+  './assets/home-hero/hero-library.avif',
+  './assets/home-hero/hero-library.webp',
+  './assets/home-hero/hero-advice.avif',
+  './assets/home-hero/hero-advice.webp',
   './js/exam-manager.js',
   './js/exam-archive.js',
   './js/exam-pdf.js',

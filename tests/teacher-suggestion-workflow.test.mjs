@@ -38,7 +38,7 @@ before(async () => {
   await openStaffPanel(ctx, 'teacher', {
     importPanel: () => import('../js/teacher.js'),
     shellId: 'teacherShell',
-    ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব assigned class')
+    ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব নির্ধারিত শ্রেণি')
   });
   await teachingRepository.saveActivity({
     type: 'suggestion', title: 'অধ্যায় ৩ এর নোট', subject: 'গণিত',

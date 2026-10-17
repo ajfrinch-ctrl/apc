@@ -272,13 +272,13 @@ export function watchOwnPanelSession(role, { intervalMs = 60000 } = {}) {
     stop();
     showPanelLock({ role, reason: `${PANEL_LABELS[role] || 'এই প্যানেল'}র সেশন আর নেই — নিরাপত্তার জন্য কন্টেন্ট বন্ধ করা হয়েছে।` });
   };
-  const timer = setInterval(check, intervalMs);
+  const timer = window.setInterval(check, intervalMs);
   const onVisible = () => { if (document.visibilityState === 'visible') void check(); };
   document.addEventListener('visibilitychange', onVisible);
   function stop() {
     if (stopped) return;
     stopped = true;
-    clearInterval(timer);
+    window.clearInterval(timer);
     window.removeEventListener('pagehide', stop);
     window.removeEventListener('beforeunload', stop);
     window.document.removeEventListener('visibilitychange', onVisible);

@@ -76,16 +76,20 @@
 .chapter-practice-heading h2:focus-visible{outline:2px solid var(--color-primary);outline-offset:4px;border-radius:2px}
 .course-result-marks strong{color:var(--color-text);font-size:var(--font-md)}
 .course-empty{margin:0}
-@media (min-width:560px){.course-chapter-actions{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (min-width:721px){
-  .course-head{grid-template-columns:minmax(220px,320px) minmax(0,1fr);align-items:center}
-  .course-list{gap:var(--space-4)}
-  .course-chapter-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .course-chapter-action-panel{padding:var(--space-4)}
-}
 @media (max-width:420px){
   .course-mcq-start{align-items:flex-start;flex-direction:column}
   .course-mcq-start button{width:100%}
   .course-chapter-action-heading{flex-direction:column}
   .course-action-back{align-self:flex-start}
+}
+
+/* Preserve the established PDF/print geometry without restoring desktop screens. */
+@media print and (min-width: 560px) {
+  .course-chapter-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media print and (min-width: 721px) {
+  .course-head { grid-template-columns: minmax(220px, 320px) minmax(0, 1fr); align-items: center; }
+  .course-list { gap: var(--space-4); }
+  .course-chapter-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .course-chapter-action-panel { padding: var(--space-4); }
 }

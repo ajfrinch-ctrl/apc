@@ -16,7 +16,7 @@ import { listCourseContent } from './course-content.js';
 import { courseRepository, courseProgress, watchCourses } from './course-data.js';
 import { classByName } from './academics.js';
 import { NOTICE_CATEGORIES } from './notification-rules.js';
-import { mountSettingsHub } from './settings-hub.js';
+import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { initFixedShell } from './fixed-shell.js';
 import { registerServiceWorker } from './service-worker.js';
 import { mountReports, refreshReports } from './reports.js';
@@ -147,7 +147,7 @@ function renderHome() {
   const teacherId = String(state.teacher?.staffId && state.teacher?.kind !== 'system' ? state.teacher.staffId : currentTeacherId());
   $('#teacherHomeTitle').textContent = name ? `স্বাগতম, ${name}` : 'স্বাগতম';
   const idBadge = $('#teacherIdentityBadge');
-  if (idBadge) { idBadge.textContent = `Teacher ID: ${teacherId}`; idBadge.dataset.teacherId = teacherId; }
+  if (idBadge) { idBadge.textContent = `শিক্ষক আইডি: ${teacherId}`; idBadge.dataset.teacherId = teacherId; }
   const headerName = $('#teacherHeaderName');
   if (headerName) {
     headerName.textContent = name;
@@ -167,7 +167,7 @@ function renderHome() {
   $('#teacherTodayClassCount').textContent = hasAssignments ? `${bn(todays.length)}টি ক্লাস` : '—';
   renderTypeCounts();
   $('#teacherTodayClasses').innerHTML = todays.length
-    ? todays.map(item => `<article class="teacher-home-class"><span class="teacher-home-class-icon" aria-hidden="true">✓</span><div><h3>${esc(item.className || 'ক্লাস')} · ${esc(item.subject || 'বিষয় উল্লেখ নেই')}</h3><p>${esc(item.time || 'সময় নির্ধারিত নয়')}${item.room ? ` · ${esc(item.room)}` : ''}</p></div><small>আজকের</small></article>`).join('')
+    ? todays.map(item => `<article class="teacher-home-class"><span class="teacher-home-class-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false" data-icon="class-today" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/class-today.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><div><h3>${esc(item.className || 'ক্লাস')} · ${esc(item.subject || 'বিষয় উল্লেখ নেই')}</h3><p>${esc(item.time || 'সময় নির্ধারিত নয়')}${item.room ? ` · ${esc(item.room)}` : ''}</p></div><small>আজকের</small></article>`).join('')
     : '<p class="teacher-empty">আজ কোনো নির্ধারিত ক্লাস নেই</p>';
   $('#teacherRecent').innerHTML = records.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3).map(homeCard).join('') || `<p class="teacher-empty">${hasAssignments ? 'এখনও কোনো academic কাজ যোগ করা হয়নি।' : 'Assignment না থাকায় academic কাজ দেখানো হচ্ছে না।'}</p>`;
 }
@@ -218,12 +218,12 @@ function renderStudents() {
   }
   if (!$('#teacherStudentSearch').value.trim()) {
     $('#teacherStudentCount').textContent = '';
-    $('#teacherStudentList').innerHTML = '<p class="teacher-empty">শিক্ষার্থী খুঁজতে নাম, Student ID বা মোবাইল লিখুন।</p>';
+    $('#teacherStudentList').innerHTML = '<p class="teacher-empty">শিক্ষার্থী খুঁজতে নাম, শিক্ষার্থী আইডি বা মোবাইল লিখুন।</p>';
     return;
   }
   const students = searchTeachingStudents(state.students, $('#teacherStudentSearch').value).filter(s => className === 'all' || s.className === className);
   $('#teacherStudentCount').textContent = `${bn(students.length)} জন অনুমোদিত শিক্ষার্থী`;
-  $('#teacherStudentList').innerHTML = students.map(s => `<article class="teaching-card"><span class="student-avatar" aria-hidden="true">${esc(s.name.charAt(0))}</span><h3>${esc(s.name)}</h3><small>Student ID: ${esc(s.id)}</small><p>${esc(s.className)} • ${esc(s.group || '—')}</p><small>মোবাইল: ${esc(s.mobile || s.studentMobile || '—')}</small><div class="teaching-actions"><button type="button" data-student-detail="${esc(s.id)}">শেখার অগ্রগতি</button><button type="button" data-guardian-student="${esc(s.id)}">অভিভাবককে জানান</button></div></article>`).join('') || '<p class="teacher-empty">কোনো শিক্ষার্থী পাওয়া যায়নি</p>';
+  $('#teacherStudentList').innerHTML = students.map(s => `<article class="teaching-card"><span class="student-avatar" aria-hidden="true">${esc(s.name.charAt(0))}</span><h3>${esc(s.name)}</h3><small>শিক্ষার্থী আইডি: ${esc(s.id)}</small><p>${esc(s.className)} • ${esc(s.group || '—')}</p><small>মোবাইল: ${esc(s.mobile || s.studentMobile || '—')}</small><div class="teaching-actions"><button type="button" data-student-detail="${esc(s.id)}">শেখার অগ্রগতি</button><button type="button" data-guardian-student="${esc(s.id)}">অভিভাবককে জানান</button></div></article>`).join('') || '<p class="teacher-empty">কোনো শিক্ষার্থী পাওয়া যায়নি</p>';
 }
 const weekdayNames = { sat: 'শনিবার', sun: 'রবিবার', mon: 'সোমবার', tue: 'মঙ্গলবার', wed: 'বুধবার', thu: 'বৃহস্পতিবার' };
 function renderTeacherClasses() {
@@ -372,13 +372,13 @@ function renderAcademicReports() {
     const assignments = classRecords.filter(item => item.type === 'homework').length;
     return `<article class="teaching-card"><h3>${esc(className)}</h3><p>সংরক্ষিত attendance entry: ${bn(attendance)}</p><p>নথিভুক্ত marks entry: ${bn(marks)}</p><p>Assignment activity: ${bn(assignments)}</p></article>`;
   });
-  host.innerHTML = rows.join('') || '<p class="teacher-empty">রিপোর্ট দেখানোর মতো assigned class নেই। এখানে শুধু এই ব্রাউজারে সংরক্ষিত academic activity গণনা করা হয়; এটি পূর্ণাঙ্গ/সার্ভার রিপোর্ট নয়।</p>';
+  host.innerHTML = rows.join('') || '<p class="teacher-empty">রিপোর্ট দেখানোর মতো নির্ধারিত শ্রেণি নেই। এখানে শুধু এই ব্রাউজারে সংরক্ষিত একাডেমিক কাজ গণনা করা হয়; এটি পূর্ণাঙ্গ সার্ভার-রিপোর্ট নয়।</p>';
 }
 function renderTeacherProfile() {
   const host = $('#teacherProfileCard'); if (!host) return;
   const account = state.teacher || {};
   const teacherId = String(account.staffId && account.kind !== 'system' ? account.staffId : currentTeacherId());
-  host.innerHTML = `<div class="manager-profile-list"><div><small>নাম</small><strong>${esc(account.fullName || '—')}</strong></div><div><small>Teacher ID</small><strong id="teacherProfileId">${esc(teacherId)}</strong></div><div><small>Username</small><strong>${esc(account.username || '—')}</strong></div><div><small>যোগাযোগ</small><strong>${esc(account.mobile || '—')}</strong></div><div><small>Role</small><strong>Teacher — Academic</strong></div><div><small>Assigned class/batch</small><strong>${bn(state.assignments.length)}</strong></div></div>`;
+  host.innerHTML = `<div class="manager-profile-list"><div><small>নাম</small><strong>${esc(account.fullName || '—')}</strong></div><div><small>শিক্ষক আইডি</small><strong id="teacherProfileId">${esc(teacherId)}</strong></div><div><small>ইউজারনেম</small><strong>${esc(account.username || '—')}</strong></div><div><small>যোগাযোগ</small><strong>${esc(account.mobile || '—')}</strong></div><div><small>ভূমিকা</small><strong>শিক্ষক — একাডেমিক</strong></div><div><small>নির্ধারিত শ্রেণি/ব্যাচ</small><strong>${bn(state.assignments.length)}</strong></div></div>`;
 }
 
 function renderCourseChapters() {
@@ -493,6 +493,8 @@ function setView(view) {
     el.classList.toggle('active', active);
     if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
+  // Returning to the Teacher's Settings screen always opens the group menu.
+  if (view === 'profile') resetSettingsHub('[data-settings-hub="teacher"]');
   paintTeacherExam();
   $('#teacherMain').scrollTo({ top: 0, behavior: 'instant' }); render();
   // The open page lives in the URL, so a refresh lands back on it.
@@ -515,7 +517,7 @@ async function reload() {
     state.ready = true;
     ['teacherClassFilter', 'teacherStudentClass', 'teacherNoticeClass'].forEach(id => {
       const select = $('#' + id), selected = select.value;
-      select.innerHTML = `<option value="all">সব assigned class</option>${classOptions(selected)}`;
+      select.innerHTML = `<option value="all">সব নির্ধারিত শ্রেণি</option>${classOptions(selected)}`;
       if ([...select.options].some(option => option.value === selected)) select.value = selected; else select.value = 'all';
     });
     $('#teacherDataError').hidden = true; render(); return true;
@@ -686,7 +688,7 @@ function showProgress(a) {
           ${quickFills.map(fill => `<button type="button" data-quick-fill="${esc(fill.value)}">${fill.label}</button>`).join('')}
           <button type="button" id="teacherOnlyMissing" aria-pressed="false">শুধু বাকিরা</button>
         </div>
-        ${students.length > 6 ? `<label for="teacherProgressSearch">শিক্ষার্থী খুঁজুন</label><input id="teacherProgressSearch" type="search" placeholder="নাম বা Student ID" autocomplete="off">` : ''}
+        ${students.length > 6 ? `<label for="teacherProgressSearch">শিক্ষার্থী খুঁজুন</label><input id="teacherProgressSearch" type="search" placeholder="নাম বা শিক্ষার্থী আইডি" autocomplete="off">` : ''}
       </div>
       <div class="teacher-progress-list">${students.map((student, index) => {
         const p = a.progress[student.id] || {};
@@ -775,7 +777,7 @@ function showDelete(a) {
 function showStudent(id) {
   const s = state.students.find(student => student.id === id); if (!s) return;
   const records = own().filter(a => a.status === 'published' && matchesStudent(a, s) && a.progress[s.id]);
-  openModal(s.name, `<p class="modal-copy">Student ID: ${esc(s.id)} • ${esc(s.className)} • ${esc(s.group || '—')}</p><div class="teacher-record-list">${records.map(a => `<article class="teaching-card"><small>${ACTIVITY_TYPES[a.type].label}</small><h3>${esc(a.title)}</h3><p>${a.type === 'exam' ? `${bn(a.progress[s.id].value)} / ${bn(a.totalMarks)}` : PROGRESS_LABELS[a.progress[s.id].value] || '—'}</p></article>`).join('') || '<p class="teacher-empty">এখনও কোনো নম্বর বা অগ্রগতি নথিভুক্ত হয়নি।</p>'}</div>`);
+  openModal(s.name, `<p class="modal-copy">শিক্ষার্থী আইডি: ${esc(s.id)} • ${esc(s.className)} • ${esc(s.group || '—')}</p><div class="teacher-record-list">${records.map(a => `<article class="teaching-card"><small>${ACTIVITY_TYPES[a.type].label}</small><h3>${esc(a.title)}</h3><p>${a.type === 'exam' ? `${bn(a.progress[s.id].value)} / ${bn(a.totalMarks)}` : PROGRESS_LABELS[a.progress[s.id].value] || '—'}</p></article>`).join('') || '<p class="teacher-empty">এখনও কোনো নম্বর বা অগ্রগতি নথিভুক্ত হয়নি।</p>'}</div>`);
 }
 
 ['teacherClassFilter', 'teacherStudentClass'].forEach(id => { $('#' + id).insertAdjacentHTML('beforeend', classOptions()); });
@@ -812,7 +814,7 @@ function renderAcademic() {
   if (!host) return;
   const classes = assignedClasses();
   host.textContent = classes.length
-    ? `আপনার assigned class: ${classes.join(' • ')} — এই শ্রেণি/বিষয়ের কাজই এখানে যোগ হবে।`
+    ? `আপনার নির্ধারিত শ্রেণি: ${classes.join(' • ')} — এই শ্রেণি/বিষয়ের কাজ এখানে যোগ হবে।`
     : 'Manager এখনো কোনো class/batch assignment দেননি। Assignment পেলে একাডেমিক কাজ খুলে যাবে।';
   const records = own();
   const counts = {
@@ -1011,7 +1013,7 @@ $('.teacher-type-tabs')?.addEventListener('click', event => {
   state.recordLimit = 15; setView(tab.dataset.typeTab);
 });
 $('#teacherRecordMore').addEventListener('click', () => { state.recordLimit += 15; renderRecords(); });
-/* আমার ক্লাস: every assigned class opens its own work. The list is one row per
+/* আমার ক্লাস: every নির্ধারিত শ্রেণি opens its own work. The list is one row per
    Teacher + Class + Batch, so a teacher with three classes gets three buttons —
    choosing one must never leave the other two behind. */
 $('#teacherClassList')?.addEventListener('click', event => {
@@ -1110,7 +1112,7 @@ watchTeachingData(() => {
 });
 /* Admin assignment changes reach this panel in real time: the local projection
    event (same tab) and the cloud bridge (other devices). Either one reloads the
-   scope — a newly assigned class shows up without a manual refresh. */
+   scope — a newly নির্ধারিত শ্রেণি shows up without a manual refresh. */
 window.addEventListener('teacher-assignments-updated', () => {
   if (!state.busy && $('#teacherShell') && !$('#teacherShell').hidden) reload();
 });

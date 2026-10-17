@@ -441,7 +441,7 @@ export function initStudentPractice({ getStudent, getAccount }) {
   watchQuestionBank(() => { if (!busy) refresh(); });
   /* One heartbeat for the whole module; it only acts while a sheet is on
      screen, so the list and the result cost nothing. */
-  setInterval(tickClock, 1000);
+  window.setInterval(tickClock, 1000);
   refresh();
   return () => refresh();
 }

@@ -13,15 +13,17 @@
      • check basic record shape, so the database can't be used as free storage;
      • keep push tokens write-only (only Cloud Functions read them).
 
-   What they DO NOT do: tell one app user from another. Any signed-in identity
-   can read and change the synced data. That is the accepted interim risk;
-   docs/RTDB-PER-USER-RULES-PLAN.md is the replacement.
+   What they DO NOT do: tell one app user from another for the legacy sync
+   bridge. That is the accepted interim risk; docs/RTDB-PER-USER-RULES-PLAN.md
+   is the replacement. The separate public advice bank is an exception: it is
+   readable by signed-in clients, but writes require active Admin/Manager claims.
 
    Run: node tools/rtdb-rules/build-interim-rules.mjs */
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const AUTH = 'auth != null';
+const ADVICE_EDITOR = `${AUTH} && auth.token.status === 'active' && auth.token.mustChangePassword !== true && (auth.token.role === 'admin' || auth.token.role === 'manager')`;
 const STAFF_ROLES = ['admin', 'manager', 'teacher', 'payment'];
 const RECORD_COLLECTIONS = ['students', 'transactions', 'notices', 'routine', 'teaching', 'academics', 'courseContent', 'courses', 'teacherAssignments'];
 const hasChildren = "newData.hasChildren()";
@@ -107,6 +109,17 @@ export function buildInterimRules() {
           at: { '.validate': 'newData.isNumber()' },
           $other: { '.validate': false }
         }
+      }
+    },
+    // Public educational advice: all signed-in clients can read; only an
+    // active Admin/Manager claim can add, edit, activate, reorder or delete.
+    // Records are stored directly at adviceBank/{adviceId}; the RTDB key is
+    // the ID, so no wrapper, metadata, dailyAdvice node or pin fields exist.
+    adviceBank: {
+      '.read': AUTH,
+      '.write': ADVICE_EDITOR,
+      $adviceId: {
+        '.validate': "newData.numChildren() === 6 && newData.hasChildren(['text', 'source', 'active', 'order', 'createdBy', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 140 && newData.child('source').isString() && newData.child('source').val().length > 0 && newData.child('source').val().length <= 120 && newData.child('active').isBoolean() && newData.child('order').isNumber() && newData.child('order').val() >= 1 && newData.child('createdBy').isString() && newData.child('createdBy').val().length > 0 && newData.child('createdBy').val().length <= 128 && newData.child('createdAt').isNumber() && newData.child('createdAt').val() >= 0"
       }
     },
     // Settings document (scalar fields are normal here).

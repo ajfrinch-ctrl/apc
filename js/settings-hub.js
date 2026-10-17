@@ -1,8 +1,8 @@
-/* One Settings structure for every role (docs/APP-ARCHITECTURE.md §29).
-
-   Every panel's Settings surface — Student আরও → সেটিংস, Teacher/Manager প্রোফাইল,
-   Admin অ্যাকাউন্ট and the Cash Counter's আরও — is the same five groups in the same
-   order:
+/* One Settings structure for the staff roles and Cash Counter
+   (docs/APP-ARCHITECTURE.md §29). The Student keeps its compact inline controls
+   inside আরও (no duplicate Settings page); this hub serves Teacher/Manager
+   প্রোফাইল, Admin অ্যাকাউন্ট and the Cash Counter's আরও with the same five groups
+   in the same order:
 
      অ্যাকাউন্ট   প্রোফাইল · পাসওয়ার্ড · লগআউট
      নোটিফিকেশন  চালু/বন্ধ · অনুমতি · ব্যাকগ্রাউন্ড · শব্দ · প্রিভিউ · ইতিহাস

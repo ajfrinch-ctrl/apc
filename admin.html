@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.cloudfunctions.net https://*.firebaseapp.com https://*.google.com https://www.gstatic.com https://api.open-meteo.com http://localhost:5001 http://localhost:8080 http://localhost:9000 http://localhost:9099 http://127.0.0.1:5001 http://127.0.0.1:8080 http://127.0.0.1:9000 http://127.0.0.1:9099 ws://localhost:5001 ws://localhost:8080 ws://localhost:9000 ws://localhost:9099 ws://127.0.0.1:5001 ws://127.0.0.1:8080 ws://127.0.0.1:9000 ws://127.0.0.1:9099; frame-src 'self' https://www.google.com/recaptcha/ https://*.firebaseapp.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
-  <script src="js/sanitize-url.js"></script>
-  <script src="js/app-entry.js?v=340" data-entry="admin"></script>
-  <script type="module" src="js/admin.js?v=340"></script>
-  <script src="js/topbar-connectivity.js?v=25161005-syncborder" defer></script>
-  <script type="module" src="js/realtime-sync-entry.js"></script>
-  <script src="js/appearance-boot.js"></script>
-  <script src="js/theme-logos.js?v=158"></script>
+  <script src="js/sanitize-url.js?v=363"></script>
+  <script src="js/app-entry.js?v=363" data-entry="admin"></script>
+  <script type="module" src="js/admin.js?v=363"></script>
+  <script type="module" src="js/advice-admin-entry.js?v=363"></script>
+  <script src="js/topbar-connectivity.js?v=363" defer></script>
+  <script type="module" src="js/realtime-sync-entry.js?v=363"></script>
+  <script src="js/appearance-boot.js?v=363"></script>
+  <script src="js/theme-logos.js?v=363"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#0e7a55">
   <meta name="description" content="Active Plus Coaching এডমিন প্যানেল — ইউজারনেম ও পাসওয়ার্ড দিয়ে প্রবেশ।">
@@ -35,26 +36,26 @@
        HTML and fetches them in parallel, instead of a render-blocking serial
        waterfall (design-system.css first, its imports one round-trip later).
        tools/css-order-check.mjs + tests/css-order.test.mjs keep this in sync. -->
-  <link rel="stylesheet" href="css/foundation.css?v=340">
-  <link rel="stylesheet" href="css/ui-layout.css?v=340">
-  <link rel="stylesheet" href="css/ui-components.css?v=340">
-  <link rel="stylesheet" href="css/ui-forms.css?v=340">
-  <link rel="stylesheet" href="css/ui-features.css?v=340">
-  <link rel="stylesheet" href="css/notice-board.css?v=340">
-  <link rel="stylesheet" href="css/ui-status.css?v=340">
-  <link rel="stylesheet" href="css/ui-auth.css?v=340">
-  <link rel="stylesheet" href="css/app-polish.css?v=340">
-  <link rel="stylesheet" href="css/student-record.css?v=340">
-  <link rel="stylesheet" href="css/exam-archive.css?v=340">
-  <link rel="stylesheet" href="css/academics.css?v=340">
-  <link rel="stylesheet" href="css/notifications.css?v=340">
-  <link rel="stylesheet" href="css/course-hub.css?v=340">
-  <link rel="stylesheet" href="css/ui-wallet.css?v=340">
-  <script type="module" src="js/ui-accessibility.js"></script>
-  <script src="js/launch-screen.js" defer></script>
+  <link rel="stylesheet" href="css/foundation.css?v=363">
+  <link rel="stylesheet" href="css/ui-layout.css?v=363">
+  <link rel="stylesheet" href="css/ui-components.css?v=363">
+  <link rel="stylesheet" href="css/ui-forms.css?v=363">
+  <link rel="stylesheet" href="css/ui-features.css?v=363">
+  <link rel="stylesheet" href="css/notice-board.css?v=363">
+  <link rel="stylesheet" href="css/ui-status.css?v=363">
+  <link rel="stylesheet" href="css/ui-auth.css?v=363">
+  <link rel="stylesheet" href="css/app-polish.css?v=363">
+  <link rel="stylesheet" href="css/student-record.css?v=363">
+  <link rel="stylesheet" href="css/exam-archive.css?v=363">
+  <link rel="stylesheet" href="css/academics.css?v=363">
+  <link rel="stylesheet" href="css/notifications.css?v=363">
+  <link rel="stylesheet" href="css/course-hub.css?v=363">
+  <link rel="stylesheet" href="css/ui-wallet.css?v=363">
+  <script type="module" src="js/ui-accessibility.js?v=363"></script>
+  <script src="js/launch-screen.js?v=363" defer></script>
 </head>
 <body>
-  <!-- apcPanelBootLogin is created by the CSP-safe boot guard. --><script src="js/admin-boot-guard.js" defer></script>
+  <!-- apcPanelBootLogin is created by the CSP-safe boot guard. --><script src="js/admin-boot-guard.js?v=363" defer></script>
   <!-- First use lives on the login page only (index.html → "প্রথমবার ব্যবহার
        করছেন? Admin Account তৈরি করুন"). This panel never offers it again, and
        js/staff-auth.js refuses createInitialAdmin() once one Admin exists. -->
@@ -66,16 +67,16 @@
       <!-- System overview: identity, staff, data and security snapshots.
            No daily collection, routine or notice entry lives here. -->
       <section class="admin-view active" data-view-panel="dashboard" aria-labelledby="dashTitle">
-        <div class="admin-backup-reminder" id="backupReminder" role="status" hidden><span class="admin-backup-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="backup" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/backup.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="admin-backup-copy"><strong>ব্যাকআপ নেওয়া হয়নি</strong> — ৭ দিন ব্যাকআপ নেওয়া হয়নি।</span><a class="admin-backup-action" href="#backup">ব্যাকআপ এক্সপোর্ট করুন</a></div>
-        <article class="admin-hero">
-          <div class="admin-hero-head">
-            <div class="admin-hero-title">
-              <span class="admin-hero-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="home" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/home.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-              <div class="pay-portal-heading"><p class="pay-portal-kicker">সিস্টেম তদারকি</p><div class="admin-welcome" id="adminWelcome" hidden role="status" aria-live="polite"></div><h1 id="dashTitle">এক নজরে ইনস্টিটিউট</h1></div>
-            </div>
-            <time class="admin-date-pill" id="adminTodayDate"></time>
+        <div class="home-dashboard-intro admin-home-intro" data-home-intro>
+          <div class="admin-hero-title">
+            <span class="admin-hero-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="home" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/home.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            <div class="pay-portal-heading"><p class="pay-portal-kicker">সিস্টেম তদারকি</p><div class="admin-welcome" id="adminWelcome" hidden role="status" aria-live="polite"></div><h1 id="dashTitle">এক নজরে ইনস্টিটিউট</h1></div>
           </div>
-          <p class="admin-maintenance-flag" id="adminMaintenanceFlag" hidden role="status"></p>
+          <time class="admin-date-pill" id="adminTodayDate"></time>
+        </div>
+
+        <section class="admin-home-summary" aria-labelledby="adminSummaryTitle">
+          <h2 class="admin-summary-title" id="adminSummaryTitle">পরিচালনাগত সারাংশ</h2>
           <div class="admin-hero-stats">
             <div class="admin-stat-tile tone-mint">
               <span class="tile-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="users" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/users.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
@@ -98,7 +99,9 @@
               <p class="tile-value" id="dashProtectedCount">—</p>
             </div>
           </div>
-        </article>
+        </section>
+        <p class="admin-maintenance-flag" id="adminMaintenanceFlag" hidden role="status"></p>
+        <div class="admin-backup-reminder" id="backupReminder" role="status" hidden><span class="admin-backup-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="backup" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/backup.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="admin-backup-copy"><strong>ব্যাকআপ নেওয়া হয়নি</strong> — ৭ দিন ব্যাকআপ নেওয়া হয়নি।</span><a class="admin-backup-action" href="#backup">ব্যাকআপ এক্সপোর্ট করুন</a></div>
         <!-- Permission-driven section grid: one large icon + one clear label per
              section, rendered only for the capabilities this role holds. -->
         <p class="pay-section-label">দ্রুত অ্যাক্সেস</p>
@@ -115,23 +118,23 @@
         <p class="pay-section-label">সব প্যানেল · সুপার অ্যাডমিন</p>
         <div class="pay-grid is-3 admin-portal-grid" aria-label="সব প্যানেলে যান">
           <a class="pay-tile admin-portal-card" href="manager.html">
-            <span class="pay-tile-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="staff" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/staff.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            <span class="pay-tile-icon" aria-hidden="true"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="staff" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/staff.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
             <span class="pay-tile-label">ম্যানেজার প্যানেল</span>
           </a>
           <a class="pay-tile admin-portal-card" href="teacher.html">
-            <span class="pay-tile-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="teacher" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/teacher.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            <span class="pay-tile-icon" aria-hidden="true"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="teacher" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/teacher.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
             <span class="pay-tile-label">শিক্ষক প্যানেল</span>
           </a>
           <a class="pay-tile admin-portal-card" href="payment.html">
-            <span class="pay-tile-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="wallet" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/wallet.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            <span class="pay-tile-icon" aria-hidden="true"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="wallet" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/wallet.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
             <span class="pay-tile-label">পেমেন্ট কাউন্টার</span>
           </a>
         </div>
       </section>
 
       <!-- ================= Staff Management =================
-           Admin-controlled CRUD for every non-student user. A Staff ID is
-           unique, permanent and never mixed with a Student ID. -->
+           Admin-controlled CRUD for every non-student user. A স্টাফ আইডি is
+           unique, permanent and never mixed with a শিক্ষার্থী আইডি. -->
       <section class="admin-view" data-view-panel="staff" aria-labelledby="staffTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="back" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/back.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></button>
           <div><h1 id="staffTitle">স্টাফ ম্যানেজমেন্ট</h1><p class="staff-page-sub">সব স্টাফ অ্যাকাউন্ট খুঁজুন, ফিল্টার করুন ও পরিচালনা করুন</p></div>
@@ -145,7 +148,7 @@
             <span>নতুন স্টাফ তৈরি করুন</span>
           </button>
         </div>
-        <p class="finance-error" id="staffReadonlyNote" role="status" hidden>শুধুমাত্র Admin স্টাফ অ্যাকাউন্ট তৈরি, সম্পাদনা বা মুছতে পারবেন।</p>
+        <p class="finance-error" id="staffReadonlyNote" role="status" hidden>শুধুমাত্র এডমিন স্টাফ অ্যাকাউন্ট তৈরি, সম্পাদনা বা মুছতে পারবেন।</p>
         <div class="staff-toolbar">
           <label class="staff-search" for="staffSearch">
             <span class="staff-search-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="search" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/search.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
@@ -162,21 +165,31 @@
             <p class="staff-filter-label">স্ট্যাটাস</p>
             <div class="chip-row" id="staffStatusFilter" aria-label="স্ট্যাটাস ফিল্টার"></div>
           </div>
+          <label class="staff-sort-control" for="staffSort">
+            <span class="staff-filter-label">সাজানোর ক্রম</span>
+            <select id="staffSort" aria-label="স্টাফ তালিকা সাজান">
+              <option value="default">ডিফল্ট ক্রম</option>
+              <option value="name">নাম (বর্ণক্রম)</option>
+              <option value="id">স্টাফ আইডি</option>
+              <option value="role">ভূমিকা</option>
+              <option value="status">স্ট্যাটাস</option>
+            </select>
+          </label>
           <span class="staff-count-badge" id="staffCountBadge" aria-live="polite"></span>
         </div>
         <div class="staff-list" id="staffList"></div>
       </section>
 
-      <!-- Roles & Permissions: read-only projection of the existing role tree -->
+      <!-- রোল ও অনুমতি: বিদ্যমান অনুমতির তালিকা -->
       <section class="admin-view" data-view-panel="system" aria-labelledby="systemTitle">
         <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="back" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/back.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></button>
           <div><h1 id="systemTitle">সিস্টেম</h1><p class="admin-view-sub">রোল, নিরাপত্তা, সেটিংস ও একাডেমিক সেটআপ — সিস্টেমের সব নিয়ন্ত্রণ এক জায়গায়</p></div>
         </div>
         
-        <nav class="admin-more-menu admin-card" id="adminSystemMenu" aria-label="সিস্টেম division">
+        <nav class="admin-more-menu admin-card" id="adminSystemMenu" aria-label="সিস্টেম বিভাগ">
           <button class="admin-more-item admin-system-item" type="button" data-admin-view="roles" data-admin-cap="roles.manage">
             <span class="admin-more-icon" aria-hidden="true"></span>
-            <span class="admin-more-copy"><strong>Roles &amp; Permissions</strong><small>রোলভিত্তিক অনুমতির ম্যাট্রিক্স</small></span>
+            <span class="admin-more-copy"><strong>রোল ও অনুমতি</strong><small>রোলভিত্তিক অনুমতির ম্যাট্রিক্স</small></span>
             <span class="admin-menu-arrow" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="chevron-right" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/next.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
           </button>
           <button class="admin-more-item admin-system-item" type="button" data-admin-view="security" data-admin-cap="security.manage">
@@ -186,7 +199,7 @@
           </button>
           <button class="admin-more-item admin-system-item" type="button" data-admin-view="settings" data-admin-cap="settings.manage">
             <span class="admin-more-icon" aria-hidden="true"></span>
-            <span class="admin-more-copy"><strong>সিস্টেম সেটিংস</strong><small>অ্যাপ কন্ট্রোল, ব্র্যান্ডিং ও নোটিশ</small></span>
+            <span class="admin-more-copy"><strong>সিস্টেম সেটিংস</strong><small>অ্যাপ নিয়ন্ত্রণ, ব্র্যান্ডিং ও নোটিশ</small></span>
             <span class="admin-menu-arrow" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="chevron-right" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/next.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
           </button>
           <button class="admin-more-item admin-system-item" type="button" data-admin-view="academics" data-admin-cap="settings.manage">
@@ -196,7 +209,7 @@
           </button>
           <button class="admin-more-item admin-system-item" type="button" data-admin-view="migration" data-admin-cap="security.manage">
             <span class="admin-more-icon" aria-hidden="true"></span>
-            <span class="admin-more-copy"><strong>ভি-টু সিংক মাইগ্রেশন</strong><small>টিচার লিংক ও রোস্টার — কাটওভারের প্রস্তুতি</small></span>
+            <span class="admin-more-copy"><strong>ভি-টু সিংক মাইগ্রেশন</strong><small>শিক্ষক সংযোগ ও রোস্টার — কাটওভারের প্রস্তুতি</small></span>
             <span class="admin-menu-arrow" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="chevron-right" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/next.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
           </button>
         </nav>
@@ -284,10 +297,10 @@
 
       <!-- Data Management -->
       <section class="admin-view" data-view-panel="data" aria-labelledby="dataTitle">
-        <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="back" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/back.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></button>
+        <div class="page-intro"><button class="pay-back" type="button" data-admin-view="more" aria-label="আরও মেনুতে ফিরুন"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="back" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/back.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></button>
           <div><h1 id="dataTitle">ডেটা ম্যানেজমেন্ট</h1><p class="data-page-sub">সংগ্রহভিত্তিক রেকর্ড সংখ্যা, স্টোরেজ ও নিরাপদভাবে মুছে ফেলার নিয়ন্ত্রণ</p></div>
         </div>
-        <nav class="admin-more-menu admin-card" id="adminDataMenu" aria-label="ডেটা division">
+        <nav class="admin-more-menu admin-card" id="adminDataMenu" aria-label="ডেটা বিভাগ">
           <button class="admin-more-item admin-system-item" type="button" data-admin-view="backup" data-admin-cap="backup.manage">
             <span class="admin-more-icon" aria-hidden="true"></span>
             <span class="admin-more-copy"><strong>ব্যাকআপ ও রিস্টোর</strong><small>সম্পূর্ণ ব্যাকআপ নিন ও ফিরিয়ে আনুন</small></span>
@@ -314,7 +327,7 @@
             <label for="dataClearSelect">সংগ্রহ নির্বাচন করুন</label>
             <select id="dataClearSelect" aria-label="মুছে ফেলার জন্য সংগ্রহ নির্বাচন"></select>
           </div>
-          <p class="admin-danger-note">সতর্কতা: নির্বাচিত সংগ্রহের সব রেকর্ড স্থায়ীভাবে মুছে যাবে। আগে Backup &amp; Restore থেকে ব্যাকআপ নিন।</p>
+          <p class="admin-danger-note">সতর্কতা: নির্বাচিত সংগ্রহের সব রেকর্ড স্থায়ীভাবে মুছে যাবে। আগে ব্যাকআপ ও পুনরুদ্ধার থেকে ব্যাকআপ নিন।</p>
           <button class="admin-btn danger" type="button" id="dataClearButton">নির্বাচিত ডেটা মুছুন</button>
         </article>
         <article class="admin-card admin-danger-card">
@@ -447,7 +460,7 @@
 
       <!-- Admin Profile -->
       <section class="admin-view" data-view-panel="profile" aria-labelledby="adminProfileTitle">
-        <div class="page-intro"><button class="pay-back" type="button" data-admin-view="dashboard" aria-label="হোমে ফিরুন"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="back" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/back.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></button>
+        <div class="page-intro"><button class="pay-back" type="button" data-admin-view="more" aria-label="আরও মেনুতে ফিরুন"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="back" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/back.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></button>
           <div><h1 id="adminProfileTitle">আমার প্রোফাইল</h1><p class="profile-page-sub">পরিচয়, লগইন তথ্য ও পাসওয়ার্ড — এক জায়গায়</p></div>
         </div>
 
@@ -457,12 +470,9 @@
         <article class="admin-identity-card" id="adminProfileCard" data-settings-row="profile" aria-live="polite"></article>
         <div class="settings-hub" data-settings-hub="admin">
           <div class="profile-section" data-settings-group="account">
-
-            <article class="admin-card staff-overview-card" id="staffOverviewProfile" data-admin-cap="staff.manage"></article>
-            
             <article class="admin-card">
           <header class="admin-card-head">
-            <div><h2>আমার তথ্য হালনাগাদ</h2><p class="admin-card-hint">নাম, মোবাইল ও ইমেইল বদলানো যায় — Login User ID ও Staff ID অপরিবর্তিত থাকে।</p></div>
+            <div><h2>আমার তথ্য হালনাগাদ</h2><p class="admin-card-hint">নাম, মোবাইল ও ইমেইল বদলানো যায় — লগইন আইডি ও স্টাফ আইডি অপরিবর্তিত থাকে।</p></div>
           </header>
           <form id="adminProfileForm" class="staff-form" novalidate autocomplete="off">
             <div class="staff-form-grid">
@@ -479,9 +489,9 @@
                 <input id="adminProfileEmail" name="email" type="email" autocomplete="email" maxlength="254">
               </div>
               <div class="staff-field">
-                <label for="adminProfileUserId">Login User ID</label>
+                <label for="adminProfileUserId">লগইন আইডি</label>
                 <div class="auto-id-preview" id="adminProfileUserId" role="status" aria-live="polite">—</div>
-                <small>স্বয়ংক্রিয়ভাবে তৈরি — First Name + Role + .apc</small>
+                <small>স্বয়ংক্রিয়ভাবে তৈরি — নামের প্রথম অংশ + ভূমিকা + .apc</small>
               </div>
             </div>
             <p class="finance-error" id="adminProfileError" role="alert" hidden></p>
@@ -524,19 +534,33 @@
         </div>
       </section>
 
-      <!-- More: every system section that is not a bottom-bar tab -->
+      <section class="admin-view" data-view-panel="advice" aria-labelledby="adminAdviceTitle">
+        <div class="page-intro"><button class="pay-back" type="button" data-admin-view="more" aria-label="আরও মেনুতে ফিরুন"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="back" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/back.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></button><div><h1 id="adminAdviceTitle">দৈনিক পরামর্শ</h1><p class="admin-view-sub">শিক্ষার্থীদের হোমে দেখানোর সংক্ষিপ্ত পরামর্শ পরিচালনা করুন।</p></div></div>
+        <div id="adminDailyAdvice" data-advice-admin data-advice-role="admin"></div>
+      </section>
+
+      <section class="admin-view" data-view-panel="more" aria-labelledby="adminMoreTitle">
+        <div class="page-intro"><div><h1 id="adminMoreTitle">আরও</h1><p class="admin-view-sub">ডেটা, অ্যাকাউন্ট ও দৈনিক পরামর্শের কাজ এখানে পাবেন।</p></div></div>
+        <nav class="admin-more-menu admin-card" id="adminMoreMenu" aria-label="আরও বিভাগ">
+          <button class="admin-more-item admin-system-item" type="button" data-admin-view="data" data-admin-cap="data.manage"><span class="admin-more-icon" aria-hidden="true"></span><span class="admin-more-copy"><strong>ডেটা ও ব্যাকআপ</strong><small>রেকর্ড, স্টোরেজ, ব্যাকআপ ও অডিট</small></span><span class="admin-menu-arrow" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="chevron-right" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/next.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span></button>
+          <button class="admin-more-item admin-system-item" type="button" data-admin-view="profile" data-admin-cap="profile.view"><span class="admin-more-icon" aria-hidden="true"></span><span class="admin-more-copy"><strong>আমার অ্যাকাউন্ট</strong><small>পরিচয়, পাসওয়ার্ড ও পছন্দ</small></span><span class="admin-menu-arrow" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="chevron-right" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/next.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span></button>
+          <button class="admin-more-item admin-system-item" type="button" data-admin-view="advice" data-admin-cap="advice.manage"><span class="admin-more-icon" aria-hidden="true"></span><span class="admin-more-copy"><strong>দৈনিক পরামর্শ</strong><small>পরামর্শ যোগ, সম্পাদনা ও সাজান</small></span><span class="admin-menu-arrow" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="chevron-right" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/next.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span></button>
+        </nav>
+      </section>
+
+      <!-- More: actions formerly on separate seats remain reachable above. -->
     </main>
 
     <!-- Rebuilt by js/admin-panel-ui.js from the signed-in role's capabilities:
          icons, labels, order and visibility all come from the permission model. -->
-    <nav class="admin-bottom" aria-label="এডমিন নেভিগেশন"><button class="admin-bottom-item active" type="button" data-admin-view="dashboard" aria-current="page"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="dashboard" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/dashboard.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">হোম</span></button><button class="admin-bottom-item" type="button" data-admin-view="staff"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="staff" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/staff.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">স্টাফ</span></button><button class="admin-bottom-item" type="button" data-admin-view="reports"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="reports" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/reports.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">রিপোর্ট</span></button><button class="admin-bottom-item" type="button" data-admin-view="system"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="settings" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/settings.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">সিস্টেম</span></button><button class="admin-bottom-item" type="button" data-admin-view="data"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="data" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/data.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">ডেটা</span></button><button class="admin-bottom-item" type="button" data-admin-view="profile"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="profile" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/user.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">অ্যাকাউন্ট</span></button></nav>
+    <nav class="admin-bottom" aria-label="এডমিন নেভিগেশন"><button class="admin-bottom-item active" type="button" data-admin-view="dashboard" aria-current="page"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="dashboard" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/dashboard.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">হোম</span></button><button class="admin-bottom-item" type="button" data-admin-view="staff"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="staff" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/staff.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">স্টাফ</span></button><button class="admin-bottom-item" type="button" data-admin-view="reports"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="reports" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/reports.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">রিপোর্ট</span></button><button class="admin-bottom-item" type="button" data-admin-view="system"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="settings" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/settings.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">সিস্টেম</span></button><button class="admin-bottom-item" type="button" data-admin-view="more"><span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="more" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/more.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">আরও</span></button></nav>
   </div>
 
   <!-- Generic modal (student detail / password reset) -->
   <div class="admin-modal-backdrop" id="adminModalBackdrop" hidden>
     <section class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
       <div class="admin-modal-header">
-        <div><p class="eyebrow" id="adminModalKicker">Details</p><h2 id="adminModalTitle">—</h2></div>
+        <div><p class="eyebrow" id="adminModalKicker">বিস্তারিত</p><h2 id="adminModalTitle">—</h2></div>
         <button class="admin-modal-close" type="button" id="adminModalClose" aria-label="বন্ধ করুন">×</button>
       </div>
       <div class="admin-modal-body" id="adminModalBody"></div>
@@ -545,7 +569,7 @@
 
 
 
-  <script type="module" src="js/theme-entry.js"></script>
-  <script type="module" src="js/pull-to-refresh.js"></script>
+  <script type="module" src="js/theme-entry.js?v=363"></script>
+  <script type="module" src="js/pull-to-refresh.js?v=363"></script>
 </body>
 </html>

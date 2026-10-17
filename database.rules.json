@@ -65,6 +65,13 @@
             }
           }
         },
+        "adviceBank": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.token.status === 'active' && auth.token.mustChangePassword !== true && (auth.token.role === 'admin' || auth.token.role === 'manager')",
+          "$adviceId": {
+            ".validate": "newData.numChildren() === 6 && newData.hasChildren(['text', 'source', 'active', 'order', 'createdBy', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 140 && newData.child('source').isString() && newData.child('source').val().length > 0 && newData.child('source').val().length <= 120 && newData.child('active').isBoolean() && newData.child('order').isNumber() && newData.child('order').val() >= 1 && newData.child('createdBy').isString() && newData.child('createdBy').val().length > 0 && newData.child('createdBy').val().length <= 128 && newData.child('createdAt').isNumber() && newData.child('createdAt').val() >= 0"
+          }
+        },
         "settings": {
           ".read": "auth != null",
           ".write": "auth != null"

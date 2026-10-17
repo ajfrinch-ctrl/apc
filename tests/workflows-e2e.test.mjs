@@ -385,7 +385,7 @@ test('workflow 8 — a teacher notice reaches its own class only: board and noti
     shellId: 'teacherShell',
     ready: () => teacher.$$('#teacherClassFilter option').length > 1
   });
-  teacher.click(teacher.$('.admin-bottom [data-teacher-view="academic"]'));
+  teacher.click(teacher.$('.teacher-home-extra [data-teacher-view="academic"]'));
   await teacher.flush(6);
   assert.equal(teacher.$('#teacherAcademic').hidden, false, 'একাডেমিক is the hub seat');
   teacher.click(teacher.$('#teacherAcademic [data-teacher-view="notice"]'));
