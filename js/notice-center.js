@@ -391,6 +391,9 @@ export function mountNoticeCenter(api) {
   function open() {
     hideAlerts();                              // the list shows them all
     filter = 'unread';
+    // Refresh the source data before painting, so a notice that arrived through
+    // the sync bridge just before the bell was tapped is immediately visible.
+    try { api.refresh?.(); } catch { /* the stored list remains available */ }
     paint();
     show(true);
   }
@@ -645,7 +648,7 @@ export function mountNoticeCenter(api) {
     showInfo,
     showPreview,
     readAll,
-    setFilter: value => { filter = value === 'all' ? 'all' : 'unread'; paint(); },
+    setFilter: value => { filter = ['all', 'history'].includes(value) ? value : 'unread'; paint(); },
     filter: () => filter,
     close: () => show(false),
     refresh: () => { try { api.refresh?.(); } catch { /* ignore */ } paint(); },
