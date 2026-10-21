@@ -166,7 +166,7 @@ export function mountNoticeCenter(api) {
     filterRow.className = 'notice-filters';
     filterRow.innerHTML =
       '<button type="button" class="chip active" role="tab" aria-selected="true" data-apc-notice-filter="unread">অপঠিত<span data-apc-notice-unread-chip></span></button>' +
-      '<button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="all">সব</button>' +
+      '<button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="all">বর্তমান</button><button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="history">ইতিহাস</button>' +
       '<button type="button" class="mini-btn notice-read-all" data-apc-notice-read-all>সব পড়া করুন</button>';
     listBox.before(filterRow);
   }
@@ -324,9 +324,11 @@ export function mountNoticeCenter(api) {
     if (!listBox) return { unread, total: feed.length };
 
     if (!feed.length) {
-      listBox.innerHTML = separatesBoard()
-        ? emptyState('নতুন নোটিফিকেশন নেই', 'স্কুলের নোটিশগুলো আলাদা নোটিশ বোর্ডে থাকে।')
-        : emptyState('সব নোটিফিকেশন দেখা হয়েছে', 'নতুন কোনো নোটিফিকেশন নেই।');
+      listBox.innerHTML = filter === 'history'
+        ? emptyState('ইতিহাসে এখনো নোটিফিকেশন নেই', 'নতুন নোটিশ, জরুরি ঘোষণা, পরীক্ষা ও ফলাফল এখানে সংরক্ষিত হবে।')
+        : separatesBoard()
+          ? emptyState('নতুন নোটিফিকেশন নেই', 'স্কুলের নোটিশগুলো আলাদা নোটিশ বোর্ডে থাকে।')
+          : emptyState('সব নোটিফিকেশন দেখা হয়েছে', 'নতুন কোনো নোটিফিকেশন নেই।');
       return { unread, total: 0 };
     }
     const visible = filter === 'unread' ? unreadItems : feed;
