@@ -120,7 +120,7 @@ function buildModal() {
       '<p class="notice-read-status" data-apc-notice-status role="status"></p>' +
       '<div class="notice-filters" role="tablist" aria-label="নোটিফিকেশন দেখার ধরন">' +
         '<button type="button" class="chip active" role="tab" aria-selected="true" data-apc-notice-filter="unread">অপঠিত<span data-apc-notice-unread-chip></span></button>' +
-        '<button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="all">সব</button>' +
+        '<button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="all">বর্তমান</button><button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="history">ইতিহাস</button>' +
         '<button type="button" class="mini-btn notice-read-all" data-apc-notice-read-all>সব পড়া করুন</button>' +
       '</div>' +
       '<div data-apc-notice-list></div>' +
@@ -268,8 +268,36 @@ export function mountNoticeCenter(api) {
   }
 
   function paint() {
-    let feed = [];
-    try { feed = centerFeed(api.feed() || []); } catch { feed = []; }
+    let liveFeed = [];
+    try { liveFeed = centerFeed(api.feed() || []); } catch { liveFeed = []; }
+
+    // The live feed is intentionally time-sensitive (for example, an exam can
+    // leave it after the exam ends). History must use the persistent record
+    // store instead, so older notices/results remain viewable after the source
+    // item changes or disappears.
+    let feed = liveFeed;
+    if (filter === 'history' && typeof api.records === 'function') {
+      try {
+        const liveByKey = new Map(liveFeed.map(item => [item.key, item]));
+        feed = (api.records() || []).map(record => {
+          const key = String(record?.key || '');
+          const live = liveByKey.get(key) || {};
+          const at = Number(record?.at) || Date.parse(String(record?.createdAt || '')) || 0;
+          return {
+            ...live,
+            key,
+            kind: String(record?.type || live.kind || 'notice'),
+            title: String(record?.title || live.title || 'নোটিফিকেশন'),
+            body: String(record?.message ?? live.body ?? ''),
+            at,
+            target: String(record?.targetType || live.target || ''),
+            sourceId: String(record?.relatedId || record?.targetId || live.sourceId || ''),
+            audience: String(record?.section || live.audience || ''),
+            actionLabel: live.actionLabel || ''
+          };
+        }).filter(item => item.key);
+      } catch { feed = liveFeed; }
+    }
     const state = unreadKeys(feed);
     const unreadItems = feed.filter(item => isUnread(item, state));
     const unread = state.count === null ? unreadItems.length : state.count;
@@ -372,7 +400,7 @@ export function mountNoticeCenter(api) {
     if (bell) { event.preventDefault(); open(); return; }
     if (!modal.contains(event.target)) return;
     const tab = event.target?.closest?.('[data-apc-notice-filter]');
-    if (tab) { filter = tab.dataset.apcNoticeFilter === 'all' ? 'all' : 'unread'; paint(); return; }
+    if (tab) { filter = ['all', 'history'].includes(tab.dataset.apcNoticeFilter) ? tab.dataset.apcNoticeFilter : 'unread'; paint(); return; }
     if (event.target?.closest?.('[data-apc-notice-read-all]')) {
       event.preventDefault();
       readAll();
