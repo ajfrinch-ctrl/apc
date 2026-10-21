@@ -689,3 +689,70 @@ html[data-theme="dark"] .rc-pdf-preview { background: var(--color-bg); }
     .admin-shell .admin-view .admin-more-item { transition: none; }
   }
 }
+
+
+/* ── Admin dashboard: contextual, low-distraction hero motion ──────────────
+   Ambient motion is confined to the Admin dashboard hero and its summary
+   cards. No JavaScript, markup, data, or navigation changes are required. */
+@media screen {
+  @keyframes adminHeroArrive {
+    from { opacity: 0; transform: translateY(14px) scale(.992); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes adminHeroAura {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .78; }
+    50% { transform: translate3d(-10px, -8px, 0) scale(1.06); opacity: 1; }
+  }
+  @keyframes adminHeroSweep {
+    0%, 58% { transform: translateX(-145%) rotate(18deg); opacity: 0; }
+    68% { opacity: .24; }
+    84%, 100% { transform: translateX(155%) rotate(18deg); opacity: 0; }
+  }
+  @keyframes adminHeroIconFloat {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50% { transform: translateY(-4px) rotate(-2deg); }
+  }
+  .admin-shell [data-view-panel="dashboard"].active .admin-home-intro {
+    animation: adminHeroArrive .7s cubic-bezier(.2,.75,.25,1) both;
+  }
+  .admin-shell [data-view-panel="dashboard"].active .admin-home-intro::after {
+    animation: adminHeroAura 8s ease-in-out infinite;
+    transform-origin: center;
+  }
+  .admin-shell [data-view-panel="dashboard"].active .admin-home-intro::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: -65%;
+    bottom: -65%;
+    left: 0;
+    width: 30%;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 48%), transparent);
+    filter: blur(2px);
+    pointer-events: none;
+    animation: adminHeroSweep 9s ease-in-out 1.2s infinite;
+  }
+  .admin-shell [data-view-panel="dashboard"].active .admin-hero-icon {
+    animation: adminHeroIconFloat 5s ease-in-out 1s infinite;
+  }
+  .admin-shell [data-view-panel="dashboard"].active .admin-stat-tile {
+    animation: adminHeroArrive .55s cubic-bezier(.2,.75,.25,1) both;
+  }
+  .admin-shell [data-view-panel="dashboard"].active .admin-stat-tile:nth-child(1) { animation-delay: .08s; }
+  .admin-shell [data-view-panel="dashboard"].active .admin-stat-tile:nth-child(2) { animation-delay: .15s; }
+  .admin-shell [data-view-panel="dashboard"].active .admin-stat-tile:nth-child(3) { animation-delay: .22s; }
+  .admin-shell [data-view-panel="dashboard"].active .admin-stat-tile:nth-child(4) { animation-delay: .29s; }
+  html[data-theme="dark"] .admin-shell [data-view-panel="dashboard"].active .admin-home-intro::before {
+    background: linear-gradient(90deg, transparent, rgb(182 244 215 / 22%), transparent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .admin-shell [data-view-panel="dashboard"].active .admin-home-intro,
+    .admin-shell [data-view-panel="dashboard"].active .admin-home-intro::before,
+    .admin-shell [data-view-panel="dashboard"].active .admin-home-intro::after,
+    .admin-shell [data-view-panel="dashboard"].active .admin-hero-icon,
+    .admin-shell [data-view-panel="dashboard"].active .admin-stat-tile {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
+}
