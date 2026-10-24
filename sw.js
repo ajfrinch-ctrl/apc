@@ -1,3 +1,4 @@
+// v424: auto-reload open tabs migrating from legacy pre-minimal-education Service Workers (e.g. v53).
 // v397: Teacher — একাডেমিক কার্যক্রম moved out of the ক্লাস screen into its own Home feature card
 // (accent rail, artwork disc, what-is-inside line); ক্লাস now has two tabs (ক্লাস ও বিষয়,
 // রুটিন ও সময়সূচি) and the academic screen names itself after the feature; pin refresh.
@@ -170,7 +171,7 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 423;
+const CACHE_VERSION = 424;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',
@@ -632,10 +633,23 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
+    const hadLegacySilentCache = keys.some(key => {
+      if (!key.startsWith('active-plus-student-v') || key === CACHE_NAME) return false;
+      return !/^active-plus-student-v(\d+)-minimal-education$/.test(key);
+    });
     await Promise.all(
       keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
     );
     await self.clients.claim();
+    if (hadLegacySilentCache) {
+      // Legacy pre-minimal-education workers (e.g. v53) served navigations
+      // cache-first and had no controllerchange listener, leaving open tabs
+      // stuck on the old DOM after claim(). Navigate those windows once.
+      const windows = await self.clients.matchAll({ type: 'window' });
+      await Promise.all(windows.map(client =>
+        typeof client.navigate === 'function' ? client.navigate(client.url).catch(() => {}) : null
+      ));
+    }
     // Second chance for anything the install-time fill could not reach.
     const cache = await caches.open(CACHE_NAME);
     const missing = [];
