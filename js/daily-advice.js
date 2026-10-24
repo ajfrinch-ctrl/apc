@@ -214,13 +214,11 @@ function validEditorClaims(claims, user) {
     claims.mustChangePassword !== true);
 }
 
-/** Lazily reaches Firebase; anonymous sessions can read but cannot write. */
+/** Lazily reaches the active cloud provider (Supabase Realtime or Firebase). */
 export async function createFirebaseAdviceAdapter({ allowAnonymous = true } = {}) {
   try {
-    const [{ firebaseApp, appCheckReady }, services] = await Promise.all([
-      import('../firebase/firebase-init.js'),
-      import('../firebase/firebase-services.js')
-    ]);
+    const services = await import('../sync/realtime-transport.js');
+    const { firebaseApp, appCheckReady, activeCloudProvider } = services;
     await appCheckReady;
     const auth = services.getAuth(firebaseApp);
     if (typeof auth.authStateReady === 'function') await auth.authStateReady();
@@ -229,6 +227,26 @@ export async function createFirebaseAdviceAdapter({ allowAnonymous = true } = {}
     const bankRef = services.ref(db, DAILY_ADVICE_BANK_PATH);
 
     async function editorClaims() {
+      const liveProvider = typeof services.getCurrentCloudProvider === 'function'
+        ? services.getCurrentCloudProvider()
+        : activeCloudProvider;
+      if (liveProvider === 'supabase') {
+        try {
+          const { STAFF_ACCOUNTS } = await import('./staff-auth.js');
+          for (const role of ['admin', 'manager']) {
+            const spec = STAFF_ACCOUNTS[role];
+            if (!spec) continue;
+            const hasSession = Boolean(
+              globalThis.window?.sessionStorage?.getItem?.(spec.sessionKey)
+              || globalThis.window?.localStorage?.getItem?.(spec.sessionKey)
+            );
+            if (hasSession) {
+              return { uid: `supabase-${role}`, claims: { role, status: 'active' } };
+            }
+          }
+        } catch {}
+        return null;
+      }
       const user = auth.currentUser;
       if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') return null;
       try {

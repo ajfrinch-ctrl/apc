@@ -3,7 +3,7 @@
    ?v= script tag (falling back to the current release pin) so it never
    drifts behind SW_VERSION / CACHE_VERSION. */
 (function refreshStaleAppShellCache() {
-  const DEFAULT_VERSION = 420;
+  const DEFAULT_VERSION = 423;
   if (typeof window === 'undefined' || !('caches' in window)) return;
   const scriptEl = document.currentScript || document.querySelector('script[src*="cache-refresh.js"]');
   let parsed = DEFAULT_VERSION;
