@@ -1,3 +1,4 @@
+// v425: defer cache-refresh SW registration until after load and throttle precache concurrency so mobile links paint immediately.
 // v424: auto-reload open tabs migrating from legacy pre-minimal-education Service Workers (e.g. v53).
 // v397: Teacher — একাডেমিক কার্যক্রম moved out of the ক্লাস screen into its own Home feature card
 // (accent rail, artwork disc, what-is-inside line); ক্লাস now has two tabs (ক্লাস ও বিষয়,
@@ -171,7 +172,7 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 424;
+const CACHE_VERSION = 425;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',
@@ -591,7 +592,7 @@ async function panelHintTarget() {
    with no offline shell at all. Each URL is now added on its own, six at a time
    so the fill never starves the page's own requests, and whatever a bad
    connection drops is retried once from activate(). */
-const PRECACHE_CONCURRENCY = 6;
+const PRECACHE_CONCURRENCY = 4;
 
 async function fillCache(cache, urls) {
   const queue = [...urls];
@@ -630,6 +631,31 @@ self.addEventListener('install', event => {
   })());
 });
 
+function queryClientVersion(client, timeoutMs = 300) {
+  return new Promise(resolve => {
+    if (typeof MessageChannel === 'undefined' || typeof client?.postMessage !== 'function') {
+      resolve(0);
+      return;
+    }
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => {
+      try { channel.port1.close(); } catch { /* ignore */ }
+      resolve(0);
+    }, timeoutMs);
+    channel.port1.onmessage = event => {
+      clearTimeout(timer);
+      try { channel.port1.close(); } catch { /* ignore */ }
+      resolve(Number(event.data?.version) || 0);
+    };
+    try {
+      client.postMessage({ type: 'APC_CLIENT_VERSION_CHECK' }, [channel.port2]);
+    } catch {
+      clearTimeout(timer);
+      resolve(0);
+    }
+  });
+}
+
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
@@ -644,11 +670,15 @@ self.addEventListener('activate', event => {
     if (hadLegacySilentCache) {
       // Legacy pre-minimal-education workers (e.g. v53) served navigations
       // cache-first and had no controllerchange listener, leaving open tabs
-      // stuck on the old DOM after claim(). Navigate those windows once.
+      // stuck on the old DOM after claim(). Navigate ONLY windows that do not
+      // already report a modern SW_VERSION so a fresh ?v= tab is never interrupted.
       const windows = await self.clients.matchAll({ type: 'window' });
-      await Promise.all(windows.map(client =>
-        typeof client.navigate === 'function' ? client.navigate(client.url).catch(() => {}) : null
-      ));
+      await Promise.all(windows.map(async client => {
+        if (typeof client.navigate !== 'function') return null;
+        const reportedVersion = await queryClientVersion(client);
+        if (reportedVersion >= CACHE_VERSION) return null;
+        return client.navigate(client.url).catch(() => {});
+      }));
     }
     // Second chance for anything the install-time fill could not reach.
     const cache = await caches.open(CACHE_NAME);
