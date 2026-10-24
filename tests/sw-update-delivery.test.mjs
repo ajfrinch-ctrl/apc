@@ -36,6 +36,8 @@ test('the worker still activates immediately and the app re-checks on return', (
   assert.match(sw, /await self\.skipWaiting\(\)/, 'a new worker must not wait for tabs to close');
   assert.match(sw, /await self\.clients\.claim\(\)/, 'open pages come under the new worker at once');
   assert.match(sw, /key !== CACHE_NAME/, 'activate deletes every older cache');
+  assert.match(sw, /hadLegacySilentCache/, 'activate detects legacy pre-minimal-education caches (e.g. v53)');
+  assert.match(sw, /client\.navigate\(client\.url\)/, 'activate reloads open windows trapped on legacy cache-first workers');
   assert.match(sw, /SKIP_WAITING/, 'worker listens for SKIP_WAITING messages');
   assert.match(sw, /cache:\s*'no-cache'/, 'worker revalidates with the server instead of copying stale HTTP cache entries');
   assert.match(registrar, /registration\.update\(\)/, 'registration forces an update check');

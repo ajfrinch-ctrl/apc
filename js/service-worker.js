@@ -12,7 +12,7 @@
  * that, long-lived app windows re-check whenever they become visible. */
 import { requestPersistentStorage } from './storage-safety.js';
 
-export const SW_VERSION = 420;
+export const SW_VERSION = 425;
 const ACK_STORAGE_KEY = 'apc_sw_ack_version';
 const CURRENT_CACHE = `active-plus-student-v${SW_VERSION}-minimal-education`;
 
@@ -80,6 +80,12 @@ export function registerServiceWorker() {
     button.addEventListener('click', () => { void applyUpdateAndReload(button); });
     banner.append(label, button); document.body?.append(banner);
   };
+
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'APC_CLIENT_VERSION_CHECK') {
+      event.ports?.[0]?.postMessage({ version: SW_VERSION });
+    }
+  });
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     const nextUrl = navigator.serviceWorker.controller?.scriptURL || '';

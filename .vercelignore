@@ -1,0 +1,16 @@
+node_modules
+tests
+functions
+tools
+supabase
+docs
+playwright-report
+test-results
+firebase.json
+firestore.rules
+firestore.indexes.json
+database.rules.json
+database.rules.v2.draft.json
+*.md
+.git
+.github

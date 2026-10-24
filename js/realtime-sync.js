@@ -18,8 +18,11 @@ import { LEGACY_CLOUD_ENABLED, assertCloudAccess, cloudPausedResult } from '../s
    device-bound. This anonymous bridge is re-enabled as an INTERIM measure by
    owner decision (2026-09-30): see docs/INTERIM-ANONYMOUS-SYNC.md for the
    accepted risk and docs/RTDB-PER-USER-RULES-PLAN.md for the replacement. */
-import { firebaseApp, appCheckReady } from '../firebase/firebase-init.js';
-import { getAuth, signInAnonymously, setPersistence, browserLocalPersistence, getDatabase, ref, get, set, runTransaction, onValue as firebaseOnValue } from '../firebase/firebase-services.js';
+import {
+  firebaseApp, appCheckReady, getAuth, signInAnonymously, setPersistence,
+  browserLocalPersistence, getDatabase, ref, get, set, runTransaction,
+  onValue as firebaseOnValue
+} from '../sync/realtime-transport.js';
 import { SYNCABLE, KEYS } from './database.js';
 import { STAFF_ACCOUNTS } from './staff-auth.js';
 import { encodeRealtimeRecords, decodeRealtimeRecords } from './realtime-value-codec.js';
