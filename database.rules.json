@@ -165,9 +165,10 @@
         },
         "courseContent": {
           ".read": "auth != null",
-          ".write": "auth != null",
+          ".write": "auth != null && (auth.token.role === null || auth.token.role === 'admin' || auth.token.role === 'manager' || auth.token.role === 'teacher')",
           "$recordId": {
-            ".validate": "newData.hasChildren()"
+            ".write": "auth != null && (auth.token.role === null || auth.token.role === 'admin' || auth.token.role === 'manager' || auth.token.role === 'teacher')",
+            ".validate": "newData.hasChildren() && ((newData.child('_apcEnc').val() === 1 && newData.child('iv').isString() && newData.child('ct').isString()) || newData.child('_syncKind').val() === 'metadata' || (newData.child('_syncKind').val() === 'record' && newData.child('record').hasChildren(['id', 'classId', 'subjectId', 'title'])) || newData.child('id').val() === $recordId)"
           }
         },
         "courses": {

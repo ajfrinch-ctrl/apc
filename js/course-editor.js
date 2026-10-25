@@ -109,19 +109,35 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
     const published = record.published === true;
     const archived = record.active === false;
     const canManage = role !== 'teacher' || record.createdBy === teacherName;
+    const studioBtn = record.isLectureSheet
+      ? `<button class="mini-btn approve" type="button" data-course-open-studio="${esc(record.id)}">✍️ স্টুডিওতে খুলুন</button>`
+      : '';
     return `<article class="course-manage-card${archived ? ' is-archived' : ''}" data-course-record="${esc(record.id)}">
       <header><span class="course-item-icon" aria-hidden="true">${iconMarkup(COURSE_TYPES[type].icon)}</span>
-        <div><small>${esc(typeLabel(record))}</small><h4>${esc(record.title)}</h4>
+        <div><small>${esc(typeLabel(record))}${record.isLectureSheet ? ' • A4 লেকচার শিট' : ''}</small><h4>${esc(record.title)}</h4>
         <p class="course-manage-meta">${published ? 'প্রকাশিত' : 'খসড়া'}${archived ? ' • সংরক্ষণাগারভুক্ত' : ''} • ${esc(record.id)}</p></div>
       </header>
       ${record.description ? `<p>${esc(record.description)}</p>` : ''}
       <div class="course-manage-actions">
-        ${canManage ? `<button class="mini-btn" type="button" data-course-edit="${esc(record.id)}">সম্পাদনা</button>
+        ${canManage ? `${studioBtn}<button class="mini-btn" type="button" data-course-edit="${esc(record.id)}">সম্পাদনা</button>
           <button class="mini-btn ${published ? 'reject' : 'approve'}" type="button" data-course-publish="${esc(record.id)}" data-next="${published ? 'off' : 'on'}">${published ? 'প্রকাশ বাতিল' : 'প্রকাশ করুন'}</button>
           ${archived ? '' : `<button class="mini-btn reject" type="button" data-course-archive="${esc(record.id)}">সংরক্ষণাগারে নিন</button>`}`
           : '<span class="form-note">অন্য শিক্ষকের প্রকাশিত কনটেন্ট — শুধু ম্যানেজার সম্পাদনা করতে পারবেন।</span>'}
       </div>
     </article>`;
+  }
+
+  root.innerHTML = '<div data-ls-hub-host></div><div data-course-legacy-host></div>';
+  const hubHost = $(root, '[data-ls-hub-host]');
+  const legacyHost = $(root, '[data-course-legacy-host]');
+  let hubControllerPromise = null;
+  function ensureStudioHub() {
+    if (!hubControllerPromise && hubHost) {
+      hubControllerPromise = import('./lecture-sheet-studio.js')
+        .then(mod => mod.mountLectureSheetManager({ mount: hubHost, role, toast }))
+        .catch(err => console.warn('[Active Plus] lecture studio hub mount failed:', err?.message || err));
+    }
+    return hubControllerPromise;
   }
 
   async function paint() {
@@ -155,7 +171,8 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
     const chapters = staffRecords.filter(item => typeOf(item) === 'chapter' && item.active !== false);
     const isChapter = record && typeOf(record) === 'chapter';
 
-    root.innerHTML = `
+    void ensureStudioHub();
+    (legacyHost || root).innerHTML = `
       <div class="course-manage">
         <form class="course-manage-form admin-card" data-course-form>
           <header class="admin-card-head"><div><p class="eyebrow">উপকরণ</p>
@@ -265,6 +282,17 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
   });
 
   root.addEventListener('click', async event => {
+    const openStudio = event.target.closest('[data-course-open-studio]');
+    if (openStudio) {
+      const studioMod = await import('./lecture-sheet-studio.js');
+      await studioMod.openLectureSheetStudio({
+        id: openStudio.dataset.courseOpenStudio,
+        role,
+        toast,
+        onClosed: () => void paint()
+      });
+      return;
+    }
     const edit = event.target.closest('[data-course-edit]');
     if (edit) {
       editing = edit.dataset.courseEdit;

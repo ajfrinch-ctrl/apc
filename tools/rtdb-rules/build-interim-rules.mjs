@@ -23,10 +23,12 @@ import { fileURLToPath } from 'node:url';
 const AUTH = 'auth != null';
 const ADVICE_EDITOR = `${AUTH} && auth.token.status === 'active' && auth.token.mustChangePassword !== true && (auth.token.role === 'admin' || auth.token.role === 'manager')`;
 const REVIEWER_OR_BRIDGE = "(auth.token.role === null || auth.token.role === 'admin' || auth.token.role === 'manager')";
+const COURSE_WRITER_OR_BRIDGE = "(auth.token.role === null || auth.token.role === 'admin' || auth.token.role === 'manager' || auth.token.role === 'teacher')";
 const STAFF_ROLES = ['admin', 'manager', 'teacher', 'payment'];
 const RECORD_COLLECTIONS = ['students', 'transactions', 'notices', 'routine', 'teaching', 'academics', 'courseContent', 'courses', 'teacherAssignments', 'classChat'];
 const hasChildren = "newData.hasChildren()";
 const idMatches = variable => `newData.child('id').val() === ${variable}`;
+const COURSE_CONTENT_RECORD_VALIDATE = `${hasChildren} && ((newData.child('_apcEnc').val() === 1 && newData.child('iv').isString() && newData.child('ct').isString()) || newData.child('_syncKind').val() === 'metadata' || (newData.child('_syncKind').val() === 'record' && newData.child('record').hasChildren(['id', 'classId', 'subjectId', 'title'])) || newData.child('id').val() === $recordId)`;
 
 const STUDENT_DECISION_CHANGE = "(data.exists() && data.child('status').val() === 'pending' && (newData.child('status').val() === 'approved' || newData.child('status').val() === 'active' || newData.child('status').val() === 'rejected'))";
 const STUDENT_RECORD_VALIDATE = `${hasChildren} && (!data.exists() || !data.child('id').exists() || newData.child('id').val() === data.child('id').val()) && (!${STUDENT_DECISION_CHANGE} || (${REVIEWER_OR_BRIDGE} && (newData.child('approvedAt').isString() || newData.child('reviewedAt').isString())))`;
@@ -171,6 +173,17 @@ export function buildInterimRules() {
   // Application collections: written as one merge transaction per collection
   // (js/record-sync.js); every record is an object.
   for (const name of RECORD_COLLECTIONS) {
+    if (name === 'courseContent') {
+      v1[name] = {
+        '.read': AUTH,
+        '.write': `${AUTH} && ${COURSE_WRITER_OR_BRIDGE}`,
+        $recordId: {
+          '.write': `${AUTH} && ${COURSE_WRITER_OR_BRIDGE}`,
+          '.validate': COURSE_CONTENT_RECORD_VALIDATE
+        }
+      };
+      continue;
+    }
     v1[name] = {
       '.read': AUTH,
       '.write': AUTH,

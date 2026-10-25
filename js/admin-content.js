@@ -19,7 +19,7 @@ import { NOTICE_CATEGORIES } from './notification-rules.js';
 import { escapeHtml } from './sanitize.js';
 
 const CONTENT_TYPES = Object.freeze({ homework: 'বাড়ির কাজ', suggestion: 'সাজেশন' });
-const state = { ready: false };
+const state = { ready: false, toastFn: null, lectureHubPromise: null };
 
 const categoryLabel = id => NOTICE_CATEGORIES.find(c => c.id === id)?.label || id || 'একাডেমিক';
 
@@ -83,6 +83,30 @@ export function renderAdminContent() {
   }
 }
 
+function ensureAdminLectureHub() {
+  const mount = document.getElementById('adminLectureSheetsMount');
+  if (!mount) return Promise.resolve(null);
+  if (!state.lectureHubPromise) {
+    state.lectureHubPromise = import('./lecture-sheet-studio.js')
+      .then(mod => mod.mountLectureSheetManager({
+        mount,
+        role: 'admin',
+        toast: state.toastFn || (() => {})
+      }))
+      .catch(err => {
+        state.lectureHubPromise = null;
+        console.warn('[Active Plus] admin lecture studio mount failed:', err?.message || err);
+        return null;
+      });
+  } else {
+    state.lectureHubPromise = state.lectureHubPromise.then(async ctrl => {
+      await ctrl?.refresh?.();
+      return ctrl;
+    });
+  }
+  return state.lectureHubPromise;
+}
+
 /** Load the teaching records the review list shows (admin session required by
  *  the repository itself). Called on view open and after every delete. */
 export async function refreshAdminContentRecords() {
@@ -94,10 +118,12 @@ export async function refreshAdminContentRecords() {
     state.activities = [];
   }
   renderAdminContent();
+  await ensureAdminLectureHub();
 }
 
 /** Bind the confirm+delete handlers once (the shell may rebuild). */
 export function initAdminContent({ toast } = {}) {
+  if (typeof toast === 'function') state.toastFn = toast;
   const section = document.querySelector('[data-view-panel="content"]');
   if (!section || section.dataset.contentWired === '1') return;
   section.dataset.contentWired = '1';

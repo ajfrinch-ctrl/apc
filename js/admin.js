@@ -275,6 +275,14 @@ function openDefaultPrimarySection(target) {
       }
       reportPanel.hidden = false;
     }
+  } else if (target === 'content') {
+    const lsToggle = $('[data-admin-section-toggle="lecture-sheets"]');
+    const lsPanel = $('[data-admin-section-panel="lecture-sheets"]');
+    if (lsToggle && lsPanel) {
+      lsToggle.classList.add('is-open');
+      lsToggle.setAttribute('aria-expanded', 'true');
+      lsPanel.hidden = false;
+    }
   }
 }
 

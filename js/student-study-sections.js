@@ -14,7 +14,7 @@ import { toBanglaNumber as bn } from './ui.js';
 import { setView } from './shell.js';
 import { classByName, subjectsForClass, listChapters } from './academics.js';
 import { listCourseContent, typeOf as courseTypeOf } from './course-content.js';
-import { sanitizeRichHtml } from './rich-sanitize.js';
+import { sanitizeRichHtml, sanitizeLectureHtml } from './rich-sanitize.js';
 import { teachingRepository, publishedForStudent, watchTeachingData } from './teaching-data.js';
 import { courseRepository, courseProgress, watchCourses, COURSES_KEY } from './course-data.js';
 import { listQuestionsForStudent, questionRowsFromPastExams, QUESTION_TYPES } from './question-bank.js';
@@ -39,13 +39,13 @@ const SUGGESTION_TYPES = Object.freeze({
   important: record => courseTypeOf(record) === 'important_question',
   written: record => courseTypeOf(record) === 'suggestion',
   mcq: record => courseTypeOf(record) === 'mcq',
-  pdf: record => courseTypeOf(record) === 'pdf' || /^https?:\/\//i.test(record.attachmentUrl || '')
+  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || /^https?:\/\//i.test(record.attachmentUrl || '')
 });
 const SUGGESTION_SECTIONS = Object.freeze(['suggestion', 'important']);
 const MATERIAL_TYPES = Object.freeze({
   all: () => true,
   note: record => courseTypeOf(record) === 'note',
-  pdf: record => courseTypeOf(record) === 'pdf' || (courseTypeOf(record) === 'lesson' && /^https?:\/\//i.test(record.attachmentUrl || '')),
+  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || (courseTypeOf(record) === 'lesson' && /^https?:\/\//i.test(record.attachmentUrl || '')),
   previous_question: record => courseTypeOf(record) === 'previous_question',
   model_test: record => courseTypeOf(record) === 'model_test'
 });
@@ -146,12 +146,22 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   }
 
   function contentCard(record) {
+    const isSheet = record.isLectureSheet === true;
     const link = /^https?:\/\//i.test(record.attachmentUrl || '') ? record.attachmentUrl : '';
-    const body = record.richContent ? sanitizeRichHtml(record.richContent) : esc(text(record.content || record.description || '').slice(0, 600)).replace(/\n/g, '<br>');
-    return `<article class="course-item" data-study-item="${esc(record.id)}">
-      <header class="course-item-head"><span class="course-item-type">${esc(record.type === 'pdf' ? 'PDF' : record.type === 'important_question' ? 'গুরুত্বপূর্ণ প্রশ্ন' : record.type === 'model_test' ? 'মডেল টেস্ট' : record.type === 'previous_question' ? 'পূর্বের প্রশ্ন' : record.type === 'mcq' ? 'MCQ' : 'নোট')}</span>
-        <div><h3>${esc(record.title)}</h3><small>${esc([text(record.subject) || '', chapterOf(record)].filter(Boolean).join(' • '))}</small></div></header>
-      ${body ? `<div class="course-item-body course-rich-reading">${body}</div>` : ''}
+    const body = record.richContent
+      ? (isSheet ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
+      : esc(text(record.content || record.description || '').slice(0, 600)).replace(/\n/g, '<br>');
+    const sheetActions = isSheet
+      ? `<div class="ls-student-sheet-actions">
+          <button type="button" class="ls-card-btn" data-student-lecture-reader="${esc(record.id)}">📖 A4 প্রিভিউ ও প্রিন্ট</button>
+          <button type="button" class="ls-card-btn ls-card-btn-primary" data-student-lecture-pdf="${esc(record.id)}">⬇ A4 PDF ডাউনলোড</button>
+        </div>`
+      : '';
+    return `<article class="course-item${isSheet ? ' ls-student-sheet-card' : ''}" data-study-item="${esc(record.id)}">
+      <header class="course-item-head"><span class="course-item-type">${esc(isSheet ? 'A4 লেকচার শিট' : record.type === 'pdf' ? 'PDF' : record.type === 'important_question' ? 'গুরুত্বপূর্ণ প্রশ্ন' : record.type === 'model_test' ? 'মডেল টেস্ট' : record.type === 'previous_question' ? 'পূর্বের প্রশ্ন' : record.type === 'mcq' ? 'MCQ' : 'নোট')}</span>
+        <div><h3>${esc(record.title)}</h3><small>${esc([text(record.subject) || '', chapterOf(record), text(record.topic)].filter(Boolean).join(' • '))}</small></div></header>
+      ${body ? `<div class="course-item-body course-rich-reading${isSheet ? ' ls-student-sheet-body' : ''}">${body}</div>` : ''}
+      ${sheetActions}
       ${link ? `<a class="course-item-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer">ফাইল খুলুন <svg class="resource-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
     </article>`;
   }
@@ -568,6 +578,41 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     $('#studyMaterialFilters').querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
     renderMaterials();
   });
+
+  const handleLectureSheetClick = async event => {
+    const pdfBtn = event.target.closest('[data-student-lecture-pdf]');
+    const readerBtn = event.target.closest('[data-student-lecture-reader]');
+    if (!pdfBtn && !readerBtn) return;
+    const targetId = pdfBtn ? pdfBtn.dataset.studentLecturePdf : readerBtn.dataset.studentLectureReader;
+    const allowed = [...materialRecords, ...suggestionRecords].find(item => item.id === targetId);
+    if (!allowed || allowed.published !== true || allowed.active === false) return;
+    const cur = student();
+    const enriched = {
+      ...allowed,
+      className: cur.className || '',
+      subjectName: text(allowed.subject) || ''
+    };
+    const mod = await import('./lecture-sheet-pdf.js');
+    if (readerBtn) {
+      await mod.openStudentLectureReaderModal(enriched);
+      return;
+    }
+    const orig = pdfBtn.textContent;
+    pdfBtn.disabled = true;
+    pdfBtn.textContent = '⏳ PDF তৈরি হচ্ছে…';
+    try {
+      await mod.downloadLectureSheetPDF(enriched);
+    } catch {
+      pdfBtn.textContent = '⚠ আবার চেষ্টা করুন';
+      setTimeout(() => { pdfBtn.textContent = orig; }, 2200);
+      pdfBtn.disabled = false;
+      return;
+    }
+    pdfBtn.disabled = false;
+    pdfBtn.textContent = orig;
+  };
+  $(SELECTORS.materials.list)?.addEventListener('click', handleLectureSheetClick);
+  $(SELECTORS.suggestion.list)?.addEventListener('click', handleLectureSheetClick);
 
   const onSelect = (select, apply) => select?.addEventListener('change', () => { apply(select.value); });
   onSelect($(SELECTORS.bank.subject), value => { bankSubject = value; bankChapter = ''; fillFilters(); renderBank(); });
