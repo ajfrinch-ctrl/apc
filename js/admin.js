@@ -293,6 +293,7 @@ function setView(view) {
   });
   openDefaultPrimarySection(target);
   if (target === 'class-chat') mountAdminClassChat();
+  if (target === 'phonebook') mountAdminPhonebook();
   syncAdminHeroCards();
   const seat = seatFor(target);
   $$('.admin-bottom-item').forEach(item => {
@@ -1619,7 +1620,8 @@ const VIEW_REFRESHERS = {
   staff: () => { void renderStaff(); },
   content: () => { void refreshAdminContentRecords(); },
   reports: () => refreshReports($('#adminReports')),
-  'class-chat': () => mountAdminClassChat()
+  'class-chat': () => mountAdminClassChat(),
+  phonebook: () => mountAdminPhonebook()
 };
 
 let adminChatFlight = null;
@@ -1632,6 +1634,20 @@ function mountAdminClassChat() {
     getStaff: () => state.adminAccount
   }))
     .catch(err => console.warn('[Active Plus] admin class-chat failed:', err?.message));
+}
+
+let adminPhonebookFlight = null;
+function mountAdminPhonebook() {
+  const mount = $('#adminPhonebookMount');
+  if (!mount) return;
+  adminPhonebookFlight ??= import('./phonebook.js').catch(err => { adminPhonebookFlight = null; throw err; });
+  void adminPhonebookFlight.then(mod => mod.mountPhonebook(mount, {
+    portal: 'admin',
+    getStudents: () => state.students,
+    getStaff: () => (Array.isArray(state.staff) && state.staff.length ? state.staff : listStaff()),
+    onToast: msg => toast(msg)
+  }))
+    .catch(err => console.warn('[Active Plus] admin phonebook failed:', err?.message));
 }
 
 function refreshView(view) {

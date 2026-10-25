@@ -1,3 +1,4 @@
+// v427: Yellow Pages Phonebook (ফোনবুক · ইয়েলো পেইজ) in Admin & Manager panels with class-grouped student/guardian contacts, staff directory, direct calling & Bengali WhatsApp templates.
 // v426: mobile 4G First-Admin verification resiliency, lazy Firebase Secondary SDK import, and authoritative Supabase Primary admin gate.
 // v425: defer cache-refresh SW registration until after load and throttle precache concurrency so mobile links paint immediately.
 // v424: auto-reload open tabs migrating from legacy pre-minimal-education Service Workers (e.g. v53).
@@ -173,7 +174,7 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 426;
+const CACHE_VERSION = 427;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',
@@ -534,6 +535,7 @@ const APP_SHELL = [
   './js/staff-directory.js',
   './js/staff-management.js',
   './js/staff-overview.js',
+  './js/phonebook.js',
   './js/user-id.js',
   './js/storage/migration.js'
 ];
