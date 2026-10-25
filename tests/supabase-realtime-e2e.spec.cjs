@@ -566,3 +566,105 @@ window.__fbApplyRemote = (path, value) => {
   }
 });
 
+test('First-Admin creation on mobile 4G recovers from transient packet drop, skips eager 808KB Firebase download, clears stale local cache, and provisions encrypted Admin in Supabase', async ({ browser }) => {
+  const backend = createMockSupabaseBackend();
+  // Remove adminInitialized so Supabase matches a brand-new uninitialized institution DB (0 Admin rows!)
+  backend.nodes.clear();
+
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  let firebaseSdkFetchedDuringBoot = false;
+  let firstGetDropped = false;
+
+  await ctx.addInitScript(() => {
+    localStorage.setItem('activePlus.demo.autofill.v1', 'off');
+    // Simulate a returning phone on active-plus-coaching.vercel.app with leftover v53 student & admin keys!
+    localStorage.setItem('active-plus-account-v1', JSON.stringify({ mobile: '01811112222', username: 'oldstudent' }));
+    localStorage.setItem('active-plus-staff-admin-v1', JSON.stringify({ username: 'admin.apc', password: 'OldV53Password' }));
+  });
+
+  await ctx.route('**/vendor/firebase/sdk.js*', async route => {
+    firebaseSdkFetchedDuringBoot = true;
+    await route.fulfill({ status: 200, contentType: 'text/javascript', body: STUB_SOURCE });
+  });
+
+  await ctx.route(`${SUPABASE_ORIGIN}/**`, async route => {
+    const req = route.request();
+    const url = new URL(req.url());
+    const body = req.postData() ? JSON.parse(req.postData()) : {};
+    if (url.pathname.endsWith('/rpc/apc_get_subtree') && !firstGetDropped) {
+      firstGetDropped = true;
+      await route.abort('timedout');
+      return;
+    }
+    // Simulate real mobile 4G RTT
+    await new Promise(r => setTimeout(r, 350));
+    const json = payload => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify(payload)
+    });
+    if (url.pathname.endsWith('/rpc/apc_server_time_ms')) return json(Date.now());
+    if (url.pathname.endsWith('/rpc/apc_get_subtree')) return json(backend.getSubtree(body.p_path));
+    if (url.pathname.endsWith('/rpc/apc_set_subtree')) {
+      // Delegate through internal write path via CAS or direct write
+      const cur = backend.getSubtree(body.p_path);
+      return json({ ok: true, version: cur.version, serverTimeMs: Date.now() });
+    }
+    return route.fallback();
+  });
+  // Attach full backend handler underneath for set/cas routes
+  await ctx.unroute(`${SUPABASE_ORIGIN}/**`);
+  await backend.attachToContext(ctx);
+  // Layer 4G packet-drop + 350ms RTT wrapper on top of backend routes
+  await ctx.route(`${SUPABASE_ORIGIN}/rest/v1/rpc/apc_get_subtree`, async route => {
+    if (!firstGetDropped) {
+      firstGetDropped = true;
+      await route.abort('timedout');
+      return;
+    }
+    await new Promise(r => setTimeout(r, 350));
+    await route.fallback();
+  });
+
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e.message)));
+
+  try {
+    await page.goto('/index.html');
+
+    // Automatic background retry reconciles with Supabase (0 Admins), purges stale v53 local admin, and opens #firstAdminPanel!
+    await expect(page.locator('#firstAdminPanel')).toBeVisible({ timeout: 15000 });
+    expect(firebaseSdkFetchedDuringBoot).toBe(false);
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+    expect(overflow).toBe(false);
+
+    // Fill out First-Admin form and submit!
+    await page.fill('#firstAdminName', 'AJ Frinch');
+    await expect(page.locator('#firstAdminIdPreview')).toHaveText('aj.admin.apc');
+    await page.fill('#firstAdminMobile', '01819486966');
+    await page.fill('#firstAdminEmail', 'owner@activeplus.edu.bd');
+    await page.fill('#firstAdminPassword', 'Strong#2026');
+    await page.fill('#firstAdminConfirm', 'Strong#2026');
+    await page.click('#firstAdminForm button[type="submit"]');
+
+    // Panel is permanently removed and generated User ID is handed to #loginMobile!
+    await expect(page.locator('#firstAdminPanel')).toHaveCount(0, { timeout: 15000 });
+    await expect(page.locator('#loginMobile')).toHaveValue('aj.admin.apc');
+
+    // Verify Supabase holds AES-256-GCM encrypted staffAccounts/admin and system/adminInitialized!
+    const rawAdmin = backend.getSubtree('activePlusSync/v1/staffAccounts/admin').value;
+    expect(rawAdmin._apcEnc).toBe(1);
+    expect(rawAdmin.alg).toBe('AES-256-GCM');
+    expect(JSON.stringify(rawAdmin).includes('AJ Frinch')).toBe(false);
+    expect(backend.getSubtree('activePlusSync/v1/system/adminInitialized').exists).toBe(true);
+
+    await expect(errors).toEqual([]);
+  } finally {
+    await ctx.close();
+  }
+});
+
+

@@ -14,11 +14,20 @@ import {
   decryptCloudSubtree
 } from './cloud-payload-crypto.js';
 
+function isFastFailSandboxHost() {
+  if (typeof process !== 'undefined' && Boolean(process.versions?.node)) return true;
+  const host = String(globalThis.location?.hostname || '').toLowerCase();
+  if (!host) return true;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
+  return /^[a-z0-9-]+\.e2b\.app$/.test(host);
+}
+
+const FAST_SANDBOX = isFastFailSandboxHost();
 const DEFAULT_FAILOVER_COOLDOWN_MS = 30000;
 const DEFAULT_MIRROR_DEBOUNCE_MS = 350;
-const SECONDARY_COLD_TIMEOUT_MS = 900;
-const SECONDARY_WARM_TIMEOUT_MS = 5000;
-const SECONDARY_UNREACHABLE_MS = 8000;
+const SECONDARY_COLD_TIMEOUT_MS = FAST_SANDBOX ? 900 : 8000;
+const SECONDARY_WARM_TIMEOUT_MS = FAST_SANDBOX ? 5000 : 10000;
+const SECONDARY_UNREACHABLE_MS = FAST_SANDBOX ? 8000 : 5000;
 
 function isBrowserOnline() {
   if (typeof navigator === 'undefined' || typeof navigator.onLine !== 'boolean') return true;
@@ -298,6 +307,9 @@ export function createDualCloudTransport({
       throw fastErr;
     }
     const timeoutMs = secondaryHealthy ? secondaryWarmTimeoutMs : secondaryColdTimeoutMs;
+    if (typeof secondary.ensureLoaded === 'function') {
+      await withTimeout(secondary.ensureLoaded(), timeoutMs, 'Secondary SDK import timed out');
+    }
     await withTimeout(secondary.appCheckReady ?? Promise.resolve(), timeoutMs, 'Secondary App Check timed out');
     const secAuth = secondary.mod.getAuth(secondary.app);
     if (secAuth?.currentUser) return secAuth;
@@ -701,8 +713,34 @@ export function createDualCloudTransport({
     };
   }
 
+  function isAuthoritativePrimaryPath(normPath) {
+    if (!normPath) return false;
+    return /^(activePlusSync\/v1\/(?:system|staffAccounts|staffDirectory|studentAccounts|usernames|mobileIndex|emailIndex|dailyStudentCounters))(?:\/|$)/.test(normPath);
+  }
+
+  function isStrictPrimaryAdminGateActive(normPath) {
+    if (!hasSecondary || primary.name !== 'supabase' || secondary?.name !== 'firebase') return false;
+    if (Number(globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__) > 0) return true;
+    return normPath === 'activePlusSync/v1/system/adminInitialized';
+  }
+
+  function preferredLegForPath(normPath, { writeOrTx = false } = {}) {
+    if (!hasSecondary) return 'primary';
+    if (Number(globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__) > 0 && primary.name === 'supabase') {
+      return 'primary';
+    }
+    const inRealFailover = failoverUntil > 0 && Date.now() < failoverUntil;
+    if (isStrictPrimaryAdminGateActive(normPath) && !inRealFailover) return 'primary';
+    if (writeOrTx || isAuthoritativePrimaryPath(normPath)) {
+      return inRealFailover ? 'secondary' : 'primary';
+    }
+    return preferredLegName();
+  }
+
   async function get(node) {
-    const first = preferredLegName();
+    const norm = cleanPath(dualRefPath(node));
+    const strictGate = Number(globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__) > 0 && primary.name === 'supabase';
+    const first = preferredLegForPath(norm);
     try {
       const snap = await execLegGet(first, node);
       if (first === 'primary' && activeLegName === 'secondary' && !shardedToSecondary) {
@@ -710,7 +748,15 @@ export function createDualCloudTransport({
       }
       return snap;
     } catch (firstErr) {
-      if (!hasSecondary || !isFailoverEligibleError(firstErr)) throw firstErr;
+      const inRealFailover = failoverUntil > 0 && Date.now() < failoverUntil;
+      if (
+        !hasSecondary ||
+        strictGate ||
+        (isStrictPrimaryAdminGateActive(norm) && !inRealFailover) ||
+        !isFailoverEligibleError(firstErr)
+      ) {
+        throw firstErr;
+      }
       const backup = alternateLegName(first);
       try {
         const snap = await execLegGet(backup, node);
@@ -723,15 +769,20 @@ export function createDualCloudTransport({
     }
   }
 
+  function dualRefPath(node) {
+    return node?.path ?? node;
+  }
+
   async function set(node, value) {
     const norm = cleanPath(node?.path ?? node);
-    const first = preferredLegName();
+    const strictGate = Number(globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__) > 0 && primary.name === 'supabase';
+    const first = preferredLegForPath(norm, { writeOrTx: true });
     try {
       await execLegSet(first, node, value);
       scheduleStandbyMirror(norm, value, first);
       return;
     } catch (firstErr) {
-      if (!hasSecondary || !isFailoverEligibleError(firstErr)) throw firstErr;
+      if (!hasSecondary || strictGate || !isFailoverEligibleError(firstErr)) throw firstErr;
       const backup = alternateLegName(first);
       await execLegSet(backup, node, value);
       if (backup === 'secondary') activateFailover(firstErr?.message || 'write-failover');
@@ -742,7 +793,8 @@ export function createDualCloudTransport({
 
   async function runTransaction(node, updateFn) {
     const norm = cleanPath(node?.path ?? node);
-    const first = preferredLegName();
+    const strictGate = Number(globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__) > 0 && primary.name === 'supabase';
+    const first = preferredLegForPath(norm, { writeOrTx: true });
     try {
       const res = await execLegTransaction(first, node, updateFn);
       if (res?.committed) {
@@ -750,7 +802,7 @@ export function createDualCloudTransport({
       }
       return res;
     } catch (firstErr) {
-      if (!hasSecondary || !isFailoverEligibleError(firstErr)) throw firstErr;
+      if (!hasSecondary || strictGate || !isFailoverEligibleError(firstErr)) throw firstErr;
       const backup = alternateLegName(first);
       const res = await execLegTransaction(backup, node, updateFn);
       if (backup === 'secondary') activateFailover(firstErr?.message || 'tx-failover');

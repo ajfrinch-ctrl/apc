@@ -4,7 +4,7 @@
    SW_VERSION / CACHE_VERSION, and defers worker registration until after
    window.load so precaching never starves initial CSS/JS rendering. */
 (function refreshStaleAppShellCache() {
-  const DEFAULT_VERSION = 425;
+  const DEFAULT_VERSION = 426;
   if (typeof window === 'undefined' || !('caches' in window)) return;
   const scriptEl = document.currentScript || document.querySelector('script[src*="cache-refresh.js"]');
   let parsed = DEFAULT_VERSION;

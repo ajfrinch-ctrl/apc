@@ -17,8 +17,8 @@ import {
 } from './storage.js';
 import {
   STAFF_ACCOUNTS, STAFF_USERNAMES, normalizeStaffUsername, authenticateStaff,
-  saveStaffSession, resolveStaffRoleByUsername, createInitialAdmin, staffAccountRecordExists,
-  activeStaffRoles
+  saveStaffSession, hasStaffSession, resolveStaffRoleByUsername, createInitialAdmin,
+  staffAccountRecordExists, clearOrphanedLocalAdmin, activeStaffRoles
 } from './staff-auth.js';
 import { KEYS, readJSON } from './database.js';
 import { generateLoginId } from './user-id.js';
@@ -749,7 +749,62 @@ function renderFirstAdminPreview() {
   firstAdminState.preview = id;
 }
 
+const FIRST_ADMIN_RETRY_DELAYS_MS = Object.freeze([2500, 6000, 12000]);
+let firstAdminRetryTimer = null;
+let firstAdminRetryAttempt = 0;
+let firstAdminRefreshInFlight = null;
+
+function clearFirstAdminRetryTimer() {
+  if (firstAdminRetryTimer) {
+    clearTimeout(firstAdminRetryTimer);
+    firstAdminRetryTimer = null;
+  }
+}
+
+function userActivelyUsingOtherAuthForm() {
+  if (!$('#registerPanel')?.hidden) return true;
+  return Boolean(
+    String($('#loginMobile')?.value || '').trim() ||
+    String($('#loginPin')?.value || '').trim()
+  );
+}
+
+function scheduleFirstAdminRetry() {
+  if (firstAdminRetryTimer || !$('#firstAdminPanel') || $('#authScreen')?.hidden) return;
+  if (firstAdminRetryAttempt >= FIRST_ADMIN_RETRY_DELAYS_MS.length) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  const targetWindow = typeof window !== 'undefined' ? window : null;
+  const delayMs = FIRST_ADMIN_RETRY_DELAYS_MS[firstAdminRetryAttempt];
+  firstAdminRetryAttempt += 1;
+  firstAdminRetryTimer = setTimeout(() => {
+    firstAdminRetryTimer = null;
+    if (targetWindow && (globalThis.window !== targetWindow || targetWindow.closed)) return;
+    if (!$('#firstAdminPanel') || $('#authScreen')?.hidden) return;
+    void refreshFirstAdminSetup({ openWhenUninitialized: !userActivelyUsingOtherAuthForm() }).catch(() => {});
+  }, delayMs);
+  if (typeof firstAdminRetryTimer?.unref === 'function') firstAdminRetryTimer.unref();
+}
+
+function bindFirstAdminRecoveryListeners() {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  if (window.__apcFirstAdminRecoveryBound) return;
+  window.__apcFirstAdminRecoveryBound = true;
+  const targetWindow = window;
+  const retryNow = () => {
+    if (globalThis.window !== targetWindow || targetWindow.closed) return;
+    if (!$('#firstAdminPanel') || $('#authScreen')?.hidden || firstAdminState.available) return;
+    clearFirstAdminRetryTimer();
+    firstAdminRetryAttempt = 0;
+    void refreshFirstAdminSetup({ openWhenUninitialized: !userActivelyUsingOtherAuthForm() }).catch(() => {});
+  };
+  targetWindow.addEventListener('online', retryNow);
+  targetWindow.addEventListener('focus', () => {
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) retryNow();
+  });
+}
+
 async function lockFirstAdminSetup(reason = '') {
+  clearFirstAdminRetryTimer();
   firstAdminState.available = false;
   // Removed, not hidden: no second first-use workflow can be reached from here.
   $('#firstAdminPanel')?.remove();
@@ -772,38 +827,54 @@ async function closeFirstAdminSetup(message = '') {
 }
 
 async function refreshFirstAdminSetup({ openWhenUninitialized = false } = {}) {
-  const panel = $('#firstAdminPanel');
-  if (!panel) return { available: false, reason: 'no-workflow' };
-  const { adminInitializationStatus, ADMIN_VERIFY_REQUIRED_MESSAGE } = await import('./admin-initialization.js');
-  // 1) This device's own record — present means the institution's Admin exists.
-  if (staffAccountRecordExists('admin')) {
-    await lockFirstAdminSetup();
-    return { available: false, reason: 'local-admin' };
-  }
-  // 2) The cloud (global) truth — the only thing that may open creation.
-  const status = await adminInitializationStatus();
-  if (!status.ok) {
-    closeFirstAdminOption();
-    if (isFreshDevice()) setAuthMessage(ADMIN_VERIFY_REQUIRED_MESSAGE);
-    return { available: false, reason: status.reason };
-  }
-  if (status.initialized) {
-    await lockFirstAdminSetup();
-    return { available: false, reason: 'cloud-admin' };
-  }
-  // 3) Verified: the institution has no Admin account yet — first use is open.
-  firstAdminState.available = true;
-  const footnote = $('#firstAdminFootnote');
-  if (footnote) footnote.hidden = false;
-  if (openWhenUninitialized && !$('#authScreen')?.hidden) switchAuthTab('first-admin');
-  return { available: true, reason: 'uninitialized' };
-}
-
-function isFreshDevice() {
+  if (firstAdminRefreshInFlight) return firstAdminRefreshInFlight;
+  firstAdminRefreshInFlight = (async () => {
+    const panel = $('#firstAdminPanel');
+    if (!panel) return { available: false, reason: 'no-workflow' };
+    const { adminInitializationStatus, ADMIN_VERIFY_REQUIRED_MESSAGE } = await import('./admin-initialization.js');
+    const hasActiveAdminSession = await hasStaffSession('admin');
+    if (hasActiveAdminSession && staffAccountRecordExists('admin')) {
+      await lockFirstAdminSetup();
+      return { available: false, reason: 'local-admin' };
+    }
+    // Ask the authoritative cloud database first: only a verified answer may open
+    // creation, and a stale pre-reset / pre-migration local cache must not hide a
+    // genuinely uninitialized cloud database.
+    const status = await adminInitializationStatus();
+    if (!status.ok) {
+      closeFirstAdminOption();
+      if (!staffAccountRecordExists('admin')) {
+        setAuthMessage(ADMIN_VERIFY_REQUIRED_MESSAGE);
+      }
+      scheduleFirstAdminRetry();
+      return { available: false, reason: status.reason };
+    }
+    clearFirstAdminRetryTimer();
+    if (status.initialized) {
+      await lockFirstAdminSetup();
+      return { available: false, reason: 'cloud-admin' };
+    }
+    // Verified: the institution has no Admin account in the cloud yet.
+    if (staffAccountRecordExists('admin') && !hasActiveAdminSession) {
+      clearOrphanedLocalAdmin();
+      renderFirstAdminPreview();
+    }
+    if (($('#authMessage')?.textContent || '').trim() === ADMIN_VERIFY_REQUIRED_MESSAGE) {
+      setAuthMessage('');
+    }
+    firstAdminState.available = true;
+    const footnote = $('#firstAdminFootnote');
+    if (footnote) footnote.hidden = false;
+    if (openWhenUninitialized && !$('#authScreen')?.hidden && !userActivelyUsingOtherAuthForm()) {
+      switchAuthTab('first-admin');
+    }
+    return { available: true, reason: 'uninitialized' };
+  })();
   try {
-    if (loadAccount()) return false;
-    return !Object.keys(STAFF_ACCOUNTS).some(role => staffAccountRecordExists(role));
-  } catch { return false; }
+    return await firstAdminRefreshInFlight;
+  } finally {
+    firstAdminRefreshInFlight = null;
+  }
 }
 
 function initFirstAdminSetup() {
@@ -814,6 +885,7 @@ function initFirstAdminSetup() {
   $('#firstAdminName')?.addEventListener('input', renderFirstAdminPreview);
   renderFirstAdminPreview();
   $('#firstAdminForm')?.addEventListener('submit', handleFirstAdminSubmit);
+  bindFirstAdminRecoveryListeners();
   return refreshFirstAdminSetup({ openWhenUninitialized: true })
     .then(result => result.available)
     .catch(() => false);
@@ -822,21 +894,26 @@ function initFirstAdminSetup() {
 async function openFirstAdminSetup() {
   if (!$('#firstAdminPanel')) return;
   const { adminInitializationStatus, ADMIN_EXISTS_MESSAGE, ADMIN_VERIFY_REQUIRED_MESSAGE } = await import('./admin-initialization.js');
-  if (staffAccountRecordExists('admin')) {
-    await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
-    return;
-  }
   const status = await adminInitializationStatus();
   if (!status.ok) {
+    if (staffAccountRecordExists('admin')) {
+      await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
+      return;
+    }
     // No verified answer: the form must not open. The panel is left where it is
     // (still hidden) so a later attempt can still find it.
     closeFirstAdminOption();
     setAuthMessage(ADMIN_VERIFY_REQUIRED_MESSAGE);
+    scheduleFirstAdminRetry();
     return;
   }
   if (status.initialized) {
     await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
     return;
+  }
+  if (staffAccountRecordExists('admin') && !(await hasStaffSession('admin'))) {
+    clearOrphanedLocalAdmin();
+    renderFirstAdminPreview();
   }
   firstAdminState.available = true;
   switchAuthTab('first-admin');
@@ -860,9 +937,12 @@ async function handleFirstAdminSubmit(event) {
     showError(ADMIN_VERIFY_REQUIRED_MESSAGE);
     return;
   }
-  if (status.initialized || staffAccountRecordExists('admin')) {
+  if (status.initialized) {
     await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
     return;
+  }
+  if (staffAccountRecordExists('admin') && !(await hasStaffSession('admin'))) {
+    clearOrphanedLocalAdmin();
   }
   if (submit) { submit.disabled = true; submit.setAttribute('aria-busy', 'true'); }
   try {

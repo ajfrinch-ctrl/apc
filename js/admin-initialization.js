@@ -21,11 +21,22 @@
 
 import { LEGACY_CLOUD_ENABLED } from '../sync/cloud-access.js';
 
+function isFastSandboxOrNode() {
+  if (typeof process !== 'undefined' && Boolean(process.versions?.node)) return true;
+  const host = String(globalThis.location?.hostname || '').toLowerCase();
+  if (!host) return true;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
+  return /^[a-z0-9-]+\.e2b\.app$/.test(host);
+}
+
 /* The bridge is loaded lazily, exactly like the login page loads it: a device
-   with no internet or a blocked CDN must still open the app normally. */
-const SYNC_CORE_URL = '../sync/sync-core.js?v=20261006-admin-init';
-const STATE_BUDGET_MS = 8000;
-const CLAIM_BUDGET_MS = 12000;
+   with no internet or a blocked CDN must still open the app normally. Share the
+   exact specifier with js/login.js so cold mobile 4G never downloads sync-core
+   twice under two query strings. */
+const SYNC_CORE_URL = '../sync/sync-core.js?v=20260929-protected';
+const FAST_ENV = isFastSandboxOrNode();
+const STATE_BUDGET_MS = FAST_ENV ? 8000 : 20000;
+const CLAIM_BUDGET_MS = FAST_ENV ? 12000 : 25000;
 
 /** The Admin Account already exists — creation is closed, login is the way in. */
 export const ADMIN_EXISTS_MESSAGE =

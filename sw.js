@@ -1,3 +1,4 @@
+// v426: mobile 4G First-Admin verification resiliency, lazy Firebase Secondary SDK import, and authoritative Supabase Primary admin gate.
 // v425: defer cache-refresh SW registration until after load and throttle precache concurrency so mobile links paint immediately.
 // v424: auto-reload open tabs migrating from legacy pre-minimal-education Service Workers (e.g. v53).
 // v397: Teacher — একাডেমিক কার্যক্রম moved out of the ক্লাস screen into its own Home feature card
@@ -172,7 +173,7 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 425;
+const CACHE_VERSION = 426;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',

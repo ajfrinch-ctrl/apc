@@ -110,8 +110,39 @@ const adminExistsResult = () => ({ ok: false, code: 'ADMIN_EXISTS', error: ADMIN
  *
  * Result codes: ok, ADMIN_EXISTS, CLOUD_UNVERIFIED, LOCAL_WRITE_FAILED.
  */
+/** Clear a stale pre-reset / pre-migration local Admin copy when the live cloud
+ *  explicitly verified that zero Admin account exists in the institution DB. */
+export function clearOrphanedLocalAdmin() {
+  try {
+    const spec = staffSpec('admin');
+    if (spec?.accountKey) window.localStorage?.removeItem(spec.accountKey);
+    window.localStorage?.removeItem(INITIAL_ADMIN_USERNAME_KEY);
+    const index = readJSON(KEYS.usernames, null);
+    if (index && typeof index === 'object' && !Array.isArray(index)) {
+      let changed = false;
+      const next = { ...index };
+      for (const [k, v] of Object.entries(next)) {
+        if (v === 'staff:admin') {
+          delete next[k];
+          changed = true;
+        }
+      }
+      if (changed) writeJSON(KEYS.usernames, next);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function createInitialAdmin({ fullName, mobile, email = '', password, confirmPassword } = {}) {
-  if (await readStaffAccount('admin')) return adminExistsResult();
+  if (await readStaffAccount('admin')) {
+    const precheck = await adminInitializationStatus();
+    if (!precheck.ok || precheck.initialized || (await hasStaffSession('admin'))) {
+      return adminExistsResult();
+    }
+    clearOrphanedLocalAdmin();
+  }
   const name = String(fullName ?? '').trim().replace(/\s+/g, ' ');
   const phone = normalizeBdMobile(mobile);
   const mail = String(email ?? '').trim().toLowerCase();
