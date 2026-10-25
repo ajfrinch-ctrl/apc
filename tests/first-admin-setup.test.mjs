@@ -20,7 +20,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
-import { createAdminCloud, installAdminCloud, removeAdminCloud } from './admin-init-cloud.mjs';
+import { createAdminCloud, installAdminCloud, removeAdminCloud, setAdminCloud } from './admin-init-cloud.mjs';
 import { STAFF_ACCOUNTS, createInitialAdmin, readStaffAccount, staffAccountRecordExists } from '../js/staff-auth.js';
 import { KEYS, readJSON } from '../js/database.js';
 
@@ -266,3 +266,36 @@ test('an unverifiable cloud never opens creation and never writes an Admin', asy
   assert.equal(readJSON(KEYS.usernames, null), null, 'and no Login User ID was claimed');
   device.window.close();
 });
+
+test('a device with leftover local storage or transient 4G failure shows verification notice, retries automatically, and clears orphaned pre-migration admin records when cloud is uninitialized', async () => {
+  // Fresh uninitialized cloud that fails the FIRST check (simulating cold 4G timeout) then succeeds on retry!
+  const freshCloud = createAdminCloud();
+  let calls = 0;
+  const origState = freshCloud.state;
+  freshCloud.state = () => {
+    calls += 1;
+    if (calls === 1) return { ok: false, reason: 'admin-check-failed' };
+    return origState();
+  };
+  setAdminCloud(freshCloud);
+
+  const page = await loadPage('index.html', {
+    seed: {
+      ...DEMO_OFF,
+      // Simulate leftover v53 student account + stale pre-migration admin cache on same origin
+      [KEYS.account]: JSON.stringify({ mobile: '01700000001', username: 'old.student' }),
+      [STAFF_ACCOUNTS.admin.accountKey]: JSON.stringify({ username: 'admin.apc', password: 'legacy-v53-password' })
+    }
+  });
+  const { initLogin } = await import('../js/login.js?mobile-4g-retry');
+  initLogin({ state: { student: null, account: null }, onAuthenticated: () => {} });
+
+  // Wait for automatic retry (2.5s) to reconcile with uninitialized cloud and open #firstAdminPanel!
+  await page.waitFor(() => page.$('#firstAdminPanel') && page.$('#firstAdminPanel').hidden === false, 8000);
+  await page.flush();
+
+  assert.equal(page.$('#firstAdminFootnote').hidden, false, 'First-Admin option revealed after 4G retry');
+  assert.equal(page.window.localStorage.getItem(STAFF_ACCOUNTS.admin.accountKey), null, 'Stale orphaned pre-migration local admin record purged when cloud is uninitialized');
+  page.window.close();
+});
+

@@ -16,14 +16,23 @@ import {
   decryptCloudSubtree
 } from './cloud-payload-crypto.js';
 
+function isFastFailSandboxHost() {
+  if (typeof process !== 'undefined' && Boolean(process.versions?.node)) return true;
+  const host = String(globalThis.location?.hostname || '').toLowerCase();
+  if (!host) return true;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
+  return /^[a-z0-9-]+\.e2b\.app$/.test(host);
+}
+
+const FAST_SANDBOX = isFastFailSandboxHost();
 const COALESCE_MS = 25;
 const MAX_CAS_RETRIES = 18;
 const RECONNECT_BASE_MS = 1500;
 const RECONNECT_MAX_MS = 15000;
 const FALLBACK_POLL_MS = 2500;
-const INITIAL_CONNECT_TIMEOUT_MS = 1100;
-const RPC_TIMEOUT_MS = 6000;
-const UNREACHABLE_COOLDOWN_MS = 8000;
+const INITIAL_CONNECT_TIMEOUT_MS = FAST_SANDBOX ? 1100 : 10000;
+const RPC_TIMEOUT_MS = FAST_SANDBOX ? 6000 : 12000;
+const UNREACHABLE_COOLDOWN_MS = FAST_SANDBOX ? 8000 : 4000;
 const DEFAULT_IDLE_HIBERNATE_MS = 30000;
 
 let clientInstance = null;
@@ -94,11 +103,27 @@ function fetchWithTimeout(input, init = {}) {
     return Promise.reject(fastErr);
   }
   if (init?.signal) return baseFetch(input, init);
-  const controller = new AbortController();
-  const timeoutMs = rpcHealthy ? RPC_TIMEOUT_MS : INITIAL_CONNECT_TIMEOUT_MS;
-  const timer = setTimeout(() => controller.abort(new Error('Supabase request timed out')), timeoutMs);
-  if (typeof timer?.unref === 'function') timer.unref();
-  return baseFetch(input, { ...init, signal: controller.signal })
+
+  const attemptOnce = () => {
+    const controller = new AbortController();
+    const timeoutMs = rpcHealthy ? RPC_TIMEOUT_MS : INITIAL_CONNECT_TIMEOUT_MS;
+    const timer = setTimeout(() => controller.abort(new Error('Supabase request timed out')), timeoutMs);
+    if (typeof timer?.unref === 'function') timer.unref();
+    return baseFetch(input, { ...init, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+  };
+
+  return attemptOnce()
+    .catch(async firstErr => {
+      // On real mobile 4G networks, the very first cold radio wakeup can drop
+      // before DNS/TLS completes; retry once immediately before marking cooldown.
+      const aborted = String(firstErr?.name || '') === 'AbortError' || /timed?\s*out/i.test(String(firstErr?.message || ''));
+      if (!FAST_SANDBOX && !rpcHealthy && isBrowserOnline() && !aborted) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        return attemptOnce();
+      }
+      throw firstErr;
+    })
     .then(res => {
       if (res && (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504)) {
         consecutiveRpcFailures += 1;
@@ -115,7 +140,8 @@ function fetchWithTimeout(input, init = {}) {
     })
     .catch(err => {
       consecutiveRpcFailures += 1;
-      unreachableUntil = Date.now() + UNREACHABLE_COOLDOWN_MS;
+      const cooldownMs = Math.min(UNREACHABLE_COOLDOWN_MS, 1500 * consecutiveRpcFailures);
+      unreachableUntil = Date.now() + cooldownMs;
       if (consecutiveRpcFailures >= 1) {
         emitOverload({
           reason: 'network-or-timeout',
@@ -124,8 +150,7 @@ function fetchWithTimeout(input, init = {}) {
         });
       }
       throw err;
-    })
-    .finally(() => clearTimeout(timer));
+    });
 }
 
 function isBrowserOnline() {

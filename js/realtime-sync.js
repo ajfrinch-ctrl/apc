@@ -1222,33 +1222,44 @@ const isAdminRecord = value =>
   (typeof value.username === 'string' || Boolean(value.password));
 
 // Read only the first-use Admin state. Do not hydrate other accounts or start
+function withPrimaryAdminGate(fn) {
+  globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__ = (Number(globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__) || 0) + 1;
+  return Promise.resolve()
+    .then(fn)
+    .finally(() => {
+      globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__ = Math.max(0, (Number(globalThis.__APC_PRIMARY_ONLY_ADMIN_GATE__) || 1) - 1);
+    });
+}
+
 // syncing application records merely because the login page was opened.
 export async function adminInitializationState() {
   if (!navigator.onLine) return { ok: false, reason: 'offline' };
-  try {
-    await ensureCloudAuth();
-    const db = getDatabase(firebaseApp);
-    /* The Admin RECORD is the source of truth, so it is read first: a deployed
-       database whose rules do not allow the `system` marker yet must not turn
-       an existing Admin into an unanswerable question. */
-    const adminSnapshot = await get(ref(db, STAFF_ROOT + '/admin'));
-    const record = adminSnapshot.exists() ? adminSnapshot.val() : null;
-    const recordExists = isAdminRecord(record);
-    let flag = false;
+  return withPrimaryAdminGate(async () => {
     try {
-      const flagSnapshot = await get(ref(db, SYSTEM_ROOT + '/adminInitialized'));
-      flag = flagSnapshot.exists() && flagSnapshot.val() === true;
+      await ensureCloudAuth();
+      const db = getDatabase(firebaseApp);
+      /* The Admin RECORD is the source of truth, so it is read first: a deployed
+         database whose rules do not allow the `system` marker yet must not turn
+         an existing Admin into an unanswerable question. */
+      const adminSnapshot = await get(ref(db, STAFF_ROOT + '/admin'));
+      const record = adminSnapshot.exists() ? adminSnapshot.val() : null;
+      const recordExists = isAdminRecord(record);
+      let flag = false;
+      try {
+        const flagSnapshot = await get(ref(db, SYSTEM_ROOT + '/adminInitialized'));
+        flag = flagSnapshot.exists() && flagSnapshot.val() === true;
+      } catch (error) {
+        // Only when no record exists does the marker matter, and an unreadable
+        // marker is never "not initialized": the caller stays fail-closed and
+        // says the cloud could not be verified. Log the exact reason.
+        if (!recordExists) throw error;
+        console.warn('[Active Plus] adminInitialized marker unreadable:', error?.code || error?.message || error);
+      }
+      return { ok: true, initialized: flag || recordExists, flag, recordExists };
     } catch (error) {
-      // Only when no record exists does the marker matter, and an unreadable
-      // marker is never "not initialized": the caller stays fail-closed and
-      // says the cloud could not be verified. Log the exact reason.
-      if (!recordExists) throw error;
-      console.warn('[Active Plus] adminInitialized marker unreadable:', error?.code || error?.message || error);
+      return { ok: false, reason: 'admin-check-failed', error };
     }
-    return { ok: true, initialized: flag || recordExists, flag, recordExists };
-  } catch (error) {
-    return { ok: false, reason: 'admin-check-failed', error };
-  }
+  });
 }
 
 /** Compatibility answer for the login page's first-use gate. */
@@ -1292,21 +1303,23 @@ export async function claimFirstAdminAccount(record) {
   if (!isAdminRecord(record) || !isPasswordRecord(record?.password)) {
     return { ok: false, reason: 'invalid-record' };
   }
-  try {
-    await ensureCloudAuth();
-    const result = await runTransaction(ref(getDatabase(firebaseApp), STAFF_ROOT + '/admin'), current => {
-      // Anything already stored here — even a record written by an older
-      // release — means the one Admin Account exists and creation is closed.
-      if (isAdminRecord(current)) return;
-      return record;
-    }, { applyLocally: false });
-    if (!result.committed) return { ok: false, reason: 'admin-exists' };
-    await ensureAdminInitializedFlag();
-    return { ok: true };
-  } catch (error) {
-    syncError(error);
-    return { ok: false, reason: 'claim-failed', error };
-  }
+  return withPrimaryAdminGate(async () => {
+    try {
+      await ensureCloudAuth();
+      const result = await runTransaction(ref(getDatabase(firebaseApp), STAFF_ROOT + '/admin'), current => {
+        // Anything already stored here — even a record written by an older
+        // release — means the one Admin Account exists and creation is closed.
+        if (isAdminRecord(current)) return;
+        return record;
+      }, { applyLocally: false });
+      if (!result.committed) return { ok: false, reason: 'admin-exists' };
+      await ensureAdminInitializedFlag();
+      return { ok: true };
+    } catch (error) {
+      syncError(error);
+      return { ok: false, reason: 'claim-failed', error };
+    }
+  });
 }
 
 /* ---- Factory reset ---------------------------------------------------------

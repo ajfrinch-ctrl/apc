@@ -792,3 +792,82 @@ test('Firebase Two-Device Live Sync & Cross-Cloud Handoff enforces database.rule
   }
 });
 
+test('Dual-Cloud authoritative Supabase Primary admin gate ignores stale Secondary Firebase records even under 100% load-split', async () => {
+  const { createDualCloudTransport } = await import('../sync/dual-cloud-failover.js');
+
+  function makeSimpleLeg(name, initialEntries = []) {
+    const store = new Map(initialEntries);
+    const snap = (path, val) => ({
+      key: String(path).split('/').pop(),
+      exists: () => val !== null && val !== undefined,
+      val: () => (val === null || val === undefined ? null : structuredClone(val))
+    });
+    const authObj = { currentUser: { uid: `${name}-uid` }, async authStateReady() {} };
+    return {
+      name,
+      store,
+      app: { name },
+      appCheckReady: Promise.resolve(),
+      mod: {
+        browserLocalPersistence: { type: 'LOCAL' },
+        getAuth: () => authObj,
+        setPersistence: async () => {},
+        signInAnonymously: async () => ({ user: authObj.currentUser }),
+        getDatabase: () => ({ name }),
+        ref: (_db, path) => ({ path: String(path || '').replace(/^\/+|\/+$/g, '') }),
+        get: async r => snap(r.path, store.get(r.path) ?? null),
+        set: async (r, val) => {
+          if (val === null || val === undefined) store.delete(r.path);
+          else store.set(r.path, structuredClone(val));
+        },
+        runTransaction: async (r, fn) => {
+          const cur = store.get(r.path) ?? null;
+          const next = fn(structuredClone(cur));
+          if (next === undefined) return { committed: false, snapshot: snap(r.path, cur) };
+          store.set(r.path, structuredClone(next));
+          return { committed: true, snapshot: snap(r.path, next) };
+        },
+        onValue: () => () => {}
+      }
+    };
+  }
+
+  // Fresh Supabase Primary has ZERO Admin records, while legacy Secondary Firebase has stale pre-migration flags!
+  const supaPrimary = makeSimpleLeg('supabase');
+  const staleFirebaseSecondary = makeSimpleLeg('firebase', [
+    ['activePlusSync/v1/system/adminInitialized', true],
+    ['activePlusSync/v1/staffAccounts/admin', { username: 'legacy.admin.apc', status: 'active' }]
+  ]);
+
+  const dual = createDualCloudTransport({
+    primary: supaPrimary,
+    secondary: staleFirebaseSecondary,
+    options: { loadSplitSecondaryPercent: 100, mirrorDebounceMs: 20 }
+  });
+
+  try {
+    const db = dual.getDatabase();
+    const flagSnap = await dual.get(dual.ref(db, 'activePlusSync/v1/system/adminInitialized'));
+    const adminSnap = await dual.get(dual.ref(db, 'activePlusSync/v1/staffAccounts/admin'));
+    assert.equal(flagSnap.exists(), false, 'Supabase Primary (uninitialized) wins over stale Firebase Secondary');
+    assert.equal(adminSnap.exists(), false, 'Supabase Primary (no admin) wins over stale Firebase Secondary');
+
+    // Claiming First Admin writes atomically to Supabase Primary and mirrors encrypted copy over stale Firebase Secondary!
+    const claimTx = await dual.runTransaction(dual.ref(db, 'activePlusSync/v1/staffAccounts/admin'), cur => {
+      if (cur !== null) return undefined;
+      return { username: 'ajfrinch.admin.apc', status: 'active', fullName: 'AJ Frinch' };
+    });
+    assert.equal(claimTx.committed, true);
+    await dual.set(dual.ref(db, 'activePlusSync/v1/system/adminInitialized'), true);
+    assert.equal(supaPrimary.store.get('activePlusSync/v1/staffAccounts/admin').username, 'ajfrinch.admin.apc');
+    assert.equal(supaPrimary.store.get('activePlusSync/v1/system/adminInitialized'), true);
+
+    await new Promise(r => setTimeout(r, 60));
+    const mirroredAdmin = staleFirebaseSecondary.store.get('activePlusSync/v1/staffAccounts/admin');
+    assert.equal(mirroredAdmin._apcEnc, 1, 'Stale Secondary Firebase record overwritten with AES-256-GCM mirror');
+  } finally {
+    dual.destroy();
+  }
+});
+
+
