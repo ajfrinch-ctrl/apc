@@ -41,7 +41,7 @@ const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
 /* The Manager keeps five bottom seats. Reports and the advice editor live in
    More; their route names and data hooks remain unchanged. */
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'class-chat', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'advice', 'profile', 'settings', 'more']);
+const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'class-chat', 'phonebook', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'advice', 'profile', 'settings', 'more']);
 let managerChatFlight = null;
 function mountManagerClassChat() {
   const mount = $('#managerClassChatMount');
@@ -49,6 +49,20 @@ function mountManagerClassChat() {
   managerChatFlight ??= import('./class-chat.js').catch(err => { managerChatFlight = null; throw err; });
   void managerChatFlight.then(mod => mod.mountClassChat(mount, { portal: 'manager', getStaff: () => managerAccount }))
     .catch(err => console.warn('[Active Plus] manager class-chat failed:', err?.message));
+}
+let managerPhonebookFlight = null;
+function mountManagerPhonebook() {
+  const mount = $('#managerPhonebookMount');
+  if (!mount) return;
+  managerPhonebookFlight ??= import('./phonebook.js').catch(err => { managerPhonebookFlight = null; throw err; });
+  void managerPhonebookFlight.then(mod => mod.mountPhonebook(mount, {
+    portal: 'manager',
+    getStudents: () => students,
+    getTransactions: () => transactions,
+    getStaff: () => listStaff(),
+    onToast: (msg, err) => toast(msg, err)
+  }))
+    .catch(err => console.warn('[Active Plus] manager phonebook failed:', err?.message));
 }
 const LEGACY_VIEWS = Object.freeze({
   approvals: { view: 'students', scope: 'pending' },
@@ -220,6 +234,7 @@ function renderView(view) {
   if (view === 'reports') void refreshReports($('#managerReports'));
   if (view === 'profile') renderProfile();
   if (view === 'class-chat') mountManagerClassChat();
+  if (view === 'phonebook') mountManagerPhonebook();
   $('#managerMain')?.scrollTo({ top: 0, behavior: 'smooth' });
   return true;
 }
