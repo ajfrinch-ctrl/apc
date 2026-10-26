@@ -129,8 +129,11 @@ test('Admin Panel Phonebook (#phonebook) mounts Yellow Pages class groups, staff
   await import('../js/admin.js');
   await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
 
-  const hubCard = ctx.$('.phonebook-hub-card[data-admin-view="phonebook"]');
-  assert.ok(hubCard, 'Admin Home has Yellow Pages Phonebook hub card');
+  assert.equal(ctx.$('.admin-view[data-view-panel="dashboard"] .phonebook-hub-card'), null,
+    'Home does not duplicate the Phonebook shortcut');
+  ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
+  const hubCard = ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]');
+  assert.ok(hubCard, 'Yellow Pages Phonebook remains available from More');
   ctx.click(hubCard);
 
   await ctx.waitFor(() => ctx.$('.admin-view.active')?.dataset.viewPanel === 'phonebook');

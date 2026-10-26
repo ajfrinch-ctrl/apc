@@ -54,14 +54,19 @@ test('student avatars show the student initials, grapheme-safe', () => {
     'the list avatar is the student, not a generic glyph');
 });
 
-test('all 17 Admin views have 3D hero cards with daily advice, weekday·date pill, sun/moon glint, and horizontal action cards', () => {
+test('Admin Home keeps its text-only welcome while the other 16 views retain their 3D hero cards', () => {
   assert.match(html, /<body class="admin-reference">/, 'admin body carries .admin-reference');
   const allPanels = ['dashboard', 'staff', 'system', 'migration', 'roles', 'students', 'reports', 'data', 'backup', 'audit', 'security', 'academics', 'settings', 'more', 'profile', 'content', 'advice'];
   for (const panel of allPanels) {
     const chunk = viewOf(panel);
-    assert.match(chunk, /teacher-hero-scene/, `${panel} has a 3D hero scene`);
-    assert.match(chunk, /data-admin-hero-art/, `${panel} has a 3D hero art image`);
-    assert.match(chunk, /data-hero-card=/, `${panel} has a hero card key`);
+    if (panel === 'dashboard') {
+      assert.doesNotMatch(chunk, /teacher-hero-scene|data-admin-hero-art|data-hero-card=/,
+        'Home never loads the large 3D illustration');
+    } else {
+      assert.match(chunk, /teacher-hero-scene/, `${panel} still has a 3D hero scene`);
+      assert.match(chunk, /data-admin-hero-art/, `${panel} still has a 3D hero art image`);
+      assert.match(chunk, /data-hero-card=/, `${panel} still has a hero card key`);
+    }
     assert.match(chunk, /teacher-hero-date-pill/, `${panel} has top-right weekday·date pill`);
     assert.match(chunk, /teacher-hero-glint/, `${panel} has top-right sun/moon glint`);
     assert.match(chunk, /data-admin-hero-advice=/, `${panel} has daily rotating advice`);

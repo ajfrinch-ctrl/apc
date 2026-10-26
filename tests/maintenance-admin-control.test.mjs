@@ -37,10 +37,8 @@ test('the settings view shows the maintenance switch and the live state', () => 
   assert.equal(ctx.$('#cfgMaintenanceMode').checked, true, 'a stuck flag is visible as ON, not hidden');
   assert.match(ctx.$('#maintenanceState').textContent, /চালু আছে/);
   assert.ok(ctx.$('#btnSaveMaintenance'), 'the switch has its own save button');
-  // The dashboard says so too — a notice nobody remembers switching on is how
-  // students end up looking at one for days.
-  assert.equal(ctx.$('#adminMaintenanceFlag').hidden, false);
-  assert.match(ctx.$('#adminMaintenanceFlag').textContent, /চালু আছে/);
+  // The user asked to remove Home warnings, not the maintenance control.
+  assert.equal(ctx.$('#adminMaintenanceFlag'), null, 'Home has no duplicate status banner');
 });
 
 test('the admin can switch maintenance off — an explicit false is saved', () => {
@@ -51,7 +49,7 @@ test('the admin can switch maintenance off — an explicit false is saved', () =
   assert.equal(saved.maintenanceMode, false, 'the settings document carries an explicit false');
   assert.match($('#maintenanceState').textContent, /বন্ধ আছে/);
   assert.match($('.admin-toast')?.textContent || '', /বন্ধ/);
-  assert.equal($('#adminMaintenanceFlag').hidden, true, 'the dashboard reminder follows the switch');
+  assert.equal($('#adminMaintenanceFlag'), null, 'switching maintenance does not restore a Home banner');
 });
 
 test('the admin can set a maintenance notice and then clear it again', () => {

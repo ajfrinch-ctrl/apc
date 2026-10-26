@@ -8255,7 +8255,30 @@ body:is(.modal-open, .admin-modal-open, .notice-board-detail-open) .class-chat-h
   color: var(--pay-on-fab);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 28%, transparent);
 }
+
+/* Admin Home: keep the welcome/date/advice, but no artwork or empty picture frame. */
+body.admin-reference .admin-view[data-view-panel="dashboard"] .home-dashboard-intro.admin-home-intro {
+  aspect-ratio: auto;
+  min-height: 0 !important;
+  background-image: none !important;
 }
-
-
-
+body.admin-reference .admin-view[data-view-panel="dashboard"] .home-dashboard-intro.admin-home-intro::after {
+  content: none !important;
+}
+body.admin-reference .admin-view[data-view-panel="dashboard"] .admin-home-intro .teacher-hero-content {
+  min-height: 0 !important;
+}
+body.admin-reference .admin-view[data-view-panel="dashboard"] .admin-home-intro .admin-hero-title {
+  max-width: 100% !important;
+  margin-top: 0 !important;
+}
+body.admin-reference .admin-view[data-view-panel="dashboard"] .admin-home-intro .pay-portal-heading {
+  padding-right: 0 !important;
+}
+body.admin-reference .admin-view[data-view-panel="dashboard"] .admin-home-intro #adminHeroAdvice {
+  max-width: 100% !important;
+}
+body.admin-reference .admin-view[data-view-panel="dashboard"] .admin-home-intro .admin-weekday-label {
+  color: inherit;
+}
+}

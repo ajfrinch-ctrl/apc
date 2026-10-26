@@ -8,14 +8,16 @@ test('wide print media retains the original paper grids instead of the phone she
  const screenShell=await page.locator('#adminShell').boundingBox();
  expect(screenShell.width).toBe(430);
  await page.emulateMedia({media:'print'});
- const printed=await page.evaluate(()=>({
+  const printed=await page.evaluate(()=>({
   shell:document.querySelector('#adminShell').getBoundingClientRect().width,
-  stats:getComputedStyle(document.querySelector('.admin-hero-stats')).gridTemplateColumns.split(' ').length,
+  homeStats:document.querySelectorAll('.admin-view[data-view-panel="dashboard"] .admin-stat-tile').length,
+  portals:document.querySelectorAll('.admin-view[data-view-panel="dashboard"] .admin-portal-grid > a').length,
   features:getComputedStyle(document.querySelector('#adminFeatureGrid')).gridTemplateColumns.split(' ').length,
   nav:getComputedStyle(document.querySelector('#adminShell > .admin-bottom')).display
  }));
  expect(printed.shell).toBeGreaterThan(1200);
- expect(printed.stats).toBe(4);
+ expect(printed.homeStats).toBe(0);
+ expect(printed.portals).toBe(3);
  expect(printed.features).toBe(3);
  expect(printed.nav).toBe('none');
 });
