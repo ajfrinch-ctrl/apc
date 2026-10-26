@@ -52,12 +52,20 @@ test('Desktop Full-Screen Word-Style Lecture Sheet Studio: Bangla যুক্�
   await expect(overlay).toBeVisible();
   await expect(page.locator('#adminShell')).toBeHidden();
 
-  const desktopGeom = await page.evaluate(() => ({
-    hasRootClass: document.documentElement.classList.contains('apc-lecture-studio-open'),
-    overflowX: document.documentElement.scrollWidth - window.innerWidth
-  }));
+  const desktopGeom = await page.evaluate(() => {
+    const r = document.getElementById('apcLectureStudioOverlay').getBoundingClientRect();
+    return {
+      hasRootClass: document.documentElement.classList.contains('apc-lecture-studio-open'),
+      overflowX: document.documentElement.scrollWidth - window.innerWidth,
+      fillsWidth: Math.round(r.width) === window.innerWidth,
+      fillsHeight: Math.round(r.height) === window.innerHeight
+    };
+  });
   expect(desktopGeom.hasRootClass).toBe(true);
   expect(desktopGeom.overflowX).toBeLessThanOrEqual(0);
+  expect(desktopGeom.fillsWidth).toBe(true);
+  expect(desktopGeom.fillsHeight).toBe(true);
+  await expect(overlay.locator('[data-ls-sheet-watermark]')).toBeVisible();
 
   // Type Bangla যুক্তাক্ষর + English in ProseMirror A4 canvas & apply toolbar formatting
   const editorBox = overlay.locator('.ProseMirror');
@@ -86,6 +94,7 @@ test('Desktop Full-Screen Word-Style Lecture Sheet Studio: Bangla যুক্�
   await expect(overlay.locator('[data-ls-preview-stage]')).toBeVisible();
   const previewPageCount = await overlay.locator('.ls-preview-page').count();
   expect(previewPageCount).toBeGreaterThanOrEqual(2);
+  await expect(overlay.locator('.ls-preview-page .ls-a4-watermark')).toHaveCount(previewPageCount);
   await expect(overlay.locator('[data-ls-preview-page-indicator]')).toContainText('পৃষ্ঠা ১ /');
 
   // Trigger real Download PDF & inspect the generated %PDF-1.4 file

@@ -562,6 +562,8 @@ html[data-theme="dark"] .ls-workspace {
 }
 
 .ls-a4-writing-sheet {
+  position: relative;
+  overflow: hidden;
   background: #ffffff;
   color: #111827;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
@@ -570,6 +572,13 @@ html[data-theme="dark"] .ls-workspace {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.ls-a4-writing-sheet > .ls-a4-sheet-header,
+.ls-a4-writing-sheet > .ls-tiptap-mount,
+.ls-a4-writing-sheet > .ls-a4-sheet-footer {
+  position: relative;
+  z-index: 1;
 }
 
 .ls-a4-writing-sheet.is-mobile-reflow {
@@ -888,20 +897,27 @@ html[data-theme="dark"] .ls-workspace {
   overflow: hidden;
 }
 
-.ls-preview-watermark {
+.ls-a4-watermark {
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
+  top: 50%;
+  left: 50%;
+  width: 58%;
+  max-width: 440px;
+  height: auto;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  opacity: 0.08;
   pointer-events: none;
-  opacity: 0.04;
+  user-select: none;
+  z-index: 0;
 }
 
-.ls-preview-watermark img {
-  width: 42%;
-  max-width: 300px;
+.ls-a4-watermark[hidden] {
+  display: none;
 }
 
+.ls-a4-header,
+.ls-a4-page-body,
+.ls-a4-footer,
 .ls-preview-header,
 .ls-preview-body,
 .ls-preview-footer {

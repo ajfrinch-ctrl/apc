@@ -884,8 +884,13 @@ export function renderLecturePreviewPagesHtml(layout, { renderMath = null, logoS
         </footer>`;
     }
 
+    const watermarkHtml = settings.showWatermark !== false
+      ? '<img class="ls-a4-watermark" src="assets/icons/app-logo.png" alt="" aria-hidden="true">'
+      : '';
+
     return `
       <article class="ls-preview-page" data-ls-page="${page.pageNumber}" style="width:${dimensions.width}px;height:${dimensions.height}px">
+        ${watermarkHtml}
         ${headerHtml}
         <div class="ls-a4-page-body">${bodyHtml}</div>
         ${footerHtml}
@@ -959,7 +964,7 @@ function drawPageOnCanvas(ctx, page, layout, { logo, watermark }) {
   // Crisp white paper background + subtle institutional watermark
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
-  if (watermark) {
+  if (settings.showWatermark !== false && watermark) {
     try { drawWatermark(ctx, W, H, watermark); } catch { /* ignore */ }
   }
 

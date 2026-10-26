@@ -750,6 +750,7 @@ export async function openLectureSheetStudio({
         <div class="ls-writing-stage" data-ls-writing-stage>
           <div class="ls-a4-sheet-scaler" data-ls-writing-scaler>
             <div class="ls-a4-writing-sheet" data-ls-writing-sheet>
+              <img class="ls-a4-watermark" src="assets/icons/app-logo.png" alt="" aria-hidden="true" data-ls-sheet-watermark${state.pageSettings.showWatermark === false ? ' hidden' : ''}>
               <div class="ls-a4-sheet-header" data-ls-sheet-header></div>
               <div class="ls-tiptap-mount" data-ls-tiptap-mount></div>
               <div class="ls-a4-sheet-footer" data-ls-sheet-footer></div>
@@ -837,7 +838,9 @@ export async function openLectureSheetStudio({
     const scaler = q('[data-ls-writing-scaler]');
     const head = q('[data-ls-sheet-header]');
     const foot = q('[data-ls-sheet-footer]');
+    const wm = q('[data-ls-sheet-watermark]');
     if (!sheet || !scaler) return;
+    if (wm) wm.hidden = state.pageSettings.showWatermark === false;
 
     const dim = A4_DIMENSIONS[state.pageSettings.orientation] || A4_DIMENSIONS.portrait;
     const margin = MARGIN_PRESETS[state.pageSettings.margins] || MARGIN_PRESETS.normal;
@@ -1277,6 +1280,7 @@ export async function openLectureSheetStudio({
         </div>
         <div class="ls-submodal-checks">
           <label><input type="checkbox" name="showLogo"${state.pageSettings.showLogo ? ' checked' : ''}> প্রতিষ্ঠানের লোগো দেখান</label>
+          <label><input type="checkbox" name="showWatermark"${state.pageSettings.showWatermark !== false ? ' checked' : ''}> জলছাপ (Watermark) দেখান</label>
           <label><input type="checkbox" name="showHeader"${state.pageSettings.showHeader ? ' checked' : ''}> পৃষ্ঠার হেডার দেখান</label>
           <label><input type="checkbox" name="showFooter"${state.pageSettings.showFooter ? ' checked' : ''}> পৃষ্ঠার ফুটার দেখান</label>
           <label><input type="checkbox" name="showPageNumbers"${state.pageSettings.showPageNumbers ? ' checked' : ''}> পৃষ্ঠা নম্বর (Page X of Y)</label>
@@ -1327,6 +1331,7 @@ export async function openLectureSheetStudio({
         headerText: text(fd.get('headerText')),
         footerText: text(fd.get('footerText')),
         showLogo: fd.get('showLogo') === 'on',
+        showWatermark: fd.get('showWatermark') === 'on',
         showHeader: fd.get('showHeader') === 'on',
         showFooter: fd.get('showFooter') === 'on',
         showPageNumbers: fd.get('showPageNumbers') === 'on'
