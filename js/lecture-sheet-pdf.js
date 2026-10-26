@@ -787,8 +787,7 @@ export function renderLecturePreviewPagesHtml(layout, { renderMath = null, logoS
     record.group,
     record.subjectName ? `বিষয়: ${record.subjectName}` : '',
     record.chapterName ? `অধ্যায়: ${record.chapterName}` : '',
-    record.topic ? `টপিক: ${record.topic}` : '',
-    record.teacherName ? `শিক্ষক: ${record.teacherName}` : ''
+    record.topic ? `টপিক: ${record.topic}` : ''
   ].filter(Boolean);
 
   return pages.map(page => {
@@ -872,7 +871,7 @@ export function renderLecturePreviewPagesHtml(layout, { renderMath = null, logoS
     let footerHtml = '';
     if (settings.showFooter || settings.showPageNumbers) {
       const leftLabel = settings.showFooter
-        ? (settings.footerText || [record.teacherName ? `শিক্ষক: ${record.teacherName}` : '', BRAND_NAME].filter(Boolean).join(' • '))
+        ? (settings.footerText || BRAND_NAME)
         : '';
       const rightLabel = settings.showPageNumbers
         ? `পৃষ্ঠা ${bn(page.pageNumber)} / ${bn(totalPages)}`
@@ -1022,8 +1021,7 @@ function drawPageOnCanvas(ctx, page, layout, { logo, watermark }) {
         record.group,
         record.subjectName ? `বিষয়: ${record.subjectName}` : '',
         record.chapterName ? `অধ্যায়: ${record.chapterName}` : '',
-        record.topic ? `টপিক: ${record.topic}` : '',
-        record.teacherName ? `শিক্ষক: ${record.teacherName}` : ''
+        record.topic ? `টপিক: ${record.topic}` : ''
       ].filter(Boolean).join('  •  ');
       ctx.fillStyle = '#475569';
       setFont(11, false);
@@ -1213,7 +1211,7 @@ function drawPageOnCanvas(ctx, page, layout, { logo, watermark }) {
     ctx.fillStyle = '#64748b';
     setFont(11, false);
     if (settings.showFooter) {
-      const leftLabel = settings.footerText || [record.teacherName ? `শিক্ষক: ${record.teacherName}` : '', BRAND_NAME].filter(Boolean).join(' • ');
+      const leftLabel = settings.footerText || BRAND_NAME;
       ctx.fillText(leftLabel.slice(0, 75), margin, footY);
     }
     if (settings.showPageNumbers) {

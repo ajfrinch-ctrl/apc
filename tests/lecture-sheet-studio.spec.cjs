@@ -281,6 +281,8 @@ test('Teacher Panel (#courses) strictly scopes Lecture Sheet Studio to assigned 
 
   const overlay = page.locator('#apcLectureStudioOverlay');
   await expect(overlay).toBeVisible();
+  await expect(overlay.locator('[data-ls-sheet-header]')).not.toContainText('শিক্ষক:');
+  await expect(overlay.locator('[data-ls-sheet-footer]')).not.toContainText('শিক্ষক:');
   await overlay.locator('.ProseMirror').click();
   await page.keyboard.type('বীজগাণিতিক সূত্রাবলি ও সৃজনশীল অনুশীলনী — সংরক্ষণ পরীক্ষা।');
   await overlay.locator('.ls-topbar-actions [data-ls-action="save-draft"]').click();
@@ -294,6 +296,8 @@ test('Teacher Panel (#courses) strictly scopes Lecture Sheet Studio to assigned 
   await page.evaluate(() => { window.location.hash = '#courses'; });
   await page.locator('#teacherCourses [data-courses-action="materials"]').click();
   await expect(page.locator('#teacherCourseEditor [data-ls-card]')).toContainText('শিক্ষক লেকচার শিট — বীজগণিত');
+  await expect(page.locator('#teacherCourseEditor [data-ls-card]')).not.toContainText('লেখক:');
+  await expect(page.locator('#teacherCourseEditor [data-ls-card]')).not.toContainText('শিক্ষক:');
 
   await page.locator('#teacherCourseEditor [data-ls-mgr-action="edit"]').first().click();
   await expect(page.locator('#apcLectureStudioOverlay .ProseMirror')).toContainText('বীজগাণিতিক সূত্রাবলি ও সৃজনশীল অনুশীলনী');

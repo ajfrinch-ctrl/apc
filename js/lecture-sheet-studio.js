@@ -883,8 +883,7 @@ export async function openLectureSheetStudio({
           state.group,
           sub?.name ? `বিষয়: ${sub.name}` : '',
           state.chapterName ? `অধ্যায়: ${state.chapterName}` : '',
-          state.topic ? `টপিক: ${state.topic}` : '',
-          state.teacherName ? `শিক্ষক: ${state.teacherName}` : ''
+          state.topic ? `টপিক: ${state.topic}` : ''
         ].filter(Boolean);
         head.hidden = false;
         head.innerHTML = `
@@ -911,7 +910,7 @@ export async function openLectureSheetStudio({
       if (state.pageSettings.showFooter || state.pageSettings.showPageNumbers) {
         foot.hidden = false;
         const leftText = state.pageSettings.showFooter
-          ? (state.pageSettings.footerText || [state.teacherName ? `শিক্ষক: ${state.teacherName}` : '', BRAND_NAME].filter(Boolean).join(' • '))
+          ? (state.pageSettings.footerText || BRAND_NAME)
           : '';
         const rightText = state.pageSettings.showPageNumbers
           ? `পৃষ্ঠা ${bn(state.totalPages)} / ${bn(state.totalPages)}`
@@ -963,7 +962,7 @@ export async function openLectureSheetStudio({
       zoomScale: state.mobileComfortReflow && window.innerWidth < 820 ? 1 : computeEffectiveZoom(),
       headerLabel: state.pageSettings.headerText || state.title || BRAND_NAME,
       subjectLabel: [currentSubjectObj()?.name, currentClassObj()?.name].filter(Boolean).join(' • '),
-      footerLabel: state.pageSettings.footerText || [state.teacherName ? `শিক্ষক: ${state.teacherName}` : '', BRAND_NAME].filter(Boolean).join(' • ')
+      footerLabel: state.pageSettings.footerText || BRAND_NAME
     }),
     onPageCountChange: count => {
       state.totalPages = Math.max(1, count);
@@ -1275,7 +1274,7 @@ export async function openLectureSheetStudio({
             <input name="headerText" maxlength="140" value="${escapeHtml(state.pageSettings.headerText)}" placeholder="${escapeHtml(BRAND_TAGLINE)}">
           </label>
           <label>ফুটার টেক্সট (ঐচ্ছিক)
-            <input name="footerText" maxlength="140" value="${escapeHtml(state.pageSettings.footerText)}" placeholder="শিক্ষকের নাম ও প্রতিষ্ঠানের নাম">
+            <input name="footerText" maxlength="140" value="${escapeHtml(state.pageSettings.footerText)}" placeholder="${escapeHtml(BRAND_NAME)}">
           </label>
         </div>
         <div class="ls-submodal-checks">
@@ -1915,7 +1914,7 @@ export async function mountLectureSheetManager({
                   sheet.topic ? `টপিক: ${sheet.topic}` : ''
                 ].filter(Boolean).join(' • '))}
               </p>
-              <p class="ls-sheet-author">লেখক: ${escapeHtml(sheet.teacherName || sheet.createdBy || 'স্টাফ')} • কোড: ${escapeHtml(sheet.id)}</p>
+              <p class="ls-sheet-author">কোড: ${escapeHtml(sheet.id)}</p>
               <div class="ls-sheet-actions">
                 <button type="button" class="ls-card-btn ls-card-btn-primary" data-ls-mgr-action="edit" data-id="${escapeHtml(sheet.id)}">✍️ স্টুডিওতে খুলুন</button>
                 <button type="button" class="ls-card-btn" data-ls-mgr-action="pdf" data-id="${escapeHtml(sheet.id)}">⬇ PDF</button>

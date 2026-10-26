@@ -380,11 +380,12 @@ test('A4 paginator handles multi-page overflow, explicit page breaks, repeated t
     assert.equal(tb.rows[0].isHeaderRow, true, 'every split table slice repeats the header row cleanly');
   }
 
-  // Verify preview HTML includes exact page numbering & running headers
+  // Verify preview HTML includes exact page numbering & running headers and omits teacher name
   const previewHtml = renderLecturePreviewPagesHtml(portraitLayout, { renderMath: renderLatexMathML });
   assert.match(previewHtml, new RegExp(`পৃষ্ঠা ১ / [০-৯]+`));
   assert.match(previewHtml, /নিউটনিয়ান বলবিদ্যা/);
   assert.match(previewHtml, /<math[\s>]/);
+  assert.doesNotMatch(previewHtml, /প্রফেসর কামরুল|শিক্ষক:/);
 
   // Verify Landscape geometry & valid %PDF-1.4 binary output
   const landscapeLayout = await paginateLectureDocument({
