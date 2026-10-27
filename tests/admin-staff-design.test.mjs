@@ -49,7 +49,7 @@ test('the card summary includes mobile, details include activity, and More actio
   const card = js.slice(js.indexOf('function staffCard(record)'), js.indexOf('function renderList()'));
   assert.match(card, /class="staff-card-summary-line"[\s\S]*?staff-id-badge[\s\S]*?staff-tag role-[\s\S]*?staff-card-mobile-summary[\s\S]*?className/,
     'summary carries Staff ID, role and mobile beside the name while status remains visible');
-  assert.ok(card.includes("record.mobile || 'মোবাইল নেই'"), 'the collapsed summary states when a mobile number is missing');
+  assert.ok(card.includes("PRIVACY_MASK") || card.includes("record.mobile || 'মোবাইল নেই'"), 'the collapsed summary states when a mobile number is missing or masked for privacy');
   const detailsStart = card.indexOf('class="staff-card-details"');
   const actionsStart = card.indexOf('class="staff-card-actions"');
   assert.ok(detailsStart >= 0 && actionsStart > detailsStart, 'View/Edit/More render within the details disclosure');

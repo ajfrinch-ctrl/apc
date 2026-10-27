@@ -42,11 +42,12 @@ test('the student list shows no phone, class or guardian until it is asked for',
   assert.equal(admin.$$('#studentList .student-meta-line span').length, rows.length, 'each row keeps only the Student ID chip');
   const text = admin.$('#studentList').textContent;
   for (const student of adminStudents) {
-    assert.ok(text.includes(student.name), `${student.name} is listed`);
+    assert.ok(!text.includes(student.name), `${student.name} must stay hidden in the open list`);
     if (student.mobile) assert.ok(!text.includes(student.mobile), 'the phone number is not printed');
     if (student.guardianMobile) assert.ok(!text.includes(student.guardianMobile), 'the guardian number is not printed');
     if (student.address) assert.ok(!text.includes(student.address), 'the address is not printed');
   }
+  assert.ok(text.includes('গোপন তথ্য') || text.includes('••••'), 'masked placeholder is shown');
   // The full record is one deliberate tap away.
   assert.ok(admin.$('#studentList [data-action="view"]'), 'the "তথ্য দেখুন" action stays');
 });

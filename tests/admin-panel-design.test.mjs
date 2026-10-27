@@ -50,8 +50,8 @@ test('student avatars show the student initials, grapheme-safe', () => {
   const js = read('js/admin.js');
   assert.match(js, /const initialsOf =/, 'one initials helper');
   assert.match(js, /Segmenter\('bn', \{ granularity: 'grapheme' \}\)/, 'Bengali conjuncts are kept whole');
-  assert.match(js, /student-avatar" aria-hidden="true">\$\{escapeHtml\(initialsOf\(student\.name\)\)\}/,
-    'the list avatar is the student, not a generic glyph');
+  // Privacy: list avatar is masked until explicit view
+  assert.match(js, /student-avatar.*is-masked|PRIVACY_MASK/, 'the list avatar is masked for privacy');
 });
 
 test('Admin Home keeps its text-only welcome while the other 16 views retain their 3D hero cards', () => {

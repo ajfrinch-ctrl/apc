@@ -10,6 +10,12 @@ export const REVIEW_ROLES = Object.freeze(['admin', 'manager']);
 export const REVIEW_DIALOG_ID = 'apcRegistrationReview';
 export const DECIDED_EVENT = 'apc-registration-decided';
 
+/* Privacy: the queue cards keep only the decision buttons with real IDs
+   in data attributes; name/mobile/ID text stays masked until the review
+   dialog (explicit click). */
+const PRIVACY_MASK = '••••';
+const PRIVACY_NAME = 'গোপন তথ্য';
+
 let busy = false;
 
 async function verifyReviewerAccess(role) {
@@ -247,10 +253,10 @@ export function pendingQueueMarkup(items = listPendingRegistrations()) {
     <ul class="apc-pending-queue__list">
       ${items.map(item => `<li class="apc-pending-item" data-pending-student-row="${escapeHtml(item.id)}">
         <div class="apc-pending-item__info">
-          <strong class="apc-pending-item__name">${escapeHtml(item.name)}</strong>
+          <strong class="apc-pending-item__name">${escapeHtml(PRIVACY_NAME)}</strong>
           <div class="apc-pending-item__meta">
-            <span>মোবাইল: <b dir="ltr">${escapeHtml(item.mobile || '—')}</b></span>
-            <span>আইডি: <b dir="ltr">${escapeHtml(item.id)}</b></span>
+            <span>মোবাইল: <b dir="ltr">${escapeHtml(PRIVACY_MASK)}</b></span>
+            <span>আইডি: <b dir="ltr">${escapeHtml(PRIVACY_MASK)}</b></span>
             <span>তারিখ: ${escapeHtml(item.dateLabel)}</span>
           </div>
         </div>

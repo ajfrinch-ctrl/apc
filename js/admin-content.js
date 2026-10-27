@@ -47,7 +47,7 @@ function recordRow(activity) {
   return `<article class="admin-card content-review-card">
     <header class="admin-card-head">
       <div><h3>${escapeHtml(activity.title || 'শিরোনাম নেই')}</h3>
-      <p class="admin-view-sub">${escapeHtml(CONTENT_TYPES[activity.type] || activity.type || '')} • ${escapeHtml(activity.className || '')}${activity.group ? ` • ${escapeHtml(activity.group)}` : ''} • ${escapeHtml(activity.subject || '')} • ${escapeHtml(activity.teacherName || '')}</p></div>
+      <p class="admin-view-sub">${escapeHtml(CONTENT_TYPES[activity.type] || activity.type || '')} • ${escapeHtml(activity.className || '')}${activity.group ? ` • ${escapeHtml(activity.group)}` : ''} • ${escapeHtml(activity.subject || '')} • ••••</p></div>
       <span class="badge ${activity.status === 'draft' ? 'badge-pending' : 'badge-approved'}">${status}</span>
     </header>
     <p>${escapeHtml(activity.details || 'অতিরিক্ত বিবরণ নেই।')}</p>

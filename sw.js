@@ -1,4 +1,4 @@
-// v429: Admin Home keeps welcome/date/advice, registration review and staff-portal doors; retires redundant tiles, stats, warnings and artwork.
+// v430: Privacy-mask primary lists + isolate More view keeps welcome/date/advice, registration review and staff-portal doors; retires redundant tiles, stats, warnings and artwork.
 // v428: Full-Screen Word-Style Lecture Sheet Editor & PDF Studio across Admin, Teacher, Manager & Student panels with A4 pagination, Bangla typography, equations, offline recovery & E2EE sync.
 // v427: Yellow Pages Phonebook (ফোনবুক · ইয়েলো পেইজ) in Admin & Manager panels with class-grouped student/guardian contacts, staff directory, direct calling & Bengali WhatsApp templates.
 // v426: mobile 4G First-Admin verification resiliency, lazy Firebase Secondary SDK import, and authoritative Supabase Primary admin gate.
@@ -176,7 +176,7 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 429;
+const CACHE_VERSION = 430;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',

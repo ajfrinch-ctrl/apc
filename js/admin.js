@@ -69,6 +69,12 @@ const bn = toBanglaNumber;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 
+/* Primary-data privacy: list views never show personal identifiers.
+   The list row keeps only status; name/ID/phone appear only after
+   an explicit “তথ্য দেখুন” / “View” click (the detail modal). */
+const PRIVACY_MASK = '••••';
+const PRIVACY_NAME_PLACEHOLDER = 'গোপন তথ্য';
+
 
 const state = {
   students: loadRoster(),
@@ -298,6 +304,12 @@ function setView(view) {
     panel.classList.toggle('active', active);
     if (active) resetAdminTogglePanels(panel);
   });
+  // Guard: ensure only the target stays active (fixes “More stays visible” when
+  // a stylesheet or a stale active class leaves two panels visible).
+  const actives = $$('.admin-view.active');
+  if (actives.length !== 1 || actives[0]?.dataset.viewPanel !== target) {
+    $$('.admin-view').forEach(panel => panel.classList.toggle('active', panel.dataset.viewPanel === target));
+  }
   openDefaultPrimarySection(target);
   if (target === 'class-chat') mountAdminClassChat();
   if (target === 'phonebook') mountAdminPhonebook();
@@ -503,20 +515,19 @@ function renderStudents() {
   $('#studentList').innerHTML = list.length
     ? list.map(student => {
         const status = statusMeta[student.status] || statusMeta.pending;
-        // The row stays deliberately bare: name, Student ID and status. Class,
-        // guardian, address and phone numbers are personal data and appear only
-        // after "তথ্য দেখুন" — never in the open list.
+        // Privacy: even name and Student ID stay hidden in the open list —
+        // they appear only after “তথ্য দেখুন” (the detail modal).
         return `
           <article class="student-row student-row-redesigned">
             <div class="student-row-main">
-              <span class="student-avatar" aria-hidden="true">${escapeHtml(initialsOf(student.name))}</span>
+              <span class="student-avatar is-masked" aria-hidden="true">${PRIVACY_MASK}</span>
               <div class="student-copy">
                 <div class="student-title-line">
-                  <strong>${escapeHtml(student.name || 'নাম নেই')}</strong>
+                  <strong>${escapeHtml(PRIVACY_NAME_PLACEHOLDER)}</strong>
                   <span class="badge ${status.className}">${status.label}</span>
                 </div>
                 <div class="student-meta-line">
-                  <span class="audit-id-badge">ID: ${escapeHtml(student.id)}</span>
+                  <span class="audit-id-badge">ID: ${PRIVACY_MASK}</span>
                 </div>
               </div>
             </div>
