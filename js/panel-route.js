@@ -19,10 +19,11 @@ export function rememberRoute(name) {
 }
 
 /** Run `handler(pageName)` when the hash changes (a hand-typed link, a shared
-    URL, or the browser's Back into a page of this panel). */
+    URL, or the browser's Back into a page of this panel). An empty hash
+    reopens the panel's default tab so the URL and the visible view never
+    disagree; unknown hashes are refused by the caller's route guard. */
 export function onRouteChange(handler) {
   window.addEventListener('hashchange', () => {
-    const name = routeName();
-    if (name) handler(name);
+    handler(routeName());
   });
 }

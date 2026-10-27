@@ -302,13 +302,19 @@ function setView(view) {
   $$('.admin-view').forEach(panel => {
     const active = panel.dataset.viewPanel === target;
     panel.classList.toggle('active', active);
+    panel.hidden = !active;
     if (active) resetAdminTogglePanels(panel);
   });
-  // Guard: ensure only the target stays active (fixes “More stays visible” when
-  // a stylesheet or a stale active class leaves two panels visible).
+  // Guard: ensure only the target stays active and visible (fixes “More stays
+  // visible” when a stylesheet or a stale active class leaves two panels
+  // visible). Mirrors Student js/shell.js which uses hidden+active together.
   const actives = $$('.admin-view.active');
   if (actives.length !== 1 || actives[0]?.dataset.viewPanel !== target) {
-    $$('.admin-view').forEach(panel => panel.classList.toggle('active', panel.dataset.viewPanel === target));
+    $$('.admin-view').forEach(panel => {
+      const isTarget = panel.dataset.viewPanel === target;
+      panel.classList.toggle('active', isTarget);
+      panel.hidden = !isTarget;
+    });
   }
   openDefaultPrimarySection(target);
   if (target === 'class-chat') mountAdminClassChat();
