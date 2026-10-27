@@ -36,6 +36,7 @@ import { escapeHtml } from './sanitize.js';
 import { matchesStudentQuery } from './student-search.js';
 import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT } from './admin-permissions.js';
 import { rememberRoute, onRouteChange } from './panel-route.js';
+import { initAdminHomeNavigation, renderAdminHomeOverview } from './admin-home.js';
 import { openRegistrationReview, DECIDED_EVENT, listPendingRegistrations, pendingQueueMarkup, bindPendingQueueActions } from './registration-review.js';
 import { initAdminPanelShell } from './admin-panel-ui.js';
 import { paintIcon } from './icons.js';
@@ -322,9 +323,10 @@ function setView(view) {
     else item.removeAttribute('aria-current');
   });
   $('#adminMain').scrollTo({ top: 0, behavior: 'instant' });
-  // The open page is remembered in the URL: a refresh reopens it, not the
-  // first permitted tab.
-  rememberRoute(target);
+  // Remembered in URL: refresh reopens same tab-panel full-screen.
+  // Push on first navigation so hardware Back returns to Admin Home.
+  const isHomeNav = target !== 'dashboard';
+  rememberRoute(target, { push: isHomeNav });
   return true;
 }
 
@@ -442,6 +444,13 @@ function renderDashboard() {
     if (picked?.text) adviceNode.textContent = picked.text;
   }
   syncAdminHeroCards();
+  // Home overview helpers: dues alert + institute card (simple list, no fold)
+  try {
+    const pending = access.has(CAPABILITIES.STUDENTS_APPROVE) ? listPendingRegistrations().length : 0;
+    renderAdminHomeOverview({ duesCount: pending, institute: { name: 'Active Plus Coaching', address: state.appConfig?.campusAddress || 'দিনাজপুর সদর, দিনাজপুর' } });
+  } catch {}
+  // Bind Home tiles/groups to full-screen navigation (data-goto / data-admin-view), no expand
+  try { initAdminHomeNavigation({ navigate, root: document.querySelector('.admin-view[data-view-panel="dashboard"]') }); } catch {}
 }
 
 /* ---------- Students ---------- */
@@ -1848,8 +1857,17 @@ $$('[data-admin-view]').forEach(button => {
 onRouteChange(name => {
   if ($('#adminShell')?.hidden !== false) return;
   const route = routeFromHash('#' + name);
-  if (!route || route === state.activeView) return;
+  // Hash cleared (Back to bare URL) → return to Admin Home full-screen
+  if (!route) { navigate('dashboard', null); return; }
+  if (route === state.activeView) return;
   navigate(route, null);
+});
+// Hardware Back (popstate) → BackButtonController compatibility: back to Home
+window.addEventListener('popstate', () => {
+  if ($('#adminShell')?.hidden !== false) return;
+  if (!window.location.hash || window.location.hash === '#dashboard') {
+    if (state.activeView !== 'dashboard') navigate('dashboard', null);
+  }
 });
 
 /* Fee collection is the Cash Counter's job; this panel keeps no handler. */

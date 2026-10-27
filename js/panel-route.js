@@ -8,15 +8,26 @@ export function routeName(hash = window.location.hash) {
   return String(hash || '').replace(/^#/, '').replace(/^\/+/, '').trim();
 }
 
-/** Remember the page that is open now. Replaces the entry: Back still means
-    "leave the panel", never "walk through every page I visited". */
-export function rememberRoute(name) {
+/** Remember the page that is open now. Uses push for first navigation so
+ *  hardware Back returns to Admin Home (dashboard); subsequent stays replace
+ *  to avoid history spam. Compatible with BackButtonController. */
+let _routeHistoryDepth = 0;
+export function rememberRoute(name, { push = false } = {}) {
   const route = String(name || '').trim();
   if (!route || typeof window === 'undefined' || !window.history?.replaceState) return;
   const target = `#${route}`;
   if (window.location.hash === target) return;
-  window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + target);
+  const url = window.location.pathname + window.location.search + target;
+  const usePush = push || _routeHistoryDepth === 0 && route !== 'dashboard';
+  if (usePush && window.history.pushState) {
+    window.history.pushState(window.history.state, '', url);
+    _routeHistoryDepth += 1;
+  } else {
+    window.history.replaceState(window.history.state, '', url);
+  }
+  if (route === 'dashboard') _routeHistoryDepth = 0;
 }
+export function resetRouteHistory() { _routeHistoryDepth = 0; }
 
 /** Run `handler(pageName)` when the hash changes (a hand-typed link, a shared
     URL, or the browser's Back into a page of this panel). */

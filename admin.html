@@ -89,9 +89,21 @@
           </div>
         </div>
 
-        <!-- Registration review stays on Home; other work lives in its own seat. -->
+        <!-- Overview is the hero above. Quick actions + dues + institute stay on Home; no fold/expand. -->
         <p class="pay-section-label">দ্রুত অ্যাক্সেস</p>
         <div class="pay-grid is-2 admin-feature-grid" id="adminFeatureGrid" aria-label="হোম শর্টকাট"></div>
+
+        <!-- Dues alert — simple card, no expand. Navigates full-screen to students/pending. -->
+        <article class="admin-card admin-home-dues" id="adminHomeDuesAlert" hidden data-home-group-goto="students" data-home-group aria-label="বকেয়া নজর">
+          <div class="admin-card-head"><div><p class="eyebrow">নজর দিন</p><h2>বকেয়া / অপেক্ষমাণ</h2></div><span class="badge badge-pending" data-dues-count>০</span></div>
+          <p class="finance-hint">অপেক্ষমাণ নিবন্ধন/বকেয়া থাকলে এখানে দেখাবে — ট্যাপ করলে সরাসরি সংশ্লিষ্ট full-screen পেজ খুলবে।</p>
+        </article>
+
+        <!-- Institute card — simple overview, no expand. -->
+        <article class="admin-card admin-home-institute" id="adminHomeInstituteCard" aria-label="প্রতিষ্ঠান">
+          <div class="admin-card-head"><div><p class="eyebrow">প্রতিষ্ঠান</p><h2 data-institute-name>Active Plus Coaching</h2></div></div>
+          <p class="finance-hint" data-institute-addr>দিনাজপুর সদর, দিনাজপুর · 01819486966 · activeplus.coaching@gmail.com</p>
+        </article>
         <!-- Super Admin (owner decision 2026-10-16): the signed-in Admin holds
              full control, so every staff portal opens from here with the
              Admin session alone — no second login. Only this page ships
