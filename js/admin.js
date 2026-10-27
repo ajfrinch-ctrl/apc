@@ -435,8 +435,11 @@ function renderDashboard() {
       weekdayNode.textContent = `${wd} · `;
     }
   }
-  $('#adminTodayDate').textContent = dateLabel(today);
-  $('#adminTodayDate').dateTime = dateKey;
+  const todayDateEl = $('#adminTodayDate');
+  if (todayDateEl) {
+    todayDateEl.textContent = dateLabel(today);
+    todayDateEl.dateTime = dateKey;
+  }
   const adviceNode = $('#adminHeroAdvice');
   if (adviceNode) {
     const items = readAdviceCache()?.items || DAILY_ADVICE_SEEDS;
