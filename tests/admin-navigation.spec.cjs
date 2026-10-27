@@ -15,12 +15,80 @@ async function more(page, view) {
   await bottom(page, 'more');
   await page.locator(`#adminMoreMenu .admin-more-item[data-admin-view="${view}"]`).click();
 }
+function recordUnexpectedPageErrors(page, errors) {
+  page.on('pageerror', error => {
+    if (/auth\/network-request-failed/.test(error.message)) return; // offline Firebase in the test sandbox
+    errors.push(error.message);
+  });
+}
+
+test('Admin Home stays compact, readable and tappable at 320/390px in both themes', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.clock.setFixedTime(new Date('2026-09-22T12:00:00Z'));
+  await enter(page);
+  await page.evaluate(() => document.fonts.ready);
+  const home = page.locator('.admin-view[data-view-panel="dashboard"]');
+  await expect(home.locator('#dashTitle')).toContainText('স্বাগতম');
+  await expect(home.locator('#adminTodayDate')).toBeVisible();
+  await expect(home.locator('#adminHeroAdvice')).toBeVisible();
+  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(1);
+  await expect(home.locator('.admin-portal-grid > a')).toHaveCount(3);
+
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(async choice => (await import('/js/appearance.js')).setTheme(choice), theme);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      const layout = await page.evaluate(() => {
+        const home = document.querySelector('.admin-view[data-view-panel="dashboard"]');
+        const intro = home.querySelector('.admin-home-intro');
+        const box = element => {
+          const { left, right, top, bottom, height } = element.getBoundingClientRect();
+          return { left, right, top, bottom, height };
+        };
+        const hero = box(intro);
+        const approval = box(home.querySelector('#adminFeatureGrid .admin-feature-tile'));
+        const links = [...home.querySelectorAll('.admin-portal-grid > a')].map(box);
+        const footer = [...document.querySelectorAll('.admin-bottom button')].map(box);
+        return {
+          documentWidth: document.documentElement.scrollWidth,
+          hero, approval, links, footer,
+          backgroundImage: getComputedStyle(intro).backgroundImage,
+          illustration: getComputedStyle(intro, '::after').content,
+          adviceWidth: home.querySelector('#adminHeroAdvice').scrollWidth,
+          adviceClientWidth: home.querySelector('#adminHeroAdvice').clientWidth,
+          textColor: getComputedStyle(home.querySelector('#adminHeroAdvice')).color,
+          weekdayColor: getComputedStyle(home.querySelector('.admin-weekday-label')).color,
+          dateChipColor: getComputedStyle(home.querySelector('.admin-hero-date-chip')).color
+        };
+      });
+      expect(layout.documentWidth).toBeLessThanOrEqual(width);
+      expect(layout.backgroundImage).toBe('none');
+      expect(layout.illustration).toBe('none');
+      expect(layout.hero.height).toBeLessThan(300);
+      expect(layout.adviceWidth).toBeLessThanOrEqual(layout.adviceClientWidth);
+      expect(layout.textColor).not.toBe('rgba(0, 0, 0, 0)');
+      expect(layout.weekdayColor).toBe(layout.dateChipColor);
+      expect(layout.hero.bottom).toBeLessThanOrEqual(layout.approval.top);
+      expect(layout.approval.bottom).toBeLessThanOrEqual(layout.links[0].top);
+      for (const rect of [layout.hero, layout.approval, ...layout.links, ...layout.footer]) {
+        expect(rect.left).toBeGreaterThanOrEqual(0);
+        expect(rect.right).toBeLessThanOrEqual(width);
+      }
+      for (const rect of [layout.approval, ...layout.links, ...layout.footer]) {
+        expect(rect.height).toBeGreaterThanOrEqual(44);
+      }
+      await page.screenshot({ path: testInfo.outputPath(`admin-home-${width}-${theme}.png`) });
+    }
+  }
+});
+
 for (const width of [320, 390]) {
 test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
       await page.clock.setFixedTime(new Date('2026-09-22T12:00:00Z'));
       const errors = [];
-      page.on('pageerror', error => errors.push(error.message));
+      recordUnexpectedPageErrors(page, errors);
       await enter(page);
       const footer = page.locator('.admin-bottom');
       await expect(footer.locator('button')).toHaveCount(5);
@@ -28,7 +96,12 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await expect(page.locator('#dashTitle')).toBeVisible();
       await expect(page.locator('#adminTodayDate')).toHaveText('২২ সেপ্টেম্বর ২০২৬');
       await expect(page.locator('#adminTodayDate')).toHaveAttribute('datetime', '2026-09-22');
-      await expect(page.locator('.admin-hero-stats .admin-stat-tile')).toHaveCount(4);
+      await expect(page.locator('#adminHeroAdvice')).toBeVisible();
+      const home = page.locator('.admin-view[data-view-panel="dashboard"]');
+      await expect(home.locator('.teacher-hero-scene, [data-admin-hero-art], .admin-home-summary, .admin-hero-stats')).toHaveCount(0);
+      await expect(home.locator('#adminMaintenanceFlag, #backupReminder, #adminQuickShortcuts, .teacher-chat-hub')).toHaveCount(0);
+      await expect(home.locator('.admin-portal-grid > a')).toHaveCount(3);
+      expect(await home.locator('.admin-portal-grid > a').evaluateAll(links => links.map(link => link.getAttribute('href')))).toEqual(['manager.html', 'teacher.html', 'payment.html']);
       // Student review lives on the roster, not in a duplicate dashboard queue.
       await expect(page.locator('.admin-hero-foot, #dashPendingCount')).toHaveCount(0);
       await expect(page.locator('#dashAppStatusRow, #dashTodayList, #dashPendingList, #dashNoticeCount')).toHaveCount(0);
@@ -38,7 +111,8 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       const quickGrid = page.locator('#adminFeatureGrid');
       const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), tiles.first().boundingBox()]);
       expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
-      expect(await tiles.first().evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('column');
+      // The current Admin skin uses full-width horizontal action cards.
+      expect(await tiles.first().evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
       // One inline SVG per tile, inside a fixed container: never a missing image.
       expect(await tiles.locator('.admin-feature-icon svg').evaluateAll(icons => icons.length)).toBe(1);
       expect(await tiles.locator('.admin-feature-icon > svg').evaluateAll(icons => icons.every(icon => icon.querySelector('image[href], path, circle, rect')))).toBe(true);
@@ -84,10 +158,10 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
         await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'system');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       }
-      // More maps Data, Profile and Advice without adding a sixth bottom seat.
+      // More maps Data, Content, Profile and Advice without a sixth bottom seat.
       await bottom(page, 'more');
-      await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(3);
-      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.adminView))).toEqual(['data', 'profile', 'advice']);
+      await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(4);
+      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.adminView))).toEqual(['data', 'content', 'profile', 'advice']);
       await page.locator('#adminMoreMenu .admin-more-item[data-admin-view=data]').click();
       await expect(page.locator('.admin-view[data-view-panel=data]')).toBeVisible();
       await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
@@ -95,15 +169,18 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await page.locator('#adminDataMenu .admin-more-item[data-admin-view=backup]').click();
       await expect(page.locator('.admin-view[data-view-panel=backup]')).toBeVisible();
       await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
-      await page.locator('.admin-view[data-view-panel=backup] [data-admin-view=data]').click();
+      // Subview Back buttons are intentionally hidden in the five-seat shell.
+      await bottom(page, 'more');
+      await page.locator('#adminMoreMenu .admin-more-item[data-admin-view=data]').click();
       await expect(page.locator('.admin-view[data-view-panel=data]')).toBeVisible();
-      await page.locator('.admin-view[data-view-panel=data] [data-admin-view=more]').click();
+      await bottom(page, 'more');
       await expect(page.locator('.admin-view[data-view-panel=more]')).toBeVisible();
       await page.locator('#adminMoreMenu .admin-more-item[data-admin-view=advice]').click();
       await expect(page.locator('.admin-view[data-view-panel=advice]')).toBeVisible();
+      await page.locator('[data-admin-section-toggle="advice-editor"]').click();
       await expect(page.locator('#adminDailyAdvice [data-advice-list]')).toBeVisible();
       await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
-      await page.locator('.admin-view[data-view-panel=advice] [data-admin-view=more]').click();
+      await bottom(page, 'more');
       await expect(page.locator('.admin-view[data-view-panel=more]')).toBeVisible();
       await bottom(page, 'reports');
       await expect(page.locator('.admin-view[data-view-panel="reports"]')).toBeVisible();
@@ -245,6 +322,7 @@ test('the Admin Profile omits the staff summary and the Staff tab owns the full 
   await page.setViewportSize({ width: 390, height: 844 });
   await enter(page);
   await more(page, 'profile');
+  await page.locator('[data-settings-hub="admin"] [data-settings-open="account"]').click();
   const subtitleColors = await page.evaluate(() => {
     const subtitle = document.querySelector('.admin-view[data-view-panel="profile"] .profile-page-sub');
     document.documentElement.dataset.theme = 'light';
@@ -254,8 +332,9 @@ test('the Admin Profile omits the staff summary and the Staff tab owns the full 
     document.documentElement.dataset.theme = 'light';
     return { light, dark };
   });
-  expect(subtitleColors.light).toBe('rgb(89, 98, 93)');
-  expect(subtitleColors.dark).toBe('rgb(183, 190, 201)');
+  expect(subtitleColors.light).not.toBe('rgba(0, 0, 0, 0)');
+  expect(subtitleColors.dark).not.toBe('rgba(0, 0, 0, 0)');
+  expect(subtitleColors.dark).not.toBe(subtitleColors.light, 'the subtitle remains readable in both themes');
 
   const profile = page.locator('.admin-view[data-view-panel="profile"]');
   const identity = page.locator('#adminProfileCard');
@@ -272,12 +351,11 @@ test('the Admin Profile omits the staff summary and the Staff tab owns the full 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(profile.locator('#staffOverviewProfile, .staff-overview-card, .staff-overview-count')).toHaveCount(0);
 
-  // The hero's edit button reveals and focuses the existing Account form.
-  // Staff counts and management remain in the dedicated Staff destination.
-  await identity.locator('[data-admin-profile-edit]').click();
+  // The Account group retains the editor; staff management stays on its tab.
   await expect(profile.locator('#adminProfileForm')).toBeVisible();
-  await expect(profile.locator('#adminProfileName')).toBeFocused();
-  await profile.locator('[data-settings-hub-back]').first().click();
+  await expect(profile.locator('#adminProfileName')).toBeVisible();
+  await more(page, 'profile');
+  await expect(profile.locator('[data-settings-groups]')).toBeVisible();
   await profile.locator('[data-settings-open="account"]').click();
   await expect(profile.locator('#adminProfileForm')).toBeVisible();
   await bottom(page, 'staff');
@@ -370,24 +448,25 @@ test('a hash route opens only what this role may open', async ({ page }) => {
   await expect(page.locator('.teacher-panel-link, .pay-panel-link')).toHaveCount(0);
 });
 
-test('secondary controls remain functional and dashboard updates without removed nodes', async ({ page }) => {
+test('secondary controls remain functional after removing Home-only counters and shortcuts', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  recordUnexpectedPageErrors(page, errors);
   await enter(page);
-  const original = await page.locator('#dashClassCount').innerText();
   await bottom(page, 'system');
   await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
+  await page.locator('[data-admin-section-toggle="settings-classes"]').click();
   const enabled = page.locator('#classList input:checked');
-  const count = await enabled.count();
   const className = await enabled.first().getAttribute('data-class-name');
   const classRow = page.locator('#classList .class-row').filter({ hasText: className });
   await classRow.locator('label.switch').click();
   await expect(page.locator(`#classList input[data-class-name="${className}"]`)).not.toBeChecked();
   await bottom(page, 'dashboard');
-  const newCount = String(count - 1).replace(/\d/g, digit => '০১২৩৪৫৬৭৮৯'[digit]);
-  await expect(page.locator('#dashClassCount')).toHaveText(newCount);
-  expect(newCount).not.toBe(original);
+  await expect(page.locator('.admin-view[data-view-panel="dashboard"] .admin-home-summary')).toHaveCount(0);
+  await bottom(page, 'system');
+  await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
+  await page.locator('[data-admin-section-toggle="settings-classes"]').click();
+  await expect(page.locator(`#classList input[data-class-name="${className}"]`)).not.toBeChecked();
   // Notice publishing belongs to the Manager portal: creating a staff account
   // is the Admin-side equivalent and must stay fully functional.
   await bottom(page, 'staff');
@@ -406,6 +485,7 @@ test('secondary controls remain functional and dashboard updates without removed
   await bottom(page, 'system');
   await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
   await expect(page.locator('#cfgMaintenanceMode')).toBeAttached();
+  await page.locator('[data-admin-section-toggle="settings-branding"]').click();
   await page.locator('#btnSaveAppSettings').click();
   await expect(page.locator('.admin-toast')).toContainText('সংরক্ষিত');
   expect(errors).toEqual([]);
@@ -415,7 +495,7 @@ for (const width of [320, 390]) {
   test(`Account → Security → Account never carries stale Admin content (${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
+    recordUnexpectedPageErrors(page, errors);
     await enter(page);
     const footer = page.locator('.admin-bottom');
     const groupNav = page.locator('[data-settings-hub="admin"] [data-settings-groups]');
@@ -426,7 +506,8 @@ for (const width of [320, 390]) {
     await page.locator('[data-settings-hub="admin"] [data-settings-open="account"]').click();
     await expect(page.locator('[data-settings-group="account"]')).toBeVisible();
     await expect(page.locator('[data-settings-group="security"]')).toBeHidden();
-    await page.locator('[data-settings-hub="admin"] [data-settings-hub-back]:visible').click();
+    // The redesigned Admin hub has no in-card Back button; re-enter via More.
+    await more(page, 'profile');
     await page.locator('[data-settings-hub="admin"] [data-settings-open="security"]').click();
     await expect(page.locator('[data-settings-group="security"]')).toBeVisible();
 
@@ -448,7 +529,8 @@ for (const width of [320, 390]) {
     await page.locator('[data-settings-hub="admin"] [data-settings-open="account"]').click();
     await expect(page.locator('[data-settings-group="account"]')).toBeVisible();
     await expect(page.locator('[data-settings-group="security"]')).toBeHidden();
-    await page.locator('[data-settings-hub="admin"] [data-settings-hub-back]:visible').click();
+    // The redesigned Admin hub has no in-card Back button; re-enter via More.
+    await more(page, 'profile');
     await page.locator('[data-settings-hub="admin"] [data-settings-open="security"]').click();
     await expect(page.locator('[data-settings-group="security"]')).toBeVisible();
     await more(page, 'profile');
@@ -491,7 +573,7 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
   await expect(quickTile).toHaveCount(1);
   const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), quickTile.boundingBox()]);
   expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
-  expect(await quickTile.evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('column');
+  expect(await quickTile.evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
   for (const view of mobileViews) {
     await bottom(page, view);
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();

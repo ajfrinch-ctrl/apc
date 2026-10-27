@@ -13,7 +13,7 @@
 import { classByName, listChapters as listAcademicChapters, subjectsForClass } from './academics.js';
 import { KEYS, readRaw } from './database.js';
 import { iconMarkup } from './icons.js';
-import { sanitizeRichHtml } from './rich-sanitize.js';
+import { sanitizeRichHtml, sanitizeLectureHtml } from './rich-sanitize.js';
 import {
   COURSE_SECTIONS, COURSE_TYPES, listCourseContent, typeLabel, typeOf
 } from './course-content.js';
@@ -186,16 +186,27 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
 
   function contentCard(record) {
     const type = typeOf(record);
+    const isSheet = record.isLectureSheet === true;
     const link = /^https?:\/\//i.test(record.attachmentUrl || '') ? record.attachmentUrl : '';
-    const body = record.richContent ? sanitizeRichHtml(record.richContent) : esc(record.content || '').replace(/\n/g, '<br>');
-    return '<article class="course-item" data-course-item="' + esc(record.id) + '">' +
+    const body = record.richContent
+      ? (isSheet ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
+      : esc(record.content || '').replace(/\n/g, '<br>');
+    const sheetActions = isSheet
+      ? '<div class="ls-student-sheet-actions">' +
+          '<button type="button" class="ls-card-btn" data-student-lecture-reader="' + esc(record.id) + '">📖 A4 প্রিভিউ ও প্রিন্ট</button>' +
+          '<button type="button" class="ls-card-btn ls-card-btn-primary" data-student-lecture-pdf="' + esc(record.id) + '">⬇ A4 PDF ডাউনলোড</button>' +
+        '</div>'
+      : '';
+    return '<article class="course-item' + (isSheet ? ' ls-student-sheet-card' : '') + '" data-course-item="' + esc(record.id) + '">' +
         '<header class="course-item-head">' +
           '<span class="course-item-icon" aria-hidden="true">' + iconMarkup(COURSE_TYPES[type].icon) + '</span>' +
-          '<div><small class="course-item-type">' + esc(typeLabel(record)) + '</small>' +
+          '<div><small class="course-item-type">' + esc(typeLabel(record)) + (isSheet ? ' • A4 লেকচার শিট' : '') + (record.topic ? ' • ' + esc(record.topic) : '') + '</small>' +
           '<h4>' + esc(record.title) + '</h4></div>' +
         '</header>' +
+        (record.subtitle ? '<p class="course-item-desc">' + esc(record.subtitle) + '</p>' : '') +
         (record.description ? '<p class="course-item-desc">' + esc(record.description) + '</p>' : '') +
-        (body ? '<div class="course-item-body course-rich-reading">' + body + '</div>' : '') +
+        (body ? '<div class="course-item-body course-rich-reading' + (isSheet ? ' ls-student-sheet-body' : '') + '">' + body + '</div>' : '') +
+        sheetActions +
         (link
           ? '<a class="course-item-link" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' +
               (type === 'video' ? 'ভিডিও দেখুন' : type === 'pdf' ? 'PDF খুলুন' : 'সংযুক্তি খুলুন') +
@@ -273,7 +284,7 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
     if (action === 'notes' || action === 'materials') {
       const records = action === 'notes'
         ? items.filter(item => typeOf(item) === 'note')
-        : items.filter(item => ['video', 'pdf'].includes(typeOf(item)) || /^https?:\/\//i.test(item.attachmentUrl || ''));
+        : items.filter(item => ['video', 'pdf'].includes(typeOf(item)) || item.isLectureSheet === true || /^https?:\/\//i.test(item.attachmentUrl || ''));
       return shell(records.length
         ? '<div class="course-action-items">' + records.map(contentCard).join('') + '</div>'
         : empty(action === 'notes' ? 'এই অধ্যায়ের কোনো ক্লাস নোট এখনো প্রকাশিত হয়নি।' : 'এই অধ্যায়ের কোনো শিক্ষকের উপকরণ এখনো প্রকাশিত হয়নি।'));
@@ -486,7 +497,47 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
     renderHub();
   }
 
-  root.addEventListener('click', event => {
+  root.addEventListener('click', async event => {
+    const pdfBtn = event.target.closest('[data-student-lecture-pdf]');
+    if (pdfBtn) {
+      const sub = selectedSubject();
+      const allowed = recordsFor(sub).find(item => item.id === pdfBtn.dataset.studentLecturePdf);
+      if (!allowed || allowed.published !== true || allowed.active === false) return;
+      const cur = student();
+      const orig = pdfBtn.textContent;
+      pdfBtn.disabled = true;
+      pdfBtn.textContent = '⏳ PDF তৈরি হচ্ছে…';
+      try {
+        const mod = await import('./lecture-sheet-pdf.js');
+        await mod.downloadLectureSheetPDF({
+          ...allowed,
+          className: cur.className || '',
+          subjectName: sub?.name || ''
+        });
+      } catch (err) {
+        pdfBtn.textContent = '⚠ আবার চেষ্টা করুন';
+        setTimeout(() => { pdfBtn.textContent = orig; }, 2200);
+        pdfBtn.disabled = false;
+        return;
+      }
+      pdfBtn.disabled = false;
+      pdfBtn.textContent = orig;
+      return;
+    }
+    const readerBtn = event.target.closest('[data-student-lecture-reader]');
+    if (readerBtn) {
+      const sub = selectedSubject();
+      const allowed = recordsFor(sub).find(item => item.id === readerBtn.dataset.studentLectureReader);
+      if (!allowed || allowed.published !== true || allowed.active === false) return;
+      const cur = student();
+      const mod = await import('./lecture-sheet-pdf.js');
+      await mod.openStudentLectureReaderModal({
+        ...allowed,
+        className: cur.className || '',
+        subjectName: sub?.name || ''
+      });
+      return;
+    }
     const subjectButton = event.target.closest('[data-course-subject]');
     if (subjectButton) {
       subjectId = subjectButton.dataset.courseSubject;

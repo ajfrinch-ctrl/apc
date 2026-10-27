@@ -357,7 +357,7 @@
 .yp-summary-strip {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
   padding: 12px; border-radius: 18px;
-  background: linear-gradient(135deg, var(--icon-plate-gold), var(--color-surface));
+  background: var(--icon-plate-gold);
   border: 1px solid var(--wa-enc-border); box-shadow: var(--pay-shadow);
 }
 .yp-stat-chip {
@@ -452,7 +452,7 @@
 .yp-class-banner {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px;
   padding: 10px 14px; border-radius: 16px; text-align: left;
-  background: linear-gradient(135deg, var(--wa-enc-bg), var(--color-surface));
+  background: var(--wa-enc-bg);
   border: 1px solid var(--wa-enc-border); color: var(--color-text);
   font: inherit; cursor: pointer; box-shadow: var(--pay-shadow);
 }

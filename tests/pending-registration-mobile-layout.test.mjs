@@ -193,7 +193,7 @@ test('360px Action Center + Student Registration Detail Modal render clean DOM h
   dom.window.close();
 });
 
-test('Priority 2 Admin UX: one-tap Quick Access, auto-opened directories/reports, search clear buttons, empty-state CTAs, and 5-seat bottom nav', async () => {
+test('Admin UX: Home keeps only approval; staff, backup and reports remain reachable in their own screens', async () => {
   const { ROSTER_KEY } = await import('../js/office-data.js');
   const { provisionStaff, seedStaffSession } = await import('./staff-harness.mjs');
   const ctx = await loadPage('admin.html', {
@@ -215,20 +215,21 @@ test('Priority 2 Admin UX: one-tap Quick Access, auto-opened directories/reports
   const navLabels = ctx.$$('.admin-bottom .nav-label').map(n => n.textContent.trim());
   assert.deepEqual(navLabels, ['হোম', 'স্টাফ', 'রিপোর্ট', 'সিস্টেম', 'আরও']);
 
-  // Prominent Quick Access on Home: নিবন্ধন অনুমোদন + স্টাফ তালিকা + ব্যাকআপ এক্সপোর্ট + রিপোর্ট
+  // The sole Home work tile opens registration approval; the five duplicate
+  // shortcuts are gone, not the workflows or their own navigation routes.
   const regTile = ctx.$('#adminFeatureGrid [data-admin-view="students"]');
   assert.ok(regTile);
   assert.match(regTile.textContent, /নিবন্ধন অনুমোদন/);
   assert.match(regTile.querySelector('.admin-feature-pending-pill')?.textContent || '', /১ জন অপেক্ষমাণ/);
+  assert.equal(ctx.$('#adminQuickShortcuts'), null);
+  assert.equal(ctx.$('.admin-view[data-view-panel="dashboard"] .teacher-chat-hub'), null);
+  assert.ok(ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'));
 
-  const quickBtns = ctx.$$('#adminQuickShortcuts .admin-quick-card');
-  assert.deepEqual(quickBtns.map(b => b.dataset.adminView), ['staff', 'backup', 'reports']);
-
-  // One-tap Staff shortcut opens Staff view with directory immediately expanded + working search clear + empty CTA
-  ctx.click(ctx.$('#adminQuickShortcuts [data-admin-view="staff"]'));
+  // The Staff tab opens the directory immediately, with search clear + empty CTA.
+  ctx.click(ctx.$('.admin-bottom [data-admin-view="staff"]'));
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="staff"]').classList.contains('active'), true);
-  assert.equal(ctx.$('[data-admin-section-panel="staff-directory"]').hidden, false, 'staff directory opens in one tap');
+  assert.equal(ctx.$('[data-admin-section-panel="staff-directory"]').hidden, false, 'staff directory opens from its tab');
   assert.equal(ctx.$('#staffSearchClear').hidden, true);
   ctx.type(ctx.$('#staffSearch'), 'nonexistent-xyz');
   assert.equal(ctx.$('#staffSearchClear').hidden, false, 'typing in staff search reveals clear button');
@@ -237,20 +238,21 @@ test('Priority 2 Admin UX: one-tap Quick Access, auto-opened directories/reports
   assert.equal(ctx.$('#staffSearch').value, '');
   assert.equal(ctx.$('#staffSearchClear').hidden, true);
 
-  // One-tap Backup shortcut opens Backup view directly
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="dashboard"]'));
+  // Backup remains available from More → Data → Backup, not duplicated on Home.
+  ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
   await ctx.flush();
-  ctx.click(ctx.$('#adminQuickShortcuts [data-admin-view="backup"]'));
+  ctx.click(ctx.$('#adminMoreMenu [data-admin-view="data"]'));
+  await ctx.flush();
+  ctx.click(ctx.$('#adminDataMenu [data-admin-view="backup"]'));
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="backup"]').classList.contains('active'), true);
+  assert.ok(ctx.$('#backupExportButton'));
 
-  // One-tap Reports shortcut opens Reports view with report builder immediately visible
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="dashboard"]'));
-  await ctx.flush();
-  ctx.click(ctx.$('#adminQuickShortcuts [data-admin-view="reports"]'));
+  // Reports tab still opens its builder immediately.
+  ctx.click(ctx.$('.admin-bottom [data-admin-view="reports"]'));
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="reports"]').classList.contains('active'), true);
-  assert.equal(ctx.$('[data-admin-section-panel="reports-builder"]').hidden, false, 'report builder opens in one tap');
+  assert.equal(ctx.$('[data-admin-section-panel="reports-builder"]').hidden, false, 'report builder opens from its tab');
 
   // One-tap Registration Approval tile opens Students view with directory & pending queue visible + student empty reset CTA
   ctx.click(ctx.$('.admin-bottom [data-admin-view="dashboard"]'));

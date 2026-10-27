@@ -2,7 +2,6 @@ import { dhakaKey } from './time.js';
 import { DAILY_ADVICE_SEEDS, pickDailyAdvice, readAdviceCache } from './daily-advice.js';
 import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
 import { initExamManager } from './exam-manager.js';
-import { backupOverdue } from './storage-safety.js';
 import { studentRecordMarkup } from './student-record.js';
 import { initAdminAcademics } from './admin-academics.js';
 import { mountV2Migration } from './admin-migration.js';
@@ -70,6 +69,12 @@ const bn = toBanglaNumber;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 
+/* Primary-data privacy: list views never show personal identifiers.
+   The list row keeps only status; name/ID/phone appear only after
+   an explicit “তথ্য দেখুন” / “View” click (the detail modal). */
+const PRIVACY_MASK = '••••';
+const PRIVACY_NAME_PLACEHOLDER = 'গোপন তথ্য';
+
 
 const state = {
   students: loadRoster(),
@@ -82,8 +87,8 @@ const state = {
   filter: 'all',
   classFilter: 'all',
   query: '',
-  /* Staff directory snapshot: kept in sync with js/staff-directory.js so the
-     dashboard, reports, security and staff views read the same truth. */
+  /* Staff directory snapshot: kept in sync with js/staff-directory.js so
+     reports, security and staff views read the same truth. */
   staff: [],
   staffCounts: { total: 0, active: 0, inactive: 0, suspended: 0, passwordDue: 0, byRole: {} },
   staffActivity: []
@@ -275,6 +280,14 @@ function openDefaultPrimarySection(target) {
       }
       reportPanel.hidden = false;
     }
+  } else if (target === 'content') {
+    const lsToggle = $('[data-admin-section-toggle="lecture-sheets"]');
+    const lsPanel = $('[data-admin-section-panel="lecture-sheets"]');
+    if (lsToggle && lsPanel) {
+      lsToggle.classList.add('is-open');
+      lsToggle.setAttribute('aria-expanded', 'true');
+      lsPanel.hidden = false;
+    }
   }
 }
 
@@ -291,6 +304,12 @@ function setView(view) {
     panel.classList.toggle('active', active);
     if (active) resetAdminTogglePanels(panel);
   });
+  // Guard: ensure only the target stays active (fixes “More stays visible” when
+  // a stylesheet or a stale active class leaves two panels visible).
+  const actives = $$('.admin-view.active');
+  if (actives.length !== 1 || actives[0]?.dataset.viewPanel !== target) {
+    $$('.admin-view').forEach(panel => panel.classList.toggle('active', panel.dataset.viewPanel === target));
+  }
   openDefaultPrimarySection(target);
   if (target === 'class-chat') mountAdminClassChat();
   if (target === 'phonebook') mountAdminPhonebook();
@@ -386,13 +405,6 @@ function renderGradeAudit() {
   }
 }
 function renderDashboard() {
-  renderBackupReminder();
-  $('#dashStudentCount').textContent = bn(state.students.length);
-  $('#dashClassCount').textContent = bn(state.enabled.size);
-  if ($('#dashStaffCount')) $('#dashStaffCount').textContent = bn(state.staffCounts.active || 0);
-  if ($('#dashProtectedCount')) {
-    $('#dashProtectedCount').textContent = bn(state.staff.filter(staff => staff.protected).length || 0);
-  }
   const studentFeatureTile = $('#adminFeatureGrid [data-admin-view="students"]');
   if (studentFeatureTile) {
     const pendingCount = access.has(CAPABILITIES.STUDENTS_APPROVE) ? listPendingRegistrations().length : 0;
@@ -408,21 +420,6 @@ function renderDashboard() {
     } else if (pill) {
       pill.hidden = true;
     }
-  }
-  const quickShortcuts = $('#adminQuickShortcuts');
-  if (quickShortcuts) {
-    quickShortcuts.hidden = quickShortcuts.querySelectorAll('button').length === 0;
-  }
-  /* A switched-on maintenance notice is easy to forget, and a forgotten notice
-     is exactly how students end up staring at one for days. The dashboard keeps
-     saying so until the switch in System Settings is turned off again. */
-  const flag = $('#adminMaintenanceFlag');
-  if (flag) {
-    const { on } = maintenanceState(loadAppConfig());
-    flag.hidden = !on;
-    flag.textContent = on
-      ? 'রক্ষণাবেক্ষণ মোড চালু আছে — শিক্ষার্থী অ্যাপে সতর্কতা ব্যানার দেখা যাচ্ছে। সিস্টেম সেটিংস থেকে বন্ধ করুন।'
-      : '';
   }
   const today = new Date();
   const dateKey = dhakaKey(today);
@@ -518,20 +515,19 @@ function renderStudents() {
   $('#studentList').innerHTML = list.length
     ? list.map(student => {
         const status = statusMeta[student.status] || statusMeta.pending;
-        // The row stays deliberately bare: name, Student ID and status. Class,
-        // guardian, address and phone numbers are personal data and appear only
-        // after "তথ্য দেখুন" — never in the open list.
+        // Privacy: even name and Student ID stay hidden in the open list —
+        // they appear only after “তথ্য দেখুন” (the detail modal).
         return `
           <article class="student-row student-row-redesigned">
             <div class="student-row-main">
-              <span class="student-avatar" aria-hidden="true">${escapeHtml(initialsOf(student.name))}</span>
+              <span class="student-avatar is-masked" aria-hidden="true">${PRIVACY_MASK}</span>
               <div class="student-copy">
                 <div class="student-title-line">
-                  <strong>${escapeHtml(student.name || 'নাম নেই')}</strong>
+                  <strong>${escapeHtml(PRIVACY_NAME_PLACEHOLDER)}</strong>
                   <span class="badge ${status.className}">${status.label}</span>
                 </div>
                 <div class="student-meta-line">
-                  <span class="audit-id-badge">ID: ${escapeHtml(student.id)}</span>
+                  <span class="audit-id-badge">ID: ${PRIVACY_MASK}</span>
                 </div>
               </div>
             </div>
@@ -847,7 +843,6 @@ function saveMaintenanceFromForm() {
   state.appConfig = { ...current, maintenanceMode: on, maintenanceMessage: message };
   saveAppConfig(state.appConfig);
   renderMaintenanceSettings(state.appConfig);
-  renderDashboard();   // the dashboard reminder follows the switch immediately
   toast(on ? 'রক্ষণাবেক্ষণ মোড চালু করা হয়েছে' : 'রক্ষণাবেক্ষণ মোড বন্ধ করা হয়েছে — ব্যানার সরে গেছে');
 }
 
@@ -1161,12 +1156,7 @@ async function runFactoryReset() {
   }
 }
 
-function renderBackupReminder() {
-  const reminder = $('#backupReminder');
-  if (reminder) reminder.hidden = !backupOverdue(readJSON(BACKUP_STAMP_KEY, null));
-}
 function renderBackup() {
-  renderBackupReminder();
   paintIcon($('#backupExportButton .apc-icon'), 'download', 'apc-icon');
   paintIcon($('#backupRestoreButton .apc-icon'), 'upload', 'apc-icon');
   const badge = $('#backupLastBadge');
@@ -1675,10 +1665,9 @@ function renderAll() {
 }
 
 /** Called by Staff Management after every create / edit / delete / status
- *  change, so the dashboard counters and reports never go stale. */
+ *  change, so reports and security never use a stale staff snapshot. */
 function onStaffChanged() {
   void refreshStaffSnapshot().then(() => {
-    renderDashboard();
     if (viewExists('roles')) renderRoles();
     if (viewExists('security')) renderSecurity();
     if (viewExists('profile')) renderAdminProfile();

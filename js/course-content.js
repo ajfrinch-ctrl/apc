@@ -23,7 +23,7 @@ import { KEYS, readRaw, writeRaw, listDocuments } from './database.js';
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
 import { classById, listClasses, subjectsForClass } from './academics.js';
 import { isTeacherAssignedSubject } from './teacher-assignments.js';
-import { sanitizeRichHtml } from './rich-sanitize.js';
+import { sanitizeRichHtml, sanitizeLectureHtml, isSafeLectureImageSrc } from './rich-sanitize.js';
 
 export const COURSE_CONTENT_KEY = KEYS.courseContent;
 export const COURSE_VERSION = 1;
@@ -140,7 +140,7 @@ export function listCourseContent({
       if (type && typeOf(record) !== type) return false;
       if (section && sectionOf(record) !== section) return false;
       if (needle) {
-        const haystack = [record.title, record.description, record.content].map(keyOf).join(' ');
+        const haystack = [record.title, record.subtitle, record.topic, record.chapterName, record.description, record.content].map(keyOf).join(' ');
         if (!haystack.includes(needle)) return false;
       }
       return true;
@@ -165,7 +165,7 @@ export async function listCourseContentForStaff({
     if (section && sectionOf(record) !== section) return false;
     if (role === 'teacher' && record.published !== true && record.createdBy !== staffName) return false;
     if (needle) {
-      const haystack = [record.title, record.description, record.content].map(keyOf).join(' ');
+      const haystack = [record.title, record.subtitle, record.topic, record.chapterName, record.description, record.content].map(keyOf).join(' ');
       if (!haystack.includes(needle)) return false;
     }
     return true;
@@ -198,16 +198,128 @@ export function courseCounts(classId = '', subjectId = '') {
 
 /* ---- Writes ------------------------------------------------------------------- */
 
+export const DEFAULT_LECTURE_PAGE_SETTINGS = Object.freeze({
+  orientation: 'portrait',
+  margins: 'normal',
+  showLogo: true,
+  showWatermark: true,
+  showHeader: true,
+  showFooter: true,
+  showPageNumbers: true,
+  headerText: '',
+  footerText: '',
+  fontFamily: 'Noto Sans Bengali',
+  baseFontSize: 12,
+  lineHeight: 1.6
+});
+
+export function normalizeLecturePageSettings(raw = {}) {
+  const src = isObject(raw) ? raw : {};
+  const orientation = src.orientation === 'landscape' ? 'landscape' : 'portrait';
+  const margins = ['narrow', 'normal', 'wide'].includes(src.margins) ? src.margins : 'normal';
+  const baseFontSize = Math.min(20, Math.max(9, Number(src.baseFontSize) || 12));
+  const lineHeight = Math.min(2.4, Math.max(1.15, Number(src.lineHeight) || 1.6));
+  const fontFamily = text(src.fontFamily).slice(0, 64) || 'Noto Sans Bengali';
+  return {
+    orientation,
+    margins,
+    showLogo: src.showLogo !== false,
+    showWatermark: src.showWatermark !== false,
+    showHeader: src.showHeader !== false,
+    showFooter: src.showFooter !== false,
+    showPageNumbers: src.showPageNumbers !== false,
+    headerText: text(src.headerText).slice(0, 140),
+    footerText: text(src.footerText).slice(0, 140),
+    fontFamily,
+    baseFontSize,
+    lineHeight
+  };
+}
+
+function sanitizeDocJsonNode(node, depth = 0, stats = { images: 0 }) {
+  if (!isObject(node) || depth > 24) return null;
+  const nodeType = text(node.type);
+  if (!nodeType || !/^[a-zA-Z][a-zA-Z0-9_]{0,36}$/.test(nodeType)) return null;
+  const out = { type: nodeType };
+  if (typeof node.text === 'string') {
+    out.text = node.text.slice(0, 40000);
+  }
+  if (isObject(node.attrs)) {
+    const cleanAttrs = {};
+    for (const [k, v] of Object.entries(node.attrs)) {
+      if (!/^[a-zA-Z][a-zA-Z0-9_]{0,32}$/.test(k)) continue;
+      if (v === null || typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))) {
+        cleanAttrs[k] = v;
+      } else if (typeof v === 'string') {
+        if (nodeType === 'image' && k === 'src') {
+          if (!isSafeLectureImageSrc(v)) return null;
+          stats.images += 1;
+          if (stats.images > 12) throw new Error('একটি লেকচার শিটে সর্বোচ্চ ১২টি ছবি যুক্ত করা যাবে।');
+          cleanAttrs[k] = v.trim();
+        } else {
+          cleanAttrs[k] = v.slice(0, 2000);
+        }
+      } else if (Array.isArray(v) && v.every(n => typeof n === 'number' && Number.isFinite(n))) {
+        cleanAttrs[k] = v.slice(0, 24);
+      }
+    }
+    if (Object.keys(cleanAttrs).length) out.attrs = cleanAttrs;
+  }
+  if (Array.isArray(node.marks) && node.marks.length) {
+    const marks = [];
+    for (const m of node.marks.slice(0, 12)) {
+      if (!isObject(m) || typeof m.type !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_]{0,32}$/.test(m.type)) continue;
+      const cm = { type: m.type };
+      if (isObject(m.attrs)) {
+        const ma = {};
+        for (const [mk, mv] of Object.entries(m.attrs)) {
+          if (!/^[a-zA-Z][a-zA-Z0-9_]{0,32}$/.test(mk)) continue;
+          if (mv === null || typeof mv === 'boolean' || (typeof mv === 'number' && Number.isFinite(mv))) ma[mk] = mv;
+          else if (typeof mv === 'string') ma[mk] = mv.slice(0, 500);
+        }
+        if (Object.keys(ma).length) cm.attrs = ma;
+      }
+      marks.push(cm);
+    }
+    if (marks.length) out.marks = marks;
+  }
+  if (Array.isArray(node.content)) {
+    out.content = node.content
+      .slice(0, 1500)
+      .map(child => sanitizeDocJsonNode(child, depth + 1, stats))
+      .filter(Boolean);
+  }
+  return out;
+}
+
+export function sanitizeLectureDocJson(rawDoc) {
+  if (!isObject(rawDoc) || rawDoc.type !== 'doc') {
+    return { type: 'doc', content: [{ type: 'paragraph' }] };
+  }
+  const cleaned = sanitizeDocJsonNode(rawDoc, 0, { images: 0 }) || { type: 'doc', content: [{ type: 'paragraph' }] };
+  const serialized = JSON.stringify(cleaned);
+  if (serialized.length > 480000) {
+    throw new Error('ডকুমেন্টের আকার ক্লাউড সংরক্ষণের নিরাপদ সীমা অতিক্রম করেছে — ছবির আকার বা সংখ্যা কমান।');
+  }
+  if (!Array.isArray(cleaned.content) || !cleaned.content.length) {
+    cleaned.content = [{ type: 'paragraph' }];
+  }
+  return cleaned;
+}
+
 function clean(patch, { records, id, actor }) {
+  const isLectureSheet = patch.isLectureSheet === true;
   const type = typeOf(patch);
   const title = text(patch.title);
   if (!title) throw new Error('শিরোনাম লিখুন।');
   if (title.length > 160) throw new Error('শিরোনাম সর্বোচ্চ ১৬০ অক্ষর।');
   const description = text(patch.description);
-  const content = text(patch.content);
-  const richContent = sanitizeRichHtml(patch.richContent || '');
+  const content = isLectureSheet ? text(patch.content).slice(0, 80000) : text(patch.content);
+  const richContent = isLectureSheet
+    ? sanitizeLectureHtml(patch.richContent || '')
+    : sanitizeRichHtml(patch.richContent || '');
   if (description.length > 600) throw new Error('সংক্ষিপ্ত বর্ণনা সর্বোচ্চ ৬০০ অক্ষর।');
-  if (content.length > 8000) throw new Error('মূল লেখা সর্বোচ্চ ৮০০০ অক্ষর।');
+  if (!isLectureSheet && content.length > 8000) throw new Error('মূল লেখা সর্বোচ্চ ৮০০০ অক্ষর।');
   const link = text(patch.attachmentUrl);
   if (link && !/^https?:\/\//i.test(link)) throw new Error('সংযুক্তি লিংকটি https:// বা http:// দিয়ে দিন।');
   const thumbnail = text(patch.thumbnail);
@@ -215,7 +327,9 @@ function clean(patch, { records, id, actor }) {
     throw new Error('থাম্বনেইল লিংকটি ঠিক নয়।');
   }
   const now = new Date().toISOString();
-  return {
+  const published = patch.published === true;
+  const active = patch.active !== false;
+  const base = {
     id: id || nextContentId(records),
     classId: text(patch.classId),
     subjectId: text(patch.subjectId),
@@ -231,8 +345,30 @@ function clean(patch, { records, id, actor }) {
     createdBy: text(patch.createdBy) || actor || '',
     createdAt: text(patch.createdAt) || now,
     updatedAt: now,
-    published: patch.published === true,
-    active: patch.active !== false
+    published,
+    active
+  };
+  if (!isLectureSheet) return base;
+
+  const classRec = classById(base.classId);
+  const subjRec = classRec ? subjectsForClass(classRec.name).find(item => item.id === base.subjectId) : null;
+  const status = !active ? 'archived' : (published ? 'published' : 'draft');
+  return {
+    ...base,
+    isLectureSheet: true,
+    subtitle: text(patch.subtitle).slice(0, 200),
+    topic: text(patch.topic).slice(0, 160),
+    chapterName: text(patch.chapterName).slice(0, 160),
+    className: text(patch.className) || classRec?.name || '',
+    subjectName: text(patch.subjectName) || subjRec?.name || '',
+    teacherId: text(patch.teacherId).slice(0, 120),
+    teacherName: text(patch.teacherName).slice(0, 160),
+    docJson: sanitizeLectureDocJson(patch.docJson),
+    pageSettings: normalizeLecturePageSettings(patch.pageSettings),
+    status,
+    publishedAt: published ? (text(patch.publishedAt) || now) : text(patch.publishedAt),
+    docVersion: Math.max(1, Math.trunc(Number(patch.docVersion) || 1)),
+    history: Array.isArray(patch.history) ? patch.history.slice(0, 5) : []
   };
 }
 
@@ -240,8 +376,8 @@ function clean(patch, { records, id, actor }) {
  * Teacher, their assigned class/batch/subject. The editor controls are not the
  * permission boundary. */
 async function requireCourseWriter(role, classId, subjectId, group = '') {
-  if (!['teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
-    throw Object.assign(new Error('সক্রিয় শিক্ষক বা ম্যানেজার সেশন ছাড়া কোনটেন্ট বদলানো যাবে না।'), { code: 'ACCESS_DENIED' });
+  if (!['admin', 'teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
+    throw Object.assign(new Error('সক্রিয় শিক্ষক, ম্যানেজার বা অ্যাডমিন সেশন ছাড়া কনটেন্ট বদলানো যাবে না।'), { code: 'ACCESS_DENIED' });
   }
   const account = await readStaffAccount(role);
   if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') {
@@ -261,11 +397,27 @@ async function requireCourseWriter(role, classId, subjectId, group = '') {
   return String(account.fullName || account.username || role).trim();
 }
 
+export async function verifyCourseStaffActor(role) {
+  if (!['admin', 'teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
+    throw Object.assign(new Error('অনুমোদিত স্টাফ সেশন পাওয়া যায়নি।'), { code: 'ACCESS_DENIED' });
+  }
+  const account = await readStaffAccount(role);
+  if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') {
+    throw Object.assign(new Error('সক্রিয় স্টাফ অ্যাকাউন্ট পাওয়া যায়নি।'), { code: 'ACCESS_DENIED' });
+  }
+  return {
+    role,
+    username: String(account.username || '').trim(),
+    staffId: String(account.staffId || account.id || account.username || role).trim(),
+    displayName: String(account.fullName || account.username || role).trim()
+  };
+}
+
 /**
  * Create or update one record. Re-saving keeps the id, the author and the
  * original creation date; nothing is ever deleted by an edit.
  */
-export async function saveCourseRecord(patch = {}, { actor = '', role = '' } = {}) {
+export async function saveCourseRecord(patch = {}, { actor = '', role = '', expectedVersion = null, recordHistory = false } = {}) {
   const requestedClassId = text(patch.classId);
   const requestedSubjectId = text(patch.subjectId);
   const requestedGroup = text(patch.group).slice(0, 80);
@@ -277,12 +429,54 @@ export async function saveCourseRecord(patch = {}, { actor = '', role = '' } = {
     if (existing && role === 'teacher' && existing.createdBy !== staffName) {
       throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content সম্পাদনা করা যাবে না।'), { code: 'ACCESS_DENIED' });
     }
-    if (existing && (existing.classId !== requestedClassId || existing.subjectId !== requestedSubjectId)) {
+    if (existing && !patch.allowReassignScope && (existing.classId !== requestedClassId || existing.subjectId !== requestedSubjectId)) {
       throw new Error('সম্পাদনায় record-এর class/subject বদলানো যাবে না। নতুন record তৈরি করুন।');
     }
-    const record = clean({ ...(existing || {}), ...patch, createdBy: existing?.createdBy || staffName, group: requestedGroup }, { records: store.records, id: existingId, actor: staffName || actor });
+    if (existing && expectedVersion !== null && expectedVersion !== undefined && Number.isFinite(Number(expectedVersion))
+      && Number(existing.docVersion || 1) !== Number(expectedVersion)) {
+      throw Object.assign(
+        new Error('অন্য ডিভাইস বা ট্যাবে ডকুমেন্টটি ইতিমধ্যে আপডেট হয়েছে — সংঘর্ষ এড়াতে আগে পর্যালোচনা করুন।'),
+        { code: 'VERSION_CONFLICT', currentVersion: Number(existing.docVersion || 1), currentRecord: existing }
+      );
+    }
+    const nextVersion = existing ? (Math.max(1, Number(existing.docVersion) || 1) + 1) : 1;
+    let nextHistory = Array.isArray(existing?.history) ? [...existing.history] : [];
+    if (existing && existing.isLectureSheet && recordHistory) {
+      const snapshotJson = JSON.stringify(existing.docJson || {}).length <= 120000 ? existing.docJson : null;
+      nextHistory = [
+        {
+          version: Number(existing.docVersion) || 1,
+          savedAt: existing.updatedAt || existing.createdAt,
+          savedBy: existing.updatedBy || existing.createdBy || '',
+          title: existing.title || '',
+          subtitle: existing.subtitle || '',
+          topic: existing.topic || '',
+          status: existing.status || (existing.published ? 'published' : 'draft'),
+          pageSettings: existing.pageSettings || DEFAULT_LECTURE_PAGE_SETTINGS,
+          docJson: snapshotJson,
+          richContent: snapshotJson ? '' : String(existing.richContent || '').slice(0, 60000),
+          content: String(existing.content || '').slice(0, 20000)
+        },
+        ...nextHistory
+      ].slice(0, 5);
+    }
+    const record = clean(
+      {
+        ...(existing || {}),
+        ...patch,
+        docVersion: nextVersion,
+        history: patch.history !== undefined ? patch.history : nextHistory,
+        createdBy: existing?.createdBy || staffName,
+        group: requestedGroup
+      },
+      { records: store.records, id: existingId, actor: staffName || actor }
+    );
     if (!isObject(record) || !record.classId || !record.subjectId) throw new Error('অন্তত ক্লাস ও বিষয় নির্বাচন করুন।');
-    if (existing) { record.createdBy = existing.createdBy; record.createdAt = existing.createdAt; }
+    if (existing) {
+      record.createdBy = existing.createdBy;
+      record.createdAt = existing.createdAt;
+      record.updatedBy = staffName || actor || role;
+    }
     if (record.type !== 'chapter' && record.chapterId) {
       const parent = contentById(record.chapterId, store.records);
       if (!parent || typeOf(parent) !== 'chapter' || parent.active === false
@@ -312,7 +506,21 @@ export async function setContentPublished(id, published, { role = '', actor = ''
     if (role === 'teacher' && current.createdBy !== staffName) {
       throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content প্রকাশ বা পরিবর্তন করা যাবে না।'), { code: 'ACCESS_DENIED' });
     }
-    const saved = { ...current, published: published === true, updatedAt: new Date().toISOString(), updatedBy: actor || role };
+    const now = new Date().toISOString();
+    const isPub = published === true;
+    const nextActive = isPub ? true : current.active !== false;
+    const saved = {
+      ...current,
+      published: isPub,
+      active: nextActive,
+      ...(current.isLectureSheet ? {
+        status: !nextActive ? 'archived' : (isPub ? 'published' : 'draft'),
+        publishedAt: isPub ? now : (current.publishedAt || ''),
+        docVersion: Math.max(1, Number(current.docVersion) || 1) + 1
+      } : {}),
+      updatedAt: now,
+      updatedBy: staffName || actor || role
+    };
     saveCourseContent(store.records.map(record => text(record.id) === wanted ? saved : record));
     return saved;
   };
@@ -320,7 +528,7 @@ export async function setContentPublished(id, published, { role = '', actor = ''
 }
 
 /** Archive instead of delete: `active:false` keeps the record readable. */
-export async function archiveCourseRecord(id, { role = '', actor = '' } = {}) {
+export async function archiveCourseRecord(id, { role = '', actor = '', restore = false } = {}) {
   const save = async () => {
     const store = loadCourseContent();
     const wanted = text(id);
@@ -330,7 +538,20 @@ export async function archiveCourseRecord(id, { role = '', actor = '' } = {}) {
     if (role === 'teacher' && current.createdBy !== staffName) {
       throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content archive করা যাবে না।'), { code: 'ACCESS_DENIED' });
     }
-    const saved = { ...current, active: false, updatedAt: new Date().toISOString(), updatedBy: actor || role };
+    const now = new Date().toISOString();
+    const nextActive = restore === true;
+    const nextPublished = nextActive ? Boolean(current.published) : false;
+    const saved = {
+      ...current,
+      active: nextActive,
+      published: current.isLectureSheet && !nextActive ? false : current.published,
+      ...(current.isLectureSheet ? {
+        status: !nextActive ? 'archived' : (nextPublished ? 'published' : 'draft'),
+        docVersion: Math.max(1, Number(current.docVersion) || 1) + 1
+      } : {}),
+      updatedAt: now,
+      updatedBy: staffName || actor || role
+    };
     saveCourseContent(store.records.map(record => text(record.id) === wanted ? saved : record));
     return saved;
   };

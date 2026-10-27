@@ -171,15 +171,6 @@ export function initAdminPanelShell({ access, onNavigate } = {}) {
   const moreItems = renderHub(document, '#adminMoreMenu', 'more', ADMIN_MORE_NAV, access, navigate);
   const tiles = renderFeatureGrid(document.querySelector('#adminFeatureGrid'), tileEntries, navigate);
 
-  // System overview title uses the same icon language as the navigation.
-  paintIcon(document.querySelector('.admin-hero-icon'), 'dashboard', 'admin-hero-icon-svg apc-icon-svg');
-
-  // Hero summary tiles, in document order (see admin.html).
-  const heroIcons = ['students', 'staff', 'data', 'security'];
-  document.querySelectorAll('.admin-hero-stats .admin-stat-tile .tile-icon').forEach((chip, index) => {
-    paintIcon(chip, heroIcons[index] || 'dashboard', 'admin-tile-icon-svg apc-icon-svg');
-  });
-
   // Finance summary tiles (Reports → Finance Summary), in document order.
   const statIcons = ['receipt', 'calendar', 'wallet', 'bolt'];
   document.querySelectorAll('.admin-stats .admin-stat .admin-stat-icon').forEach((chip, index) => {

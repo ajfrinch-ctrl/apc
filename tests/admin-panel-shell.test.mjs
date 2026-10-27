@@ -181,13 +181,19 @@ test('the dashboard grid is generated from the permission model', () => {
     assert.ok(tile.querySelector('.admin-feature-label')?.textContent.trim().length > 1);
     assert.ok(tile.dataset.adminCap, `${tile.dataset.adminView} tile carries no capability`);
   }
-  // System overview uses one generated icon and exposes no daily collection CTA.
-  assert.ok(ctx.$('.admin-hero-icon svg'));
+  const home = ctx.$('.admin-view[data-view-panel="dashboard"]');
+  for (const selector of ['#dashTitle', '#adminTodayDate', '#adminHeroAdvice']) {
+    assert.ok(home.querySelector(selector)?.textContent.trim(), `${selector} remains on Home`);
+  }
+  assert.equal(home.querySelector('.teacher-hero-scene, [data-admin-hero-art], .admin-hero-icon'), null,
+    'Home does not ship a hidden or visible hero picture');
+  assert.equal(home.querySelector('.admin-home-summary, .admin-hero-stats, #adminMaintenanceFlag, #backupReminder'), null,
+    'all four counters and both optional warnings are removed from Home only');
+  assert.equal(home.querySelector('#adminQuickShortcuts, .teacher-chat-hub, .phonebook-hub-card'), null,
+    'the duplicate staff, backup, reports, chat and phonebook shortcuts are gone');
+  assert.deepEqual([...home.querySelectorAll('.admin-portal-grid > a')].map(a => a.getAttribute('href')),
+    ['manager.html', 'teacher.html', 'payment.html'], 'the three Super Admin portal doors stay');
   assert.equal(ctx.$('#dashCollectFee'), null);
-  // Four snapshot tiles: students, staff, classes, protected accounts.
-  assert.equal(ctx.$$('.admin-hero-stats .tile-icon svg').length, 4);
-  assert.ok(ctx.$('#dashStaffCount'), 'the dashboard counts staff');
-  assert.ok(ctx.$('#dashProtectedCount'), 'the dashboard shows protected accounts');
 });
 
 test('nothing outside the Admin role survives in the DOM', () => {
