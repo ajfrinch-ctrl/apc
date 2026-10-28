@@ -107,7 +107,7 @@ const bn = value => String(value).replace(/\d/g, digit => BN_DIGITS[Number(digit
 export function unreadBadgeText(count) {
   const value = Number(count) || 0;
   if (value <= 0) return '';
-  if (value > 9) return `${bn(10)}+`;
+  if (value > 99) return `${bn(99)}+`;
   return bn(value);
 }
 
@@ -336,7 +336,9 @@ export function mountNoticeCenter(api) {
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
-    container.addEventListener('keydown', handler, { once: true });
+    if (container._apcFocusTrap) container.removeEventListener('keydown', container._apcFocusTrap);
+    container._apcFocusTrap = handler;
+    container.addEventListener('keydown', handler);
   }
 
   const isStudentViewer = () => {
@@ -660,7 +662,7 @@ export function mountNoticeCenter(api) {
   function open(initialDetailKey = '') {
     hideAlerts();
     detailKey = initialDetailKey || '';
-    filter = detailKey ? 'all' : 'unread';
+    filter = 'all';
     paint();
     show(true);
     // Re-position on resize/scroll while open

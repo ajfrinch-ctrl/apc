@@ -138,12 +138,13 @@ test('only read===false is unread; read, unread and delivered stamps follow the 
   assert.equal(unreadNotifications('student:AP-1').length, 0);
 });
 
-test('the badge text: 0 hides, 1–9 exact, 10+ shows ১০+', () => {
+test('the badge text: 0 hides, 1–99 exact, 100+ shows ৯৯+', () => {
   assert.equal(unreadBadgeText(0), '');
   assert.equal(unreadBadgeText(1), '১');
   assert.equal(unreadBadgeText(9), '৯');
-  assert.equal(unreadBadgeText(10), '১০+');
-  assert.equal(unreadBadgeText(250), '১০+');
+  assert.equal(unreadBadgeText(10), '১০');
+  assert.equal(unreadBadgeText(99), '৯৯');
+  assert.equal(unreadBadgeText(250), '৯৯+');
 });
 
 test('an update stores what the device already knew as read, so old news never buzzes as unread', async () => {

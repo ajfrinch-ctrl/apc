@@ -8437,4 +8437,52 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
 .admin-page-header .pay-back[hidden] {
   display: none !important;
 }
+
+/* Notification centre: the wallet sheet rules above must not override the
+   bell's compact desktop dropdown or its mobile sheet. */
+  #apcNoticeModal.apc-fb-backdrop:not([hidden]) {
+    position: fixed; inset: 0; width: 100%; max-width: none; transform: none;
+    display: flex; padding: 0; background: var(--modal-backdrop-soft);
+  }
+  #apcNoticeModal.apc-fb-backdrop:not([hidden]) .modal.apc-fb-panel {
+    display: flex; flex-direction: column; position: fixed;
+    width: min(380px, calc(100vw - 24px)); max-width: none;
+    height: auto; max-height: min(80dvh, 640px); padding: 0;
+    border: 1px solid var(--color-border); border-radius: 16px;
+    background: var(--color-surface); box-shadow: var(--glass-shadow-strong);
+    overflow: hidden;
+  }
+  #apcNoticeModal .apc-fb-header { flex: 0 0 auto; }
+  #apcNoticeModal .notice-filters.apc-fb-filters {
+    flex: 0 0 auto; margin: 0; padding: 8px 16px; border: 0; border-radius: 0;
+  }
+  #apcNoticeModal .notice-filters .apc-fb-chip.active {
+    background: var(--color-primary); color: var(--color-on-accent);
+  }
+  #apcNoticeModal .apc-pending-host { flex: 0 1 auto; min-height: 0; overflow-y: auto; max-height: 22vh; margin: 0 12px; padding: 0; }
+  #apcNoticeModal .modal:has(.apc-pending-host:not(.is-empty)) [data-apc-notice-list],
+  #apcNoticeModal [data-apc-notice-list] {
+    display: grid; flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto;
+    align-content: start; gap: 4px; margin: 0; padding: 8px;
+  }
+  #apcNoticeModal .notice-detail.apc-fb-card { border-radius: 12px; padding: 12px; }
+  #apcNoticeModal .notice-detail.apc-fb-card.unread:not(.is-birthday) {
+    border-inline-start: 3px solid var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  }
+  #apcNoticeModal .notice-detail.apc-fb-card.unread::before { display: none; }
+  #apcNoticeModal .notice-detail.apc-fb-card .apc-fb-unread-dot {
+    display: block; top: 50%; right: 12px; width: 9px; height: 9px; background: var(--color-primary);
+  }
+  #apcNoticeModal .apc-fb-footer, #apcNoticeModal [data-apc-notice-push] { flex: 0 0 auto; }
+  @media (max-width: 600px) {
+    #apcNoticeModal.apc-fb-backdrop:not([hidden]) .modal.apc-fb-panel {
+      inset: auto 0 0 !important; width: 100%; height: min(85dvh, 720px);
+      max-height: 85dvh; border-radius: 20px 20px 0 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #apcNoticeModal .apc-fb-panel { animation: none; }
+  }
 }

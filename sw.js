@@ -1,4 +1,4 @@
-// v432: Passphrase-protected new backups and isolated preview cloud access; production sync configuration unchanged.
+// v433: Passphrase-protected new backups and isolated preview cloud access; production sync configuration unchanged.
 // v431: Admin More and System primary actions open routed full-screen details with browser Back/Forward.
 // v430: Privacy-mask primary lists + isolate More view keeps welcome/date/advice, registration review and staff-portal doors; retires redundant tiles, stats, warnings and artwork.
 // v428: Full-Screen Word-Style Lecture Sheet Editor & PDF Studio across Admin, Teacher, Manager & Student panels with A4 pagination, Bangla typography, equations, offline recovery & E2EE sync.
@@ -178,7 +178,7 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 432;
+const CACHE_VERSION = 433;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',
