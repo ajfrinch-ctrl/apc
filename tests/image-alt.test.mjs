@@ -23,12 +23,17 @@ test('all static PWA page images have non-empty alt text', () => {
   }
 });
 
-test('Payment carousel illustrations and report-preview logos get descriptive alt text at runtime', async () => {
-  const ctx = await loadPage('payment.html');
-  const carousel = initHomeHero(ctx.$('[data-home-hero]'));
-  const heroImages = ctx.$$('[data-home-hero] [data-hero-slide] img');
+test('Shared carousel illustrations and report-preview logos get descriptive alt text at runtime', async () => {
+  // The Payment Counter no longer hosts the carousel (owner request 2026-10-28);
+  // the shared implementation is exercised on a fresh mount instead.
+  const ctx = await loadPage('student.html');
+  const mount = ctx.document.createElement('div');
+  mount.setAttribute('data-home-hero', '');
+  ctx.document.body.appendChild(mount);
+  const carousel = initHomeHero(mount);
+  const heroImages = mount.querySelectorAll('[data-hero-slide] img');
   assert.equal(heroImages.length, 4);
-  assert.ok(heroImages.every(image => image.alt.trim()), 'all four Payment hero illustrations describe their content');
+  assert.ok([...heroImages].every(image => image.alt.trim()), 'all four hero illustrations describe their content');
   carousel.stop();
   ctx.window.close();
 

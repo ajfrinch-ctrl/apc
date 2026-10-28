@@ -26,7 +26,7 @@ test('Admin Home omits the picture, four counters, both reminders and five dupli
     '.teacher-hero-scene', '[data-admin-hero-art]', '.admin-hero-icon',
     '.admin-home-summary', '.admin-hero-stats', '#dashStudentCount', '#dashStaffCount',
     '#dashClassCount', '#dashProtectedCount', '#adminMaintenanceFlag', '#backupReminder',
-    '#adminQuickShortcuts', '.teacher-chat-hub', '.phonebook-hub-card'
+    '#adminQuickShortcuts', '.panel-hub-card', '.phonebook-hub-card'
   ]) {
     assert.equal(home.querySelector(selector), null, `${selector} does not render on Home`);
   }
@@ -36,7 +36,10 @@ test('Admin Home omits the picture, four counters, both reminders and five dupli
     'maintenance status remains in System Settings');
   assert.ok(document.querySelector('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'),
     'phonebook remains accessible from More');
-  assert.ok(document.querySelector('#classChatTopbarButton'), 'the global chat shortcut remains');
+  // Class Chat & Moderation was removed from this panel (owner request
+  // 2026-10-28): the chat shortcut must not come back.
+  assert.equal(document.querySelector('#classChatTopbarButton'), null, 'no global chat shortcut');
+  assert.equal(document.querySelector('[data-admin-view="class-chat"]'), null, 'no chat route');
 });
 
 test('text-only Home contracts to its content without a phantom image or clipped Bangla advice', () => {

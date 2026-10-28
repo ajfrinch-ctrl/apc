@@ -71,8 +71,13 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
     const approvalShortcut=now.filter(control=>control.id==='managerFinanceApprovalLink');
     assert.deepEqual(approvalShortcut,[{id:'managerFinanceApprovalLink'}], 'collection preview keeps its new approval shortcut');
    }
+   /* Owner request 2026-10-28: the "শ্রেণি চ্যাট ও মডারেশন" console is removed
+      from both staff panels, so its shortcuts are the retired controls here. */
+   const retiredChat = control => control.id === 'classChatTopbarButton'
+    || control['data-admin-view'] === 'class-chat'
+    || control['data-manager-view'] === 'class-chat';
    const currentRoutes=new Set(now.filter(control=>control.id!=='managerFinanceApprovalLink').map(control=>JSON.stringify(control)));
-   for(const control of controls(old).filter(c=>c.id!=='managerFinanceApprovalLink'))assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
+   for(const control of controls(old).filter(c=>c.id!=='managerFinanceApprovalLink'&&!retiredChat(c)))assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
    const adviceRoute=page==='manager'?'data-manager-view':'data-admin-view';
    assert.ok(now.some(control=>control[adviceRoute]==='advice'),'daily advice remains reachable from More');
   }else if(page==='teacher'){

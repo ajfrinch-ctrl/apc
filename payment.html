@@ -4,15 +4,14 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com/recaptcha/ https://active-plus-coaching-default-rtdb.asia-southeast1.firebasedatabase.app http://localhost:9000 http://127.0.0.1:9000; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.cloudfunctions.net https://*.firebaseapp.com https://*.google.com https://www.gstatic.com https://api.open-meteo.com https://cgtdnwktzcroxeioeyfq.supabase.co wss://cgtdnwktzcroxeioeyfq.supabase.co http://localhost:5001 http://localhost:8080 http://localhost:9000 http://localhost:9099 http://127.0.0.1:5001 http://127.0.0.1:8080 http://127.0.0.1:9000 http://127.0.0.1:9099 ws://localhost:5001 ws://localhost:8080 ws://localhost:9000 ws://localhost:9099 ws://127.0.0.1:5001 ws://127.0.0.1:8080 ws://127.0.0.1:9000 ws://127.0.0.1:9099; frame-src 'self' https://www.google.com/recaptcha/ https://*.firebaseapp.com https://active-plus-coaching-default-rtdb.asia-southeast1.firebasedatabase.app https://*.firebasedatabase.app http://localhost:9000 http://127.0.0.1:9000; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
-  <script src="js/sanitize-url.js?v=433"></script>
-  <script src="js/cache-refresh.js?v=433"></script>
-  <script src="js/app-entry.js?v=433" data-entry="payment"></script>
-  <script type="module" src="js/payment.js?v=433"></script>
-  <script type="module" src="js/home-hero-entry.js?v=433"></script>
-  <script src="js/topbar-connectivity.js?v=433" defer></script>
-  <script type="module" src="js/realtime-sync-entry.js?v=433"></script>
-  <script src="js/appearance-boot.js?v=433"></script>
-  <script src="js/theme-logos.js?v=433"></script>
+  <script src="js/sanitize-url.js?v=434"></script>
+  <script src="js/cache-refresh.js?v=434"></script>
+  <script src="js/app-entry.js?v=434" data-entry="payment"></script>
+  <script type="module" src="js/payment.js?v=434"></script>
+  <script src="js/topbar-connectivity.js?v=434" defer></script>
+  <script type="module" src="js/realtime-sync-entry.js?v=434"></script>
+  <script src="js/appearance-boot.js?v=434"></script>
+  <script src="js/theme-logos.js?v=434"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#0e7a55">
   <meta name="description" content="Active Plus Coaching পেমেন্ট রিসিভ প্যানেল — আজকের লেনদেন, সীমিত পরিচয়ের সার্চ ও সহজ পেমেন্ট গ্রহণ।">
@@ -33,23 +32,23 @@
        HTML and fetches them in parallel, instead of a render-blocking serial
        waterfall (design-system.css first, its imports one round-trip later).
        tools/css-order-check.mjs + tests/css-order.test.mjs keep this in sync. -->
-  <link rel="stylesheet" href="css/foundation.css?v=433">
-  <link rel="stylesheet" href="css/ui-layout.css?v=433">
-  <link rel="stylesheet" href="css/ui-components.css?v=433">
-  <link rel="stylesheet" href="css/ui-forms.css?v=433">
-  <link rel="stylesheet" href="css/ui-features.css?v=433">
-  <link rel="stylesheet" href="css/notice-board.css?v=433">
-  <link rel="stylesheet" href="css/ui-status.css?v=433">
-  <link rel="stylesheet" href="css/ui-auth.css?v=433">
-  <link rel="stylesheet" href="css/app-polish.css?v=433">
-  <link rel="stylesheet" href="css/student-record.css?v=433">
-  <link rel="stylesheet" href="css/exam-archive.css?v=433">
-  <link rel="stylesheet" href="css/academics.css?v=433">
-  <link rel="stylesheet" href="css/notifications.css?v=433">
-  <link rel="stylesheet" href="css/course-hub.css?v=433">
-  <link rel="stylesheet" href="css/ui-wallet.css?v=433">
-  <script type="module" src="js/ui-accessibility.js?v=433"></script>
-  <script src="js/launch-screen.js?v=433" defer></script>
+  <link rel="stylesheet" href="css/foundation.css?v=434">
+  <link rel="stylesheet" href="css/ui-layout.css?v=434">
+  <link rel="stylesheet" href="css/ui-components.css?v=434">
+  <link rel="stylesheet" href="css/ui-forms.css?v=434">
+  <link rel="stylesheet" href="css/ui-features.css?v=434">
+  <link rel="stylesheet" href="css/notice-board.css?v=434">
+  <link rel="stylesheet" href="css/ui-status.css?v=434">
+  <link rel="stylesheet" href="css/ui-auth.css?v=434">
+  <link rel="stylesheet" href="css/app-polish.css?v=434">
+  <link rel="stylesheet" href="css/student-record.css?v=434">
+  <link rel="stylesheet" href="css/exam-archive.css?v=434">
+  <link rel="stylesheet" href="css/academics.css?v=434">
+  <link rel="stylesheet" href="css/notifications.css?v=434">
+  <link rel="stylesheet" href="css/course-hub.css?v=434">
+  <link rel="stylesheet" href="css/ui-wallet.css?v=434">
+  <script type="module" src="js/ui-accessibility.js?v=434"></script>
+  <script src="js/launch-screen.js?v=434" defer></script>
 </head>
 <body class="pay-body payment-reference">
   <div class="pay-shell" id="payShell" hidden>
@@ -60,18 +59,14 @@
 
       <!-- হোম — the counter’s own day: today’s entries and the closing shortcut. -->
       <section class="pay-panel" data-pay-panel="home" id="payCounterHome" aria-labelledby="payHomeTitle">
-        <section class="hero-slider" data-home-hero hidden></section>
-        <div class="home-dashboard-intro payment-home-intro teacher-home-intro" data-home-intro data-hero-mode="day">
-          <div class="teacher-hero-scene" aria-hidden="true">
-            <img class="teacher-hero-art" data-pay-hero-art data-hero-card="welcome" src="assets/images/teacher-hero/welcome-day.webp" alt="পেমেন্ট কাউন্টার হোমের থ্রিডি চিত্র" width="828" height="462" fetchpriority="high" decoding="async" data-mode="day">
-            <span class="teacher-hero-scene-scrim"></span>
-          </div>
+        <div class="home-dashboard-intro payment-home-intro teacher-home-intro panel-compact-head" data-home-intro data-hero-mode="day">
+          
           <div class="teacher-hero-content">
             <div class="teacher-hero-top">
               <span class="admin-hero-icon" aria-hidden="true" hidden><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="wallet" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/wallet.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
               <span class="teacher-hero-top-right">
                 <span class="teacher-hero-date-pill" data-pay-hero-date></span>
-                <span class="teacher-hero-glint" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="sun" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image data-pay-hero-glint href="assets/icons/ai-3d/sun.svg" width="22" height="22" preserveAspectRatio="xMidYMid meet"/></svg></span>
+                
               </span>
             </div>
             <div class="admin-hero-title teacher-hero-welcome" data-pay-hero-advice="finance">
@@ -99,16 +94,13 @@
 
       <!-- শিক্ষার্থী — identity-only search and verification. -->
       <section class="pay-panel" data-pay-panel="students" id="payStudentsPanel" aria-label="শিক্ষার্থী যাচাই" hidden>
-        <div class="page-intro home-dashboard-intro teacher-home-intro payment-sub-hero" data-home-intro data-hero-mode="day">
-          <div class="teacher-hero-scene" aria-hidden="true">
-            <img class="teacher-hero-art" data-pay-hero-art data-hero-card="classroom" src="assets/images/teacher-hero/classroom-day.webp" alt="শিক্ষার্থী যাচাইয়ের থ্রিডি চিত্র" width="828" height="462" loading="lazy" decoding="async" data-mode="day">
-            <span class="teacher-hero-scene-scrim"></span>
-          </div>
+        <div class="page-intro home-dashboard-intro teacher-home-intro payment-sub-hero panel-compact-head" data-home-intro data-hero-mode="day">
+          
           <div class="teacher-hero-content">
             <div class="teacher-hero-top">
               <span class="teacher-hero-top-right">
                 <span class="teacher-hero-date-pill" data-pay-hero-date></span>
-                <span class="teacher-hero-glint" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="sun" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image data-pay-hero-glint href="assets/icons/ai-3d/sun.svg" width="22" height="22" preserveAspectRatio="xMidYMid meet"/></svg></span>
+                
               </span>
             </div>
             <div class="teacher-hero-welcome" data-pay-hero-advice="students">
@@ -136,16 +128,13 @@
 
       <!-- পেমেন্ট — one entry form; the receipt opens over whatever is on screen. -->
       <section class="pay-panel" data-pay-panel="payment" id="payEntryPanel" aria-label="পেমেন্ট এন্ট্রি" hidden>
-        <div class="page-intro home-dashboard-intro teacher-home-intro payment-sub-hero" data-home-intro data-hero-mode="day">
-          <div class="teacher-hero-scene" aria-hidden="true">
-            <img class="teacher-hero-art" data-pay-hero-art data-hero-card="attendance" src="assets/images/teacher-hero/attendance-day.webp" alt="পেমেন্ট এন্ট্রির থ্রিডি চিত্র" width="828" height="462" loading="lazy" decoding="async" data-mode="day">
-            <span class="teacher-hero-scene-scrim"></span>
-          </div>
+        <div class="page-intro home-dashboard-intro teacher-home-intro payment-sub-hero panel-compact-head" data-home-intro data-hero-mode="day">
+          
           <div class="teacher-hero-content">
             <div class="teacher-hero-top">
               <span class="teacher-hero-top-right">
                 <span class="teacher-hero-date-pill" data-pay-hero-date></span>
-                <span class="teacher-hero-glint" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="sun" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image data-pay-hero-glint href="assets/icons/ai-3d/sun.svg" width="22" height="22" preserveAspectRatio="xMidYMid meet"/></svg></span>
+                
               </span>
             </div>
             <div class="teacher-hero-welcome" data-pay-hero-advice="finance">
@@ -180,16 +169,13 @@
 
       <!-- রিপোর্ট — the existing counter report centre lives on. -->
       <section class="pay-panel" data-pay-panel="reports" id="payReportsPanel" aria-label="পেমেন্ট রিপোর্ট" hidden>
-        <div class="page-intro home-dashboard-intro teacher-home-intro payment-sub-hero" data-home-intro data-hero-mode="day">
-          <div class="teacher-hero-scene" aria-hidden="true">
-            <img class="teacher-hero-art" data-pay-hero-art data-hero-card="exam" src="assets/images/teacher-hero/exam-day.webp" alt="পেমেন্ট রিপোর্টের থ্রিডি চিত্র" width="828" height="462" loading="lazy" decoding="async" data-mode="day">
-            <span class="teacher-hero-scene-scrim"></span>
-          </div>
+        <div class="page-intro home-dashboard-intro teacher-home-intro payment-sub-hero panel-compact-head" data-home-intro data-hero-mode="day">
+          
           <div class="teacher-hero-content">
             <div class="teacher-hero-top">
               <span class="teacher-hero-top-right">
                 <span class="teacher-hero-date-pill" data-pay-hero-date></span>
-                <span class="teacher-hero-glint" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="sun" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image data-pay-hero-glint href="assets/icons/ai-3d/sun.svg" width="22" height="22" preserveAspectRatio="xMidYMid meet"/></svg></span>
+                
               </span>
             </div>
             <div class="teacher-hero-welcome" data-pay-hero-advice="reports">
@@ -208,16 +194,13 @@
       </section>
 
       <section class="pay-panel" data-pay-panel="more" id="payMorePanel" aria-labelledby="payMoreTitle" hidden>
-        <div class="page-intro home-dashboard-intro teacher-home-intro payment-sub-hero" data-home-intro data-hero-mode="day">
-          <div class="teacher-hero-scene" aria-hidden="true">
-            <img class="teacher-hero-art" data-pay-hero-art data-hero-card="welcome" src="assets/images/teacher-hero/welcome-day.webp" alt="কাউন্টার আরও ও সেটিংসের থ্রিডি চিত্র" width="828" height="462" loading="lazy" decoding="async" data-mode="day">
-            <span class="teacher-hero-scene-scrim"></span>
-          </div>
+        <div class="page-intro home-dashboard-intro teacher-home-intro payment-sub-hero panel-compact-head" data-home-intro data-hero-mode="day">
+          
           <div class="teacher-hero-content">
             <div class="teacher-hero-top">
               <span class="teacher-hero-top-right">
                 <span class="teacher-hero-date-pill" data-pay-hero-date></span>
-                <span class="teacher-hero-glint" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="sun" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image data-pay-hero-glint href="assets/icons/ai-3d/sun.svg" width="22" height="22" preserveAspectRatio="xMidYMid meet"/></svg></span>
+                
               </span>
             </div>
             <div class="teacher-hero-welcome" data-pay-hero-advice="more">
@@ -251,7 +234,7 @@
     </div>
   </div>
   <div class="pay-toast" id="payToast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="js/theme-entry.js?v=433"></script>
-  <script type="module" src="js/pull-to-refresh.js?v=433"></script>
+  <script type="module" src="js/theme-entry.js?v=434"></script>
+  <script type="module" src="js/pull-to-refresh.js?v=434"></script>
 </body>
 </html>

@@ -48,7 +48,6 @@ export const STAFF_ROLE_BADGES = Object.freeze({
   manager: 'ম্যানেজার',
   admin: 'এডমিন'
 });
-export const STUDENT_LOCKED_NOTICE = 'এই শ্রেণির চ্যাট বর্তমানে শুধুমাত্র শিক্ষকদের বার্তার জন্য সীমাবদ্ধ';
 
 export const CORE_CHAT_CLASSES = Object.freeze([
   'অষ্টম শ্রেণি',
@@ -157,18 +156,14 @@ function normalizeRoom(raw, fallbackClassId = '') {
   const classId = normalizeClassId(raw?.classId || fallbackClassId);
   const roomKey = String(raw?.roomKey || roomKeyForClass(classId)).trim();
   if (!classId || !roomKey) return null;
+  /* Chat moderation was retired (owner request 2026-10-28): rooms no longer
+     carry a lock, a pin or the moderator identity. Records written by an older
+     build keep those fields on disk; they are ignored on read so a previously
+     locked room opens as a normal room. */
   return {
     id: roomKey,
     roomKey,
     classId,
-    locked: raw?.locked === true,
-    lockedBy: String(raw?.lockedBy || ''),
-    lockedByRole: String(raw?.lockedByRole || ''),
-    lockedAt: String(raw?.lockedAt || ''),
-    pinnedMessageId: String(raw?.pinnedMessageId || ''),
-    pinnedBy: String(raw?.pinnedBy || ''),
-    pinnedByRole: String(raw?.pinnedByRole || ''),
-    pinnedAt: String(raw?.pinnedAt || ''),
     updatedAt: Number(raw?.updatedAt) || 1
   };
 }
@@ -318,14 +313,6 @@ export function assertRoomReadAccess(actorInput, targetClassName) {
   return { actor, classId, roomKey: roomKeyForClass(classId) };
 }
 
-export function assertStaffModerationAccess(actorInput, targetClassName) {
-  const { actor, classId, roomKey } = assertRoomReadAccess(actorInput, targetClassName);
-  if (actor.kind !== 'staff' || !['teacher', 'manager', 'admin'].includes(actor.role)) {
-    throw chatError('শুধুমাত্র শিক্ষক, ম্যানেজার ও এডমিন মডারেশন নিয়ন্ত্রণ ব্যবহার করতে পারবেন।', 'MODERATION_DENIED');
-  }
-  return { actor, classId, roomKey };
-}
-
 export function sanitizeChatText(rawText) {
   const cleaned = String(rawText ?? '')
     .replace(/\r\n?/g, '\n')
@@ -384,12 +371,10 @@ export function countActiveClassMembers(className) {
 export function getClassRoomView(className, { actor: actorInput, search = '' } = {}) {
   const { actor, classId, roomKey } = assertRoomReadAccess(actorInput, className);
   const store = readClassChatStore();
-  const room = store.rooms[roomKey] || normalizeRoom({ roomKey, classId }, classId);
   const roomMessages = store.messages.filter(m => m.roomKey === roomKey);
-  const pinnedMessage = room.pinnedMessageId
-    ? roomMessages.find(m => m.id === room.pinnedMessageId && !m.deleted) || null
-    : null;
   const q = String(search || '').trim().toLowerCase();
+  // `deleted` is a legacy flag only (moderation removal is gone); tombstones
+  // written by an older build stay hidden from the conversation.
   const filteredMessages = q
     ? roomMessages.filter(m => !m.deleted && (
       m.text.toLowerCase().includes(q)
@@ -397,21 +382,14 @@ export function getClassRoomView(className, { actor: actorInput, search = '' } =
       || (m.senderBadge && m.senderBadge.toLowerCase().includes(q))
     ))
     : roomMessages;
-  const canModerate = actor.kind === 'staff';
-  const canSend = actor.kind === 'staff' || !room.locked;
   return {
     classId,
     roomKey,
     title: `${classId} — আলোচনা কক্ষ`,
-    locked: Boolean(room.locked),
-    lockedBy: room.lockedBy || '',
-    lockedByRole: room.lockedByRole || '',
-    pinnedMessage,
     messages: roomMessages,
     filteredMessages,
     activeMemberCount: countActiveClassMembers(classId),
-    canSend,
-    canModerate,
+    canSend: true,
     actor
   };
 }
@@ -420,9 +398,6 @@ export function sendClassMessage({ className, text, replyToId = '', actor: actor
   const { actor, classId, roomKey } = assertRoomReadAccess(actorInput, className);
   const store = readClassChatStore();
   const room = store.rooms[roomKey] || normalizeRoom({ roomKey, classId }, classId);
-  if (room.locked && actor.kind !== 'staff') {
-    throw chatError(STUDENT_LOCKED_NOTICE, 'ROOM_LOCKED');
-  }
   const cleanText = sanitizeChatText(text);
   let replyTo = null;
   const cleanReplyId = String(replyToId || '').trim();
@@ -488,104 +463,6 @@ export function toggleMessageReaction({ className, messageId, emoji, actor: acto
   return updated;
 }
 
-export function deleteClassMessage({ className, messageId, actor: actorInput } = {}) {
-  const { actor, classId, roomKey } = assertStaffModerationAccess(actorInput, className);
-  const store = readClassChatStore();
-  const idx = store.messages.findIndex(m => m.roomKey === roomKey && m.id === String(messageId || ''));
-  if (idx < 0) throw chatError('বার্তাটি পাওয়া যায়নি।', 'MESSAGE_NOT_FOUND');
-  const nowIso = new Date().toISOString();
-  const nowMs = Date.now();
-  const updated = {
-    ...store.messages[idx],
-    text: '',
-    replyTo: null,
-    reactions: {},
-    deleted: true,
-    deletedBy: actor.name,
-    deletedById: actor.id,
-    deletedByRole: actor.role,
-    deletedAt: nowIso,
-    updatedAt: nowMs
-  };
-  store.messages[idx] = updated;
-  const room = store.rooms[roomKey];
-  if (room && room.pinnedMessageId === updated.id) {
-    store.rooms[roomKey] = {
-      ...room,
-      pinnedMessageId: '',
-      pinnedBy: '',
-      pinnedByRole: '',
-      pinnedAt: '',
-      updatedAt: nowMs
-    };
-  }
-  writeClassChatStore(store, { action: 'delete', classId, roomKey, messageId: updated.id });
-  return updated;
-}
-
-export function pinClassMessage({ className, messageId, actor: actorInput } = {}) {
-  const { actor, classId, roomKey } = assertStaffModerationAccess(actorInput, className);
-  const store = readClassChatStore();
-  const target = store.messages.find(m => m.roomKey === roomKey && m.id === String(messageId || ''));
-  if (!target) throw chatError('পিন করার জন্য বার্তাটি পাওয়া যায়নি।', 'MESSAGE_NOT_FOUND');
-  if (target.deleted) throw chatError('মুছে ফেলা বার্তা পিন করা যাবে না।', 'MESSAGE_DELETED');
-  const prevRoom = store.rooms[roomKey] || normalizeRoom({ roomKey, classId }, classId);
-  const nextRoom = {
-    ...prevRoom,
-    classId,
-    roomKey,
-    pinnedMessageId: target.id,
-    pinnedBy: actor.name,
-    pinnedByRole: actor.role,
-    pinnedAt: new Date().toISOString(),
-    updatedAt: Date.now()
-  };
-  store.rooms[roomKey] = nextRoom;
-  writeClassChatStore(store, { action: 'pin', classId, roomKey, messageId: target.id });
-  return nextRoom;
-}
-
-export function unpinClassMessage({ className, actor: actorInput } = {}) {
-  const { classId, roomKey } = assertStaffModerationAccess(actorInput, className);
-  const store = readClassChatStore();
-  const prevRoom = store.rooms[roomKey] || normalizeRoom({ roomKey, classId }, classId);
-  const nextRoom = {
-    ...prevRoom,
-    classId,
-    roomKey,
-    pinnedMessageId: '',
-    pinnedBy: '',
-    pinnedByRole: '',
-    pinnedAt: '',
-    updatedAt: Date.now()
-  };
-  store.rooms[roomKey] = nextRoom;
-  writeClassChatStore(store, { action: 'unpin', classId, roomKey });
-  return nextRoom;
-}
-
-export function setClassRoomLock({ className, locked, actor: actorInput } = {}) {
-  const { actor, classId, roomKey } = assertStaffModerationAccess(actorInput, className);
-  const store = readClassChatStore();
-  const prevRoom = store.rooms[roomKey] || normalizeRoom({ roomKey, classId }, classId);
-  const isLocked = Boolean(locked);
-  const nextRoom = {
-    ...prevRoom,
-    classId,
-    roomKey,
-    locked: isLocked,
-    lockedBy: isLocked ? actor.name : '',
-    lockedByRole: isLocked ? actor.role : '',
-    lockedAt: isLocked ? new Date().toISOString() : '',
-    updatedAt: Date.now()
-  };
-  store.rooms[roomKey] = nextRoom;
-  writeClassChatStore(store, { action: isLocked ? 'lock' : 'unlock', classId, roomKey });
-  return nextRoom;
-}
-
-/* ---------- Formatting & XSS-safe HTML Builders ---------- */
-
 function avatarInitial(name) {
   const clean = String(name || '').trim();
   if (!clean) return 'স';
@@ -649,9 +526,6 @@ const WA_SVGS = Object.freeze({
   back: '<svg class="wa-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
   group: '<svg class="wa-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
   search: '<svg class="wa-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
-  lock: '<svg class="wa-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
-  unlock: '<svg class="wa-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>',
-  pin: '<svg class="wa-pin-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5-4 4 1 5-4.5-4.5L6 20l6.5-6.5L8 9l5 1 2-6z"/></svg>',
   doubleTick: '<svg class="wa-tick-svg" viewBox="0 0 16 11" aria-hidden="true"><path d="M11.07.66 4.88 6.85 2.2 4.17.93 5.44l3.95 3.95 7.46-7.46L11.07.66zm3.99 0L8.87 6.85l-.93-.93-1.27 1.27 2.2 2.2 7.46-7.46-1.27-1.27z" fill="currentColor" stroke="none"/></svg>',
   chevronDown: '<svg class="wa-chevron-svg" viewBox="0 0 18 18" aria-hidden="true"><path d="m4.5 6.75 4.5 4.5 4.5-4.5"/></svg>',
   ban: '<svg class="wa-ban-svg" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7"/><path d="m4.1 4.1 9.8 9.8"/></svg>',
@@ -674,12 +548,11 @@ function senderTone(role, senderId, senderName) {
   return String((Math.abs(hash) % 5) + 1);
 }
 
-export function renderMessageBubbleHtml(msg, actorInput, { pinnedMessageId = '', groupedWithPrev = false, isJustSent = false } = {}) {
+export function renderMessageBubbleHtml(msg, actorInput, { groupedWithPrev = false, isJustSent = false } = {}) {
   const actor = normalizeChatActor(actorInput);
   const isMine = msg.senderId === actor.id && msg.senderRole === actor.role;
   const isStaffSender = ['teacher', 'manager', 'admin'].includes(msg.senderRole);
   const roleBadgeText = isStaffSender ? (STAFF_ROLE_BADGES[msg.senderRole] || msg.senderBadge || '') : '';
-  const isPinned = Boolean(pinnedMessageId && pinnedMessageId === msg.id && !msg.deleted);
   const timeLabel = formatChatTimestamp(msg.createdAt);
   const tone = senderTone(msg.senderRole, msg.senderId, msg.senderName);
   const groupClass = groupedWithPrev ? 'is-grouped' : 'is-first-in-group';
@@ -704,7 +577,6 @@ export function renderMessageBubbleHtml(msg, actorInput, { pinnedMessageId = '',
   const badgeHtml = roleBadgeText
     ? `<span class="chat-role-badge is-${escapeHtml(msg.senderRole)}">${escapeHtml(roleBadgeText)}</span>`
     : '';
-  const pinnedTag = isPinned ? `<span class="chat-pin-indicator" title="পিন করা বার্তা">📌 পিন করা</span>` : '';
 
   const replyTone = msg.replyTo ? senderTone(msg.replyTo.senderRole, '', msg.replyTo.senderName) : '1';
   const replyHtml = msg.replyTo
@@ -731,21 +603,18 @@ export function renderMessageBubbleHtml(msg, actorInput, { pinnedMessageId = '',
     </button>`;
   }).filter(Boolean).join('');
 
-  const modControls = actor.kind === 'staff'
-    ? `<button type="button" class="chat-msg-tool" data-chat-action="${isPinned ? 'unpin' : 'pin'}" data-msg-id="${escapeHtml(msg.id)}">${isPinned ? 'আনপিন' : '📌 পিন'}</button>
-       <button type="button" class="chat-msg-tool is-danger" data-chat-action="delete" data-msg-id="${escapeHtml(msg.id)}">মুছুন</button>`
-    : '';
+  /* Message pinning, deletion and every other moderation control were removed
+     with the "শ্রেণি চ্যাট ও মডারেশন" feature (owner request 2026-10-28): a
+     bubble now offers only reply + reactions, for every role. */
+  const showHeader = !isMine && !groupedWithPrev;
 
-  const showHeader = (!isMine && !groupedWithPrev) || isPinned;
-
-  return `<article class="chat-row ${isMine ? 'is-mine' : 'is-other'} ${groupClass}${isStaffSender ? ' is-staff' : ''}${isPinned ? ' is-pinned' : ''}${activeReactionPills ? ' has-reactions' : ''}${isJustSent ? ' is-just-sent' : ''}" data-chat-msg-id="${escapeHtml(msg.id)}" data-sender-tone="${escapeHtml(tone)}">
+  return `<article class="chat-row ${isMine ? 'is-mine' : 'is-other'} ${groupClass}${isStaffSender ? ' is-staff' : ''}${activeReactionPills ? ' has-reactions' : ''}${isJustSent ? ' is-just-sent' : ''}" data-chat-msg-id="${escapeHtml(msg.id)}" data-sender-tone="${escapeHtml(tone)}">
     ${isMine ? '' : `<div class="chat-avatar is-${escapeHtml(msg.senderRole)}" data-sender-tone="${escapeHtml(tone)}" aria-hidden="true">${escapeHtml(avatarInitial(msg.senderName))}</div>`}
     <div class="chat-bubble-wrap">
       <div class="chat-bubble">
         <button type="button" class="chat-menu-trigger" data-chat-action="toggle-menu" data-msg-id="${escapeHtml(msg.id)}" aria-label="বার্তার অপশন">${WA_SVGS.chevronDown}</button>
         <header class="chat-bubble-meta${showHeader ? '' : ' is-compact-hidden'}">
           ${!isMine ? `<strong class="chat-sender-name" data-sender-tone="${escapeHtml(tone)}">${escapeHtml(msg.senderName)}</strong>${badgeHtml}` : ''}
-          ${pinnedTag}
         </header>
         ${replyHtml}
         <div class="chat-bubble-body">
@@ -759,7 +628,6 @@ export function renderMessageBubbleHtml(msg, actorInput, { pinnedMessageId = '',
           <div class="chat-reactions-bar" role="group" aria-label="প্রতিক্রিয়া">${reactionPickerBtns}</div>
           <div class="chat-msg-tools">
             <button type="button" class="chat-msg-tool" data-chat-action="reply" data-msg-id="${escapeHtml(msg.id)}">উত্তর দিন</button>
-            ${modControls}
           </div>
         </div>
       </div>
@@ -826,7 +694,6 @@ export function mountClassChat(target, options = {}) {
               <span data-chat-member-count>সক্রিয় সদস্য: ০ জন</span>
               <span class="class-chat-sub-sep" aria-hidden="true">•</span>
               <span class="class-chat-e2ee-pill" data-chat-e2ee-badge title="বার্তা এই ডিভাইসে স্থায়ীভাবে সেভ থাকে এবং AES-256-GCM এনক্রিপ্টেড ফায়ারবেস রিলে ৭ দিন পর স্বয়ংক্রিয়ভাবে মুছে যায়">🔐 এনক্রিপ্টেড রিলে (৭ দিন)</span>
-              <span class="class-chat-lock-pill" data-chat-lock-pill hidden>• 🔒 স্টাফ অনলি</span>
             </p>
           </div>
           <div class="class-chat-header-actions">
@@ -848,13 +715,8 @@ export function mountClassChat(target, options = {}) {
             <input type="search" class="class-chat-search-input" data-chat-search placeholder="বার্তা খুঁজুন…" autocomplete="off" aria-label="চ্যাটে বার্তা খুঁজুন">
             <button type="button" class="class-chat-search-clear" data-chat-action="clear-search" aria-label="খোঁজা মুছুন" hidden>×</button>
           </div>
-          <button type="button" class="class-chat-lock-btn" data-chat-action="toggle-lock" aria-pressed="false" ${portal === 'student' ? 'hidden' : ''}>${WA_SVGS.lock}<span class="class-chat-lock-label">চ্যাট লক (স্টাফ অনলি)</span></button>
         </div>
       </header>
-
-      <div class="class-chat-room-lock-banner" data-chat-room-lock-banner role="status" hidden></div>
-
-      <div class="class-chat-pinned" data-chat-pinned-banner hidden></div>
 
       <div class="class-chat-access-gate" data-chat-access-gate role="status" hidden></div>
 
@@ -864,8 +726,6 @@ export function mountClassChat(target, options = {}) {
 
       <footer class="class-chat-composer-wrap" data-chat-composer-wrap>
         <div class="class-chat-search-results" data-chat-search-results role="region" aria-label="খোঁজার ফলাফল" hidden></div>
-        <div class="class-chat-locked-notice" data-chat-locked-notice role="status" hidden>${escapeHtml(STUDENT_LOCKED_NOTICE)}</div>
-        <div class="class-chat-staff-lock-hint" data-chat-staff-lock-hint hidden>🔒 শুধুমাত্র শিক্ষক ও স্টাফ বার্তা পাঠাতে পারবেন — শিক্ষার্থীরা পড়তে পারবে।</div>
         <div class="class-chat-reply-bar" data-chat-reply-bar hidden></div>
         <div class="class-chat-emoji-drawer" data-chat-emoji-drawer hidden role="toolbar" aria-label="দ্রুত ইমোজি">${emojiStripHtml}</div>
         <form class="class-chat-composer" data-chat-composer-form novalidate>
@@ -887,14 +747,10 @@ export function mountClassChat(target, options = {}) {
   const classSelectEl = el('[data-chat-class-select]');
   const titleEl = el('[data-chat-room-title]');
   const memberCountEl = el('[data-chat-member-count]');
-  const lockPillEl = el('[data-chat-lock-pill]');
-  const lockBtnEl = el('[data-chat-action="toggle-lock"]');
-  const roomLockBannerEl = el('[data-chat-room-lock-banner]');
   const searchToggleBtn = el('[data-chat-action="toggle-search"]');
   const searchInput = el('[data-chat-search]');
   const searchClearBtn = el('[data-chat-action="clear-search"]');
   const searchResultsEl = el('[data-chat-search-results]');
-  const pinnedBannerEl = el('[data-chat-pinned-banner]');
   const accessGateEl = el('[data-chat-access-gate]');
   const feedEl = el('[data-chat-feed]');
   const replyBarEl = el('[data-chat-reply-bar]');
@@ -902,8 +758,6 @@ export function mountClassChat(target, options = {}) {
   const emojiToggleBtn = el('[data-chat-action="toggle-emoji"]');
   const errorEl = el('[data-chat-error]');
   const composerWrapEl = el('[data-chat-composer-wrap]');
-  const lockedNoticeEl = el('[data-chat-locked-notice]');
-  const staffLockHintEl = el('[data-chat-staff-lock-hint]');
   const composerFormEl = el('[data-chat-composer-form]');
   const inputEl = el('[data-chat-input]');
   const charCountEl = el('[data-chat-char-count]');
@@ -1094,11 +948,9 @@ export function mountClassChat(target, options = {}) {
         const rk = roomKeyForClass(cls);
         const count = store.messages.filter(m => m.roomKey === rk && !m.deleted).length;
         const unreadCount = !active ? (unreadSummary.byClass?.[cls] || 0) : 0;
-        const locked = store.rooms[rk]?.locked === true;
         return `<button type="button" role="tab" class="class-chat-tab${active ? ' is-active' : ''}${unreadCount ? ' has-unread' : ''}" data-chat-select-class="${escapeHtml(cls)}" aria-selected="${active ? 'true' : 'false'}">
           ${active ? '<span class="class-chat-tab-dot" aria-hidden="true"></span>' : ''}
           <span>${escapeHtml(shortClassTabLabel(cls))}</span>
-          ${locked ? '<span class="class-chat-tab-lock" aria-hidden="true">🔒</span>' : ''}
           ${unreadCount ? `<span class="class-chat-tab-unread" data-chat-tab-unread>${formatUnreadCountBn(unreadCount)}</span>` : (count ? `<span class="class-chat-tab-count">${toBnDigits(count)}</span>` : '')}
         </button>`;
       }).join('');
@@ -1121,8 +973,6 @@ export function mountClassChat(target, options = {}) {
       accessGateEl.textContent = message;
     }
     if (feedEl) feedEl.hidden = true;
-    if (pinnedBannerEl) pinnedBannerEl.hidden = true;
-    if (roomLockBannerEl) roomLockBannerEl.hidden = true;
     if (composerWrapEl) composerWrapEl.hidden = true;
   }
 
@@ -1157,54 +1007,9 @@ export function mountClassChat(target, options = {}) {
     if (accessGateEl) accessGateEl.hidden = true;
     if (feedEl) feedEl.hidden = false;
     if (composerWrapEl) composerWrapEl.hidden = false;
-    shellEl?.classList.toggle('is-room-locked', Boolean(view.locked));
 
     if (titleEl) titleEl.textContent = view.title;
     if (memberCountEl) memberCountEl.textContent = `সক্রিয় সদস্য: ${toBnDigits(view.activeMemberCount)} জন`;
-    if (lockPillEl) lockPillEl.hidden = !view.locked;
-
-    if (lockBtnEl) {
-      lockBtnEl.hidden = !view.canModerate;
-      lockBtnEl.setAttribute('aria-pressed', view.locked ? 'true' : 'false');
-      lockBtnEl.classList.toggle('is-locked', view.locked);
-      lockBtnEl.innerHTML = view.locked
-        ? `${WA_SVGS.unlock}<span class="class-chat-lock-label">চ্যাট আনলক করুন</span>`
-        : `${WA_SVGS.lock}<span class="class-chat-lock-label">চ্যাট লক (স্টাফ অনলি)</span>`;
-      lockBtnEl.title = view.locked ? 'চ্যাট আনলক করুন' : 'চ্যাট লক (স্টাফ অনলি)';
-    }
-
-    if (roomLockBannerEl) {
-      if (view.locked) {
-        roomLockBannerEl.hidden = false;
-        const lockedByMeta = view.lockedBy ? ` (${escapeHtml(view.lockedBy)})` : '';
-        roomLockBannerEl.innerHTML = view.canModerate
-          ? `<span class="class-chat-room-lock-copy">${WA_SVGS.lock}<span><strong>চ্যাট লক চালু আছে (স্টাফ অনলি)</strong>${lockedByMeta} — শিক্ষার্থীরা এখন বার্তা পাঠাতে পারবে না; স্টাফ বার্তা পাঠাতে পারবেন।</span></span>
-             <button type="button" class="class-chat-room-unlock-btn" data-chat-action="unlock-banner">আনলক করুন</button>`
-          : `<span class="class-chat-room-lock-copy">${WA_SVGS.lock}<span>${escapeHtml(STUDENT_LOCKED_NOTICE)}</span></span>`;
-      } else {
-        roomLockBannerEl.hidden = true;
-        roomLockBannerEl.innerHTML = '';
-      }
-    }
-
-    if (pinnedBannerEl) {
-      if (view.pinnedMessage) {
-        pinnedBannerEl.hidden = false;
-        pinnedBannerEl.innerHTML = `
-          <button type="button" class="class-chat-pinned-jump" data-chat-action="jump-pinned" data-target-msg-id="${escapeHtml(view.pinnedMessage.id)}">
-            <span class="class-chat-pinned-icon" aria-hidden="true">${WA_SVGS.pin}</span>
-            <span class="class-chat-pinned-body">
-              <strong>পিন করা বার্তা • ${escapeHtml(view.pinnedMessage.senderName)}</strong>
-              <span>${escapeHtml(view.pinnedMessage.text)}</span>
-            </span>
-          </button>
-          ${view.canModerate ? `<button type="button" class="class-chat-pinned-unpin" data-chat-action="unpin" aria-label="পিন সরান">আনপিন</button>` : ''}
-        `;
-      } else {
-        pinnedBannerEl.hidden = true;
-        pinnedBannerEl.innerHTML = '';
-      }
-    }
 
     if (state.replyTo && !view.messages.some(m => m.id === state.replyTo.id && !m.deleted)) {
       state.replyTo = null;
@@ -1226,7 +1031,6 @@ export function mountClassChat(target, options = {}) {
         let lastBucket = '';
         let prevMsg = null;
         const chunks = [e2eeNoticeHtml];
-        const pinnedId = view.pinnedMessage?.id || '';
         for (const msg of view.filteredMessages) {
           const bucket = dayBucketKey(msg.createdAt);
           const newDay = bucket !== lastBucket;
@@ -1244,7 +1048,6 @@ export function mountClassChat(target, options = {}) {
             && prevMsg.senderRole === msg.senderRole
           );
           chunks.push(renderMessageBubbleHtml(msg, state.actor, {
-            pinnedMessageId: pinnedId,
             groupedWithPrev,
             isJustSent: Boolean(state.justSentId && state.justSentId === msg.id)
           }));
@@ -1256,15 +1059,8 @@ export function mountClassChat(target, options = {}) {
       restoreOrScrollFeed(view.roomKey, forceBottom);
     }
 
-    const studentBlockedByLock = view.locked && state.actor.kind === 'student';
-    if (lockedNoticeEl) lockedNoticeEl.hidden = !studentBlockedByLock;
-    if (staffLockHintEl) staffLockHintEl.hidden = !(view.locked && state.actor.kind === 'staff');
-    if (composerFormEl) composerFormEl.hidden = studentBlockedByLock;
-    if (studentBlockedByLock && state.emojiOpen) {
-      state.emojiOpen = false;
-      syncEmojiDrawerUi();
-    }
-    if (inputEl) inputEl.disabled = studentBlockedByLock;
+    if (composerFormEl) composerFormEl.hidden = false;
+    if (inputEl) inputEl.disabled = false;
     syncComposerSendState();
   }
 
@@ -1417,7 +1213,7 @@ export function mountClassChat(target, options = {}) {
       renderReplyBar();
       return;
     }
-    if (action === 'jump-pinned' || action === 'jump-msg') {
+    if (action === 'jump-msg') {
       highlightMessage(actionBtn.dataset.targetMsgId);
       return;
     }
@@ -1449,57 +1245,6 @@ export function mountClassChat(target, options = {}) {
             className: state.selectedClass,
             messageId: actionBtn.dataset.msgId,
             emoji: actionBtn.dataset.emoji,
-            actor: state.actor
-          });
-        } finally {
-          suppressOwnEvent = false;
-        }
-        paintLoaded(false);
-      } else if (action === 'pin') {
-        state.openMenuMsgId = '';
-        suppressOwnEvent = true;
-        try {
-          pinClassMessage({
-            className: state.selectedClass,
-            messageId: actionBtn.dataset.msgId,
-            actor: state.actor
-          });
-        } finally {
-          suppressOwnEvent = false;
-        }
-        paintLoaded(false);
-      } else if (action === 'unpin') {
-        state.openMenuMsgId = '';
-        suppressOwnEvent = true;
-        try {
-          unpinClassMessage({
-            className: state.selectedClass,
-            actor: state.actor
-          });
-        } finally {
-          suppressOwnEvent = false;
-        }
-        paintLoaded(false);
-      } else if (action === 'delete') {
-        state.openMenuMsgId = '';
-        suppressOwnEvent = true;
-        try {
-          deleteClassMessage({
-            className: state.selectedClass,
-            messageId: actionBtn.dataset.msgId,
-            actor: state.actor
-          });
-        } finally {
-          suppressOwnEvent = false;
-        }
-        paintLoaded(false);
-      } else if (action === 'toggle-lock' || action === 'unlock-banner') {
-        const currentView = getClassRoomView(state.selectedClass, { actor: state.actor });
-        suppressOwnEvent = true;
-        try {
-          setClassRoomLock({
-            className: state.selectedClass,
-            locked: action === 'unlock-banner' ? false : !currentView.locked,
             actor: state.actor
           });
         } finally {

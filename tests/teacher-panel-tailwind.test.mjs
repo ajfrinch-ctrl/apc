@@ -54,49 +54,32 @@ test('the Tailwind build is teacher-only: preflight off, everything scoped to .t
     'no unscoped teacher rule reaches the other portals');
 });
 
-test('the hero is the picture: greeting and daily line sit inside the image card', () => {
+test('every teacher view opens on a compact page head — no hero card, no artwork', () => {
   const hero = page.querySelector('#teacherHome .teacher-home-intro');
-  assert.ok(hero, 'the Home hero exists');
-  assert.equal(hero.hasAttribute('data-home-intro'), true, 'the status surface still anchors after the hero');
+  assert.ok(hero, 'the Home head exists');
+  assert.equal(hero.hasAttribute('data-home-intro'), true, 'the status surface still anchors after the head');
+  assert.equal(hero.classList.contains('panel-compact-head'), true, 'the head uses the shared compact layout');
 
-  const scene = hero.querySelector('.teacher-hero-scene');
-  const art = hero.querySelector('#teacherHeroArt');
-  assert.ok(scene && art, 'the day/night classroom artwork is in the hero');
-  assert.equal(art.getAttribute('src'), 'assets/images/teacher-hero/welcome-day.webp');
-  assert.equal(art.getAttribute('data-hero-card'), 'welcome');
-  assert.equal(art.getAttribute('width'), '828');
-  assert.equal(art.getAttribute('height'), '462');
-  assert.equal(scene.contains(art), true, 'the image is the scene background');
-  assert.ok(scene.querySelector('.teacher-hero-scene-scrim'), 'a scrim keeps the text readable on the picture');
-  assert.equal(scene.getAttribute('aria-hidden'), 'true', 'the artwork stays decorative');
+  /* Owner request 2026-10-28: hero cards/banners are Student-Home only. The
+     Teacher panel keeps the information the head carried — weekday·date pill
+     and the rotating advice line — and nothing else. */
+  assert.equal(hero.querySelector('.teacher-hero-scene'), null, 'no artwork scene');
+  assert.equal(page.querySelector('#teacherHeroArt, [data-teacher-hero-art]'), null, 'no hero art image');
+  assert.equal(page.querySelector('.teacher-hero-glint, [data-teacher-hero-glint]'), null, 'no day/night glint');
+  assert.equal(hero.querySelector('span.admin-hero-icon'), null, 'no identity avatar pill');
 
   const content = hero.querySelector('.teacher-hero-content');
-  assert.ok(content, 'the overlay text zone exists');
-  assert.equal(hero.querySelectorAll(':scope > .teacher-hero-content').length, 1,
-    'the overlay is the only text zone in the card');
-
+  assert.ok(content, 'the head keeps its text zone');
   const title = hero.querySelector('h1#teacherHomeTitle');
   const warm = hero.querySelector('p.teacher-hero-warm');
-  assert.ok(content.contains(title), 'স্বাগতম sits inside the picture card');
-  assert.ok(content.contains(warm), 'the daily line sits inside the picture card');
+  assert.ok(content.contains(title), 'স্বাগতম sits in the head');
+  assert.ok(content.contains(warm), 'the daily line sits in the head');
   assert.equal(title.textContent.trim(), 'স্বাগতম', 'the no-JS fallback greeting is still plain স্বাগতম');
   assert.equal(warm.textContent.trim(), 'আপনার পাঠদান ও শিক্ষার্থীদের অগ্রযাত্রায় আজকের দিনটি হোক ফলপ্রসূ।',
     'the no-JS fallback keeps the advice library head line');
-  assert.ok(content.querySelector('.admin-hero-icon #teacherHomeInitial'), 'the identity initial stays on the picture');
-  assert.ok(content.querySelector('.teacher-hero-glint'), 'the day/night glint stays on the picture');
-
-  /* One celestial marker only (owner report: the old day artwork carried its own
-     sun beside the day/night chip, so two suns showed at once). The artwork is
-     sky/clouds by day and stars by night; the chip is what changes with the
-     clock, driven by js/teacher.js. */
-  assert.equal(scene.querySelectorAll('svg, img:not(#teacherHeroArt), [data-icon]').length, 0,
-    'the artwork layer holds nothing but the picture and its scrim');
-  const glints = hero.querySelectorAll('.teacher-hero-glint');
-  assert.equal(glints.length, 1, 'exactly one time-of-day marker on the card');
-  assert.ok(glints[0].querySelector('#teacherHeroGlint'), 'the marker is the swappable sun/moon icon');
-  const teacherJs = read('js/teacher.js');
-  assert.match(teacherJs, /isDay \? 'sun' : 'moon'/, 'the marker follows the Dhaka clock');
-  assert.match(teacherJs, /teacher-hero-\$\{mode\}\.webp/, 'the picture swaps with the same clock');
+  assert.ok(content.querySelector('[data-teacher-hero-date]'), 'the weekday·date pill stays');
+  assert.equal(hero.querySelectorAll('.teacher-hero-scene img, [data-hero-card]').length, 0,
+    'the head carries no picture layer');
 
   /* The old card: a padded gradient surface with a framed picture inside it. It
      must be gone — the picture is the surface, and the text floats over it. */
@@ -116,9 +99,10 @@ test('the hero is the picture: greeting and daily line sit inside the image card
   assert.match(sceneRule, /position:absolute/, 'the scene fills the card behind the text');
 });
 
-test('ক্লাস uses Home-style hero banner and three full-width action cards with primary data hidden', () => {
+test('ক্লাস uses the same compact head and three full-width action cards with primary data hidden', () => {
   const view = page.querySelector('#teacherClasses');
-  assert.ok(view.querySelector('.teacher-home-intro .teacher-hero-scene'), 'ক্লাস starts with the Home-style hero banner');
+  assert.ok(view.querySelector('.home-dashboard-intro.teacher-home-intro.panel-compact-head'), 'ক্লাস starts with the compact head');
+  assert.equal(view.querySelector('.teacher-hero-scene'), null, 'ক্লাস carries no hero banner');
   assert.equal(view.querySelector('#teacherClassesTitle')?.textContent.trim(), 'ক্লাস ও পাঠদান');
   const cards = [...view.querySelectorAll('.teacher-classes-actions .teacher-action-card')];
   assert.equal(cards.length, 3, 'three Home-style action cards');
@@ -135,8 +119,9 @@ test('ক্লাস uses Home-style hero banner and three full-width action ca
   assert.ok(view.querySelector('#teacherClassPanel #teacherClassList'), 'the class list remains mounted inside the hidden panel');
 
   const examsView = page.querySelector('#teacherOnlineExams');
-  assert.ok(examsView.querySelector('.teacher-home-intro .teacher-hero-scene [data-hero-card="exam"]'),
-    'পরীক্ষা starts with the Class-style 3D hero banner');
+  assert.ok(examsView.querySelector('.home-dashboard-intro.teacher-home-intro.panel-compact-head'),
+    'পরীক্ষা starts with the same compact head');
+  assert.equal(examsView.querySelector('.teacher-hero-scene'), null, 'পরীক্ষা carries no hero banner');
   assert.equal(examsView.querySelector('#teacherOnlineExamsTitle')?.textContent.trim(), 'পরীক্ষা ও মূল্যায়ন');
   const examCards = [...examsView.querySelectorAll('#teacherExamActions .teacher-action-card')];
   assert.equal(examCards.length, 2, 'two full-width action cards on পরীক্ষা');
@@ -174,73 +159,40 @@ test('the ক্লাস screen renders full-width hero class cards with subjec
   assert.ok(classesView.querySelector('#teacherClassCount'), 'the heading carries a count chip');
 });
 
-test('both hero illustrations ship at the card\'s 828×462 size, day and night', () => {
-  const heroSubjects = ['welcome', 'classroom', 'attendance', 'exam', 'homework', 'notice'];
-  for (const subject of heroSubjects) {
-    assert.ok(page.querySelector(`[data-hero-card="${subject}"]`), `teacher.html mounts the ${subject} 3D hero card`);
-    for (const mode of ['day', 'night']) {
-      const file = `assets/images/teacher-hero/${subject}-${mode}.webp`;
-      assert.ok(existsSync(path.join(root, file)), `${file} exists`);
-      const buffer = readFileSync(path.join(root, file));
-      assert.ok(buffer.length <= 100 * 1024, `${file} stays within the 100 KB mobile budget`);
-      assert.equal(buffer.toString('ascii', 0, 4), 'RIFF', `${file} is a RIFF container`);
-      assert.equal(buffer.toString('ascii', 8, 12), 'WEBP', `${file} is WebP`);
-      assert.equal(buffer.toString('ascii', 12, 16), 'VP8 ', `${file} is a lossy WebP`);
-      const start = buffer.indexOf(Buffer.from([0x9d, 0x01, 0x2a]));
-      assert.ok(start > 0, `${file} carries a VP8 frame header`);
-      const width = buffer.readUInt16LE(start + 3) & 0x3fff;
-      const height = buffer.readUInt16LE(start + 5) & 0x3fff;
-      assert.deepEqual([width, height], [828, 462], `${file} matches the markup's intrinsic size`);
-    }
+test('the retired teacher hero artwork is no longer referenced by any panel', () => {
+  /* The 828×462 illustrations stay on disk (older backups and the student app
+     do not read them), but no panel may reference them any more. */
+  for (const file of ['teacher.html', 'manager.html', 'payment.html', 'admin.html']) {
+    const markup = read(file);
+    assert.doesNotMatch(markup, /assets\/images\/teacher-hero\//, `${file} references no hero artwork`);
+    assert.doesNotMatch(markup, /data-hero-card=/, `${file} carries no hero card slot`);
   }
-  for (const mode of ['day', 'night']) {
-    const file = `assets/teacher-hero/teacher-hero-${mode}.webp`;
-    assert.ok(existsSync(path.join(root, file)), `${file} exists`);
-    /* RIFF/WEBP header, then the VP8/VP8L/VP8X chunk; the pixel size is read
-       from the plain-lossy VP8 header this export uses. */
-    const buffer = readFileSync(path.join(root, file));
-    assert.equal(buffer.toString('ascii', 0, 4), 'RIFF', `${file} is a RIFF container`);
-    assert.equal(buffer.toString('ascii', 8, 12), 'WEBP', `${file} is WebP`);
-    assert.equal(buffer.toString('ascii', 12, 16), 'VP8 ', `${file} is a lossy WebP`);
-    const start = buffer.indexOf(Buffer.from([0x9d, 0x01, 0x2a]));
-    assert.ok(start > 0, `${file} carries a VP8 frame header`);
-    const width = buffer.readUInt16LE(start + 3) & 0x3fff;
-    const height = buffer.readUInt16LE(start + 5) & 0x3fff;
-    assert.deepEqual([width, height], [828, 462], `${file} matches the markup's intrinsic size`);
-  }
-  /* The markup must keep the same intrinsic size as the files, so the card
-     never reflows before the picture decodes. */
-  const art = page.querySelector('#teacherHeroArt');
-  assert.deepEqual([art.getAttribute('width'), art.getAttribute('height')], ['828', '462']);
-  assert.ok(existsSync(path.join(root, 'assets/teacher-hero/README.md')),
-    'the artwork rules (no sun/moon in the scene) are documented beside the files');
 });
 
-test('every teacher view has a full 3D hero card with daily advice, date pill, glint, and hidden top back button', () => {
+test('every teacher view starts with the compact head: heading, advice line, no artwork', () => {
   const views = [...page.querySelectorAll('.teacher-view')];
-  assert.equal(views.length, 12, 'all 12 teacher views are audited');
+  /* 13 since the lecture-sheet studio page arrived (owner decision 2026-10-28). */
+  assert.equal(views.length, 13, 'all 13 teacher views are audited');
   for (const view of views) {
     const hero = view.querySelector(':scope > .home-dashboard-intro.teacher-home-intro');
-    assert.ok(hero, `${view.id} starts with a full 3D Hero Card`);
-    assert.ok(hero.querySelector('.teacher-hero-scene img.teacher-hero-art[data-teacher-hero-art][data-hero-card]'),
-      `${view.id} hero card carries 3D artwork`);
-    assert.ok(hero.querySelector('.teacher-hero-scene .teacher-hero-scene-scrim'),
-      `${view.id} hero card carries readability scrim`);
-    assert.ok(hero.querySelector('.teacher-hero-scene .teacher-hero-scene-sheen'),
-      `${view.id} hero card carries sheen layer`);
+    assert.ok(hero, `${view.id} starts with a page head`);
+    assert.equal(hero.classList.contains('panel-compact-head'), true, `${view.id} uses the compact head`);
+    assert.equal(hero.querySelector('.teacher-hero-scene, [data-teacher-hero-art]'), null,
+      `${view.id} carries no hero artwork`);
     const content = hero.querySelector(':scope > .teacher-hero-content');
-    assert.ok(content, `${view.id} hero card has .teacher-hero-content inside the card`);
-    assert.ok(content.querySelector('[data-teacher-hero-date]'),
-      `${view.id} hero card has a date pill`);
-    assert.ok(content.querySelector('.teacher-hero-glint'),
-      `${view.id} hero card has a sun/moon glint`);
+    assert.ok(content, `${view.id} head has a text zone`);
+    assert.ok(content.querySelector('[data-teacher-hero-date]'), `${view.id} head has a date pill`);
     const h1 = content.querySelector('.teacher-hero-welcome h1');
     const advice = content.querySelector('.teacher-hero-welcome p.teacher-hero-advice');
-    assert.ok(h1 && h1.textContent.trim().length > 0, `${view.id} hero card has a heading inside the card`);
-    assert.ok(advice && advice.textContent.trim().length > 0, `${view.id} hero card has an advice line inside the card`);
+    assert.ok(h1 && h1.textContent.trim().length > 0, `${view.id} head has a heading`);
+    assert.ok(advice && advice.textContent.trim().length > 0, `${view.id} head has an advice line`);
+    /* A sub-page may show a real Back control (the lecture studio returns to
+       একাডেমিক); every other page keeps the hidden top Back because the bottom
+       bar already returns home. */
     const backBtn = hero.querySelector('.pay-back');
     if (backBtn) {
-      assert.equal(backBtn.hidden, true, `${view.id} top back button is hidden`);
+      const expectsVisible = view.id === 'teacherLectureSheets';
+      assert.equal(backBtn.hidden, !expectsVisible, `${view.id} top back button visibility`);
     }
   }
   const moreCards = [...page.querySelectorAll('#teacherMore .teacher-more-actions .teacher-action-card')];

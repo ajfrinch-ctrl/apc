@@ -186,17 +186,22 @@ function buildModal() {
     '<section class="modal apc-fb-panel" role="dialog" aria-modal="true" aria-labelledby="apcNoticeTitle">' +
       '<div class="apc-fb-handle" aria-hidden="true"></div>' +
       '<header class="apc-fb-header">' +
-        '<h2 id="apcNoticeTitle" class="apc-fb-title">নোটিফিকেশন</h2>' +
+        /* The bell opens the Action Centre: every row carries the action it
+           unlocks, so the sheet is named for the job, not for the plumbing. */
+        '<h2 id="apcNoticeTitle" class="apc-fb-title">অ্যাকশন সেন্টার</h2>' +
         '<div class="apc-fb-header-actions">' +
           '<button type="button" class="apc-fb-mark-all" data-apc-notice-read-all aria-label="সব নোটিফিকেশন পঠিত করুন">সব পঠিত করুন</button>' +
           '<button type="button" class="modal-close apc-fb-close" data-apc-notice-close aria-label="বন্ধ করুন">×</button>' +
         '</div>' +
       '</header>' +
+      /* Title, then the read status, then the approval strip (inserted at
+         runtime), then the tabs: the sheet answers "what needs me?" before it
+         offers a filter. */
+      '<p class="notice-read-status apc-fb-status" data-apc-notice-status role="status"></p>' +
       '<div class="notice-filters apc-fb-filters" role="tablist" aria-label="নোটিফিকেশন ফিল্টার">' +
         '<button type="button" class="chip apc-fb-chip active" role="tab" aria-selected="true" data-apc-notice-filter="all">সব</button>' +
         '<button type="button" class="chip apc-fb-chip" role="tab" aria-selected="false" data-apc-notice-filter="unread">অপঠিত<span data-apc-notice-unread-chip></span></button>' +
       '</div>' +
-      '<p class="notice-read-status apc-fb-status" data-apc-notice-status role="status"></p>' +
       '<div class="apc-fb-list" data-apc-notice-list role="feed" aria-label="নোটিফিকেশন তালিকা"></div>' +
       '<p class="form-note" data-apc-notice-push role="status"></p>' +
       '<footer class="apc-fb-footer">' +
@@ -207,12 +212,19 @@ function buildModal() {
   return backdrop;
 }
 
+/* One answer for "is this a phone?", shared by the sheet and the scroll lock.
+   Older Android WebViews (and non-browser DOMs) can lack matchMedia, so the
+   viewport width is the fallback — the sheet must never fail to open. */
+const narrowViewport = () => (typeof window.matchMedia === 'function'
+  ? window.matchMedia('(max-width: 600px)').matches
+  : window.innerWidth <= 600);
+
 /** Position Facebook dropdown under bell (desktop) or as bottom sheet (mobile) */
 function positionPanel(modal) {
   const panel = modal?.querySelector('.apc-fb-panel');
   const bell = document.getElementById('notificationButton');
   if (!panel || !bell) return;
-  const isMobile = window.matchMedia('(max-width: 600px)').matches;
+  const isMobile = narrowViewport();
   if (isMobile) {
     panel.style.top = ''; panel.style.right = ''; panel.style.left = '';
     panel.style.position = '';
@@ -311,7 +323,7 @@ export function mountNoticeCenter(api) {
       modal.querySelector('[data-apc-notice-close]')?.focus?.();
       void paintPush();
       // Prevent background scroll on mobile sheet
-      if (window.matchMedia('(max-width: 600px)').matches) {
+      if (narrowViewport()) {
         document.body.style.overflow = 'hidden';
       }
       bell?.setAttribute('aria-expanded', 'true');

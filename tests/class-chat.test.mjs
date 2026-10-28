@@ -10,15 +10,11 @@ import {
   CLASS_CHAT_KEY,
   MAX_CHAT_MESSAGE_LENGTH,
   QUICK_REACTIONS,
-  STUDENT_LOCKED_NOTICE,
   readClassChatStore,
+  roomKeyForClass,
   getClassRoomView,
   sendClassMessage,
   toggleMessageReaction,
-  deleteClassMessage,
-  pinClassMessage,
-  unpinClassMessage,
-  setClassRoomLock,
   mountClassChat,
   CLASS_CHAT_RELAY_TTL_DAYS,
   CLASS_CHAT_RELAY_TTL_MS,
@@ -154,23 +150,9 @@ test('2. Cross-class student access and unapproved student access are strictly d
     () => sendClassMessage({ className: 'দশম শ্রেণি', text: 'পেন্ডিং বার্তা', actor: pendingStudent }),
     err => err.code === 'STUDENT_NOT_APPROVED'
   );
-
-  // Students cannot run staff moderation commands even in their own class
-  assert.throws(
-    () => pinClassMessage({ className: 'দশম শ্রেণি', messageId: msg10.id, actor: studentRaisa }),
-    err => err.code === 'MODERATION_DENIED'
-  );
-  assert.throws(
-    () => deleteClassMessage({ className: 'দশম শ্রেণি', messageId: msg10.id, actor: studentRaisa }),
-    err => err.code === 'MODERATION_DENIED'
-  );
-  assert.throws(
-    () => setClassRoomLock({ className: 'দশম শ্রেণি', locked: true, actor: studentRaisa }),
-    err => err.code === 'MODERATION_DENIED'
-  );
 });
 
-test('3. Teacher, Manager & Admin can switch across all classes, display role badges, pin/unpin, delete, and lock/unlock rooms', () => {
+test('3. Teacher, Manager & Admin participate in every class room — messaging only, no moderation controls', () => {
   resetStorage(ROSTER);
 
   const teacherMsg = sendClassMessage({
@@ -188,66 +170,33 @@ test('3. Teacher, Manager & Admin can switch across all classes, display role ba
     text: 'শুক্রবার প্রতিষ্ঠান বন্ধ থাকবে।',
     actor: adminActor
   });
-  const spamMsg = sendClassMessage({
-    className: 'দশম শ্রেণি',
-    text: 'অপ্রাসঙ্গিক স্প্যাম মেসেজ',
-    actor: studentTanvir
-  });
 
   assert.equal(teacherMsg.senderBadge, 'শিক্ষক');
   assert.equal(managerMsg.senderBadge, 'ম্যানেজার');
   assert.equal(adminMsg.senderBadge, 'এডমিন');
 
-  // Staff can read every class room
-  assert.equal(getClassRoomView('দশম শ্রেণি', { actor: teacherActor }).messages.length, 2);
+  // Staff can read every class room and every room is a normal, open room.
+  assert.equal(getClassRoomView('দশম শ্রেণি', { actor: teacherActor }).messages.length, 1);
   assert.equal(getClassRoomView('নবম শ্রেণি', { actor: managerActor }).messages.length, 1);
   assert.equal(getClassRoomView('একাদশ শ্রেণি', { actor: adminActor }).messages.length, 1);
+  const view10 = getClassRoomView('দশম শ্রেণি', { actor: studentRaisa });
+  assert.equal(view10.canSend, true, 'no chat lock: students may always write in their own room');
+  assert.equal('locked' in view10, false, 'room view carries no lock state');
+  assert.equal('pinnedMessage' in view10, false, 'room view carries no pinned message');
+  assert.equal('canModerate' in view10, false, 'room view carries no moderation capability');
 
-  // Pin & Unpin
-  pinClassMessage({ className: 'দশম শ্রেণি', messageId: teacherMsg.id, actor: teacherActor });
-  let view10 = getClassRoomView('দশম শ্রেণি', { actor: studentRaisa });
-  assert.equal(view10.pinnedMessage?.id, teacherMsg.id);
-
-  unpinClassMessage({ className: 'দশম শ্রেণি', actor: managerActor });
-  view10 = getClassRoomView('দশম শ্রেণি', { actor: studentRaisa });
-  assert.equal(view10.pinnedMessage, null);
-
-  // Pinning a message and then deleting it clears both message text and pin
-  pinClassMessage({ className: 'দশম শ্রেণি', messageId: spamMsg.id, actor: teacherActor });
-  const deleted = deleteClassMessage({ className: 'দশম শ্রেণি', messageId: spamMsg.id, actor: adminActor });
-  assert.equal(deleted.deleted, true);
-  assert.equal(deleted.text, '');
-  assert.equal(deleted.deletedByRole, 'admin');
-  view10 = getClassRoomView('দশম শ্রেণি', { actor: studentRaisa });
-  assert.equal(view10.pinnedMessage, null, 'deleting a pinned message auto-unpins it');
-
-  // Lock room: students cannot send, while Teacher/Manager/Admin still can
-  setClassRoomLock({ className: 'দশম শ্রেণি', locked: true, actor: managerActor });
-  view10 = getClassRoomView('দশম শ্রেণি', { actor: studentRaisa });
-  assert.equal(view10.locked, true);
-  assert.equal(view10.canSend, false);
-
-  assert.throws(
-    () => sendClassMessage({ className: 'দশম শ্রেণি', text: 'লক অবস্থায় ছাত্রের বার্তা', actor: studentRaisa }),
-    err => err.code === 'ROOM_LOCKED' && err.message === STUDENT_LOCKED_NOTICE
-  );
-
-  // Staff can still send when room is locked
-  const staffWhileLocked = sendClassMessage({
-    className: 'দশম শ্রেণি',
-    text: 'চ্যাট লক থাকা অবস্থায় শিক্ষকের জরুরি নির্দেশনা।',
-    actor: teacherActor
-  });
-  assert.equal(staffWhileLocked.senderBadge, 'শিক্ষক');
-
-  // Unlock room: student can send again
-  setClassRoomLock({ className: 'দশম শ্রেণি', locked: false, actor: adminActor });
-  const afterUnlock = sendClassMessage({
-    className: 'দশম শ্রেণি',
-    text: 'ধন্যবাদ স্যার, বুঝতে পেরেছি!',
-    actor: studentRaisa
-  });
-  assert.equal(afterUnlock.text, 'ধন্যবাদ স্যার, বুঝতে পেরেছি!');
+  // A legacy record written by the removed moderation build opens as a normal
+  // room instead of staying locked.
+  window.localStorage.setItem(CLASS_CHAT_KEY, JSON.stringify({
+    version: 1,
+    rooms: { [roomKeyForClass('দশম শ্রেণি')]: { roomKey: roomKeyForClass('দশম শ্রেণি'), classId: 'দশম শ্রেণি', locked: true, pinnedMessageId: 'x', updatedAt: Date.now() } },
+    messages: readClassChatStore().messages,
+    updatedAt: Date.now()
+  }));
+  const legacyRoom = getClassRoomView('দশম শ্রেণি', { actor: studentRaisa });
+  assert.equal(legacyRoom.canSend, true);
+  const afterLegacyUnlock = sendClassMessage({ className: 'দশম শ্রেণি', text: 'ধন্যবাদ স্যার, বুঝতে পেরেছি!', actor: studentRaisa });
+  assert.equal(afterLegacyUnlock.text, 'ধন্যবাদ স্যার, বুঝতে পেরেছি!');
 });
 
 test('4. XSS sanitization & length validation block script/HTML execution and oversized payloads', async () => {
@@ -317,14 +266,10 @@ test('5. Interactive DOM UI, RTDB sync adapter, and Admin backup merge work end-
   assert.match(teacherMount.querySelector('[data-chat-feed]').textContent, /জৈব রসায়নের সাজেশন/,
     'teacher UI receives real-time update immediately');
 
-  // Teacher locks room from UI -> Student UI shows locked banner and hides composer
-  teacherMount.querySelector('[data-chat-action="toggle-lock"]').click();
-  await new Promise(resolve => setTimeout(resolve, 30));
-
-  const lockedNotice = studentMount.querySelector('[data-chat-locked-notice]');
-  assert.equal(lockedNotice.hidden, false);
-  assert.equal(lockedNotice.textContent, STUDENT_LOCKED_NOTICE);
-  assert.equal(studentMount.querySelector('[data-chat-composer-form]').hidden, true);
+  // No moderation chrome exists in either UI (feature removed 2026-10-28)
+  assert.equal(teacherMount.querySelector('[data-chat-action="toggle-lock"]'), null);
+  assert.equal(teacherMount.querySelector('[data-chat-pinned-banner]'), null);
+  assert.equal(teacherMount.querySelector('[data-chat-room-lock-banner]'), null);
 
   // RTDB Sync adapter lossless round-trip
   const localBefore = readClassChatStore();
@@ -332,7 +277,7 @@ test('5. Interactive DOM UI, RTDB sync adapter, and Admin backup merge work end-
   assert.ok(cloudPayload && typeof cloudPayload === 'object');
   const restoredFromCloud = remoteToLocal('classChat', cloudPayload);
   assert.equal(restoredFromCloud.messages.length, localBefore.messages.length);
-  assert.equal(restoredFromCloud.rooms.class_10.locked, true);
+  assert.equal(Boolean(restoredFromCloud.rooms.class_10.locked), false, 'relay round-trip keeps no lock state');
 
   // Admin Backup merge preserves messages from two independent backups
   const backupA = {
@@ -378,7 +323,7 @@ test('5. Interactive DOM UI, RTDB sync adapter, and Admin backup merge work end-
   teacherUI.destroy();
 });
 
-test('6. UI search, sticky pinned banner jump, reply preview bar, class switcher & draft-preserving live sync', async () => {
+test('6. UI search, reply preview bar, class switcher & draft-preserving live sync', async () => {
   const dom = resetStorage(ROSTER);
   const studentMount = document.getElementById('studentMount');
   const teacherMount = document.getElementById('teacherMount');
@@ -405,20 +350,11 @@ test('6. UI search, sticky pinned banner jump, reply preview bar, class switcher
   });
   await new Promise(resolve => setTimeout(resolve, 30));
 
-  // Admin pins first message via UI button -> sticky banner shows in both Admin & Student UIs
-  const pinBtn = teacherMount.querySelector(`[data-chat-action="pin"][data-msg-id="${firstMsg.id}"]`);
-  assert.ok(pinBtn, 'staff sees pin button on message');
-  pinBtn.click();
-  await new Promise(resolve => setTimeout(resolve, 30));
-
-  const studentBanner = studentMount.querySelector('[data-chat-pinned-banner]');
-  assert.equal(studentBanner.hidden, false, 'sticky pinned banner appears for students');
-  assert.match(studentBanner.textContent, /ত্রিকোণমিতি সূত্রের তালিকা/);
-
-  // Clicking pinned banner highlights the message row
-  studentBanner.querySelector('[data-chat-action="jump-pinned"]').click();
-  const pinnedRow = studentMount.querySelector(`[data-chat-msg-id="${firstMsg.id}"]`);
-  assert.equal(pinnedRow.classList.contains('is-highlighted'), true);
+  // Moderation was retired: no pin/delete/lock affordances for staff, and no
+  // pinned banner for students.
+  assert.equal(teacherMount.querySelector('[data-chat-action="pin"]'), null, 'no pin control for staff');
+  assert.equal(teacherMount.querySelector('[data-chat-action="delete"]'), null, 'no delete control for staff');
+  assert.equal(studentMount.querySelector('[data-chat-pinned-banner]'), null, 'no pinned banner');
 
   // Reply UI flow: clicking "উত্তর দিন" opens reply preview strip above composer
   studentMount.querySelector(`[data-chat-action="reply"][data-msg-id="${firstMsg.id}"]`).click();
@@ -671,8 +607,9 @@ test('8. Offline classmates can pull within 7 days, and after 7 days Firebase au
 });
 
 test('9. Topbar Chat Icon & Floating Chat Head stay synced, enforce RBAC unread isolation, auto-hide inside chat, and jump staff to unread class', async () => {
-  // Verify topbar button markup exists on all 4 chat portals and NOT on payment.html
-  for (const portalFile of ['student.html', 'teacher.html', 'manager.html', 'admin.html']) {
+  // Chat survives only where it is used: Student and Teacher. The Admin and
+  // Manager "শ্রেণি চ্যাট ও মডারেশন" surfaces were removed on 2026-10-28.
+  for (const portalFile of ['student.html', 'teacher.html']) {
     const html = readFileSync(new URL(`../${portalFile}`, import.meta.url), 'utf8');
     const doc = new JSDOM(html).window.document;
     const btn = doc.querySelector('.app-topbar #classChatTopbarButton');
@@ -680,8 +617,12 @@ test('9. Topbar Chat Icon & Floating Chat Head stay synced, enforce RBAC unread 
     assert.ok(btn.querySelector('svg[data-icon="chat"]'), `${portalFile} topbar chat button has chat glyph`);
     assert.ok(btn.querySelector('[data-chat-unread-dot]'), `${portalFile} topbar chat button has unread dot`);
   }
-  const paymentDoc = new JSDOM(readFileSync(new URL('../payment.html', import.meta.url), 'utf8')).window.document;
-  assert.equal(paymentDoc.querySelector('#classChatTopbarButton'), null, 'payment.html has no topbar chat button');
+  for (const strippedFile of ['manager.html', 'admin.html', 'payment.html']) {
+    const doc = new JSDOM(readFileSync(new URL(`../${strippedFile}`, import.meta.url), 'utf8')).window.document;
+    assert.equal(doc.querySelector('#classChatTopbarButton'), null, `${strippedFile} has no topbar chat button`);
+    assert.equal(doc.querySelector('[data-class-chat-mount]'), null, `${strippedFile} has no chat mount`);
+    assert.equal(doc.querySelector('[data-admin-view="class-chat"],[data-manager-view="class-chat"]'), null, `${strippedFile} has no chat route`);
+  }
 
   // Mount a realistic Student shell with Home + Class Chat views + Topbar Chat Icon + Floating Chat Head
   const roster = [
@@ -876,7 +817,7 @@ test('11. Empty-room composer usability, disabled-when-empty পাঠান but
   resetStorage(ROSTER);
   document.body.innerHTML = `
     <section class="admin-view active" data-view-panel="class-chat">
-      <div class="page-intro"><h1>শ্রেণি চ্যাট ও মডারেশন</h1></div>
+      <div class="page-intro"><h1>শ্রেণি চ্যাট</h1></div>
       <div id="emptyRoomMount" data-class-chat-mount></div>
     </section>
   `;
@@ -978,7 +919,7 @@ test('12. Per-class scroll preservation, unread badges, persistent lock banner, 
 
   document.body.innerHTML = `
     <section class="admin-view active" data-view-panel="class-chat">
-      <div class="page-intro"><h1>শ্রেণি চ্যাট ও মডারেশন</h1></div>
+      <div class="page-intro"><h1>শ্রেণি চ্যাট</h1></div>
       <div id="staffModMount" data-class-chat-mount></div>
     </section>
   `;
@@ -991,11 +932,10 @@ test('12. Per-class scroll preservation, unread badges, persistent lock banner, 
   });
   await new Promise(r => setTimeout(r, 25));
 
-  // Staff toolbar shows inline search + visible চ্যাট লক (স্টাফ অনলি)
+  // Staff keep inline search only — the moderation toolbar is gone.
   const toolbar = mount.querySelector('.class-chat-search-drawer.is-staff-toolbar');
-  assert.ok(toolbar, 'staff inline search + moderation toolbar rendered');
-  const lockBtn = mount.querySelector('[data-chat-action="toggle-lock"]');
-  assert.match(lockBtn.textContent, /চ্যাট লক \(স্টাফ অনলি\)/, 'lock button shows exact Bengali label');
+  assert.ok(toolbar, 'staff inline search toolbar rendered');
+  assert.equal(mount.querySelector('[data-chat-action="toggle-lock"]'), null, 'no chat-lock control');
 
   // Active class chip has dot & is-active; দশম শ্রেণি chip & select show unread count
   const activeTab = mount.querySelector('.class-chat-tab.is-active');
@@ -1024,31 +964,21 @@ test('12. Per-class scroll preservation, unread badges, persistent lock banner, 
   mount.querySelector('[data-chat-select-class="অষ্টম শ্রেণি"]').click();
   assert.equal(feed.scrollTop, 48, 'switching back to অষ্টম শ্রেণি restores its exact scroll position');
 
-  // Switch back to দশম শ্রেণি to test persistent lock banner + staff send while locked + search tray above composer
+  // Switch back to দশম শ্রেণি: a student mount in the same class stays able to
+  // write (no room lock exists any more) and staff messages still arrive.
   mount.querySelector('[data-chat-select-class="দশম শ্রেণি"]').click();
-  lockBtn.click();
-  const lockBanner = mount.querySelector('[data-chat-room-lock-banner]');
-  assert.equal(lockBanner.hidden, false, 'locking room shows persistent moderation banner');
-  assert.match(lockBanner.textContent, /চ্যাট লক চালু আছে \(স্টাফ অনলি\)/, 'persistent banner states locked staff-only mode');
-
-  // Staff can still send while student mount in same class is blocked
   const studentCheckMount = document.createElement('div');
   document.body.appendChild(studentCheckMount);
   const studentUi = mountClassChat(studentCheckMount, { portal: 'student', getActor: () => studentTanvir });
   await new Promise(r => setTimeout(r, 20));
-  assert.equal(studentCheckMount.querySelector('[data-chat-input]').disabled, true, 'student input is disabled when room is locked');
-  assert.equal(studentCheckMount.querySelector('[data-chat-room-lock-banner]').hidden, false, 'student also sees persistent lock banner');
+  assert.equal(studentCheckMount.querySelector('[data-chat-input]').disabled, false, 'student composer is always usable in their own room');
 
   const staffInput = mount.querySelector('[data-chat-input]');
-  staffInput.value = 'লক অবস্থায় স্টাফ ঘোষণা';
+  staffInput.value = 'স্টাফ ঘোষণা';
   staffInput.dispatchEvent(new window.Event('input', { bubbles: true }));
   mount.querySelector('[data-chat-action="send"]').click();
   await new Promise(r => setTimeout(r, 20));
-  assert.match(feed.textContent, /লক অবস্থায় স্টাফ ঘোষণা/, 'staff can still send messages while room is locked');
-
-  // Unlock via persistent banner button
-  lockBanner.querySelector('[data-chat-action="unlock-banner"]').click();
-  assert.equal(lockBanner.hidden, true, 'unlocking hides the persistent lock banner');
+  assert.match(feed.textContent, /স্টাফ ঘোষণা/, 'staff can send messages in the class room');
   studentUi.destroy();
 
   // Search results appear cleanly above composer without leaking [data-chat-msg-id] outside feed

@@ -140,7 +140,9 @@ test('360px Action Center + Student Registration Detail Modal render clean DOM h
   assert.ok(modal, 'Action Center modal exists');
 
   const children = [...modal.children];
-  const idxHeader = children.findIndex(el => el.classList.contains('modal-header'));
+  /* The sheet's sticky header is .apc-fb-header (a themed variant of the old
+     .modal-header); accept either so the ordering contract stays the point. */
+  const idxHeader = children.findIndex(el => el.classList.contains('apc-fb-header') || el.classList.contains('modal-header'));
   const idxStatus = children.findIndex(el => el.hasAttribute('data-apc-notice-status'));
   const idxPending = children.findIndex(el => el.hasAttribute('data-apc-pending-host'));
   const idxFilters = children.findIndex(el => el.classList.contains('notice-filters'));

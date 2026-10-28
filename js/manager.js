@@ -31,9 +31,13 @@ import { noticeCategory, noticeCategoryInfo } from './notification-rules.js';
 import { mountReports, refreshReports } from './reports.js';
 import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
 import { iconMarkup } from './icons.js';
+import { initOrgInfo } from './org-info.js';
 
 registerServiceWorker();
 initFixedShell();
+/* Institute details (name/slogan/address/contact) come from one record and are
+   repainted after every settings save and every synced update. */
+initOrgInfo();
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const bn = value => String(value ?? 0).replace(/\d/g, digit => '০১২৩৪৫৬৭৮৯'[digit]);
@@ -41,15 +45,10 @@ const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
 /* The Manager keeps five bottom seats. Reports and the advice editor live in
    More; their route names and data hooks remain unchanged. */
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'class-chat', 'phonebook', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'results', 'reports', 'advice', 'profile', 'settings', 'more']);
-let managerChatFlight = null;
-function mountManagerClassChat() {
-  const mount = $('#managerClassChatMount');
-  if (!mount) return;
-  managerChatFlight ??= import('./class-chat.js').catch(err => { managerChatFlight = null; throw err; });
-  void managerChatFlight.then(mod => mod.mountClassChat(mount, { portal: 'manager', getStaff: () => managerAccount }))
-    .catch(err => console.warn('[Active Plus] manager class-chat failed:', err?.message));
-}
+const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'phonebook', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'lecture-sheets', 'results', 'reports', 'advice', 'profile', 'settings', 'more']);
+/* Class Chat & Moderation was removed from the Manager Panel (owner request
+   2026-10-28): no room monitoring, no pin/remove/lock controls, no chat route.
+   Class discussion itself stays in the Student/Teacher panels. */
 let managerPhonebookFlight = null;
 function mountManagerPhonebook() {
   const mount = $('#managerPhonebookMount');
@@ -129,7 +128,24 @@ function paintManagerExam() {
     examWorkspaceOpen?.(managerExamScreen);
   }
 }
-function syncManagerHeroCards() {
+/* The hero card itself is gone (owner request 2026-10-28): this painter now only
+   keeps the compact page head's date pill, section advice and welcome title in
+   sync, so no image or glint URL is written any more. */
+/* লেকচার শিট স্টুডিও (owner decision 2026-10-28): the Manager gets the same
+   authoring surface the Admin has, started with the manager role so writes are
+   attributed to the signed-in manager account. */
+let managerLectureFlight = null;
+function mountManagerLectureSheets() {
+  const mount = $('#managerLectureSheetsMount');
+  if (!mount) return;
+  managerLectureFlight ??= import('./lecture-sheet-studio.js')
+    .catch(err => { managerLectureFlight = null; throw err; });
+  void managerLectureFlight
+    .then(mod => mod.mountLectureSheetManager({ mount, role: 'manager', toast: message => toast(message) }))
+    .catch(err => console.warn('[Active Plus] manager lecture studio failed:', err?.message));
+}
+
+function syncManagerPanelHead() {
   const now = new Date();
   let hour = 12;
   try {
@@ -150,18 +166,6 @@ function syncManagerHeroCards() {
   const datePillText = `${weekday ? `${weekday} · ` : ''}${today}`;
   $$('[data-manager-hero-date]').forEach(node => { node.textContent = datePillText; });
   $$('[data-home-intro]').forEach(intro => { intro.dataset.heroMode = mode; });
-  $$('[data-manager-hero-art]').forEach(img => {
-    const card = img.dataset.heroCard || 'welcome';
-    const nextSrc = `assets/images/teacher-hero/${card}-${mode}.webp`;
-    if (img.getAttribute('src') !== nextSrc) img.setAttribute('src', nextSrc);
-    img.dataset.mode = mode;
-  });
-  $$('[data-manager-hero-glint]').forEach(glint => {
-    const nextHref = `assets/icons/ai-3d/${mode === 'night' ? 'moon' : 'sun'}.svg`;
-    if (glint.getAttribute('href') !== nextHref) glint.setAttribute('href', nextHref);
-    const glintSvg = glint.closest('svg');
-    if (glintSvg) glintSvg.setAttribute('data-icon', mode === 'night' ? 'moon' : 'sun');
-  });
   $$('[data-manager-hero-advice]').forEach(node => {
     const key = node.dataset.managerHeroAdvice || 'dashboard';
     node.textContent = pickTeacherSectionAdvice(key);
@@ -200,12 +204,9 @@ function renderView(view) {
   view = target.view;
   activeView = view;
   $$('.manager-view').forEach(panel => { const active = panel.dataset.viewPanel === view; panel.classList.toggle('active', active); panel.hidden = !active; });
-  const isChatFullscreen = view === 'class-chat';
-  $('#managerShell')?.classList.toggle('is-chat-fullscreen', isChatFullscreen);
-  $('#managerMain')?.classList.toggle('is-chat-view', isChatFullscreen);
   const seat = view === 'dashboard' ? 'dashboard'
     : view === 'students' ? 'students'
-      : ['academic', 'academic-records', 'class-chat', 'notices', 'routine', 'exams', 'results', 'courses', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
+      : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'lecture-sheets', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
         : view === 'finance' ? 'finance' : 'more';
   $$('.manager-bottom [data-manager-view]').forEach(button => {
     const active = button.dataset.managerView === seat;
@@ -218,7 +219,7 @@ function renderView(view) {
   // before the panels render, so a renderer that ever fails can still not send
   // the next refresh back to the dashboard.
   rememberRoute(view);
-  syncManagerHeroCards();
+  syncManagerPanelHead();
   if (view === 'dashboard') renderDashboard();
   if (view === 'students') { expandedStudentId = null; renderStudents(); }
   if (view === 'academic') renderAcademic();
@@ -233,8 +234,8 @@ function renderView(view) {
   if (view === 'results') renderResults();
   if (view === 'reports') void refreshReports($('#managerReports'));
   if (view === 'profile') renderProfile();
-  if (view === 'class-chat') mountManagerClassChat();
   if (view === 'phonebook') mountManagerPhonebook();
+  if (view === 'lecture-sheets') mountManagerLectureSheets();
   $('#managerMain')?.scrollTo({ top: 0, behavior: 'smooth' });
   return true;
 }
@@ -257,7 +258,7 @@ function renderDashboard() {
   const todaysClasses = routine[todayKey]?.classes?.length || 0;
   safeSetText('#mgrTotalStudents', bn(students.length)); safeSetText('#mgrActiveStudents', bn(approved.length));
   safeSetText('#mgrTodayCollection', money(totalToday)); safeSetText('#mgrTodayClasses', bn(todaysClasses));
-  syncManagerHeroCards();
+  syncManagerPanelHead();
 }
 function routineDayForToday(date = new Date()) {
   const key = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Dhaka', weekday: 'short' }).format(date).toLowerCase();
@@ -826,7 +827,7 @@ function renderProfile() {
   const markup = `<div class="manager-profile-list"><div><small>নাম</small><strong>${escapeHtml(account.fullName || 'Manager')}</strong></div><div><small>ইউজারনেম</small><strong>${escapeHtml(account.username || '—')}</strong></div><div><small>যোগাযোগ</small><strong>${escapeHtml(account.mobile || '—')}</strong></div><div><small>ইমেইল</small><strong>${escapeHtml(account.email || '—')}</strong></div><div><small>ভূমিকা</small><strong>ম্যানেজার — পরিচালনা নিয়ন্ত্রক</strong></div><div><small>অ্যাকাউন্টের অবস্থা</small><strong>${escapeHtml(({ active: 'সক্রিয়', suspended: 'স্থগিত', inactive: 'নিষ্ক্রিয়' }[account.status || account.accountStatus] || account.status || account.accountStatus || 'সক্রিয়'))}</strong></div></div><div class="row-actions"><button class="admin-btn ghost" type="button" data-profile-edit>নিজের তথ্য সম্পাদনা</button></div>`;
   if ($('#managerProfileCard')) $('#managerProfileCard').innerHTML = markup;
   if ($('#managerOwnProfileCard')) $('#managerOwnProfileCard').innerHTML = markup;
-  syncManagerHeroCards();
+  syncManagerPanelHead();
 }
 async function loadOperationalData() {
   students = loadRoster(); notices = loadNotices(); routine = loadRoutine();
@@ -1462,10 +1463,10 @@ async function enterManager() {
     });
   }
   if (typeof MutationObserver === 'function' && document.documentElement) {
-    const obs = new MutationObserver(() => syncManagerHeroCards());
+    const obs = new MutationObserver(() => syncManagerPanelHead());
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   }
-  syncManagerHeroCards();
+  syncManagerPanelHead();
   watchOwnPanelSession('manager');
   window.dispatchEvent(new Event('apc-session-ready'));
 }

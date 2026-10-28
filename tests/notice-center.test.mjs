@@ -45,7 +45,12 @@ function normalised(bar) {
   // ids, titles, data-actions and per-portal view routing attributes differ
   // per panel by necessity (that is how each shell wires them); strip those
   // volatile attributes before comparing the common APC brand/chat/bell/sign-out structure.
-  return bar.outerHTML
+  /* The class-chat shortcut is content, not layout: it exists only on the two
+     panels that still own a chat page (owner request 2026-10-28 removed it from
+     Admin and Manager), so the shared shell is compared without it. */
+  const clone = bar.cloneNode(true);
+  clone.querySelectorAll('#classChatTopbarButton').forEach(node => node.remove());
+  return clone.outerHTML
     .replace(/<strong class="app-brand-name">[\s\S]*?<\/strong>/, '')
     .replace(/\s(?:id|title|data-action|data-view|data-teacher-view|data-manager-view|data-admin-view|data-admin-cap)="[^"]*"/g, '');
 }
@@ -106,14 +111,17 @@ test('every panel shares the APC topbar; teacher identity lives only on its hero
       assert.ok(exit, `${page.file}: sign-out is missing`);
       assert.equal(exit.id, page.exit, `${page.file}: sign-out changed id`);
       assert.ok(drawable(exit.querySelector('svg[data-icon="logout"]')), `${page.file}: sign-out has no icon`);
-      const expectedButtons = page.file === 'payment.html' ? 2 : 3;
-      if (page.file !== 'payment.html') {
+      /* Owner request 2026-10-28: the class-chat console was removed from Admin
+         and Manager, so only the two chat-owning panels keep its shortcut. */
+      const chatPortals = ['student.html', 'teacher.html'];
+      const expectedButtons = chatPortals.includes(page.file) ? 3 : 2;
+      if (chatPortals.includes(page.file)) {
         const chatBtn = actions.querySelector('#classChatTopbarButton');
         assert.ok(chatBtn, `${page.file}: the class chat topbar shortcut is missing`);
         assert.ok(drawable(chatBtn.querySelector('svg[data-icon="chat"]')), `${page.file}: the chat shortcut has no icon`);
         assert.ok(chatBtn.querySelector('.notification-dot'), `${page.file}: the chat shortcut has no unread dot`);
       } else {
-        assert.equal(actions.querySelector('#classChatTopbarButton'), null, 'payment.html keeps no class chat shortcut');
+        assert.equal(actions.querySelector('#classChatTopbarButton'), null, `${page.file} keeps no class chat shortcut`);
       }
       assert.equal(actions.querySelectorAll('button').length, expectedButtons, `${page.file}: unexpected topbar action count`);
       // No identity name slot, clock or theme switch is allowed back in the bar.

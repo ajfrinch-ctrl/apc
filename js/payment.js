@@ -15,9 +15,11 @@ import { initAppearance } from './appearance.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
 import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { initOrgInfo } from './org-info.js';
 export { PAYMENT_USER_ID };
 
 registerServiceWorker();
+initOrgInfo();
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const state = { view:'home', matches:[], selected:null, today:[], ready:false, saving:false, receipt:null, queryVersion:0, afterReceipt:null };
@@ -27,11 +29,10 @@ const COUNTER_VIEW_ALIASES = Object.freeze({ today:'home', history:'reports' });
 const search = $('#payStudentSearch');
 const reports = mountCounterReports($('#paymentReports'));
 
-function syncPayHeroCards() {
+function syncCounterHeading() {
   const root = document.documentElement;
   const isDark = root.getAttribute('data-theme') === 'dark' || root.classList.contains('dark') || document.body?.classList.contains('dark');
   const mode = isDark ? 'night' : 'day';
-  const glintHref = isDark ? 'assets/icons/ai-3d/moon.svg' : 'assets/icons/ai-3d/sun.svg';
   const today = new Date();
   let wd = '';
   try {
@@ -44,15 +45,6 @@ function syncPayHeroCards() {
 
   $$('[data-home-intro]').forEach(card => {
     card.dataset.heroMode = mode;
-  });
-  $$('[data-pay-hero-art]').forEach(img => {
-    const heroCard = img.dataset.heroCard || 'welcome';
-    const nextSrc = `assets/images/teacher-hero/${heroCard}-${mode}.webp`;
-    if (img.getAttribute('src') !== nextSrc) img.setAttribute('src', nextSrc);
-    img.dataset.mode = mode;
-  });
-  $$('[data-pay-hero-glint]').forEach(glint => {
-    if (glint.getAttribute('href') !== glintHref) glint.setAttribute('href', glintHref);
   });
   $$('[data-pay-hero-date]').forEach(node => {
     node.textContent = fullDateLabel;
@@ -88,7 +80,7 @@ function showCounterView(view) {
   // The counter's More surface is its Settings hub; every return starts at the
   // group menu instead of retaining a previous subsection.
   if(target==='more') resetSettingsHub('#payMorePanel');
-  syncPayHeroCards();
+  syncCounterHeading();
   return true;
 }
 const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
@@ -353,7 +345,7 @@ new MutationObserver(() => {
 }).observe($('#payShell'), { attributes:true, attributeFilter:['hidden'] });
 
 let day=new Date().toDateString();
-const checkDay=()=>{const current=new Date().toDateString();if(current!==day){day=current;$('#payCurrentDate').textContent=new Intl.DateTimeFormat('bn-BD',{day:'numeric',month:'long',year:'numeric'}).format(new Date());syncPayHeroCards();void refreshToday();}};
+const checkDay=()=>{const current=new Date().toDateString();if(current!==day){day=current;$('#payCurrentDate').textContent=new Intl.DateTimeFormat('bn-BD',{day:'numeric',month:'long',year:'numeric'}).format(new Date());syncCounterHeading();void refreshToday();}};
 window.setInterval(checkDay,30000);
 window.addEventListener('focus',checkDay); document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDay();});
 
@@ -361,7 +353,7 @@ installPanelGuard(); void rememberPanelPage();
 hasPaymentSession().then(async valid=>{
   if(!valid) return lockPanel({ role: 'payment.html', reason: 'পেমেন্ট কাউন্টার শুধু কাউন্টারের বৈধ সেশন দিয়ে খোলে।'});
   $('#payShell').hidden=false; watchOwnPanelSession('payment');
-  syncPayHeroCards();
+  syncCounterHeading();
   $('#payCurrentDate').textContent=new Intl.DateTimeFormat('bn-BD',{day:'numeric',month:'long',year:'numeric'}).format(new Date());
   try {const account=await readStaffAccount('payment');$('#payMoreUser').textContent=account?.fullName || account?.username || PAYMENT_USER_ID;}
   catch {$('#payMoreUser').textContent=PAYMENT_USER_ID;}
@@ -376,7 +368,7 @@ hasPaymentSession().then(async valid=>{
   });
   initAppearance();
   try {
-    const heroObs = new MutationObserver(() => syncPayHeroCards());
+    const heroObs = new MutationObserver(() => syncCounterHeading());
     if (document.documentElement) heroObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
   } catch {}
   configureForm(); showCounterView('home'); await refreshToday();

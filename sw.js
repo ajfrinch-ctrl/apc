@@ -525,6 +525,7 @@ const APP_SHELL = [
   './js/student-notice-board.js',
   './js/admin-data.js',
   './js/office-data.js',
+  './js/org-info.js',
   './js/registration-service.js',
   './js/finance-data.js',
   './js/finance-receipt.js',

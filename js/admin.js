@@ -56,10 +56,14 @@ import { ROLE_CAPABILITIES } from './admin-permissions.js';
 import { runMigrations } from './storage/migration.js';
 import { encryptBackupData, decryptBackupData, validBackupPassphrase } from './backup-crypto.js';
 import { prepareBackupRestore, applyBackupRestore } from './backup-restore.js';
+import { initOrgInfo, applyOrgInfo, readOrgInfo } from './org-info.js';
 
 initFixedShell();
 registerServiceWorker();
 runMigrations();
+/* Institute details are painted from the settings document as soon as the page
+   exists, and again after every save / synced settings update. */
+initOrgInfo();
 
 // The Admin backup format stores these existing collection values as raw JSON
 // strings. Keep the export/restore allowlist explicit: no sessions, staff
@@ -152,7 +156,7 @@ async function enterPanel() {
   });
   paintAdminSettingsDoors();
   mountReports($('#adminReports'), { panel: 'admin' });
-  // A deep link (admin.html#staff or admin.html#class-chat) opens only when
+  // A deep link (admin.html#staff) opens only when
   // this role may see it; anything else falls back to the first permitted tab.
   const route = routeFromHash(window.location.hash);
   const initialTarget = route && access.allowsView(route) ? route : state.activeView;
@@ -306,9 +310,7 @@ function setView(view, { history = 'replace', clearBack = false } = {}) {
   // Rehome existing mounted controls only after the permission/route guard.
   activateAdminDetail(target);
   state.activeView = target;
-  $('#adminShell')?.classList.toggle('is-chat-fullscreen', target === 'class-chat');
   $('#adminMain')?.classList.toggle('is-staff-view', target === 'staff');
-  $('#adminMain')?.classList.toggle('is-chat-view', target === 'class-chat');
   $$('.admin-view').forEach(panel => {
     const active = panel.dataset.viewPanel === target;
     panel.classList.toggle('active', active);
@@ -327,7 +329,6 @@ function setView(view, { history = 'replace', clearBack = false } = {}) {
     });
   }
   openDefaultPrimarySection(target);
-  if (target === 'class-chat') mountAdminClassChat();
   if (target === 'phonebook') mountAdminPhonebook();
   syncAdminHeroCards();
   const seat = seatFor(target);
@@ -433,6 +434,8 @@ function renderGradeAudit() {
   }
 }
 function renderDashboard() {
+  // Institute card always reads the CURRENT record (address change bug fix).
+  applyOrgInfo();
   const studentFeatureTile = $('#adminFeatureGrid [data-admin-view="students"]');
   if (studentFeatureTile) {
     const pendingCount = access.has(CAPABILITIES.STUDENTS_APPROVE) ? listPendingRegistrations().length : 0;
@@ -887,15 +890,24 @@ function saveAppSettingsFromForm() {
     officialEmail: $('#cfgEmail')?.value.trim() || current.officialEmail || DEFAULT_APP_SETTINGS.officialEmail,
     campusAddress: $('#cfgAddress')?.value.trim() || current.campusAddress || DEFAULT_APP_SETTINGS.campusAddress
   };
-  saveAppConfig(state.appConfig);
+  const saved = saveAppConfig(state.appConfig);
+  // Repaint every live surface in this tab immediately (the settings event also
+  // fires from js/storage.js; this direct call keeps the confirmation instant).
+  applyOrgInfo();
   renderAppManagement();
-  toast('ব্র্যান্ডিং ও যোগাযোগের তথ্য সংরক্ষিত হয়েছে');
+  const info = readOrgInfo();
+  toast(saved
+    ? `ব্র্যান্ডিং ও যোগাযোগের তথ্য সংরক্ষিত হয়েছে — ${info.address}`
+    : 'তথ্য সংরক্ষণ করা যায়নি — ব্রাউজার স্টোরেজ পরীক্ষা করুন');
+  if (!saved) return;
+  // The card lives on Home; a save from Settings must update it even though the
+  // view is still open, so the Admin sees the new value before navigating back.
+  renderDashboard();
 }
 
 /* Urgent announcement: one switch + one message that every device receives as
    a notification. Clearing the message turns it off on every device too. */
 function saveBroadcastFromForm() {
-  if (state.activeView === 'class-chat') return;
   const current = state.appConfig || loadAppConfig();
   const message = $('#cfgBroadcastMessage')?.value.trim().slice(0, 500) || '';
   const alert = Boolean($('#cfgBroadcastAlert')?.checked) && Boolean(message);
@@ -945,6 +957,9 @@ const CAPABILITY_LABELS = Object.freeze({
   'exams.view': 'পরীক্ষা দেখা',
   'exams.publish': 'পরীক্ষা প্রকাশ/প্রত্যাখ্যান',
   'teaching.panel': 'শিক্ষক প্যানেল',
+  /* Owner decision 2026-10-28: lecture-sheet authoring is shared with the
+     Teacher and Manager panels (matrix shows who may create/publish). */
+  'content.lecture-sheets': 'লেকচার শিট তৈরি ও প্রকাশ',
   'payment.panel': 'Payment প্যানেল'
 });
 
@@ -1609,21 +1624,13 @@ const VIEW_REFRESHERS = {
   staff: () => { void renderStaff(); },
   content: () => { void refreshAdminContentRecords(); },
   reports: () => refreshReports($('#adminReports')),
-  'class-chat': () => mountAdminClassChat(),
   phonebook: () => mountAdminPhonebook()
 };
 
-let adminChatFlight = null;
-function mountAdminClassChat() {
-  const mount = $('#adminClassChatMount');
-  if (!mount) return;
-  adminChatFlight ??= import('./class-chat.js').catch(err => { adminChatFlight = null; throw err; });
-  void adminChatFlight.then(mod => mod.mountClassChat(mount, {
-    portal: 'admin',
-    getStaff: () => state.adminAccount
-  }))
-    .catch(err => console.warn('[Active Plus] admin class-chat failed:', err?.message));
-}
+/* Class Chat & Moderation was removed from the Admin Panel on 2026-10-28
+   (owner request): no monitoring view, no pin/remove/lock controls and no
+   chat route. The chat messages themselves remain a shared collection that
+   students and teachers use, so backups keep exporting KEYS.classChat. */
 
 let adminPhonebookFlight = null;
 function mountAdminPhonebook() {

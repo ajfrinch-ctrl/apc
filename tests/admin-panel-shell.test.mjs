@@ -134,11 +134,9 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
   assert.ok(brand, 'the topbar has no brand');
   assert.equal(brand.querySelectorAll('img').length, 1, 'the brand paints more than one logo');
   assert.ok(brand.querySelector('[data-fixed-tagline]').textContent.trim().length > 1, 'the slogan is missing');
-  const chatBtn = header.querySelector('#classChatTopbarButton');
-  assert.ok(chatBtn, 'the topbar has no class chat button');
-  assert.equal(chatBtn.querySelectorAll('svg').length, 1, 'the chat button paints more than one icon');
-  assert.ok(chatBtn.querySelector('svg[data-icon="chat"]'));
-  assert.ok(chatBtn.querySelector('.notification-dot'), 'the chat button has no unread dot');
+  // Class Chat & Moderation was removed from this panel (owner request
+  // 2026-10-28): the topbar keeps only the bell and sign-out.
+  assert.equal(header.querySelector('#classChatTopbarButton'), null, 'the removed chat button must not come back');
   const bell = header.querySelector('#notificationButton');
   assert.ok(bell, 'the topbar has no notification button');
   assert.equal(bell.querySelectorAll('svg').length, 1, 'the bell paints more than one icon');
@@ -149,7 +147,7 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
   assert.equal(exit.id, 'adminExitButton');
   assert.equal(exit.querySelectorAll('svg').length, 1, 'sign-out paints more than one icon');
   assert.ok(exit.querySelector('svg[data-icon="logout"]'));
-  assert.equal(header.querySelectorAll('button').length, 3, 'the topbar holds chat + notification + sign-out');
+  assert.equal(header.querySelectorAll('button').length, 2, 'the topbar holds notification + sign-out');
   assert.equal(header.querySelectorAll('[data-theme-toggle], time, .student-date').length, 0, 'a control that belongs elsewhere is still in the topbar');
   // Dark mode stays reachable: it lives in System Settings as a switch row —
   // icon chip (sun in light, moon in dark), label and the app's toggle switch.
@@ -189,7 +187,7 @@ test('the dashboard grid is generated from the permission model', () => {
     'Home does not ship a hidden or visible hero picture');
   assert.equal(home.querySelector('.admin-home-summary, .admin-hero-stats, #adminMaintenanceFlag, #backupReminder'), null,
     'all four counters and both optional warnings are removed from Home only');
-  assert.equal(home.querySelector('#adminQuickShortcuts, .teacher-chat-hub, .phonebook-hub-card'), null,
+  assert.equal(home.querySelector('#adminQuickShortcuts, .panel-hub-card, .phonebook-hub-card'), null,
     'the duplicate staff, backup, reports, chat and phonebook shortcuts are gone');
   assert.deepEqual([...home.querySelectorAll('.admin-portal-grid > a')].map(a => a.getAttribute('href')),
     ['manager.html', 'teacher.html', 'payment.html'], 'the three Super Admin portal doors stay');
@@ -329,54 +327,15 @@ test('Account → Security → Account reopens the correct Admin content on ever
   await ctx.flush(2);
 });
 
-test('Admin Class Chat (#class-chat) mounts immediately, keeps composer usable on empty rooms, sends messages, and never triggers broadcast toast', async () => {
-  const chatTrigger = ctx.$('#classChatTopbarButton')
-    || ctx.$('.teacher-chat-hub[data-admin-view="class-chat"]')
-    || ctx.$('[data-admin-view="class-chat"]');
-  assert.ok(chatTrigger, 'Class Chat trigger exists in Admin shell');
-  ctx.click(chatTrigger);
-  await ctx.waitFor(() => ctx.$('.admin-view.active')?.dataset.viewPanel === 'class-chat');
-  await ctx.waitFor(() => Boolean(ctx.$('#adminClassChatMount .class-chat-shell')));
-
-  assert.equal(ctx.$('#adminMain').classList.contains('is-chat-view'), true, 'adminMain activates viewport-fit chat mode');
-  const mount = ctx.$('#adminClassChatMount');
-  const composerWrap = mount.querySelector('[data-chat-composer-wrap]');
-  const input = mount.querySelector('[data-chat-input]');
-  const sendBtn = mount.querySelector('[data-chat-action="send"]');
-  const feed = mount.querySelector('[data-chat-feed]');
-
-  await ctx.waitFor(() => Boolean(feed.querySelector('.class-chat-empty') || feed.querySelector('[data-chat-msg-id]')));
-  assert.equal(composerWrap.hidden, false, 'composer stays visible on empty room');
-  assert.equal(input.disabled, false, 'composer input is enabled for Admin');
-  assert.equal(sendBtn.disabled, true, 'send button is disabled when composer is empty');
-  assert.match(sendBtn.textContent, /পাঠান/, 'send button displays পাঠান');
-
-  input.value = 'আজকের মডারেশন টেস্ট বার্তা';
-  input.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
-  assert.equal(sendBtn.disabled, false, 'send button enables as soon as text is entered');
-
-  ctx.click(sendBtn);
-  await ctx.waitFor(() => feed.textContent.includes('আজকের মডারেশন টেস্ট বার্তা'));
-
-  const sentRow = [...feed.querySelectorAll('[data-chat-msg-id]')]
-    .find(el => el.textContent.includes('আজকের মডারেশন টেস্ট বার্তা'));
-  assert.ok(sentRow, 'sent message bubble renders immediately in the active class feed');
-  assert.equal(sentRow.querySelector('[data-chat-status]')?.dataset.chatStatus, 'sent', 'sent bubble displays sent status');
-  assert.equal(input.value, '', 'composer clears after sending');
-  assert.equal(sendBtn.disabled, true, 'send button returns to disabled state when empty');
-
-  // Even an accidental click on hidden broadcast save while in #class-chat must never emit broadcast toast
-  const toastEl = ctx.$('#adminToast');
-  assert.equal((toastEl?.textContent || '').includes('জরুরি ঘোষণা বন্ধ করা হয়েছে'), false, 'no broadcast toast on chat send');
-  const hiddenBroadcastBtn = ctx.$('#btnSaveBroadcast');
-  if (hiddenBroadcastBtn) {
-    hiddenBroadcastBtn.click();
-    await ctx.flush(2);
-    assert.equal((toastEl?.textContent || '').includes('জরুরি ঘোষণা বন্ধ করা হয়েছে'), false, 'broadcast save is guarded while #class-chat is active');
-  }
-
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="dashboard"]'));
-  await ctx.flush(2);
+test('Class Chat & Moderation is fully removed from the Admin shell', async () => {
+  // Owner request 2026-10-28: no chat/monitoring view, no chat trigger (top bar,
+  // tile or hub row) and no chat route survives in the Admin Panel.
+  assert.equal(ctx.$('#classChatTopbarButton'), null, 'no chat button in the top bar');
+  assert.equal(ctx.$('#adminClassChatMount'), null, 'no chat mount in the panel');
+  assert.equal(ctx.$('.admin-view[data-view-panel="class-chat"]'), null, 'no class-chat view');
+  assert.equal(ctx.$('[data-admin-view="class-chat"]'), null, 'no navigation entry points at a chat view');
+  assert.equal(ctx.$$('[data-admin-view]').some(node => node.dataset.adminView === 'class-chat'), false);
+  assert.equal(ctx.$('#adminMain').classList.contains('is-chat-view'), false);
 });
 
 test('a role with no capability leaves the panel empty — menus, cards and routes', async () => {

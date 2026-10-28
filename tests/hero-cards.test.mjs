@@ -98,9 +98,13 @@ test('Student Home uses softer hero tiles while its decorative art remains scope
   assert.match(worker, /'\.\/js\/hero-cards\.js'/u);
 });
 
-test('the art entry belongs only to Student; Payment keeps its separate carousel script', () => {
+test('the art entry belongs only to Student; the staff panels load no hero scripts', () => {
   assert.match(html, /js\/hero-cards\.js\?v=\d+/u);
-  const payment = readFileSync(new URL('../payment.html', import.meta.url), 'utf8');
-  assert.doesNotMatch(payment, /hero-cards\.js/u);
-  assert.match(payment, /js\/home-hero-entry\.js\?v=\d+/u);
+  for (const page of ['payment.html', 'teacher.html', 'manager.html', 'admin.html']) {
+    const staffHtml = readFileSync(new URL(`../${page}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(staffHtml, /hero-cards\.js/u, `${page} loads no art entry`);
+    // Owner request 2026-10-28: the staff hero carousel is gone entirely.
+    assert.doesNotMatch(staffHtml, /home-hero-entry\.js/u, `${page} loads no hero carousel entry`);
+    assert.doesNotMatch(staffHtml, /data-home-hero|teacher-hero-scene/u, `${page} carries no hero markup`);
+  }
 });
