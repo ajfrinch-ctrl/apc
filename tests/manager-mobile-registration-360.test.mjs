@@ -1,7 +1,7 @@
 /* Scenario 1 & 8 (Manager 360px Mobile Viewport):
    Verifies that on a 360px mobile screen, the Manager panel header bell, unread
    count badge, subtle toast ("নতুন শিক্ষার্থী রেজিস্ট্রেশন করেছে"), "অনুমোদনের অপেক্ষায়"
-   list (নাম, মোবাইল, আইডি, তারিখ), and both "অনুমোদন দিন" & "বাতিল করুন" buttons work end-to-end. */
+   list (masked identity, date), and both "অনুমোদন দিন" & "বাতিল করুন" buttons work end-to-end. */
 
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -79,14 +79,15 @@ test('Manager panel at 360px mobile viewport renders unread badge, toast, "অ�
   assert.equal(toastEl.hidden, false);
   assert.equal(toastEl.textContent, 'নতুন শিক্ষার্থী রেজিস্ট্রেশন করেছে');
 
-  // Open bell inbox on 360px screen -> verify "অনুমোদনের অপেক্ষায়" list + (নাম, মোবাইল, আইডি, তারিখ)
+  // The public queue masks identity; the existing review flow owns the details.
   ctx.click(bell);
   await ctx.waitFor(() => ctx.$$('[data-pending-student-row]').length === 2);
   const queueHost = ctx.$('[data-apc-pending-registrations]');
   assert.match(queueHost.textContent, /অনুমোদনের অপেক্ষায়/);
-  assert.match(queueHost.textContent, /নুসরাত জাহান/);
-  assert.match(queueHost.textContent, /01722334455/);
-  assert.match(queueHost.textContent, /261022011/);
+  assert.match(queueHost.textContent, /গোপন তথ্য/);
+  for (const privateValue of ['নুসরাত জাহান', '01722334455', '261022011']) {
+    assert.equal(queueHost.textContent.includes(privateValue), false, `${privateValue} stays masked`);
+  }
   assert.match(queueHost.textContent, /তারিখ:/);
 
   // Approve 261022011 via "অনুমোদন দিন"

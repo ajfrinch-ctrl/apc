@@ -48,9 +48,10 @@ test('the Teacher panel opens the learning-library page for the assigned class o
     Array.from(ctx.$('#teacherCourseEditor select[name="className"]').options).map(option => option.value),
     ['দশম শ্রেণি'], 'only the assigned class is offered');
   assert.deepEqual(
-    Array.from(ctx.$('#teacherCourseEditor select[name="subject"]').options).map(option => option.value),
+    Array.from(ctx.$('#teacherCourseEditor #subject-datalist').options).map(option => option.value),
     ['গণিত'], 'only the assigned subject is offered');
   /* Saving writes the very record the student hub reads. */
+  ctx.type(ctx.$('#teacherCourseEditor input[name="subject"]'), 'গণিত');
   ctx.type(ctx.$('#teacherCourseEditor input[name="title"]'), 'নবম অধ্যায়ের নোট');
   ctx.submit(ctx.$('#teacherCourseEditor form'));
   await ctx.waitFor(() => /সংরক্ষিত হয়েছে/.test(ctx.$('#teacherCourseEditor [data-course-status]').textContent));
@@ -80,7 +81,7 @@ test('the Manager panel opens the same page for the whole academic structure', a
   const classes = Array.from(ctx.$('#managerCourseEditor select[name="className"]').options).map(option => option.value);
   assert.ok(classes.length >= 5, 'every enabled class is offered');
   assert.ok(classes.includes('দশম শ্রেণি'));
-  const subjects = Array.from(ctx.$('#managerCourseEditor select[name="subject"]').options).map(option => option.value);
+  const subjects = Array.from(ctx.$('#managerCourseEditor #subject-datalist').options).map(option => option.value);
   assert.ok(subjects.includes('গণিত'));
   assert.equal(ctx.window.localStorage.getItem(COURSE_CONTENT_KEY), null, 'opening the page writes no course data');
 });

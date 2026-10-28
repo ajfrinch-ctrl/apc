@@ -25,7 +25,17 @@ const ACTIVITY = {
 };
 
 let ctx;
-const contentOpen = () => { const sec = ctx.$('[data-view-panel="content"]'); return Boolean(sec) && !sec.hidden; };
+const activeView = () => ctx.$('.admin-view.active')?.dataset.viewPanel;
+const contentOpen = () => activeView() === 'content';
+
+async function openDetail(view) {
+  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="more"]'));
+  await ctx.waitFor(() => activeView() === 'more');
+  ctx.click(ctx.$('#adminMoreMenu [data-admin-view="content"]'));
+  await ctx.waitFor(contentOpen);
+  ctx.click(ctx.$(`.admin-view[data-view-panel="content"] [data-admin-view="${view}"]`));
+  await ctx.waitFor(() => activeView() === view);
+}
 
 before(async () => {
   ctx = await loadPage('admin.html', {
@@ -39,14 +49,14 @@ before(async () => {
   seedStaffSession(ctx.window, 'admin');
   await import('../js/admin.js');
   await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
+  await ctx.waitFor(() => ctx.$('#adminMoreMenu [data-admin-view="content"]')?.dataset.navWired === '1');
 });
 after(() => ctx?.window.close());
 
 test('the content view lists notices and records with a live count', async () => {
-  const row = ctx.$('[data-admin-view="content"]');
-  assert.ok(row, 'More hub has the নোটিশ ও কনটেন্ট row');
-  ctx.click(row);
-  await ctx.waitFor(contentOpen);
+  assert.ok(ctx.$('#adminMoreMenu [data-admin-view="content"]'), 'More hub has the নোটিশ ও কনটেন্ট row');
+  await openDetail('content-notices');
+  assert.equal(ctx.$('.admin-view[data-view-panel="content"]').hidden, true, 'the content hub is replaced by the notice detail');
   await ctx.waitFor(() => ctx.$$('#adminNoticeReviewList .content-review-card').length === 1);
   await ctx.waitFor(() => ctx.$$('#adminContentReviewList .content-review-card').length === 1);
   const badge = ctx.$('[data-admin-content-count]');
@@ -62,6 +72,7 @@ test('a cancelled confirm deletes nothing', async () => {
   ctx.click(ctx.$('[data-admin-content-action="delete-notice"]'));
   await ctx.flush();
   assert.equal(loadNotices().length, 1, 'the notice survives a cancelled dialog');
+  await openDetail('content-records');
   ctx.click(ctx.$('[data-admin-content-action="delete-content"]'));
   await ctx.flush();
   const db = JSON.parse(ctx.window.localStorage.getItem(TEACHING_KEY));
@@ -70,12 +81,14 @@ test('a cancelled confirm deletes nothing', async () => {
 
 test('confirmed deletes clear the stores the student board reads', async () => {
   ctx.window.confirm = () => true;
+  await openDetail('content-notices');
   ctx.click(ctx.$('[data-admin-content-action="delete-notice"]'));
   await ctx.waitFor(() => loadNotices().length === 0, 'the notice leaves the shared store');
   await ctx.waitFor(() => ctx.$$('#adminNoticeReviewList .content-review-card').length === 0);
   assert.equal(ctx.$('#adminNoticeReviewList').textContent.includes('এখনো কোনো নোটিশ'), true,
     'the empty state replaces the list');
 
+  await openDetail('content-records');
   ctx.click(ctx.$('[data-admin-content-action="delete-content"]'));
   await ctx.waitFor(() => JSON.parse(ctx.window.localStorage.getItem(TEACHING_KEY)).activities.length === 0,
     'the record leaves the teaching store');

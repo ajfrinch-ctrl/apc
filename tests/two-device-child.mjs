@@ -740,9 +740,11 @@ const commands = {
   async 'staff-portal-state'({ role }) {
     const api = ctx.window.apcNotifications;
     const dot = ctx.$('#notificationButton .notification-dot');
-    const hostText = role === 'admin'
-      ? (ctx.$('#adminPendingRegistrations')?.textContent || '')
-      : (ctx.$('#managerStudentQueue')?.textContent || '');
+    const host = role === 'admin' ? ctx.$('#adminPendingRegistrations') : ctx.$('#managerStudentQueue');
+    const hostText = host?.textContent || '';
+    const selector = role === 'admin' ? '[data-pending-student-row]' : '[data-manager-student]';
+    const pendingRowIds = [...(host?.querySelectorAll(selector) || [])]
+      .map(row => role === 'admin' ? row.dataset.pendingStudentRow : row.dataset.managerStudent);
     const pendingCardLabel = role === 'admin'
       ? (ctx.$('[data-admin-student-card="pending"] .teacher-action-title')?.textContent || '')
       : (ctx.$('#managerPendingBadge')?.textContent || '');
@@ -753,6 +755,7 @@ const commands = {
       badgeText: dot ? (dot.textContent || '') : '',
       pendingHostHidden: role === 'admin' ? Boolean(ctx.$('#adminPendingRegistrations')?.hidden) : Boolean(ctx.$('#managerStudentQueue')?.hidden),
       hostText,
+      pendingRowIds,
       pendingCardLabel,
       toasts: [...(ctx.window.__apcToastLog || [])],
       studentsCount: (readLocal(db.KEYS.students) || []).length

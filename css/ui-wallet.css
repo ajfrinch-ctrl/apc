@@ -2277,9 +2277,11 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
    aligned account forms and a session row with a real logout action. Scoped
    to the Admin অ্যাকাউন্ট view, so the shared Settings hub of the other
    panels keeps its own look. Colours stay tokens from foundation.css. */
+.admin-view[data-parent-view="profile"] > .page-intro:first-child p.profile-page-sub,
 .admin-view[data-view-panel="profile"] > .page-intro:first-child p.profile-page-sub {
   display: block; margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--color-text-secondary);
 }
+.admin-view[data-parent-view="profile"] .settings-group-grid > .pay-tile:last-child:nth-child(odd),
 .admin-view[data-view-panel="profile"] .settings-group-grid > .pay-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 /* The identity card is a dark brand band of its own: identity header, all
    profile facts, security note and edit action in one responsive hero. Tokens
@@ -2321,50 +2323,66 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
   background: var(--pay-hero-chip); border: 1px solid var(--pay-hero-line);
   color: var(--pay-on-hero); font-size: 12.5px; font-weight: 700;
 }
+.admin-view[data-parent-view="profile"] .profile-list,
 .admin-view[data-view-panel="profile"] .profile-list {
   display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px; width: 100%; margin: 0; padding: 0;
 }
 /* Group doors: rows, not tiles — disc icon left, name + what lives inside,
    chevron right. Phone-width layout keeps one door per row. */
+.admin-view[data-parent-view="profile"] .settings-group-grid,
 .admin-view[data-view-panel="profile"] .settings-group-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
   margin: 0; padding: 0; background: transparent; border: 0; box-shadow: none;
 }
+.admin-view[data-parent-view="profile"] .settings-group-grid > .pay-tile:last-child:nth-child(odd),
 .admin-view[data-view-panel="profile"] .settings-group-grid > .pay-tile:last-child:nth-child(odd) { grid-column: auto; }
+.admin-view[data-parent-view="profile"] .pay-tile.admin-settings-door,
 .admin-view[data-view-panel="profile"] .pay-tile.admin-settings-door {
   flex-direction: row; align-items: center; justify-content: flex-start; gap: 14px;
   min-height: 78px; padding: 14px 16px; text-align: left;
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 18px; box-shadow: var(--pay-shadow);
 }
+.admin-view[data-parent-view="profile"] .admin-settings-door-copy,
 .admin-view[data-view-panel="profile"] .admin-settings-door-copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.admin-view[data-parent-view="profile"] .admin-settings-door-copy .pay-tile-label,
 .admin-view[data-view-panel="profile"] .admin-settings-door-copy .pay-tile-label { font-size: 15.5px; font-weight: 700; text-align: left; }
+.admin-view[data-parent-view="profile"] .admin-settings-door-copy small,
 .admin-view[data-view-panel="profile"] .admin-settings-door-copy small {
   font-size: 12.5px; font-weight: 500; line-height: 1.45; color: var(--color-text-secondary); overflow-wrap: anywhere;
 }
+.admin-view[data-parent-view="profile"] .admin-settings-door-chevron,
 .admin-view[data-view-panel="profile"] .admin-settings-door-chevron {
   display: grid; place-items: center; flex: none; color: var(--color-text-secondary);
 }
+.admin-view[data-parent-view="profile"] .admin-settings-door-chevron svg,
 .admin-view[data-view-panel="profile"] .admin-settings-door-chevron svg { width: 20px; height: 20px; }
+.admin-view[data-parent-view="profile"] .profile-row,
 .admin-view[data-view-panel="profile"] .profile-row {
   min-width: 0; padding: 11px 14px; border: 1px solid var(--pay-hero-line);
   border-radius: 14px; background: var(--pay-hero-chip); color: var(--pay-on-hero);
 }
+.admin-view[data-parent-view="profile"] .profile-row dt,
 .admin-view[data-view-panel="profile"] .profile-row dt {
   margin: 0 0 2px; font-size: 12px; font-weight: 600; color: var(--pay-on-hero-soft);
 }
+.admin-view[data-parent-view="profile"] .profile-row dd,
 .admin-view[data-view-panel="profile"] .profile-row dd {
   margin: 0; color: var(--pay-on-hero); font-size: 14.5px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere;
 }
+/* The ID chip has a surface-colored background, not the hero background. */
+#adminProfileCard .staff-id-badge { color: var(--color-text); }
 .admin-profile-note {
   grid-column: 1 / -1; margin: 0; padding: 10px 12px; border: 1px solid var(--pay-hero-line);
   border-radius: 12px; background: var(--pay-hero-chip); color: var(--pay-on-hero-soft);
   font-size: 12.5px; line-height: 1.6;
 }
+.admin-view[data-parent-view="profile"] .admin-card-hint,
 .admin-view[data-view-panel="profile"] .admin-card-hint {
   margin: 4px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--color-text-secondary);
 }
+.admin-view[data-parent-view="profile"] .auto-id-preview,
 .admin-view[data-view-panel="profile"] .auto-id-preview {
   font-weight: 600; border: 1px dashed var(--color-border);
 }
@@ -2378,18 +2396,24 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
 }
 .admin-logout-btn svg { width: 19px; height: 19px; }
 .admin-logout-btn:hover { background: var(--color-surface-muted); }
+.admin-view[data-parent-view="profile"] #adminProfileForm > button[type="submit"],
 .admin-view[data-view-panel="profile"] #adminProfileForm > button[type="submit"],
+.admin-view[data-parent-view="profile"] #adminPasswordForm > button[type="submit"],
 .admin-view[data-view-panel="profile"] #adminPasswordForm > button[type="submit"] { width: 100%; margin-top: 16px; }
 @media (max-width: 700px) {
   .admin-profile-avatar { width: 56px; height: 56px; font-size: 21px; }
   .admin-profile-hero { padding: 18px; }
   .admin-profile-hero-head .admin-profile-status { margin-left: auto; }
+  .admin-view[data-parent-view="profile"] .settings-group-grid,
   .admin-view[data-view-panel="profile"] .settings-group-grid { grid-template-columns: 1fr; }
+  .admin-view[data-parent-view="profile"] .profile-row:nth-child(3),
   .admin-view[data-view-panel="profile"] .profile-row:nth-child(3) { grid-column: 1 / -1; }
   .admin-logout-btn { width: 100%; }
 }
 @media (max-width: 360px) {
+  .admin-view[data-parent-view="profile"] .profile-list,
   .admin-view[data-view-panel="profile"] .profile-list { grid-template-columns: minmax(0, 1fr); }
+  .admin-view[data-parent-view="profile"] .profile-row:nth-child(3),
   .admin-view[data-view-panel="profile"] .profile-row:nth-child(3) { grid-column: auto; }
   .admin-profile-edit { grid-column: 1 / -1; justify-self: stretch; width: 100%; }
 }
@@ -2523,17 +2547,24 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
    line as a quiet footer, and the two destructive cards as one danger zone —
    a red-marked card, a calm amber warning and a filled danger action, so a
    delete never looks like an ordinary settings card again. */
+.admin-view[data-parent-view="data"] > .page-intro:first-child p.data-page-sub,
 .admin-view[data-view-panel="data"] > .page-intro:first-child p.data-page-sub {
   display: block; margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--pay-on-hero-soft);
 }
+.admin-view[data-parent-view="data"] .data-row-copy,
 .admin-view[data-view-panel="data"] .data-row-copy { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.admin-view[data-parent-view="data"] .data-row-copy strong,
 .admin-view[data-view-panel="data"] .data-row-copy strong { font-size: 14.5px; }
+.admin-view[data-parent-view="data"] .data-row-copy small,
 .admin-view[data-view-panel="data"] .data-row-copy small { font-size: 12px; color: var(--color-text-secondary); }
+.admin-view[data-parent-view="data"] .data-count,
 .admin-view[data-view-panel="data"] .data-count {
   flex: none; padding: 2px 10px; border-radius: 999px; background: var(--pay-disc);
   color: var(--pay-disc-ink); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
+.admin-view[data-parent-view="data"] .data-row.is-empty .data-count,
 .admin-view[data-view-panel="data"] .data-row.is-empty .data-count { background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.admin-view[data-parent-view="data"] #dataStorageNote,
 .admin-view[data-view-panel="data"] #dataStorageNote {
   margin: 12px 0 0; padding-top: 12px; border-top: 1px dashed var(--color-border);
 }
@@ -2543,10 +2574,12 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
   margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: var(--tone-amber-soft);
   color: var(--color-text); font-size: 13px; line-height: 1.7;
 }
+.admin-view[data-parent-view="data"] .admin-btn.danger,
 .admin-view[data-view-panel="data"] .admin-btn.danger {
   width: 100%; min-height: 50px; border-radius: 14px; background: var(--color-danger);
   border-color: var(--color-danger); color: var(--color-surface); font-weight: 700;
 }
+.admin-view[data-parent-view="data"] .admin-btn.danger:hover,
 .admin-view[data-view-panel="data"] .admin-btn.danger:hover { background: var(--color-surface-muted); color: var(--color-danger); }
 
 /* 23 ── Admin panel-wide pass: every view opens with the same subtitled
@@ -2577,7 +2610,9 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
 }
 .role-cap-list li.is-denied { background: var(--color-surface-muted); color: var(--color-text-secondary); opacity: .65; }
 .class-copy-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.admin-view[data-parent-view="backup"] #backupRestoreButton,
 .admin-view[data-view-panel="backup"] #backupRestoreButton { width: 100%; }
+.admin-view[data-parent-view="settings"] .app-setting-group > .admin-btn,
 .admin-view[data-view-panel="settings"] .app-setting-group > .admin-btn { width: 100%; }
 .admin-view[data-view-panel="students"] .student-avatar { font-size: 15px; font-weight: 700; }
 
@@ -2585,40 +2620,58 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
    toned icon disc, the card leads with a two-chip summary of what is stored,
    and the delete/reset cards sit inside one labelled danger zone. Same
    counts and same confirmations as before — only the reading order changed. */
+.admin-view[data-parent-view="data"] .data-summary,
 .admin-view[data-view-panel="data"] .data-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 4px; }
+.admin-view[data-parent-view="data"] .data-summary-chip,
 .admin-view[data-view-panel="data"] .data-summary-chip {
   display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px;
   background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: 12.5px;
 }
+.admin-view[data-parent-view="data"] .data-summary-chip strong,
 .admin-view[data-view-panel="data"] .data-summary-chip strong {
   font-size: 14px; color: var(--color-text); font-variant-numeric: tabular-nums;
 }
+.admin-view[data-parent-view="data"] .data-row,
 .admin-view[data-view-panel="data"] .data-row { padding: 10px 2px; }
+.admin-view[data-parent-view="data"] .data-row-icon,
 .admin-view[data-view-panel="data"] .data-row-icon {
   display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 50%;
   background: var(--pay-disc); color: var(--pay-disc-ink);
 }
+.admin-view[data-parent-view="data"] .data-row-icon svg,
 .admin-view[data-view-panel="data"] .data-row-icon svg { width: 21px; height: 21px; }
+.admin-view[data-parent-view="data"] .data-row:nth-child(3n+2) .data-row-icon,
 .admin-view[data-view-panel="data"] .data-row:nth-child(3n+2) .data-row-icon { background: var(--tone-mint-soft); color: var(--tone-mint); }
+.admin-view[data-parent-view="data"] .data-row:nth-child(3n) .data-row-icon,
 .admin-view[data-view-panel="data"] .data-row:nth-child(3n) .data-row-icon { background: var(--tone-violet-soft); color: var(--tone-violet); }
+.admin-view[data-parent-view="data"] .data-row.is-empty .data-row-icon,
 .admin-view[data-view-panel="data"] .data-row.is-empty .data-row-icon { background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.admin-view[data-parent-view="data"] .data-row.is-empty .data-row-copy strong,
 .admin-view[data-view-panel="data"] .data-row.is-empty .data-row-copy strong { color: var(--color-text-secondary); }
+.admin-view[data-parent-view="data"] #dataRefreshButton,
 .admin-view[data-view-panel="data"] #dataRefreshButton { display: inline-flex; align-items: center; gap: 7px; }
+.admin-view[data-parent-view="data"] #dataRefreshButton svg,
 .admin-view[data-view-panel="data"] #dataRefreshButton svg { width: 16px; height: 16px; }
+.admin-view[data-parent-view="data"] .data-danger-zone,
 .admin-view[data-view-panel="data"] .data-danger-zone {
   background: var(--tone-rose-soft); border: 1px solid var(--color-border); border-radius: 24px;
   padding: 16px 14px 2px; margin-bottom: 14px;
 }
+.admin-view[data-parent-view="data"] .data-danger-zone-title,
 .admin-view[data-view-panel="data"] .data-danger-zone-title {
   display: flex; align-items: center; gap: 8px; margin: 0 2px 12px;
   font-size: 13px; font-weight: 700; color: var(--color-danger);
 }
+.admin-view[data-parent-view="data"] .data-danger-zone-icon,
 .admin-view[data-view-panel="data"] .data-danger-zone-icon { display: grid; place-items: center; flex: none; }
+.admin-view[data-parent-view="data"] .data-danger-zone-icon svg,
 .admin-view[data-view-panel="data"] .data-danger-zone-icon svg { width: 19px; height: 19px; }
+.admin-view[data-parent-view="data"] .admin-danger-icon,
 .admin-view[data-view-panel="data"] .admin-danger-icon {
   display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 50%;
   background: var(--tone-rose-soft); color: var(--tone-rose);
 }
+.admin-view[data-parent-view="data"] .admin-danger-icon svg,
 .admin-view[data-view-panel="data"] .admin-danger-icon svg { width: 20px; height: 20px; }
 
 /* 25 ── Admin dashboard (#dashboard), second pass: a haloed hero mark, a
@@ -3418,10 +3471,12 @@ html[data-theme="dark"] .app-shell .app-topbar { background: var(--pay-hero-a); 
   }
   .pay-main { display: block; }
   .staff-stats, .manager-finance-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-view[data-parent-view="profile"] .settings-group-grid,
   .admin-view[data-view-panel="profile"] .settings-group-grid { grid-template-columns: minmax(0, 1fr); }
   .admin-profile-avatar { width: 56px; height: 56px; font-size: 21px; }
   .admin-profile-hero { padding: 18px; }
   .admin-profile-hero-head .admin-profile-status { margin-left: auto; }
+  .admin-view[data-parent-view="profile"] .profile-row:nth-child(3),
   .admin-view[data-view-panel="profile"] .profile-row:nth-child(3) { grid-column: 1 / -1; }
   .admin-logout-btn, .admin-backup-action { width: 100%; text-align: center; }
   .manager-profile-list { gap: 16px; }
@@ -5295,7 +5350,6 @@ body.admin-reference .admin-view > .page-intro.admin-sub-hero {
 }
 
 body.admin-reference .admin-view .admin-hero-icon,
-body.admin-reference .admin-view .pay-back,
 body.admin-reference .admin-view[data-view-panel="dashboard"] .admin-home-summary {
   display: none !important;
 }
@@ -5685,15 +5739,14 @@ body.admin-reference #adminAcademics:not([data-open-academic-card="mapping"]) > 
   display: none !important;
 }
 
-/* Admin Profile & Settings Hub: keep 5 action cards visible and open each group right below its card */
+/* Admin Profile: the group menu and each routed detail are separate screens. */
 body.admin-reference .admin-view[data-view-panel="profile"].active {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 body.admin-reference [data-settings-hub="admin"],
-body.admin-reference [data-settings-hub="admin"] [data-settings-groups],
-body.admin-reference [data-settings-hub="admin"] [data-settings-groups][hidden] {
+body.admin-reference [data-settings-hub="admin"] [data-settings-groups]:not([hidden]) {
   display: contents !important;
 }
 body.admin-reference .admin-view[data-view-panel="profile"] > .page-intro { order: 1; }
@@ -8281,4 +8334,107 @@ body.admin-reference .admin-view[data-view-panel="dashboard"] .admin-home-intro 
 body.admin-reference .admin-view[data-view-panel="dashboard"] .admin-home-intro .admin-weekday-label {
   color: inherit;
 }
+
+/* Admin — hero cards removed (2026-10-27): compact page header without artwork */
+.admin-page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+.admin-page-header > div {
+  flex: 1;
+  min-width: 0;
+}
+.admin-page-header h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+.admin-page-header p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.admin-page-header .pay-back {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.admin-page-header .pay-back[hidden] {
+  display: none !important;
+}
+
+/* Keep the movable chat shortcut available without covering detail controls.
+   Reserve a small strip above the bottom navigation while the shortcut is shown;
+   the main area remains independently scrollable. */
+body.admin-reference #adminShell:has(> .class-chat-head:not([hidden])):has(> #adminMain > .admin-detail-view.active) > #adminMain {
+  margin-bottom: calc(var(--shell-footer-height) + 80px + var(--safe-bottom));
+}
+
+/* The shared Settings component retains its own heading for other portals;
+   Admin detail pages provide the same back action in their page header. */
+body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-group-head {
+  display: none;
+}
+}
+
+/* Admin — hero cards removed (2026-10-27): compact page header without artwork */
+.admin-page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+.admin-page-header > div {
+  flex: 1;
+  min-width: 0;
+}
+.admin-page-header h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+.admin-page-header p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.admin-page-header .pay-back {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.admin-page-header .pay-back[hidden] {
+  display: none !important;
 }

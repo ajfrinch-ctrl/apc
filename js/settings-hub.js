@@ -142,12 +142,15 @@ export function storedSize() {
 /**
  * Fill a panel's Settings surface with the canonical five groups.
  * Existing content is respected: a row is added only when its key is missing.
- * @param {{ mount: Element|string, role?: string, actions?: object, session?: object }} options
+ * @param {{ mount: Element|string, role?: string, actions?: object, session?: object, onGroupNavigate?: function }} options
  */
-export function mountSettingsHub({ mount, role = 'student', actions = {}, session = null } = {}) {
+export function mountSettingsHub({ mount, role = 'student', actions = {}, session = null, onGroupNavigate = null } = {}) {
   const root = typeof mount === 'string' ? document.querySelector(mount) : mount;
   if (!root) return { groups: [], mounted: false };
   root.dataset.settingsHub = role;
+  // Admin can route each group as a full page; other portals keep their
+  // existing local group behaviour and use the same controls and content.
+  root.__apcNavigateSettingsGroup = typeof onGroupNavigate === 'function' ? onGroupNavigate : null;
 
   const groupFor = key => {
     let section = root.querySelector(`[data-settings-group="${key}"]`);
@@ -351,13 +354,20 @@ function paintGroupHub(root) {
     const open = event.target.closest('[data-settings-open]');
     if (open) {
       const targetKey = open.dataset.settingsOpen || '';
+      if (root.__apcNavigateSettingsGroup) {
+        root.__apcNavigateSettingsGroup(targetKey);
+        return;
+      }
       const targetSection = root.querySelector(`[data-settings-group="${targetKey}"]`);
       const alreadyOpen = Boolean(targetSection && !targetSection.hidden);
       const canToggleClose = root.dataset.settingsHub === 'teacher' || root.dataset.settingsHub === 'manager' || root.dataset.settingsHub === 'admin' || root.dataset.settingsHub === 'payment';
       showGroup(canToggleClose && alreadyOpen ? '' : targetKey);
       return;
     }
-    if (event.target.closest('[data-settings-hub-back]')) showGroup('');
+    if (event.target.closest('[data-settings-hub-back]')) {
+      if (root.__apcNavigateSettingsGroup) root.__apcNavigateSettingsGroup('');
+      else showGroup('');
+    }
   });
   root.__apcShowSettingsGroup = showGroup;
 }

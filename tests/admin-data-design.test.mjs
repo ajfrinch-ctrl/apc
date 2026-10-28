@@ -15,6 +15,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
+const viewOf = (html, name) => {
+  const start = html.indexOf(`data-view-panel="${name}"`);
+  assert.notEqual(start, -1, `${name} view exists`);
+  const end = html.indexOf('data-view-panel="', start + 10);
+  return html.slice(start, end === -1 ? undefined : end);
+};
+const dataSurfaces = html => ['data', 'data-stats', 'data-danger'].map(name => viewOf(html, name)).join('\n');
 
 test('collection rows stack label over hint and end in a count pill', () => {
   const js = read('js/admin.js');
@@ -26,7 +33,7 @@ test('collection rows stack label over hint and end in a count pill', () => {
 
 test('the two destructive cards form a marked danger zone with a calm warning', () => {
   const html = read('admin.html');
-  const view = html.slice(html.indexOf('data-view-panel="data"'), html.indexOf('data-view-panel="backup"'));
+  const view = dataSurfaces(html);
   assert.equal((view.match(/admin-danger-card/g) || []).length, 2, 'both delete/reset cards are marked');
   assert.equal((view.match(/admin-danger-note/g) || []).length, 2, 'both standing warnings are calm notes');
   assert.doesNotMatch(view, /<p class="finance-error">সতর্কতা/, 'a standing warning is not painted as a form error');
@@ -39,7 +46,7 @@ test('second pass: toned collection icons, a summary strip and one labelled dang
   const html = read('admin.html');
   const js = read('js/admin.js');
   const css = read('css/ui-wallet.css');
-  const view = html.slice(html.indexOf('data-view-panel="data"'), html.indexOf('data-view-panel="backup"'));
+  const view = dataSurfaces(html);
   assert.match(view, /class="data-summary" id="dataSummary"/, 'the collections card leads with a summary strip');
   assert.match(view, /class="data-danger-zone"/, 'the destructive cards share one zone');
   assert.match(view, /class="data-danger-zone-title"/, 'the zone is labelled before any button appears');

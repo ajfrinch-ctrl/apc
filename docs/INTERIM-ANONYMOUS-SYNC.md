@@ -1,13 +1,16 @@
-# Interim anonymous cloud sync (2026-09-30, cache 118)
+# Interim anonymous cloud sync — historical notes
 
-**Status: ACTIVE, TEMPORARY. Owner decision, taken with the risk explained.**
+**Security warning (2026-10-27): this is not a safe production deployment runbook.**
+The repository still configures the legacy anonymous bridge, but the actually
+published Firebase rules have not been verified. `auth != null` does not identify
+an Admin or any app user; anonymous callers may read, overwrite and delete
+sensitive data. Supabase is also a current primary, with its own separate broad
+anonymous policies. No rule or backend is made safe by this document. Do not
+publish these interim rules or change live access without an approved, tested
+identity/data/key migration and a verified recovery plan.
 
-The app goes live today and needs cross-device sync. The secure path
-(server-verified login + per-user rules, `docs/RTDB-PER-USER-RULES-PLAN.md`)
-needs Cloud Functions on the Blaze plan and 1–2 days of work. Until that ships,
-the legacy Realtime Database bridge is re-enabled with anonymous Firebase Auth
-and **hardened `auth != null` rules**. This replaces the deny-all containment
-of `docs/CLOUD-CONTAINMENT-114.md`.
+The historical notes below explain why the anonymous bridge exists; they do
+not override this warning or represent current deployment instructions.
 
 ## What is switched on
 
@@ -35,58 +38,33 @@ reads the page source and writes a little JavaScript can:
 Nothing here is new: it is the risk the app ran with before the 2026-09-29
 containment. It is accepted only as a stop-gap.
 
-## What the hardened rules still guarantee
+## Limits of the local rule tests
 
-Verified by `tests/interim-sync-rules.test.mjs` and, for every two-device
-scenario, by the rules simulator inside the mock cloud
-(`tests/two-device-harness.mjs` → `ruleViolations` must be empty).
+`tests/interim-sync-rules.test.mjs` and the two-device mock use a rules
+simulator, not Firebase's deployed rules engine. They do not establish who the
+caller is, prevent account takeover, or prove the currently published rules.
+In particular, the previous claim that account/directory nodes cannot be deleted
+was **incorrect**: Firebase skips `.validate` on deletion, and ancestor `.write`
+grants cannot be narrowed by a child rule. Treat anonymous writes and deletes
+as possible. Even where a shape restriction or a write-only node is effective,
+it does not provide per-user authorization. Only a separately tested Firebase
+emulator/production-rule review can establish the actual engine behavior.
 
-- Signed-out clients get nothing; the database root is not readable or writable.
-- Only the known `activePlusSync/v1/*` nodes exist — any other path is refused.
-- No bulk wipe: `staffAccounts/<role>`, `staffDirectory`, `usernames` and
-  `studentAccounts/<id>` cannot be deleted, and new staff roles other than
-  admin/manager/teacher/payment cannot be created.
-- Credential records must keep their shape (`username` + `password` hash,
-  `pinHash`, `version`), exams/attempts must carry matching ids.
-- `studentAccount` (the old single-account mirror) is read-only.
-- `pushTokens` are **write-only**: no client can list device tokens.
+## Operational caution
 
-## Mitigations to do today (Firebase Console, not code)
+The previous instructions to enable anonymous access and publish the interim
+rules are withdrawn. App Check, referrer restrictions and budget alerts may
+reduce abuse but are not user authentication or a substitute for authorization;
+none is a guarantee that malicious clients are blocked. Enforcing App Check or
+changing provider/rules without compatibility testing can also stop existing
+clients. Inventory deployed configuration read-only first and obtain explicit
+owner approval for any live change. Use synthetic data in an isolated staging
+project for compatibility and adversarial tests.
 
-1. **Authentication → Sign-in method → Anonymous → Enable.** Without it every
-   request fails with `Permission denied` / `admin-restricted-operation`.
-2. **Deploy the rules** (see below). Until then the Console's current rules
-   (probably deny-all) keep sync failing.
-3. **App Check (strongly recommended):** create a reCAPTCHA v3/Enterprise
-   site key, put it in `APP_CHECK_SITE_KEY` in `firebase/firebase-config.js`,
-   bump `CACHE_VERSION` in `sw.js`, deploy, watch the App Check metrics for a
-   day, then **enforce** for Realtime Database and Authentication. This blocks
-   scripts that are not running your real site. **Do not enforce while the key
-   is empty** — every request would be rejected.
-4. **API key restriction:** Google Cloud Console → Credentials → Browser key →
-   HTTP referrers = your hosting domain(s) only.
-5. Anonymous users accumulate in Authentication → Users (one per device,
-   reused across visits). They are harmless; clean them up later, or enable
-   automatic cleanup if the project is upgraded to Identity Platform.
-6. **Budget alert** on the project so a scraping spike is noticed.
-7. Tell staff and students to use **strong, unique passwords** — the hashes are
-   readable by anyone determined.
+## Emergency pause (owner-approved incident response only)
 
-## Deploy
-
-```bash
-node tools/rtdb-rules/build-interim-rules.mjs   # regenerates database.rules.json
-firebase deploy --only database                 # firebase.json → database.rules.json
-```
-
-No CLI? Firebase Console → Realtime Database → **Rules** → paste the whole of
-`database.rules.json` → Publish. Then publish the site (hosting) so phones get
-`sw.js` cache 118.
-
-Verify: open the app on two phones, log in, create a notice on one, and see it
-arrive on the other; `firebase-diagnostics` should report `databaseRead: true`.
-
-## Emergency pause
+This is disruptive and does not secure Supabase. Back up and reconcile pending
+changes where possible; get explicit approval before making a live change.
 
 1. Console → Rules → publish `{ "rules": { ".read": false, ".write": false } }`
    (this stops every client, including old cached ones, immediately);
@@ -94,14 +72,17 @@ arrive on the other; `firebase-diagnostics` should report `databaseRead: true`.
    `CACHE_VERSION`, deploy — updated clients stop trying and show
    "ক্লাউড সিঙ্ক এই মুহূর্তে বন্ধ রাখা হয়েছে।".
 
-Local data on devices is never deleted by either step.
+Those steps do not themselves delete local device data, but they interrupt sync;
+queued changes and reconciliation must be planned before restoring service.
 
 ## Exit plan
 
-Follow `docs/RTDB-PER-USER-RULES-PLAN.md`: a callable Cloud Function verifies
-the PBKDF2 login and mints a custom token with `role`/`uid` claims, the client
-uses `signInWithCustomToken`, and `database.rules.v2.draft.json` (per-user and
-per-role, anonymous refused) replaces these rules. `tests/rtdb-v2-draft-rules.test.mjs`
-already guards that the interim file is never mistaken for the v2 draft.
-When v2 ships, delete this document's "ACTIVE" status and the anonymous branch
-in `ensureCloudAuth()`.
+The draft in `docs/RTDB-PER-USER-RULES-PLAN.md` is not a deployable cutover by
+itself. Migrate to a server-verified identity issued through trusted enrollment,
+per-user/role authorization on **both** clouds, isolated device/account keys,
+and role-scoped data projections. Do not use an anonymously writable legacy
+password hash or browser role marker as proof of identity. Inventory and
+reconcile every device, preserve backups and encrypted old records, rehearse
+with the real Firebase rules engine and Supabase staging, then obtain explicit
+approval before any live cutover. Revocation/key rotation and recovery need a
+separate tested plan; the simulator alone is not sufficient.

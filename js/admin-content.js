@@ -124,13 +124,14 @@ export async function refreshAdminContentRecords() {
 /** Bind the confirm+delete handlers once (the shell may rebuild). */
 export function initAdminContent({ toast } = {}) {
   if (typeof toast === 'function') state.toastFn = toast;
-  const section = document.querySelector('[data-view-panel="content"]');
-  if (!section || section.dataset.contentWired === '1') return;
+  const section = document.querySelector('#adminMain');
+  if (!section || !document.querySelector('[data-view-panel="content"]') || section.dataset.contentWired === '1') return;
   section.dataset.contentWired = '1';
   const say = message => { if (typeof toast === 'function') toast(message); };
   section.addEventListener('click', async event => {
     const button = event.target.closest('[data-admin-content-action]');
-    if (!button) return;
+    // The original notice/record controls now live in separate full views.
+    if (!button || !button.closest('.admin-view[data-parent-view="content"]')) return;
     const action = button.dataset.adminContentAction;
     const id = String(button.dataset.id || '');
     if (!id) return;

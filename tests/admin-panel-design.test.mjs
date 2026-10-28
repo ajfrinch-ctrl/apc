@@ -30,8 +30,8 @@ test('hub rows end in a chevron icon, never a text arrow, and the audit view use
   const audit = viewOf('audit');
   assert.match(audit, /data-icon="back"/, 'the audit back button is the shared svg');
   assert.doesNotMatch(audit, />←<\/button>/, 'no text back arrow');
-  assert.ok(audit.includes('id="gradeAuditList"') && audit.includes('id="adminExamWorkspace"'),
-    'both audit surfaces stay mounted, now inside cards');
+  assert.ok(viewOf('audit-log').includes('id="gradeAuditList"') && viewOf('audit-exam').includes('id="adminExamWorkspace"'),
+    'both audit surfaces stay mounted in their dedicated detail views');
 });
 
 test('audit entries and role chips are styled surfaces, painted from tokens', () => {
@@ -59,17 +59,12 @@ test('Admin Home keeps its text-only welcome while the other 16 views retain the
   const allPanels = ['dashboard', 'staff', 'system', 'migration', 'roles', 'students', 'reports', 'data', 'backup', 'audit', 'security', 'academics', 'settings', 'more', 'profile', 'content', 'advice'];
   for (const panel of allPanels) {
     const chunk = viewOf(panel);
-    if (panel === 'dashboard') {
-      assert.doesNotMatch(chunk, /teacher-hero-scene|data-admin-hero-art|data-hero-card=/,
-        'Home never loads the large 3D illustration');
-    } else {
-      assert.match(chunk, /teacher-hero-scene/, `${panel} still has a 3D hero scene`);
-      assert.match(chunk, /data-admin-hero-art/, `${panel} still has a 3D hero art image`);
-      assert.match(chunk, /data-hero-card=/, `${panel} still has a hero card key`);
-    }
-    assert.match(chunk, /teacher-hero-date-pill/, `${panel} has top-right weekday·date pill`);
-    assert.match(chunk, /teacher-hero-glint/, `${panel} has top-right sun/moon glint`);
-    assert.match(chunk, /data-admin-hero-advice=/, `${panel} has daily rotating advice`);
+    // Hero cards removed from Admin Panel (2026-10-27): no panel loads the large 3D illustration
+    assert.doesNotMatch(chunk, /teacher-hero-scene|data-admin-hero-art|data-hero-card=/,
+      `${panel} no longer loads the large 3D illustration (hero card removed)`);
+    // Date pill / glint / hero advice were part of the hero card and are also removed
+    assert.doesNotMatch(chunk, /teacher-hero-scene|teacher-hero-date-pill|teacher-hero-glint|data-admin-hero-advice=/,
+      `${panel} has no hero artwork remnants`);
   }
   const actionCardCount = (html.match(/teacher-action-card/g) || []).length;
   assert.ok(actionCardCount >= 30, `admin.html has horizontal .teacher-action-card buttons (${actionCardCount})`);

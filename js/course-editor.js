@@ -13,7 +13,7 @@
    The student app reads the same records through js/course-hub.js. */
 
 import { iconMarkup } from './icons.js';
-import { classByName, listClasses, subjectsForClass } from './academics.js';
+import { classByName, listClasses, subjectsForClass, keyOf } from './academics.js';
 import { assignedClasses, subjectsForTeacherClass, listTeacherAssignments, isTeacherAssignedSubject } from './teacher-assignments.js';
 import { loadRoster } from './office-data.js';
 import { sanitizeRichHtml } from './rich-sanitize.js';
@@ -180,13 +180,10 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
             ${record ? '<button class="mini-btn" type="button" data-course-cancel>নতুন কিছু লিখুন</button>' : ''}</header>
           ${classes.length ? '' : '<p class="admin-empty">আপনার জন্য এখনো কোনো ক্লাস বরাদ্দ হয়নি — ম্যানেজার থেকে ক্লাস ও বিষয় নিন।</p>'}
           <label>ক্লাস<select name="className"${classes.length ? '' : ' disabled'}>${classes.map(item => `<option value="${esc(item.name)}"${item.name === className ? ' selected' : ''}>${esc(item.name)}</option>`).join('')}</select></label>
-          <label>বিষয়<select name="subject"${subjects.length ? '' : ' disabled'}>${subjects.map(name => `<option value="${esc(name)}"${name === pickedSubject ? ' selected' : ''}>${esc(name)}</option>`).join('')}</select></label>
+          <label>বিষয়<input type="text" name="subject" list="subject-datalist"${subjects.length ? '' : ' disabled'} value="${esc(pickedSubject || '')}"><datalist id="subject-datalist">${subjects.map(name => `<option value="${esc(name)}">`).join('')}</datalist></label>
           <label>ব্যাচ / গ্রুপ<select name="group"${scopes.length ? '' : ' disabled'}>${scopes.map(item => `<option value="${esc(item.value)}"${item.value === pickedGroup ? ' selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label>
           <label>ধরন<select name="type">${typeOptions(record ? typeOf(record) : 'lesson')}</select></label>
-          <label>চ্যাপ্টার<select name="chapterId"${isChapter ? ' disabled' : ''}>
-            <option value="">চ্যাপ্টার ছাড়া</option>
-            ${chapters.map(chapter => `<option value="${esc(chapter.id)}"${record?.chapterId === chapter.id ? ' selected' : ''}>${esc(chapter.title)}</option>`).join('')}
-          </select></label>
+          <label>অধ্যায়<input type="text" name="chapterName" list="chapter-datalist"${isChapter ? ' disabled' : ''} value="${esc(record?.chapterName || '')}"><datalist id="chapter-datalist">${chapters.map(chapter => `<option value="${esc(chapter.title)}">`).join('')}</datalist></label>
           <label>শিরোনাম<input name="title" maxlength="160" required value="${esc(record?.title || '')}"></label>
           <label>সংক্ষিপ্ত বর্ণনা<input name="description" maxlength="600" value="${esc(record?.description || '')}"></label>
           <div class="course-rich-field"><span class="course-rich-label">লেকচার শিট / মূল লেখা</span><div class="course-rich-toolbar" role="toolbar" aria-label="লেখার ফরম্যাট"><button type="button" data-rich-command="bold" aria-label="মোটা লেখা"><strong>B</strong></button><button type="button" data-rich-command="italic" aria-label="তির্যক লেখা"><em>I</em></button><button type="button" data-rich-command="insertUnorderedList">• তালিকা</button><button type="button" data-rich-command="insertOrderedList">১. তালিকা</button><button type="button" data-rich-command="formatBlock" data-rich-value="h2">শিরোনাম</button><button type="button" data-rich-command="removeFormat">ফরম্যাট পরিষ্কার</button></div><div class="course-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-rich-editor>${record?.richContent ? sanitizeRichHtml(record.richContent) : esc(record?.content || '').replace(/\n/g, '<br>')}</div><textarea name="content" hidden>${esc(record?.content || '')}</textarea><input type="hidden" name="richContent" value="${esc(record?.richContent || '')}"><small class="form-note">Word/Google Docs থেকে কপি করে এখানে পেস্ট করুন। ফরম্যাট রাখা হবে; নিরাপদ নয় এমন কোড বাদ যাবে।</small></div>
@@ -241,13 +238,44 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
     event.preventDefault();
     const data = new FormData(form);
     const className = String(data.get('className') || '');
-    const subjectName = String(data.get('subject') || '');
+    const subjectName = String(data.get('subject') || '').trim();
+    const chapterName = String(data.get('chapterName') || '').trim();
     const academic = classByName(className);
-    const subject = subjectsForClass(className).find(item => item.name === subjectName);
-    if (!academic || !subject) { say('আগে ক্লাস ও বিষয় নির্বাচন করুন।', true); return; }
+    if (!academic) { say('আগে ক্লাস নির্বাচন করুন।', true); return; }
+    const subject = subjectsForClass(className).find(item => keyOf(item.name) === keyOf(subjectName));
+    if (!subject) { say('এই ক্লাসের জন্য এই বিষয় পাওয়া যায়নি। আগে বিষয় বেছে নিন অথবা ম্যানেজারের সংস্পর্শে আসুন।', true); return; }
     if (role === 'teacher' && !subjectOptions(className).includes(subjectName)) {
-      say('এই ক্লাস বা বিষয় আপনার জন্য বরাদ্দ নয় — ম্যানেজারের সঙ্গে কথা বলুন।', true);
+      say('এই ক্লাস বা বিষয় আপনার জন্য বরাদ্দ নয় — ম্যানেজারের সঙ্গে কথা বলুন।', true);
       return;
+    }
+    // অধ্যায় রেকর্ড খুঁজে বের করুন, না পেলে কনটেন্ট store-এ তৈরি করুন
+    let chapterRecord = null;
+    if (chapterName) {
+      chapterRecord = staffRecords.find(item => typeOf(item) === 'chapter'
+        && keyOf(item.title || '') === keyOf(chapterName)
+        && item.classId === academic.id && item.subjectId === subject.id && item.active !== false);
+      if (!chapterRecord) {
+        try {
+          chapterRecord = await saveCourseRecord({
+            id: '',
+            classId: academic.id,
+            subjectId: subject.id,
+            chapterId: '',
+            type: 'chapter',
+            title: chapterName,
+            description: '',
+            content: '',
+            richContent: '',
+            attachmentUrl: '',
+            published: false,
+            createdBy: actor,
+            active: true
+          }, { actor, role });
+        } catch (error) {
+          say('অধ্যায় তৈরি করা যায়নি: ' + (error?.message || 'অজানা ত্রুটি'), true);
+          return;
+        }
+      }
     }
     try {
       const saved = await saveCourseRecord({
@@ -255,7 +283,9 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
         classId: academic.id,
         subjectId: subject.id,
         group: String(data.get('group') || ''),
-        chapterId: String(data.get('chapterId') || ''),
+        chapterId: chapterRecord?.id || '',
+        chapterName: chapterName,
+        subjectName: subjectName,
         type: String(data.get('type') || 'lesson'),
         title: String(data.get('title') || ''),
         description: String(data.get('description') || ''),

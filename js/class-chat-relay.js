@@ -60,6 +60,8 @@ function subtleCrypto() {
   return cryptoObj && cryptoObj.subtle ? cryptoObj.subtle : null;
 }
 
+// Only used for a non-authenticating local relay device identifier. Never use
+// this fallback for keys or nonces: AES-GCM requires a cryptographic RNG.
 function randomBytes(length) {
   const bytes = new Uint8Array(length);
   if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function') {
@@ -68,6 +70,12 @@ function randomBytes(length) {
   }
   for (let i = 0; i < length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
   return bytes;
+}
+
+function secureIv() {
+  const api = globalThis.crypto;
+  if (!api || typeof api.getRandomValues !== 'function') throw new Error('Secure random source unavailable');
+  return api.getRandomValues(new Uint8Array(12));
 }
 
 const toHex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
@@ -154,7 +162,7 @@ export async function encryptChatPayload(kind, roomKey, recordId, payload, { sec
   const key = await deriveRoomAesKey(roomKey, secretSeed);
   const subtle = subtleCrypto();
   if (!key || !subtle) throw new Error('Web Crypto AES-256-GCM unavailable');
-  const iv = randomBytes(12);
+  const iv = secureIv();
   const encoded = new TextEncoder().encode(JSON.stringify(payload));
   const encrypted = await subtle.encrypt(
     { name: 'AES-GCM', iv, additionalData: aadBytes(kind, roomKey, recordId) },

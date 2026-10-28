@@ -167,8 +167,10 @@ test('Admin Panel Phonebook (#phonebook) mounts Yellow Pages class groups, staff
   // Switch to Staff Directory tab
   ctx.click(mount.querySelector('[data-yp-tab="staff"]'));
   await ctx.waitFor(() => mount.querySelectorAll('[data-yp-staff-card]').length >= 1);
-  assert.match(mount.textContent, /মাহমুদ স্যার/);
-  assert.ok(mount.querySelector('a.yp-action-btn.is-call[href="tel:+8801677889900"]'));
+  assert.match(mount.textContent, /গোপন তথ্য/);
+  assert.doesNotMatch(mount.textContent, /মাহমুদ স্যার|01677889900/, 'the open staff directory masks identity');
+  assert.ok(mount.querySelector('a.yp-action-btn.is-call[href="tel:+8801677889900"]'),
+    'the contact action still targets the correct number');
 
   ctx.window.close();
 });

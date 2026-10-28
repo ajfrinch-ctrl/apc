@@ -563,7 +563,7 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
 
   // Audit remaining views for full-width .teacher-action-card cards & hidden primary data by default
   assert.equal($$('#teacherOnlineExams .teacher-action-card').length, 6, 'পরীক্ষা uses 6 full-width action cards');
-  assert.equal($$('#teacherAcademic .teacher-action-card').length, 6, 'একাডেমিক uses 6 full-width action cards');
+  assert.equal($$('#teacherAcademic .teacher-action-card').length, 7, 'একাডেমিক uses 7 full-width action cards (includes নতুন লেকচার শিট button)');
   assert.equal($$('#teacherRecords .teacher-action-card').length, 2, 'রেকর্ডস uses 2 full-width action cards');
   assert.equal($$('#teacherNotice .teacher-action-card').length, 2, 'নোটিশ uses 2 full-width action cards');
   assert.equal($$('#teacherRoutine .teacher-action-card').length, 2, 'রুটিন uses 2 full-width action cards');

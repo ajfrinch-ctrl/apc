@@ -466,6 +466,20 @@ function createMemoryStorage() {
   };
 }
 
+test('chat AES-GCM fails closed instead of using Math.random for its nonce', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  const subtle = globalThis.crypto.subtle;
+  try {
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { subtle } });
+    await assert.rejects(
+      encryptChatPayload('message', 'class_random_test', 'MSG-rng', { text: 'synthetic' }),
+      /Secure random source unavailable/
+    );
+  } finally {
+    Object.defineProperty(globalThis, 'crypto', descriptor);
+  }
+});
+
 test('7. End-to-End AES-256-GCM encrypted Firebase relay delivers across devices and auto-deletes once received', async () => {
   assert.equal(CLASS_CHAT_RELAY_TTL_DAYS, 7, 'Firebase relay TTL is set to 7 days');
   assert.equal(CLASS_CHAT_RELAY_TTL_MS, 7 * 24 * 60 * 60 * 1000);

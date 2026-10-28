@@ -34,8 +34,9 @@ import { registerServiceWorker } from './service-worker.js';
 import { initFixedShell } from './fixed-shell.js';
 import { escapeHtml } from './sanitize.js';
 import { matchesStudentQuery } from './student-search.js';
-import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT } from './admin-permissions.js';
+import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT, DETAIL_VIEW_PARENTS } from './admin-permissions.js';
 import { rememberRoute, onRouteChange } from './panel-route.js';
+import { activateAdminDetail, placeRenderedDetails } from './admin-detail-views.js';
 import { openRegistrationReview, DECIDED_EVENT, listPendingRegistrations, pendingQueueMarkup, bindPendingQueueActions } from './registration-review.js';
 import { initAdminPanelShell } from './admin-panel-ui.js';
 import { paintIcon } from './icons.js';
@@ -53,6 +54,8 @@ import { initStaffManagement, renderStaff } from './staff-management.js';
 import { initAdminContent, refreshAdminContentRecords } from './admin-content.js';
 import { ROLE_CAPABILITIES } from './admin-permissions.js';
 import { runMigrations } from './storage/migration.js';
+import { encryptBackupData, decryptBackupData, validBackupPassphrase } from './backup-crypto.js';
+import { prepareBackupRestore, applyBackupRestore } from './backup-restore.js';
 
 initFixedShell();
 registerServiceWorker();
@@ -144,7 +147,8 @@ async function enterPanel() {
   mountSettingsHub({
     mount: '[data-settings-hub="admin"]',
     role: 'admin',
-    session: { value: 'নিরাপত্তা নীতি অনুযায়ী সেশন', hint: 'ডিভাইস-বাউন্ড সেশন' }
+    session: { value: 'নিরাপত্তা নীতি অনুযায়ী সেশন', hint: 'ডিভাইস-বাউন্ড সেশন' },
+    onGroupNavigate: key => key ? navigate(`profile-${key}`) : navigateBack('profile')
   });
   paintAdminSettingsDoors();
   mountReports($('#adminReports'), { panel: 'admin' });
@@ -194,18 +198,15 @@ const seatFor = view => VIEW_SEAT[view] || view;
  * shortcut, tile and hash link.
  */
 function resetAdminTogglePanels(scope = document) {
-  scope.querySelectorAll('[data-admin-section-toggle], [data-admin-student-card], [data-role-toggle], [data-security-toggle], [data-admin-migration-card], [data-admin-academic-card]').forEach(btn => {
+  // Staff, Student and Reports retain their existing local secondary controls.
+  // The More/System primary sections are now separate views, not toggles.
+  scope.querySelectorAll('[data-admin-section-toggle], [data-admin-student-card]').forEach(btn => {
     btn.classList.remove('is-open');
     btn.setAttribute('aria-expanded', 'false');
   });
-  scope.querySelectorAll('[data-admin-section-panel], #adminStudentsDirectoryPanel, [data-role-panel], [data-security-panel]').forEach(panel => {
+  scope.querySelectorAll('[data-admin-section-panel], #adminStudentsDirectoryPanel').forEach(panel => {
     panel.hidden = true;
   });
-  scope.querySelectorAll('#adminV2Migration .v2-migration-card').forEach(card => {
-    card.classList.remove('is-open');
-  });
-  const academicsRoot = scope.querySelector('#adminAcademics');
-  if (academicsRoot) delete academicsRoot.dataset.openAcademicCard;
 }
 
 function syncAdminHeroCards() {
@@ -280,21 +281,26 @@ function openDefaultPrimarySection(target) {
       }
       reportPanel.hidden = false;
     }
-  } else if (target === 'content') {
-    const lsToggle = $('[data-admin-section-toggle="lecture-sheets"]');
-    const lsPanel = $('[data-admin-section-panel="lecture-sheets"]');
-    if (lsToggle && lsPanel) {
-      lsToggle.classList.add('is-open');
-      lsToggle.setAttribute('aria-expanded', 'true');
-      lsPanel.hidden = false;
-    }
   }
 }
 
-function setView(view) {
+const ADMIN_HISTORY_KEY = '__apcAdminNavigation';
+
+function adminHistoryState(previous, clearBack = false) {
+  const current = window.history.state;
+  const next = current && typeof current === 'object' ? { ...current } : {};
+  if (clearBack) delete next[ADMIN_HISTORY_KEY];
+  else next[ADMIN_HISTORY_KEY] = { previous };
+  return next;
+}
+
+function setView(view, { history = 'replace', clearBack = false } = {}) {
   const target = String(view || '').trim();
   if (!access.allowsView(target)) return false;
   if (!$$('.admin-view').some(panel => panel.dataset.viewPanel === target)) return false;
+  const previous = state.activeView;
+  // Rehome existing mounted controls only after the permission/route guard.
+  activateAdminDetail(target);
   state.activeView = target;
   $('#adminShell')?.classList.toggle('is-chat-fullscreen', target === 'class-chat');
   $('#adminMain')?.classList.toggle('is-staff-view', target === 'staff');
@@ -302,13 +308,19 @@ function setView(view) {
   $$('.admin-view').forEach(panel => {
     const active = panel.dataset.viewPanel === target;
     panel.classList.toggle('active', active);
+    panel.hidden = !active;
     if (active) resetAdminTogglePanels(panel);
   });
-  // Guard: ensure only the target stays active (fixes “More stays visible” when
-  // a stylesheet or a stale active class leaves two panels visible).
+  // Guard: ensure only the target stays active and visible (fixes “More stays
+  // visible” when a stylesheet or a stale active class leaves two panels
+  // visible). Mirrors Student js/shell.js which uses hidden+active together.
   const actives = $$('.admin-view.active');
   if (actives.length !== 1 || actives[0]?.dataset.viewPanel !== target) {
-    $$('.admin-view').forEach(panel => panel.classList.toggle('active', panel.dataset.viewPanel === target));
+    $$('.admin-view').forEach(panel => {
+      const isTarget = panel.dataset.viewPanel === target;
+      panel.classList.toggle('active', isTarget);
+      panel.hidden = !isTarget;
+    });
   }
   openDefaultPrimarySection(target);
   if (target === 'class-chat') mountAdminClassChat();
@@ -322,9 +334,11 @@ function setView(view) {
     else item.removeAttribute('aria-current');
   });
   $('#adminMain').scrollTo({ top: 0, behavior: 'instant' });
-  // The open page is remembered in the URL: a refresh reopens it, not the
-  // first permitted tab.
-  rememberRoute(target);
+  // User navigation pushes an entry like Student; startup replaces, and a
+  // browser history traversal keeps the entry it is restoring.
+  const historyState = history === 'push' ? adminHistoryState(previous)
+    : clearBack ? adminHistoryState('', true) : undefined;
+  rememberRoute(target, { mode: history, state: historyState });
   return true;
 }
 
@@ -334,12 +348,12 @@ function setView(view) {
  * anything moves, so an unauthorised destination can never be opened — not even
  * by a hand-typed URL or a stale bookmark.
  */
-function navigate(view, source) {
+function navigate(view, source = null, { history = 'push', clearBack = false } = {}) {
   const target = String(view || '').trim();
   if (!access.allowsView(target)) {
     toast('এই বিভাগে প্রবেশের অনুমতি আপনার Role-এ নেই।');
     const fallback = access.defaultView();
-    setView(fallback);
+    setView(fallback, { history: 'replace', clearBack: true });
     refreshView(fallback);
     return false;
   }
@@ -353,12 +367,9 @@ function navigate(view, source) {
     $$('#studentFilterChips .chip').forEach(chip => chip.classList.toggle('active', chip.dataset.studentFilter === 'pending'));
     renderStudents();
   }
-  if (!setView(target)) return false;
+  if (!setView(target, { history, clearBack })) return false;
   // Fresh data every activation — never a stale snapshot from an earlier visit.
   refreshView(target);
-  const activePanel = $('.admin-view.active');
-  if (activePanel) resetAdminTogglePanels(activePanel);
-  openDefaultPrimarySection(target);
   if (target === 'students' && source?.dataset?.studentScope === 'pending') {
     const pendingCard = $('[data-admin-student-card="pending"]');
     const stuPanel = $('#adminStudentsDirectoryPanel');
@@ -373,12 +384,25 @@ function navigate(view, source) {
       stuPanel.hidden = false;
     }
   }
-  if (source?.matches?.('.admin-more-item, .admin-more-back, .admin-bottom-item')) {
+  if (source) {
     const heading = $('.admin-view.active h1');
     heading?.setAttribute('tabindex', '-1');
     heading?.focus({ preventScroll: true });
   }
   return true;
+}
+
+/** Return to the actual previous in-panel entry. A directly opened/bookmarked
+ *  detail has no such entry, so its declared parent is the safe fallback. */
+function navigateBack(fallback) {
+  const previous = window.history.state?.[ADMIN_HISTORY_KEY]?.previous;
+  if (previous && previous !== state.activeView && routeFromHash(`#${previous}`)
+      && access.allowsView(previous) && viewExists(previous)) {
+    window.history.back();
+    return;
+  }
+  navigate(fallback || DETAIL_VIEW_PARENTS[state.activeView] || access.defaultView(), null,
+    { history: 'replace', clearBack: true });
 }
 
 /* ---------- Dashboard ---------- */
@@ -433,8 +457,11 @@ function renderDashboard() {
       weekdayNode.textContent = `${wd} · `;
     }
   }
-  $('#adminTodayDate').textContent = dateLabel(today);
-  $('#adminTodayDate').dateTime = dateKey;
+  const todayDateEl = $('#adminTodayDate');
+  if (todayDateEl) {
+    todayDateEl.textContent = dateLabel(today);
+    todayDateEl.dateTime = dateKey;
+  }
   const adviceNode = $('#adminHeroAdvice');
   if (adviceNode) {
     const items = readAdviceCache()?.items || DAILY_ADVICE_SEEDS;
@@ -941,13 +968,13 @@ function renderRoles() {
     const subText = `${ROLE_SUMMARY[role] || ''} (${countText})`;
     const iconName = ROLE_ICONS[role] || 'shield';
     return `
-      <button class="teacher-action-card${index === 0 ? ' is-accent' : ''}" type="button" data-role-toggle="${escapeHtml(role)}" aria-expanded="false">
+      <button class="teacher-action-card${index === 0 ? ' is-accent' : ''}" type="button" data-admin-view="roles-${escapeHtml(role)}">
         <span class="teacher-action-body">
           <span class="teacher-action-title pay-tile-label" data-action-sub="${escapeHtml(subText)}">${escapeHtml(label)} রোল ও অনুমতি</span>
         </span>
         <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup(iconName, 'apc-color-icon', { variant: 'color' })}</span>
       </button>
-      <article class="admin-card role-card admin-toggle-panel" data-role-panel="${escapeHtml(role)}" hidden>
+      <article class="admin-card role-card" data-role-panel="${escapeHtml(role)}" hidden>
         <header class="admin-card-head">
           <div>
             <p class="eyebrow">${escapeHtml(role === 'student' ? 'Student' : meta ? meta.label : role)}</p>
@@ -966,6 +993,7 @@ function renderRoles() {
   host.querySelectorAll('.role-card').forEach((card, index) => {
     paintIcon(card.querySelector('.role-icon'), ROLE_ICONS[ROLE_ORDER[index]] || 'shield', 'role-icon-svg');
   });
+  placeRenderedDetails(host, 'role-panel', 'roles');
 }
 
 /* ---------- Data Management ---------- */
@@ -1035,7 +1063,7 @@ function renderDataManagement() {
   }
   paintIcon($('#dataRefreshButton .apc-icon'), 'sync', 'apc-icon');
   paintIcon($('.data-danger-zone-icon'), 'warning', 'apc-icon');
-  document.querySelectorAll('[data-view-panel="data"] .admin-danger-icon')
+  document.querySelectorAll('[data-view-panel="data-danger"] .admin-danger-icon')
     .forEach((el, index) => paintIcon(el, index === 0 ? 'delete' : 'warning', 'apc-icon'));
   const note = $('#dataStorageNote');
   if (note) note.textContent = storageNote();
@@ -1171,93 +1199,23 @@ function backupFileName() {
   return `APC-backup-${new Date().toISOString().slice(0, 10)}.json`;
 }
 
-const BACKUP_SECRET = 'active-plus-backup-aes-256-gcm-v2-institutional-seal';
-const BACKUP_PBKDF2_ITERATIONS = 100000;
-
-function bytesToBase64(bytes) {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-function base64ToBytes(text) {
-  const binary = atob(String(text || ''));
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
-}
-
-async function deriveBackupCryptoKey(saltBytes, usages) {
-  const subtle = globalThis.crypto?.subtle || window.crypto?.subtle;
-  const baseKey = await subtle.importKey(
-    'raw',
-    new TextEncoder().encode(BACKUP_SECRET),
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
-  return subtle.deriveKey(
-    { name: 'PBKDF2', salt: saltBytes, iterations: BACKUP_PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    baseKey,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    usages
-  );
-}
-
-async function encryptBackupPayload(data, createdAt = new Date().toISOString()) {
-  const cryptoApi = globalThis.crypto || window.crypto;
-  const salt = cryptoApi.getRandomValues(new Uint8Array(16));
-  const iv = cryptoApi.getRandomValues(new Uint8Array(12));
-  const key = await deriveBackupCryptoKey(salt, ['encrypt']);
-  const encoded = new TextEncoder().encode(JSON.stringify(data));
-  const cipherBuffer = await cryptoApi.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-  return {
-    kind: 'active-plus-backup',
-    version: 2,
-    encrypted: true,
-    algorithm: 'AES-256-GCM',
-    kdf: 'PBKDF2-SHA256',
-    iterations: BACKUP_PBKDF2_ITERATIONS,
-    createdAt,
-    salt: bytesToBase64(salt),
-    iv: bytesToBase64(iv),
-    ciphertext: bytesToBase64(new Uint8Array(cipherBuffer))
-  };
-}
-
-async function decryptBackupPayload(payload) {
-  if (!payload || payload.kind !== 'active-plus-backup') {
-    throw new Error('INVALID_BACKUP_KIND');
-  }
-  if (payload.encrypted === true || payload.version === 2) {
-    if (typeof payload.salt !== 'string' || typeof payload.iv !== 'string' || typeof payload.ciphertext !== 'string') {
-      throw new Error('INVALID_ENCRYPTED_BACKUP');
-    }
-    const salt = base64ToBytes(payload.salt);
-    const iv = base64ToBytes(payload.iv);
-    const cipherBytes = base64ToBytes(payload.ciphertext);
-    if (salt.length < 8 || iv.length !== 12 || cipherBytes.length <= 16) {
-      throw new Error('INVALID_ENCRYPTED_BACKUP');
-    }
-    const key = await deriveBackupCryptoKey(salt, ['decrypt']);
-    const cryptoApi = globalThis.crypto || window.crypto;
-    const plainBuffer = await cryptoApi.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes);
-    const data = JSON.parse(new TextDecoder().decode(plainBuffer));
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      throw new Error('INVALID_DECRYPTED_DATA');
-    }
-    return data;
-  }
-  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
-    return payload.data;
-  }
-  throw new Error('INVALID_BACKUP_DATA');
-}
-
 async function exportBackup() {
   if (!access.has(CAPABILITIES.BACKUP_MANAGE)) {
     toast('ব্যাকআপ শুধু অ্যাডমিন নিতে পারবেন।');
+    return;
+  }
+  const status = $('#backupExportStatus');
+  const passInput = $('#backupExportPassphrase');
+  const confirmInput = $('#backupExportPassphraseConfirm');
+  const passphrase = passInput?.value || '';
+  if (!validBackupPassphrase(passphrase)) {
+    if (status) status.textContent = 'অন্তত ১২ অক্ষরের একটি ব্যাকআপ পাসফ্রেজ দিন।';
+    passInput?.focus();
+    return;
+  }
+  if (passphrase !== confirmInput?.value) {
+    if (status) status.textContent = 'দুটি ব্যাকআপ পাসফ্রেজ মিলছে না।';
+    confirmInput?.focus();
     return;
   }
   const data = {};
@@ -1265,8 +1223,11 @@ async function exportBackup() {
     const raw = window.localStorage.getItem(key);
     if (raw !== null) data[key] = raw;
   }
+  const button = $('#backupExportButton');
+  if (button) button.disabled = true;
+  if (status) status.textContent = 'এনক্রিপ্টেড ব্যাকআপ তৈরি হচ্ছে…';
   try {
-    const payload = await encryptBackupPayload(data);
+    const payload = await encryptBackupData(data, { passphrase });
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1277,10 +1238,16 @@ async function exportBackup() {
     link.remove();
     URL.revokeObjectURL(url);
     writeJSON(BACKUP_STAMP_KEY, new Date().toISOString());
+    if (passInput) passInput.value = '';
+    if (confirmInput) confirmInput.value = '';
+    if (status) status.textContent = 'ব্যাকআপ তৈরি হয়েছে। পাসফ্রেজটি নিরাপদে রাখুন; এটি ছাড়া নতুন ব্যাকআপ রিস্টোর করা যাবে না।';
     renderBackup();
     toast('এনক্রিপ্টেড ব্যাকআপ ডাউনলোড শুরু হয়েছে');
   } catch {
+    if (status) status.textContent = 'ব্যাকআপ তৈরি করা যায়নি — ব্রাউজারের ডাউনলোড অনুমতি পরীক্ষা করুন।';
     toast('ব্যাকআপ তৈরি করা যায়নি — ব্রাউজারের ডাউনলোড অনুমতি পরীক্ষা করুন।');
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
@@ -1302,20 +1269,35 @@ async function restoreBackup(file) {
     if (status) status.textContent = 'এই ফাইলটি Active Plus ব্যাকআপ নয়।';
     return;
   }
+  const passInput = $('#backupRestorePassphrase');
+  if (payload.version === 3 && !validBackupPassphrase(passInput?.value || '')) {
+    if (status) status.textContent = 'এই ব্যাকআপের পাসফ্রেজ দিন, তারপর রিস্টোর চাপুন।';
+    passInput?.focus();
+    return;
+  }
   let backupData;
   try {
-    backupData = await decryptBackupPayload(payload);
+    backupData = await decryptBackupData(payload, { passphrase: passInput?.value || '' });
+    if (passInput) passInput.value = '';
   } catch {
     if (status) {
-      status.textContent = payload?.encrypted || payload?.version === 2
-        ? 'ব্যাকআপ ফাইলটি ক্ষতিগ্রস্ত বা পরিবর্তিত হয়েছে (ডিক্রিপ্ট করা যায়নি)।'
-        : 'এই ফাইলটি Active Plus ব্যাকআপ নয়।';
+      status.textContent = payload?.version === 3
+        ? 'পাসফ্রেজ ভুল অথবা ব্যাকআপ ফাইলটি ক্ষতিগ্রস্ত (ডিক্রিপ্ট করা যায়নি)।'
+        : payload?.encrypted || payload?.version === 2
+          ? 'ব্যাকআপ ফাইলটি ক্ষতিগ্রস্ত বা পরিবর্তিত হয়েছে (ডিক্রিপ্ট করা যায়নি)।'
+          : 'এই ফাইলটি Active Plus ব্যাকআপ নয়।';
     }
     return;
   }
-  const keys = Object.keys(backupData);
+  let entries;
+  try {
+    entries = prepareBackupRestore(backupData, BACKUP_KEYS);
+  } catch {
+    if (status) status.textContent = 'ব্যাকআপের সংগ্রহগুলো সঠিক ফরম্যাটে নেই; কোনো ডেটা বদলানো হয়নি।';
+    return;
+  }
   openModal('Backup & Restore', 'ব্যাকআপ ফিরিয়ে আনবেন?', `
-    <p class="staff-confirm-copy">এই ফাইলে <strong>${bn(keys.length)}</strong>টি সংগ্রহ আছে (${escapeHtml(String(payload.createdAt || '').slice(0, 10))})। রিস্টোর করলে বর্তমান ডেটা এই তথ্য দিয়ে বদলে যাবে।</p>
+    <p class="staff-confirm-copy">এই ফাইলে <strong>${bn(entries.length)}</strong>টি সংগ্রহ আছে (${escapeHtml(String(payload.createdAt || '').slice(0, 10))})। রিস্টোর করলে বর্তমান ডেটা এই তথ্য দিয়ে বদলে যাবে।</p>
     <div class="modal-actions">
       <button class="admin-btn ghost" type="button" data-modal-action="close">বাতিল</button>
       <button class="admin-btn primary" type="button" data-modal-action="restore">রিস্টোর করুন</button>
@@ -1323,14 +1305,14 @@ async function restoreBackup(file) {
   $('#adminModalBody [data-modal-action="restore"]')?.addEventListener('click', async () => {
     closeModal();
     try {
-      for (const [key, value] of Object.entries(backupData)) {
-        if (BACKUP_KEYS.includes(key)) window.localStorage.setItem(key, String(value));
-      }
-    } catch {
-      if (status) status.textContent = 'রিস্টোর করা যায়নি — স্টোরেজ পরীক্ষা করুন।';
+      applyBackupRestore(window.localStorage, entries);
+    } catch (error) {
+      if (status) status.textContent = error?.message === 'BACKUP_RESTORE_ROLLBACK_FAILED'
+        ? 'রিস্টোর ও আগের ডেটা ফেরানো সম্পূর্ণ হয়নি — স্টোরেজ পরীক্ষা করুন এবং অন্য ব্যাকআপ ব্যবহার করুন।'
+        : 'রিস্টোর করা যায়নি — স্টোরেজ পরীক্ষা করুন।';
       return;
     }
-    if (status) status.textContent = `${bn(keys.length)}টি সংগ্রহ ফিরিয়ে আনা হয়েছে।`;
+    if (status) status.textContent = `${bn(entries.length)}টি সংগ্রহ ফিরিয়ে আনা হয়েছে।`;
     toast('ব্যাকআপ থেকে ডেটা ফিরিয়ে আনা হয়েছে');
     window.setTimeout(() => window.location.reload(), 1200);
   });
@@ -1356,13 +1338,13 @@ async function renderSecurity() {
     ['শিক্ষার্থী আইডি বনাম স্টাফ আইডি', escapeHtml(STAFF_DIRECTORY_RULES.studentIdNote)]
   ];
   host.innerHTML = `
-    <button class="teacher-action-card is-accent" type="button" data-security-toggle="owner" aria-expanded="false">
+    <button class="teacher-action-card is-accent" type="button" data-admin-view="security-owner">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="সিস্টেম মালিক, সেশন মেয়াদ ও পাসওয়ার্ড নীতিমালা দেখুন">এডমিন পরিচয় ও সিস্টেম সুরক্ষা</span>
       </span>
       <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup('shield', 'apc-color-icon', { variant: 'color' })}</span>
     </button>
-    <article class="admin-card admin-toggle-panel" data-security-panel="owner" hidden>
+    <article class="admin-card" data-security-panel="owner" hidden>
       <header class="admin-card-head">
         <div><p class="eyebrow">সিস্টেম মালিক</p><h2>এডমিন পরিচয় ও সুরক্ষা</h2></div>
         <span class="badge badge-approved">সুরক্ষিত</span>
@@ -1372,13 +1354,13 @@ async function renderSecurity() {
           <div class="security-row"><div><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div></div>`).join('')}
       </div>
     </article>
-    <button class="teacher-action-card" type="button" data-security-toggle="password" aria-expanded="false">
+    <button class="teacher-action-card" type="button" data-admin-view="security-password">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="সাময়িক পাসওয়ার্ডে থাকা স্টাফ অ্যাকাউন্ট (${bn(passwordDue.length)} জন) ও রিসেট নিয়ন্ত্রণ">পাসওয়ার্ড বদল বাকি তালিকা</span>
       </span>
       <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup('lock', 'apc-color-icon', { variant: 'color' })}</span>
     </button>
-    <article class="admin-card admin-toggle-panel" data-security-panel="password" hidden>
+    <article class="admin-card" data-security-panel="password" hidden>
       <header class="admin-card-head">
         <div><p class="eyebrow">পাসওয়ার্ড সুরক্ষা</p><h2>পাসওয়ার্ড বদল বাকি</h2></div>
         <span class="badge ${passwordDue.length ? 'badge-pending' : 'badge-approved'}">${bn(passwordDue.length)} জন</span>
@@ -1397,13 +1379,13 @@ async function renderSecurity() {
       : '<p class="admin-empty">সব অ্যাকাউন্টের পাসওয়ার্ড হালনাগাদ — বকেয়া কিছু নেই।</p>'}
       <p class="finance-hint">অ্যাডমিন রিসেট করলে নতুন পাসওয়ার্ড সাময়িক থাকে: সংশ্লিষ্ট স্টাফ প্রথম লগইনে তা বদলাতে বাধ্য থাকে। পাসওয়ার্ড কখনো দেখানো হয় না।</p>
     </article>
-    <button class="teacher-action-card" type="button" data-security-toggle="protected" aria-expanded="false">
+    <button class="teacher-action-card" type="button" data-admin-view="security-protected">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="মুছে ফেলা ও নিষ্ক্রিয় করা থেকে সুরক্ষিত সিস্টেম অ্যাকাউন্ট (${bn(protectedStaff.length)} টি)">সুরক্ষিত অ্যাকাউন্ট তালিকা</span>
       </span>
       <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup('approval', 'apc-color-icon', { variant: 'color' })}</span>
     </button>
-    <article class="admin-card admin-toggle-panel" data-security-panel="protected" hidden>
+    <article class="admin-card" data-security-panel="protected" hidden>
       <header class="admin-card-head">
         <div><p class="eyebrow">সুরক্ষিত অ্যাকাউন্ট</p><h2>সুরক্ষিত অ্যাকাউন্ট</h2></div>
         <span class="badge badge-approved">${bn(protectedStaff.length)} টি</span>
@@ -1418,13 +1400,25 @@ async function renderSecurity() {
           </div>`).join('') || '<p class="admin-empty">কোনো সুরক্ষিত অ্যাকাউন্ট পাওয়া যায়নি।</p>'}
       </div>
     </article>
-    <button class="teacher-action-card" type="button" data-security-toggle="boundaries" aria-expanded="false">
+    <button class="teacher-action-card" type="button" data-admin-view="security-boundaries">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="ক্যাশ কাউন্টার, ম্যানেজার ও শিক্ষকের নির্ধারিত কর্মপরিধি দেখুন">দৈনন্দিন কাজের রোল সীমা</span>
       </span>
       <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup('staff', 'apc-color-icon', { variant: 'color' })}</span>
     </button>
-    <article class="admin-card admin-toggle-panel" data-security-panel="boundaries" hidden>
+    <button class="teacher-action-card" type="button" data-admin-view="device-fingerprint">
+      <span class="teacher-action-body">
+        <span class="teacher-action-title pay-tile-label" data-action-sub="এই ডিভাইসের এনক্রিপশন কী ফিঙ্গারপ্রিন্ট ফোনে অ্যাডমিনকে জানান, যাতে তা অনুমোদন করতে পারেন">আমার ডিভাইসের ফিঙ্গারপ্রিন্ট</span>
+      </span>
+      <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup('fingerprint', 'apc-color-icon', { variant: 'color' })}</span>
+    </button>
+    <button class="teacher-action-card" type="button" data-admin-view="security-devices">
+      <span class="teacher-action-body">
+        <span class="teacher-action-title pay-tile-label" data-action-sub="অনুমোদনের অপেক্ষায় থাকা ডিভাইসের ফিঙ্গারপ্রিন্ট ফোনে যাচাই করে অনুমোদন বা অস্বীকার করুন">ডিভাইস অনুমোদন</span>
+      </span>
+      <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup('approval', 'apc-color-icon', { variant: 'color' })}</span>
+    </button>
+    <article class="admin-card" data-security-panel="boundaries" hidden>
       <header class="admin-card-head">
         <div><p class="eyebrow">ভূমিকার সীমা</p><h2>দৈনন্দিন কাজের মালিকানা</h2></div>
       </header>
@@ -1444,6 +1438,7 @@ async function renderSecurity() {
       }, 80);
     });
   });
+  placeRenderedDetails(host, 'security-panel', 'security');
 }
 
 /* ---------- Admin Profile ---------- */
@@ -1641,8 +1636,11 @@ function mountAdminPhonebook() {
 }
 
 function refreshView(view) {
-  const refresh = VIEW_REFRESHERS[view];
-  if (!refresh || !viewExists(view)) return;
+  const parent = DETAIL_VIEW_PARENTS[view] || view;
+  // Re-entering the Profile hub resets its group menu; a routed group must
+  // keep that group open while the profile data is refreshed.
+  const refresh = parent === 'profile' && view !== parent ? renderAdminProfile : VIEW_REFRESHERS[parent];
+  if (!refresh || !viewExists(view) || !viewExists(parent)) return;
   try { refresh(); } catch (error) {
     console.warn(`[Active Plus] ${view} refresh failed:`, error?.message);
   }
@@ -1694,6 +1692,18 @@ try {
 } catch {}
 
 $('#adminMain')?.addEventListener('click', event => {
+  const back = event.target.closest('[data-admin-back]');
+  if (back) {
+    navigateBack(back.dataset.adminBack);
+    return;
+  }
+  // Role and Security cards are rebuilt as data changes, so delegate their
+  // navigation instead of binding a second listener on every render.
+  const generatedView = event.target.closest('#rolesMatrix [data-admin-view], #securityPanels [data-admin-view]');
+  if (generatedView) {
+    navigate(generatedView.dataset.adminView, generatedView);
+    return;
+  }
   const sectionToggle = event.target.closest('[data-admin-section-toggle]');
   if (sectionToggle) {
     const key = sectionToggle.dataset.adminSectionToggle;
@@ -1747,86 +1757,7 @@ $('#adminMain')?.addEventListener('click', event => {
     return;
   }
 
-  const roleToggle = event.target.closest('[data-role-toggle]');
-  if (roleToggle) {
-    const role = roleToggle.dataset.roleToggle;
-    const panel = $(`#rolesMatrix [data-role-panel="${role}"]`);
-    if (!panel) return;
-    const wasOpen = !panel.hidden;
-    $$('#rolesMatrix [data-role-toggle]').forEach(btn => {
-      btn.classList.remove('is-open');
-      btn.setAttribute('aria-expanded', 'false');
-    });
-    $$('#rolesMatrix [data-role-panel]').forEach(sec => {
-      sec.hidden = true;
-    });
-    if (!wasOpen) {
-      roleToggle.classList.add('is-open');
-      roleToggle.setAttribute('aria-expanded', 'true');
-      panel.hidden = false;
-    }
-    return;
-  }
 
-  const securityToggle = event.target.closest('[data-security-toggle]');
-  if (securityToggle) {
-    const key = securityToggle.dataset.securityToggle;
-    const panel = $(`#securityPanels [data-security-panel="${key}"]`);
-    if (!panel) return;
-    const wasOpen = !panel.hidden;
-    $$('#securityPanels [data-security-toggle]').forEach(btn => {
-      btn.classList.remove('is-open');
-      btn.setAttribute('aria-expanded', 'false');
-    });
-    $$('#securityPanels [data-security-panel]').forEach(sec => {
-      sec.hidden = true;
-    });
-    if (!wasOpen) {
-      securityToggle.classList.add('is-open');
-      securityToggle.setAttribute('aria-expanded', 'true');
-      panel.hidden = false;
-    }
-    return;
-  }
-
-  const migrationCard = event.target.closest('[data-admin-migration-card]');
-  if (migrationCard) {
-    const idx = Number(migrationCard.dataset.adminMigrationCard || 0);
-    const cards = $$('#adminV2Migration .v2-migration-card');
-    const targetCard = cards[idx];
-    if (!targetCard) return;
-    const wasOpen = targetCard.classList.contains('is-open');
-    $$('[data-admin-migration-card]').forEach(btn => {
-      btn.classList.remove('is-open');
-      btn.setAttribute('aria-expanded', 'false');
-    });
-    cards.forEach(c => c.classList.remove('is-open'));
-    if (!wasOpen) {
-      migrationCard.classList.add('is-open');
-      migrationCard.setAttribute('aria-expanded', 'true');
-      targetCard.classList.add('is-open');
-    }
-    return;
-  }
-
-  const academicCard = event.target.closest('[data-admin-academic-card]');
-  if (academicCard) {
-    const key = academicCard.dataset.adminAcademicCard || '';
-    const root = $('#adminAcademics');
-    if (!root) return;
-    const wasOpen = root.dataset.openAcademicCard === key;
-    $$('[data-admin-academic-card]').forEach(btn => {
-      btn.classList.remove('is-open');
-      btn.setAttribute('aria-expanded', 'false');
-    });
-    if (wasOpen) {
-      delete root.dataset.openAcademicCard;
-    } else {
-      academicCard.classList.add('is-open');
-      academicCard.setAttribute('aria-expanded', 'true');
-      root.dataset.openAcademicCard = key;
-    }
-  }
 });
 /* Bottom-bar tabs and "More" menu rows are rebuilt by the permission model
    (js/admin-panel-ui.js) and call `navigate` themselves; the markup-driven
@@ -1840,16 +1771,18 @@ $$('[data-admin-view]').forEach(button => {
   button.addEventListener('click', () => navigate(button.dataset.adminView, button));
 });
 
-/* Deep links: admin.html#finance opens Finance, an unauthorised or unknown
-   #route is refused and the panel stays on the first permitted tab. An entry
-   that arrived after the panel was already open — a shared link typed into the
-   address bar, or the browser's Back into a page of this panel — still moves
-   the panel (js/panel-route.js listens for that one event). */
+/* Hash edits and browser/system Back/Forward restore a permitted page without
+   pushing a second history entry. Empty means the default view; an unknown or
+   forbidden hash is replaced with the current permitted route. */
 onRouteChange(name => {
   if ($('#adminShell')?.hidden !== false) return;
-  const route = routeFromHash('#' + name);
-  if (!route || route === state.activeView) return;
-  navigate(route, null);
+  const route = name ? routeFromHash('#' + name) : access.defaultView();
+  if (!route || !access.allowsView(route) || !viewExists(route)) {
+    rememberRoute(state.activeView);
+    return;
+  }
+  if (route !== state.activeView) navigate(route, null, { history: 'keep' });
+  if (!name) rememberRoute(route);
 });
 
 /* Fee collection is the Cash Counter's job; this panel keeps no handler. */

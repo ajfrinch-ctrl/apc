@@ -98,6 +98,7 @@ test('staff management: create, edit, deactivate, reset password and delete', as
   await bottom(page, 'admin', 'system');
   await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
   await expect(page.locator('#cfgMaintenanceMode')).toBeAttached();
+  await page.locator('.admin-view[data-view-panel="settings"] [data-admin-view="settings-branding"]').click();
   await page.locator('#btnSaveAppSettings').click();
   await expect(page.locator('.admin-toast')).toContainText('সংরক্ষিত');
 });

@@ -11,6 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadPage } from './jsdom-harness.mjs';
+import { VIEW_SEAT } from '../js/admin-permissions.js';
 
 const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 /* One `<section class="admin-view">` panel, from its tag to the matching close. */
@@ -521,7 +522,9 @@ test('Admin সিস্টেম and ডেটা are hubs over the screens tha
   assert.match(source, /export const ADMIN_SYSTEM_NAV/);
   assert.match(source, /export const ADMIN_DATA_NAV/);
   /* A screen inside a hub keeps its own seat lit. */
-  assert.match(source, /export const VIEW_SEAT = Object\.freeze\(\{[\s\S]*students: 'dashboard'/);
+  assert.equal(VIEW_SEAT.students, 'dashboard');
+  assert.equal(VIEW_SEAT['backup-export'], 'more');
+  assert.equal(VIEW_SEAT['security-owner'], 'system');
   assert.match(read('js/admin.js'), /const seatFor = view => VIEW_SEAT\[view\] \|\| view;/);
 });
 

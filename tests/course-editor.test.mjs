@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import { initCourseEditor } from '../js/course-editor.js';
 import { COURSE_CONTENT_KEY, archiveCourseRecord, contentById, listCourseContent, listCourseContentForStaff, saveCourseRecord, setContentPublished } from '../js/course-content.js';
-import { classByName, subjectByName, subjectsForClass } from '../js/academics.js';
+import { classByName, subjectByName, subjectsForClass, keyOf } from '../js/academics.js';
 import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
 import { STAFF_ACCOUNTS } from '../js/staff-auth.js';
 import { provisionStaff, seedStaffSession } from './staff-harness.mjs';
@@ -62,19 +62,17 @@ test('a Teacher sees only the assigned class and its assigned subject', async ()
   await ctx.waitFor(() => Array.from(ctx.$('#courseEditorHost1 select[name="className"]').options).length === 1);
   const classes = Array.from(ctx.$('#courseEditorHost1 select[name="className"]').options).map(option => option.value);
   assert.deepEqual(classes, ['দশম শ্রেণি'], 'only the assigned class is offered');
-  const subjects = Array.from(ctx.$('#courseEditorHost1 select[name="subject"]').options).map(option => option.value);
+  const subjectDatalist = ctx.$('#courseEditorHost1 #subject-datalist');
+  const subjects = Array.from(subjectDatalist.options).map(option => option.value);
   assert.deepEqual(subjects, ['গণিত'], 'only the assigned subject of that class is offered');
 });
 
 test('the Teacher editor refuses a subject that is not theirs and stores nothing', () => {
   const before = ctx.window.localStorage.getItem(COURSE_CONTENT_KEY);
-  /* Bypass the scoped select on purpose: the submit handler is the last gate. */
+  /* Bypass the scoped datalist on purpose: the submit handler is the last gate. */
   const form = ctx.$('#courseEditorHost1 form');
-  const subject = ctx.$('#courseEditorHost1 select[name="subject"]');
-  const rogue = ctx.window.document.createElement('option');
-  rogue.value = 'পদার্থবিজ্ঞান';
-  subject.appendChild(rogue);
-  subject.value = 'পদার্থবিজ্ঞান';
+  const subjectInput = ctx.$('#courseEditorHost1 input[name="subject"]');
+  ctx.type(subjectInput, 'পদার্থবিজ্ঞান');
   ctx.type(ctx.$('#courseEditorHost1 input[name="title"]'), 'বাইরে লেখা কনটেন্ট');
   ctx.submit(form);
   assert.match(ctx.$('#courseEditorHost1 [data-course-status]').textContent, /বরাদ্দ নয়/);
@@ -83,7 +81,7 @@ test('the Teacher editor refuses a subject that is not theirs and stores nothing
 
 test('the Teacher editor saves inside the assignment and can publish, then archive', async () => {
   /* Back to the subject that really is theirs after the refused attempt. */
-  change(ctx.$('#courseEditorHost1 select[name="subject"]'), 'গণিত');
+  ctx.type(ctx.$('#courseEditorHost1 input[name="subject"]'), 'গণিত');
   ctx.type(ctx.$('#courseEditorHost1 input[name="title"]'), 'বরাদ্দের ভেতরের পাঠ');
   ctx.type(ctx.$('#courseEditorHost1 textarea[name="content"]'), 'পাঠের মূল লেখা');
   ctx.submit(ctx.$('#courseEditorHost1 form'));
@@ -144,15 +142,16 @@ test('a Manager works within the whole Admin-configured structure', async () => 
   assert.ok(classes.length >= 3, 'every enabled class is offered');
   assert.ok(classes.includes('নবম শ্রেণি'));
   assert.ok(!classes.some(name => /নেই|ভুয়া/.test(name)), 'only Academic Setup classes appear');
-  const subjects = Array.from(ctx.$(`${host} select[name="subject"]`).options).map(option => option.value);
+  const subjectDatalist = ctx.$(`${host} #subject-datalist`);
+  const subjects = Array.from(subjectDatalist.options).map(option => option.value);
   assert.ok(subjects.includes(subjectByName('গণিত').name));
   /* Switching class re-cascades the subject list from the same source. */
   const ninth = classByName('নবম শ্রেণি');
   change(ctx.$(`${host} select[name="className"]`), 'নবম শ্রেণি');
   await ctx.waitFor(() => ctx.$(`${host} select[name="className"]`)?.value === ninth.name
-    && JSON.stringify(Array.from(ctx.$(`${host} select[name="subject"]`)?.options || []).map(option => option.value))
+    && JSON.stringify(Array.from(ctx.$(`${host} #subject-datalist`)?.options || []).map(option => option.value))
       === JSON.stringify(subjectsForClass('নবম শ্রেণি').map(item => item.name)));
-  const after = Array.from(ctx.$(`${host} select[name="subject"]`).options).map(option => option.value);
+  const after = Array.from(ctx.$(`${host} #subject-datalist`).options).map(option => option.value);
   assert.deepEqual(after, subjectsForClass('নবম শ্রেণি').map(item => item.name), 'the subjects follow the chosen class');
   assert.equal(ctx.$(`${host} select[name="className"]`).value, ninth.name);
 });
