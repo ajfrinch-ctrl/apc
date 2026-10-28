@@ -198,8 +198,9 @@ const seatFor = view => VIEW_SEAT[view] || view;
  * shortcut, tile and hash link.
  */
 function resetAdminTogglePanels(scope = document) {
-  // Staff, Student and Reports retain their existing local secondary controls.
-  // The More/System primary sections are now separate views, not toggles.
+  // Only secondary expand controls (Staff directory, Student cards, Reports builder)
+  // remain as in-place toggles — every primary More/System section is now a
+  // dedicated .admin-view reached via navigate()/setView().
   scope.querySelectorAll('[data-admin-section-toggle], [data-admin-student-card]').forEach(btn => {
     btn.classList.remove('is-open');
     btn.setAttribute('aria-expanded', 'false');
