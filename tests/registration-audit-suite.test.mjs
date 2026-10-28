@@ -498,14 +498,13 @@ test('Scenario 1 & 8 (Admin 360px Mobile) — Mobile viewport (360px) notificati
   assert.equal(adminToast.hidden, false);
   assert.equal(adminToast.textContent, 'নতুন শিক্ষার্থী রেজিস্ট্রেশন করেছে');
 
-  // Open bell modal at 360px and verify "অনুমোদনের অপেক্ষায়" list shows (নাম, মোবাইল, আইডি, তারিখ) + buttons
+  // Open the bell modal: the queue masks identity until review, but keeps its actions.
   adminCtx.click(adminBell);
   await adminCtx.waitFor(() => adminCtx.$$('#apcNoticeModal [data-pending-student-row]').length === 2);
   const queueText = adminCtx.$('#apcNoticeModal [data-apc-pending-registrations]').textContent;
   assert.match(queueText, /অনুমোদনের অপেক্ষায়/);
-  assert.match(queueText, /তানভীর আহমেদ/);
-  assert.match(queueText, /01711000001/);
-  assert.match(queueText, /261022001/);
+  assert.match(queueText, /গোপন তথ্য/);
+  assert.doesNotMatch(queueText, /তানভীর আহমেদ|01711000001|261022001/);
   assert.match(queueText, /তারিখ:/);
 
   const approveBtn = adminCtx.$('#apcNoticeModal [data-pending-approve="261022001"]');

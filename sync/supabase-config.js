@@ -21,7 +21,24 @@ export const supabaseConfig = Object.freeze({
   realtimeChannel: SUPABASE_REALTIME_CHANNEL
 });
 
+// Arena previews are untrusted development origins. The Firebase leg already
+// rejects production there; the Supabase leg must do the same, including when
+// a caller selects it explicitly. Do not silently redirect to another cloud:
+// without a separately configured development project, keep the local outbox
+// intact and report the cloud as unavailable instead.
+export function isSupabasePreviewHost(hostname = globalThis.location?.hostname || '') {
+  return /^[a-z0-9-]+\.e2b\.app$/.test(String(hostname).toLowerCase());
+}
+
 export function isSupabaseConfigured(cfg = supabaseConfig) {
+  if (isSupabasePreviewHost()) {
+    // The client below uses the production config. A separate preview config
+    // must never alias the production project or endpoint.
+    const productionHost = new URL(SUPABASE_URL).hostname;
+    try {
+      if (cfg?.projectRef === SUPABASE_PROJECT_REF || new URL(cfg?.url).hostname === productionHost) return false;
+    } catch { return false; }
+  }
   return Boolean(
     cfg
     && typeof cfg.url === 'string'

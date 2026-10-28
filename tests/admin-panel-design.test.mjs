@@ -30,8 +30,8 @@ test('hub rows end in a chevron icon, never a text arrow, and the audit view use
   const audit = viewOf('audit');
   assert.match(audit, /data-icon="back"/, 'the audit back button is the shared svg');
   assert.doesNotMatch(audit, />←<\/button>/, 'no text back arrow');
-  assert.ok(audit.includes('id="gradeAuditList"') && audit.includes('id="adminExamWorkspace"'),
-    'both audit surfaces stay mounted, now inside cards');
+  assert.ok(viewOf('audit-log').includes('id="gradeAuditList"') && viewOf('audit-exam').includes('id="adminExamWorkspace"'),
+    'both audit surfaces stay mounted in their dedicated detail views');
 });
 
 test('audit entries and role chips are styled surfaces, painted from tokens', () => {

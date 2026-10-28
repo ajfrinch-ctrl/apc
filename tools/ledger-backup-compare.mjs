@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { PreflightInputError, readLegacyBackupCollections, readPreflightInputFile } from './ledger-migration-preflight.mjs';
+import { promptBackupPassphrase } from './backup-passphrase-prompt.mjs';
 const require = createRequire(import.meta.url);
 const { METHODS } = require('../functions/staged-payment-core.cjs');
 const SAFE = /^[A-Za-z0-9_-]{1,128}$/;
@@ -46,12 +47,12 @@ function disagreements(indexes, kind, blockers) {
 
 /** The returned shape has ONLY fixed count fields/codes; no file names, IDs,
  * receipts, names, phones, references, amounts or source timestamps. */
-export function compareLedgerBackups(backups) {
-  if (!Array.isArray(backups) || backups.length < 2 || backups.length > MAX_SNAPSHOTS) invalid();
+export function compareLedgerBackups(backups, { passphrases = [] } = {}) {
+  if (!Array.isArray(backups) || backups.length < 2 || backups.length > MAX_SNAPSHOTS || !Array.isArray(passphrases)) invalid();
   const blockers = {}, studentIndexes = [], transactionIndexes = [];
   const receiptOwners = new Map(), referenceOwners = new Map();
-  for (const backup of backups) {
-    const { students, transactions } = readLegacyBackupCollections(backup);
+  for (const [index, backup] of backups.entries()) {
+    const { students, transactions } = readLegacyBackupCollections(backup, { passphrase: passphrases[index] || '' });
     // Timestamps are informational only. Never elect a winner from createdAt.
     const stamp = backup.createdAt;
     if (typeof stamp !== 'string' ||
@@ -96,16 +97,20 @@ export function compareLedgerBackups(backups) {
       'Run the per-backup migration preflight and verify Auth UID links before any import plan'] });
 }
 
-function main(args) {
+async function main(args) {
   if (args.length < 4 || args.length > 2 * MAX_SNAPSHOTS || args.length % 2 !== 0 ||
       args.some((value, index) => index % 2 === 0 && value !== '--backup')) invalid();
   const backups = [];
   for (let index = 1; index < args.length; index += 2) backups.push(readPreflightInputFile(args[index]));
-  const report = compareLedgerBackups(backups);
+  const passphrases = [];
+  for (const [index, backup] of backups.entries()) passphrases.push(await promptBackupPassphrase(backup, `Backup ${index + 1}`));
+  const report = compareLedgerBackups(backups, { passphrases });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   process.exitCode = report.cleanComparison ? 0 : 2;
 }
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
-  try { main(process.argv.slice(2)); }
-  catch { process.stderr.write('Backup comparison input invalid; no data was merged or written.\n'); process.exitCode = 1; }
+  main(process.argv.slice(2)).catch(() => {
+    process.stderr.write('Backup comparison input invalid or interactive passphrase unavailable; no data was merged or written.\n');
+    process.exitCode = 1;
+  });
 }

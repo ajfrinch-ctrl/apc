@@ -134,8 +134,18 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
     }
   }
   /* Admin: a screen inside a hub returns to that hub; the rest go home. */
-  const adminBacks = [...doc('admin').querySelectorAll('.pay-back')].map(button => button.getAttribute('data-admin-view'));
-  assert.deepEqual(adminBacks, ['dashboard', 'dashboard', 'system', 'system', 'dashboard', 'dashboard', 'more', 'data', 'data', 'system', 'system', 'system', 'more', 'more', 'more', 'more', 'more']);
+  const adminDocument = doc('admin');
+  const adminBacks = [...adminDocument.querySelectorAll('.pay-back')];
+  const mainBacks = adminBacks.filter(button => !button.closest('[data-parent-view]'))
+    .map(button => button.getAttribute('data-admin-back') || button.getAttribute('data-admin-view'));
+  assert.deepEqual(mainBacks, ['dashboard', 'dashboard', 'system', 'system', 'dashboard', 'dashboard', 'more', 'data', 'data', 'system', 'system', 'system', 'more', 'more', 'more', 'more', 'more']);
+  const detailBacks = adminBacks.filter(button => button.closest('[data-parent-view]'));
+  assert.equal(detailBacks.length, 35, 'each routed detail has its own Back');
+  for (const button of detailBacks) {
+    assert.equal(button.dataset.adminBack, button.closest('[data-parent-view]').dataset.parentView);
+    assert.ok(button.getAttribute('aria-label'));
+    assert.ok(button.querySelector('svg'));
+  }
   for (const name of ['admin', 'manager', 'teacher']) {
     for (const row of doc(name).querySelectorAll('.admin-more-item')) {
       assert.ok(row.querySelector('.admin-more-icon, .admin-more-copy'), name + ' hub row has no icon slot');

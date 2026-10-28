@@ -84,12 +84,12 @@ test('end-to-end 3-phone realtime sync: Student registration (online & offline-r
   // 3. BOTH Admin Phone AND Manager Phone receive the registration & notification in REAL TIME
   const adminLive1 = await waitForAsync(async () => {
     const st = await adminPhone.run('staff-portal-state', { role: 'admin' });
-    return st.hostText.includes('তানভীর হাসান') && st.unread >= 1 ? st : null;
+    return st.pendingRowIds.includes(String(onlineStudentId)) && st.unread >= 1 ? st : null;
   });
   assert.equal(adminLive1.pendingHostHidden, false, 'Admin pending registrations queue is immediately visible on Students tab');
-  assert.match(adminLive1.hostText, /তানভীর হাসান/);
-  assert.match(adminLive1.hostText, /01798765432/);
-  assert.match(adminLive1.hostText, new RegExp(onlineStudentId));
+  assert.match(adminLive1.hostText, /গোপন তথ্য/);
+  assert.doesNotMatch(adminLive1.hostText, /তানভীর হাসান|01798765432/);
+  assert.equal(adminLive1.hostText.includes(String(onlineStudentId)), false, 'the queue masks identity');
   assert.match(adminLive1.pendingCardLabel, /১/, 'Admin pending card displays live count');
   assert.equal(adminLive1.badgeHidden, false, 'Admin bell unread badge is visible');
   assert.equal(adminLive1.badgeText, '১', 'Admin bell unread badge shows ১');
@@ -97,9 +97,10 @@ test('end-to-end 3-phone realtime sync: Student registration (online & offline-r
 
   const managerLive1 = await waitForAsync(async () => {
     const st = await managerPhone.run('staff-portal-state', { role: 'manager' });
-    return st.hostText.includes('তানভীর হাসান') && st.unread >= 1 ? st : null;
+    return st.pendingRowIds.includes(String(onlineStudentId)) && st.unread >= 1 ? st : null;
   });
   assert.match(managerLive1.hostText, /তানভীর হাসান/);
+  assert.match(managerLive1.hostText, new RegExp(onlineStudentId));
   assert.match(managerLive1.pendingCardLabel, /১ অপেক্ষমাণ/, 'Manager pending badge updates live');
   assert.equal(managerLive1.badgeHidden, false, 'Manager bell unread badge is visible');
   assert.equal(managerLive1.badgeText, '১', 'Manager bell unread badge shows ১');
@@ -141,13 +142,13 @@ test('end-to-end 3-phone realtime sync: Student registration (online & offline-r
   // Both Admin and Manager phones receive Nusrat Jahan in real time!
   const adminLive2 = await waitForAsync(async () => {
     const st = await adminPhone.run('staff-portal-state', { role: 'admin' });
-    return st.hostText.includes('নুসরাত জাহান') && st.unread === 2 ? st : null;
+    return st.pendingRowIds.includes(String(offlineStudentId)) && st.unread === 2 ? st : null;
   });
   assert.equal(adminLive2.badgeText, '২', 'Admin bell badge increments to ২');
 
   const managerLive2 = await waitForAsync(async () => {
     const st = await managerPhone.run('staff-portal-state', { role: 'manager' });
-    return st.hostText.includes('নুসরাত জাহান') && st.unread === 2 ? st : null;
+    return st.pendingRowIds.includes(String(offlineStudentId)) && st.unread === 2 ? st : null;
   });
   assert.equal(managerLive2.badgeText, '২', 'Manager bell badge increments to ২');
 

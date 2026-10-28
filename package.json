@@ -16,6 +16,7 @@
     "build:qrcode": "node tools/build-qrcode.mjs"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.12",
     "@playwright/test": "1.64.1",
     "@sparticuz/chromium": "^153.0.0",
     "@supabase/supabase-js": "^2.118.0",

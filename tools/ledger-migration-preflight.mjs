@@ -9,6 +9,8 @@ import { createDecipheriv, pbkdf2Sync } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import { BACKUP_PBKDF2_ITERATIONS as CURRENT_BACKUP_ITERATIONS, validBackupPassphrase, backupHeaderAdditionalData } from '../js/backup-crypto.js';
+import { promptBackupPassphrase } from './backup-passphrase-prompt.mjs';
 const require = createRequire(import.meta.url);
 const { FEE_TYPES, METHODS, MONTHS } = require('../functions/staged-payment-core.cjs');
 
@@ -31,19 +33,28 @@ export class PreflightInputError extends Error {
   constructor() { super('Invalid preflight input. Use an unmodified Admin backup and a reviewed link file.'); this.name = 'PreflightInputError'; }
 }
 const invalid = () => { throw new PreflightInputError(); };
-export function decryptBackupDataSync(payload) {
+export function decryptBackupDataSync(payload, { passphrase = '' } = {}) {
   if (!object(payload) || payload.kind !== 'active-plus-backup') invalid();
-  if (payload.version === 2 && payload.encrypted === true) {
+  if ([2, 3].includes(payload.version) && payload.encrypted === true) {
     if (typeof payload.salt !== 'string' || typeof payload.iv !== 'string' || typeof payload.ciphertext !== 'string') invalid();
+    if (payload.version === 3 && (!validBackupPassphrase(passphrase) ||
+        payload.algorithm !== 'AES-256-GCM' || payload.kdf !== 'PBKDF2-SHA256' || payload.iterations !== CURRENT_BACKUP_ITERATIONS)) invalid();
     try {
-      const salt = Buffer.from(payload.salt, 'base64');
-      const iv = Buffer.from(payload.iv, 'base64');
-      const raw = Buffer.from(payload.ciphertext, 'base64');
-      if (salt.length < 8 || iv.length !== 12 || raw.length <= 16) invalid();
-      const key = pbkdf2Sync(BACKUP_SECRET, salt, BACKUP_PBKDF2_ITERATIONS, 32, 'sha256');
+      // Buffer.from(base64) is permissive; reject malformed/noncanonical input.
+      const decode = text => {
+        if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(text)) invalid();
+        return Buffer.from(text, 'base64');
+      };
+      const salt = decode(payload.salt);
+      const iv = decode(payload.iv);
+      const raw = decode(payload.ciphertext);
+      if (salt.length < 8 || (payload.version === 3 && salt.length !== 16) || iv.length !== 12 || raw.length <= 16) invalid();
+      const key = pbkdf2Sync(payload.version === 3 ? passphrase : BACKUP_SECRET, salt,
+        payload.version === 3 ? CURRENT_BACKUP_ITERATIONS : BACKUP_PBKDF2_ITERATIONS, 32, 'sha256');
       const tag = raw.subarray(raw.length - 16);
       const enc = raw.subarray(0, raw.length - 16);
       const decipher = createDecipheriv('aes-256-gcm', key, iv);
+      if (payload.version === 3) decipher.setAAD(backupHeaderAdditionalData(payload));
       decipher.setAuthTag(tag);
       const plain = Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
       const data = JSON.parse(plain);
@@ -54,8 +65,8 @@ export function decryptBackupDataSync(payload) {
   if (payload.version === 1 && object(payload.data)) return payload.data;
   invalid();
 }
-export function readLegacyBackupCollections(payload) {
-  const data = decryptBackupDataSync(payload);
+export function readLegacyBackupCollections(payload, options = {}) {
+  const data = decryptBackupDataSync(payload, options);
   if (typeof data[STUDENTS] !== 'string' || typeof data[TRANSACTIONS] !== 'string') invalid();
   try {
     const students = JSON.parse(data[STUDENTS]);
@@ -72,8 +83,8 @@ function parseLinks(input) {
 }
 
 /** No identifiers or PII appear in the returned report, even on error. */
-export function preflightLedgerMigration(backup, linksFile) {
-  const { students, transactions } = readLegacyBackupCollections(backup);
+export function preflightLedgerMigration(backup, linksFile, options = {}) {
+  const { students, transactions } = readLegacyBackupCollections(backup, options);
   const links = parseLinks(linksFile);
   const blockers = {}, studentIds = new Set(), linkById = new Map(), uids = new Set();
   const statuses = { pending: 0, approved: 0, rejected: 0, absent: 0, invalid: 0 };
@@ -156,13 +167,17 @@ export function readPreflightInputFile(path) {
     return JSON.parse(bytes.toString('utf8'));
   } catch { invalid(); }
 }
-function main(args) {
+async function main(args) {
   if (args.length !== 4 || args[0] !== '--backup' || args[2] !== '--links') invalid();
-  const report = preflightLedgerMigration(readPreflightInputFile(args[1]), readPreflightInputFile(args[3]));
+  const backup = readPreflightInputFile(args[1]);
+  const passphrase = await promptBackupPassphrase(backup);
+  const report = preflightLedgerMigration(backup, readPreflightInputFile(args[3]), { passphrase });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   process.exitCode = report.cleanInventory ? 0 : 2;
 }
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
-  try { main(process.argv.slice(2)); }
-  catch { process.stderr.write('Preflight input invalid; no data was written or imported.\n'); process.exitCode = 1; }
+  main(process.argv.slice(2)).catch(() => {
+    process.stderr.write('Preflight input invalid or interactive passphrase unavailable; no data was written or imported.\n');
+    process.exitCode = 1;
+  });
 }

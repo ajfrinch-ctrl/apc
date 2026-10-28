@@ -2,6 +2,8 @@
    a server. Per-ID union with a deterministic newer-wins rule; the report makes
    every decision visible. Backups cannot express deletions, so this tool never
    guesses that a missing record was deleted. */
+import { encryptBackupData, decryptBackupData } from './backup-crypto.js';
+
 const COLLECTIONS = {
   'activePlus.admin.students.v1': 'শিক্ষার্থী',
   'activePlus.admin.transactions.v1': 'লেনদেন',
@@ -114,71 +116,20 @@ export function mergeBackups(first, second) {
   return { merged, report };
 }
 
-const BACKUP_SECRET = 'active-plus-backup-aes-256-gcm-v2-institutional-seal';
-const BACKUP_PBKDF2_ITERATIONS = 100000;
-
-function bytesToBase64(bytes) {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
+// Legacy input remains readable, but the merged output is always protected by a
+// user-supplied passphrase. The passphrase is never included in `extra`/JSON.
+export async function encryptBackupPayload(data, createdAt = new Date().toISOString(), extra = {}, passphrase = '') {
+  return encryptBackupData(data, { passphrase, createdAt, mergedFrom: extra.mergedFrom });
 }
 
-function base64ToBytes(text) {
-  const binary = atob(String(text || ''));
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
-}
-
-async function deriveBackupCryptoKey(saltBytes, usages) {
-  const subtle = globalThis.crypto?.subtle;
-  const baseKey = await subtle.importKey('raw', new TextEncoder().encode(BACKUP_SECRET), 'PBKDF2', false, ['deriveKey']);
-  return subtle.deriveKey(
-    { name: 'PBKDF2', salt: saltBytes, iterations: BACKUP_PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    baseKey,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    usages
-  );
-}
-
-export async function encryptBackupPayload(data, createdAt = new Date().toISOString(), extra = {}) {
-  const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
-  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveBackupCryptoKey(salt, ['encrypt']);
-  const encoded = new TextEncoder().encode(JSON.stringify(data));
-  const cipherBuffer = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-  return {
-    kind: 'active-plus-backup',
-    version: 2,
-    encrypted: true,
-    algorithm: 'AES-256-GCM',
-    kdf: 'PBKDF2-SHA256',
-    iterations: BACKUP_PBKDF2_ITERATIONS,
-    createdAt,
-    ...extra,
-    salt: bytesToBase64(salt),
-    iv: bytesToBase64(iv),
-    ciphertext: bytesToBase64(new Uint8Array(cipherBuffer))
-  };
-}
-
-export async function unwrapBackupPayload(payload, label = 'ব্যাকআপ ফাইল') {
+export async function unwrapBackupPayload(payload, label = 'ব্যাকআপ ফাইল', passphrase = '') {
   if (payload?.kind !== 'active-plus-backup') {
     throw new Error(`${label}: এটি Active Plus ব্যাকআপ ফাইল নয়।`);
   }
-  if (payload.encrypted === true || payload.version === 2) {
-    try {
-      const salt = base64ToBytes(payload.salt);
-      const iv = base64ToBytes(payload.iv);
-      const cipherBytes = base64ToBytes(payload.ciphertext);
-      const key = await deriveBackupCryptoKey(salt, ['decrypt']);
-      const plainBuffer = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes);
-      const data = JSON.parse(new TextDecoder().decode(plainBuffer));
-      return { kind: 'active-plus-backup', version: 1, createdAt: payload.createdAt, data };
-    } catch {
-      throw new Error(`${label}: এনক্রিপ্টেড ব্যাকআপ ডিক্রিপ্ট করা যায়নি।`);
-    }
+  try {
+    const data = await decryptBackupData(payload, { passphrase });
+    return { kind: 'active-plus-backup', version: 1, createdAt: payload.createdAt, data };
+  } catch {
+    throw new Error(`${label}: পাসফ্রেজ ভুল বা ব্যাকআপ ডিক্রিপ্ট করা যায়নি।`);
   }
-  return payload;
 }

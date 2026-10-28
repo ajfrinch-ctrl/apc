@@ -24,8 +24,17 @@
     <h2>১. ব্যাকআপ ফাইল দুটি বাছুন</h2>
     <label for="fileA">প্রথম ডিভাইসের ব্যাকআপ (সাধারণত পুরোনো)</label>
     <input id="fileA" type="file" accept="application/json,.json">
+    <label for="passA">প্রথম ফাইলের পাসফ্রেজ (নতুন ব্যাকআপ হলে)</label>
+    <input id="passA" type="password" maxlength="256" autocomplete="off">
     <label for="fileB" style="margin-top:14px">দ্বিতীয় ডিভাইসের ব্যাকআপ</label>
     <input id="fileB" type="file" accept="application/json,.json">
+    <label for="passB">দ্বিতীয় ফাইলের পাসফ্রেজ (নতুন ব্যাকআপ হলে)</label>
+    <input id="passB" type="password" maxlength="256" autocomplete="off">
+    <label for="outputPass">মিলিত ফাইলের নতুন পাসফ্রেজ (অন্তত ১২ অক্ষর)</label>
+    <input id="outputPass" type="password" minlength="12" maxlength="256" autocomplete="new-password">
+    <label for="outputConfirm">নতুন পাসফ্রেজ আবার লিখুন</label>
+    <input id="outputConfirm" type="password" minlength="12" maxlength="256" autocomplete="new-password">
+    <p class="lead">পাসফ্রেজ হারালে নতুন ফাইল খোলা যাবে না। পাসফ্রেজ অ্যাপে রাখা বা কোথাও পাঠানো হয় না।</p>
     <button id="merge" type="button" disabled>ফাইল মিলিয়ে দেখুন</button>
   </section>
 
@@ -44,6 +53,7 @@
 </main>
 <script type="module">
 import { mergeBackups, unwrapBackupPayload, encryptBackupPayload } from '../js/backup-merge.js';
+import { validBackupPassphrase } from '../js/backup-crypto.js';
 
 const $ = id => document.getElementById(id);
 const files = { a: null, b: null };
@@ -55,6 +65,8 @@ const clearError = () => { $('error').hidden = true; };
 for (const [id, key] of [['fileA', 'a'], ['fileB', 'b']]) {
   $(id).addEventListener('change', event => {
     files[key] = event.target.files?.[0] || null;
+    merged = null;
+    $('result').hidden = true;
     $('merge').disabled = !(files.a && files.b);
     clearError();
   });
@@ -63,10 +75,15 @@ for (const [id, key] of [['fileA', 'a'], ['fileB', 'b']]) {
 $('merge').addEventListener('click', async () => {
   try {
     clearError();
-    const rawA = await unwrapBackupPayload(await readJSON(files.a), 'প্রথম ফাইল');
-    const rawB = await unwrapBackupPayload(await readJSON(files.b), 'দ্বিতীয় ফাইল');
+    const outputPass = $('outputPass').value;
+    if (!validBackupPassphrase(outputPass)) throw new Error('মিলিত ফাইলের জন্য অন্তত ১২ অক্ষরের পাসফ্রেজ দিন।');
+    if (outputPass !== $('outputConfirm').value) throw new Error('নতুন পাসফ্রেজ দুটি মিলছে না।');
+    $('merge').disabled = true;
+    const rawA = await unwrapBackupPayload(await readJSON(files.a), 'প্রথম ফাইল', $('passA').value);
+    const rawB = await unwrapBackupPayload(await readJSON(files.b), 'দ্বিতীয় ফাইল', $('passB').value);
     const { merged: result, report } = mergeBackups(rawA, rawB);
-    merged = await encryptBackupPayload(result.data, result.createdAt, { mergedFrom: result.mergedFrom });
+    merged = await encryptBackupPayload(result.data, result.createdAt, { mergedFrom: result.mergedFrom }, outputPass);
+    for (const id of ['passA', 'passB', 'outputPass', 'outputConfirm']) $(id).value = '';
     $('summary').replaceChildren(...report.lines.map(line => {
       const item = document.createElement('li'); item.textContent = line; return item;
     }));
@@ -77,7 +94,10 @@ $('merge').addEventListener('click', async () => {
     if (!report.lines.length) $('summary').textContent = 'ফাইল দুটিতে কোনো পরিচিত সংগ্রহ পাওয়া যায়নি।';
     $('result').hidden = false;
   } catch (error) {
+    merged = null;
     showError(error.message || 'ফাইল মেলানো যায়নি।');
+  } finally {
+    $('merge').disabled = !(files.a && files.b);
   }
 });
 

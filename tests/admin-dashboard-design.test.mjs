@@ -30,9 +30,9 @@ test('Admin Home omits the picture, four counters, both reminders and five dupli
   ]) {
     assert.equal(home.querySelector(selector), null, `${selector} does not render on Home`);
   }
-  assert.ok(document.querySelector('.admin-view[data-view-panel="backup"] #backupExportButton'),
-    'backup export still exists in its own screen');
-  assert.ok(document.querySelector('.admin-view[data-view-panel="settings"] #maintenanceState'),
+  assert.ok(document.querySelector('.admin-view[data-view-panel="backup-export"] #backupExportButton'),
+    'backup export still exists in its dedicated screen');
+  assert.ok(document.querySelector('.admin-view[data-view-panel="settings-maintenance"] #maintenanceState'),
     'maintenance status remains in System Settings');
   assert.ok(document.querySelector('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'),
     'phonebook remains accessible from More');

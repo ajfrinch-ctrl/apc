@@ -1,6 +1,13 @@
 const { test, expect } = require('./fixtures.cjs');
 const { enterPortal } = require('./portal-session.cjs');
 
+function recordUnexpectedPageErrors(page, errors) {
+  page.on('pageerror', error => {
+    if (/auth\/network-request-failed/.test(error.message)) return; // offline Firebase in the test sandbox
+    errors.push(error.message);
+  });
+}
+
 /* The staff panels retain their own navigation handlers, but all three use the
    shared five-group Settings presentation. Re-entering that surface must always
    restore its group menu rather than exposing the last group from a prior visit. */
@@ -8,7 +15,7 @@ const { enterPortal } = require('./portal-session.cjs');
 test('Manager Settings returns to its group menu after switching pages at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  recordUnexpectedPageErrors(page, errors);
   await enterPortal(page, 'manager');
 
   const settings = page.locator('.manager-view[data-view-panel="settings"]');
@@ -35,21 +42,21 @@ test('Manager Settings returns to its group menu after switching pages at 320px'
 test('Teacher Settings returns to its group menu after switching pages at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  recordUnexpectedPageErrors(page, errors);
   await enterPortal(page, 'teacher');
 
   const profile = page.locator('#teacherProfile');
   const hub = page.locator('[data-settings-hub="teacher"]');
   const nav = hub.locator('[data-settings-groups]');
   await page.locator('.admin-bottom [data-teacher-view="more"]').click();
-  await page.locator('#teacherMore [data-teacher-view="profile"]').click();
+  await page.locator('#teacherMore [data-more-action="settings"]').click();
   await expect(profile).toBeVisible();
   await hub.locator('[data-settings-open="security"]').click();
   await expect(hub.locator('[data-settings-group="security"]')).toBeVisible();
 
   await page.locator('.admin-bottom [data-teacher-view="home"]').click();
   await page.locator('.admin-bottom [data-teacher-view="more"]').click();
-  await page.locator('#teacherMore [data-teacher-view="profile"]').click();
+  await page.locator('#teacherMore [data-more-action="settings"]').click();
   await expect(profile).toBeVisible();
   await expect(nav).toBeVisible();
   await expect(hub.locator('[data-settings-group]:not([hidden])')).toHaveCount(0);
@@ -62,7 +69,7 @@ test('Teacher Settings returns to its group menu after switching pages at 320px'
 test('Cash Counter More resets its Settings group on a repeated tap at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  recordUnexpectedPageErrors(page, errors);
   await enterPortal(page, 'payment');
 
   const more = page.locator('#payMorePanel');

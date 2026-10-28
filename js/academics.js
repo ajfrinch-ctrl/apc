@@ -135,7 +135,7 @@ const OBSERVED_SOURCES = Object.freeze([
 
 const fail = message => { throw new Error(message); };
 const text = (value, cap = 120) => String(value ?? '').normalize('NFC').trim().slice(0, cap);
-const keyOf = value => text(value).toLowerCase();
+export const keyOf = value => text(value).toLowerCase();
 /* Bengali vowel signs and other combining marks are \p{M}, so they must stay
    in the slug or 'দশম শ্রেণি' would lose its matras and two different names
    could collide on one id. */

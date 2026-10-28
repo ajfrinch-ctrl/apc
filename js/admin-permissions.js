@@ -117,9 +117,29 @@ export const ROLE_CAPABILITIES = Object.freeze({
   student: STUDENT
 });
 
-/** Which capability unlocks each Admin Panel view (route guard). `system` is
- *  the hub the four system screens are reached through (see ADMIN_SYSTEM_NAV). */
-export const VIEW_CAPABILITIES = Object.freeze({
+/** Each detail page inherits its existing hub's capability and bottom seat.
+ *  No new role, capability or storage rule is introduced by navigation. */
+export const DETAIL_VIEW_PARENTS = Object.freeze({
+  'data-stats': 'data', 'data-danger': 'data',
+  'backup-export': 'backup', 'backup-restore': 'backup',
+  'audit-log': 'audit', 'audit-exam': 'audit',
+  'settings-branding': 'settings', 'settings-classes': 'settings',
+  'settings-broadcast': 'settings', 'settings-maintenance': 'settings',
+  'content-lecture-sheets': 'content', 'content-notices': 'content', 'content-records': 'content',
+  'advice-editor': 'advice',
+  'roles-admin': 'roles', 'roles-manager': 'roles', 'roles-teacher': 'roles',
+  'roles-payment': 'roles', 'roles-student': 'roles',
+  'security-owner': 'security', 'security-password': 'security',
+  'security-protected': 'security', 'security-boundaries': 'security',
+  'security-devices': 'security', 'device-fingerprint': 'security',
+  'academics-add': 'academics', 'academics-subjects': 'academics', 'academics-mapping': 'academics',
+  'migration-teacher': 'migration', 'migration-student': 'migration',
+  'profile-account': 'profile', 'profile-notification': 'profile', 'profile-app': 'profile',
+  'profile-security': 'profile', 'profile-data': 'profile'
+});
+
+/** Which existing capability unlocks each main Admin Panel view. */
+const MAIN_VIEW_CAPABILITIES = Object.freeze({
   dashboard: CAPABILITIES.DASHBOARD,
   staff: CAPABILITIES.STAFF_MANAGE,
   roles: CAPABILITIES.ROLES_MANAGE,
@@ -143,6 +163,12 @@ export const VIEW_CAPABILITIES = Object.freeze({
   advice: CAPABILITIES.ADVICE_MANAGE,
   'class-chat': CAPABILITIES.DATA_MANAGE,
   phonebook: CAPABILITIES.STUDENTS_VIEW
+});
+
+export const VIEW_CAPABILITIES = Object.freeze({
+  ...MAIN_VIEW_CAPABILITIES,
+  ...Object.fromEntries(Object.entries(DETAIL_VIEW_PARENTS)
+    .map(([view, parent]) => [view, MAIN_VIEW_CAPABILITIES[parent]]))
 });
 
 /** Five shared seats: হোম · স্টাফ · রিপোর্ট · সিস্টেম · আরও.
@@ -179,10 +205,15 @@ export const ADMIN_MORE_NAV = Object.freeze([
 ]);
 
 /** Which seat lights up for a view that lives inside a hub. */
-export const VIEW_SEAT = Object.freeze({
+const MAIN_VIEW_SEAT = Object.freeze({
   roles: 'system', security: 'system', settings: 'system', academics: 'system', migration: 'system',
   data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', content: 'more', 'class-chat': 'more', phonebook: 'more',
   students: 'dashboard'
+});
+export const VIEW_SEAT = Object.freeze({
+  ...MAIN_VIEW_SEAT,
+  ...Object.fromEntries(Object.entries(DETAIL_VIEW_PARENTS)
+    .map(([view, parent]) => [view, MAIN_VIEW_SEAT[parent] || parent]))
 });
 
 /** Dashboard tiles show system sections only, generated from the capabilities

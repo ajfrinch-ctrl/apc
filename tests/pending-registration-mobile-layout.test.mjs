@@ -154,7 +154,9 @@ test('360px Action Center + Student Registration Detail Modal render clean DOM h
   const pendingHost = modal.querySelector('[data-apc-pending-host]');
   assert.equal(pendingHost.classList.contains('is-empty'), false, 'pending host is visible when pending items exist');
   assert.match(pendingHost.textContent, /অনুমোদনের অপেক্ষায়/);
-  assert.match(pendingHost.textContent, /মোহাম্মদ সাইফ/);
+  assert.match(pendingHost.textContent, /গোপন তথ্য/);
+  assert.doesNotMatch(pendingHost.textContent, /মোহাম্মদ সাইফ|01811980540|261023001/,
+    'the queue masks identity until the review modal is opened');
 
   const pushCopy = modal.querySelector('[data-apc-notice-push] .notice-push-copy');
   const pushBtn = modal.querySelector('[data-apc-notice-push] .notice-push-btn');
