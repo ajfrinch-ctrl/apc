@@ -101,19 +101,38 @@ export function writeJSON(key, value) {
   try {
     safeSetItem(storage(), key, JSON.stringify(value));
     return true;
-  } catch {
+  } catch (e) {
+    if (e?.name === 'QuotaExceededError' || /quota/i.test(e?.message || '')) {
+      showStorageError(e);
+    }
     return false;
   }
 }
 
 export function writeJSONStrict(key, value) {
-  safeSetItem(storage(), key, JSON.stringify(value));
+  try {
+    safeSetItem(storage(), key, JSON.stringify(value));
+  } catch (e) {
+    if (e?.name === 'QuotaExceededError' || /quota/i.test(e?.message || '')) {
+      showStorageError(e);
+    }
+    throw e;
+  }
+}
+
+/** Wrap a storage write with user-visible quota feedback. Caller can check boolean. */
+export function writeJSONWithFeedback(key, value, { onQuotaToast } = {}) {
+  const ok = writeJSON(key, value);
+  if (!ok && typeof onQuotaToast === 'function') {
+    try { onQuotaToast(); } catch {}
+  }
+  return ok;
 }
 
 export function listDocuments(collection) {
   const stored = readJSON(KEYS[collection], null);
   if (!Array.isArray(stored)) return [];
-  return stored.filter(doc => doc && typeof doc.id === 'string' && doc.id).map(doc => ({ ...doc }));
+  return stored.filter(doc => doc && typeof doc === 'object' && (typeof doc.id === 'string' && doc.id || typeof doc.staffId === 'string' && doc.staffId)).map(doc => ({ ...doc }));
 }
 
 export function listDocumentsStrict(collection, valid) {

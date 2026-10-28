@@ -197,7 +197,10 @@ const seatFor = view => VIEW_SEAT[view] || view;
  * view is not in the DOM — this is the route guard behind every menu item,
  * shortcut, tile and hash link.
  */
-function resetAdminTogglePanels(scope = document) {
+function resetAdminTogglePanels(scope) {
+  if (!scope || !(scope instanceof Element || scope instanceof Document)) {
+    throw new TypeError('resetAdminTogglePanels: scope Element/Document required');
+  }
   // Only secondary expand controls (Staff directory, Student cards, Reports builder)
   // remain as in-place toggles — every primary More/System section is now a
   // dedicated .admin-view reached via navigate()/setView().
@@ -1766,6 +1769,7 @@ $('#adminMain')?.addEventListener('click', event => {
 $$('[data-admin-view]').forEach(button => {
   if (button.classList.contains('admin-bottom-item')) return;
   if (button.classList.contains('admin-more-item')) return;
+  if (button.classList.contains('admin-system-item')) return; // handled by admin-panel-ui.js renderHub
   // Exactly one handler per entry, no matter how often this wiring runs.
   if (button.dataset.navWired === '1') return;
   button.dataset.navWired = '1';

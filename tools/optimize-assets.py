@@ -38,7 +38,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+def _find_root(start: Path) -> Path:
+    for p in [start, start.parent, start.parent.parent]:
+        if (p / "assets" / "fonts" / "NotoSansBengali-Variable.ttf").exists() or (p / "package.json").exists():
+            return p
+    return start.parent.parent
+
+ROOT = _find_root(Path(__file__).resolve())
 FONT_TTF = ROOT / "assets/fonts/NotoSansBengali-Variable.ttf"
 FONT_WOFF2 = ROOT / "assets/fonts/NotoSansBengali-Variable.woff2"
 

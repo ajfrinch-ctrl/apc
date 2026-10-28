@@ -10,12 +10,24 @@ export function routeName(hash = window.location.hash) {
 
 /** Remember the page that is open now. Replaces the entry: Back still means
     "leave the panel", never "walk through every page I visited". */
-export function rememberRoute(name) {
+export function rememberRoute(name, { mode = 'replace', state } = {}) {
+  if (mode === 'keep') return;
   const route = String(name || '').trim();
-  if (!route || typeof window === 'undefined' || !window.history?.replaceState) return;
+  if (!route || typeof window === 'undefined') return;
   const target = `#${route}`;
-  if (window.location.hash === target) return;
-  window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + target);
+  const url = window.location.pathname + window.location.search + target;
+  if (window.location.hash === target && mode === 'replace') return;
+  const nextState = state !== undefined ? state : window.history.state;
+  if (mode === 'push' && window.history?.pushState) {
+    window.history.pushState(nextState, '', url);
+  } else if (window.history?.replaceState) {
+    window.history.replaceState(nextState, '', url);
+  }
+}
+
+/** Push a new history entry for user-driven navigation (so Back walks the stack). */
+export function pushRoute(name, state) {
+  return rememberRoute(name, { mode: 'push', state });
 }
 
 /** Run `handler(pageName)` when the hash changes (a hand-typed link, a shared

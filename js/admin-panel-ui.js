@@ -106,6 +106,8 @@ function renderHub(root, menuSelector, panelView, catalogue, access, onNavigate)
     items.push(item);
   });
   if (!items.length && !menu.querySelector('.admin-more-item')) {
+    const hasDetailChild = !!root.querySelector(`.admin-view[data-parent-view="${panelView}"]`);
+    if (hasDetailChild) return items;
     menu.remove();
     root.querySelector(`.admin-view[data-view-panel="${panelView}"]`)?.remove();
   }

@@ -8,4 +8,5 @@ class NoCache(SimpleHTTPRequestHandler):
         super().end_headers()
 
 if __name__ == '__main__':
+    ThreadingHTTPServer.allow_reuse_address = True
     ThreadingHTTPServer(('0.0.0.0', 8080), NoCache).serve_forever()
