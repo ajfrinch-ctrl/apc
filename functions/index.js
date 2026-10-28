@@ -1150,3 +1150,6 @@ exports.pushNewRegistration = onValueWritten({ ref: `${BRIDGE_ROOT}/notification
     data: { kind: 'registration', id: String(after.studentId || event.params.notifId || '') }
   });
 });
+
+// Optional Telegram alerts; secrets are read only by server-side triggers.
+Object.assign(exports, require('./telegram-notifications.cjs'));
