@@ -33,7 +33,7 @@ function isFastSandboxOrNode() {
    with no internet or a blocked CDN must still open the app normally. Share the
    exact specifier with js/login.js so cold mobile 4G never downloads sync-core
    twice under two query strings. */
-const SYNC_CORE_URL = '../sync/sync-core.js?v=20260929-protected';
+const SYNC_CORE_URL = '../sync/sync-core.js?v=20261028-admin-verification-fix';
 const FAST_ENV = isFastSandboxOrNode();
 const STATE_BUDGET_MS = FAST_ENV ? 8000 : 20000;
 const CLAIM_BUDGET_MS = FAST_ENV ? 12000 : 25000;
@@ -44,7 +44,7 @@ export const ADMIN_EXISTS_MESSAGE =
 
 /** The cloud could not be asked, so "no Admin exists" may not be concluded. */
 export const ADMIN_VERIFY_REQUIRED_MESSAGE =
-  'বিদ্যমান অ্যাডমিন অ্যাকাউন্ট আছে কি না যাচাই করতে ইন্টারনেট সংযোগ দরকার — ইন্টারনেট চালু করে আবার চেষ্টা করুন।';
+  'অ্যাডমিন অ্যাকাউন্ট যাচাই করা যায়নি। ইন্টারনেট বা সার্ভার সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।';
 
 /** Verification succeeded, but the atomic cloud claim could not be completed. */
 export const ADMIN_CLAIM_FAILED_MESSAGE =
@@ -76,14 +76,20 @@ function offline() {
  * the flag) is never mistaken for "no Admin".
  */
 export async function adminInitializationStatus({ budget = STATE_BUDGET_MS } = {}) {
-  if (!LEGACY_CLOUD_ENABLED) return { ok: false, reason: 'cloud-paused' };
+  if (!LEGACY_CLOUD_ENABLED) {
+    console.warn('[Active Plus] Admin verification skipped: legacy cloud access is paused by backend mode.');
+    return { ok: false, reason: 'cloud-paused' };
+  }
   if (offline()) return { ok: false, reason: 'offline' };
   try {
     const bridge = await withDeadline(import(SYNC_CORE_URL), 'admin state import', budget);
     const status = await withDeadline(bridge.adminInitializationState(), 'admin state', budget);
     return status && typeof status === 'object' ? status : { ok: false, reason: 'admin-check-failed' };
   } catch (error) {
-    console.warn('[Active Plus] Admin initialization check unavailable:', error?.message || error);
+    console.warn('[Active Plus] Admin initialization check unavailable:', {
+      code: error?.code || error?.name || 'unknown',
+      message: error?.message || String(error)
+    });
     return { ok: false, reason: 'admin-check-failed' };
   }
 }
