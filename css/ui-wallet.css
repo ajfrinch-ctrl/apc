@@ -8393,7 +8393,6 @@ body.admin-reference #adminShell:has(> .class-chat-head:not([hidden])):has(> #ad
 body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-group-head {
   display: none;
 }
-}
 
 /* Admin — hero cards removed (2026-10-27): compact page header without artwork */
 .admin-page-header {
@@ -8437,4 +8436,5 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
 }
 .admin-page-header .pay-back[hidden] {
   display: none !important;
+}
 }

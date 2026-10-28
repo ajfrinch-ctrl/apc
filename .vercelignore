@@ -4,6 +4,7 @@ functions
 tools
 supabase
 docs
+demo
 playwright-report
 test-results
 firebase.json
@@ -12,5 +13,9 @@ firestore.indexes.json
 database.rules.json
 database.rules.v2.draft.json
 *.md
+AUDIT-*.md
+LIGHTENING-*.md
 .git
 .github
+assets/sky
+assets/fonts/*.ttf

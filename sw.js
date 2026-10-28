@@ -243,10 +243,7 @@ const APP_SHELL = [
   './assets/icons/ai-3d/download.svg',
   './assets/icons/ai-3d/edit.svg',
   './assets/icons/ai-3d/exam.svg',
-  './assets/icons/ai-3d/exam.png',
-  './assets/icons/ai-3d/book.png',
-  './assets/icons/ai-3d/calendar.png',
-  './assets/icons/ai-3d/wallet.png',
+  // PNG fallbacks (exam/book/calendar/wallet.png) removed from precache — all icons load as SVG via image href; saves 153 KB
   './assets/icons/ai-3d/approvals.svg',
   './assets/icons/ai-3d/verified.svg',
   './assets/icons/ai-3d/courses.svg',
@@ -493,7 +490,7 @@ const APP_SHELL = [
   './js/routine.js',
   './js/profile.js',
   './js/student-profile-card.js',
-  './vendor/qrcode/encoder.js',
+  // vendor/qrcode/encoder.js (21 KB) removed from precache — no client import; file kept for future QR feature
   './js/login.js',
   './js/staff-auth.js',
   './js/admin-initialization.js',
