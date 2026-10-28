@@ -11,9 +11,17 @@ function placeAcademics(view) {
   if (!root || !hub) return;
   const key = ({ 'academics-add': 'add', 'academics-subjects': 'subjects', 'academics-mapping': 'mapping' })[view];
   const destination = key ? detailSlot(view) : hub;
+  // Race fix: detailSlot may not exist until after setView renders the panel visible.
+  // Defer one frame so the hidden panel is already in DOM and visible.
+  if (key && !destination) {
+    requestAnimationFrame(() => placeAcademics(view));
+    return;
+  }
   if (destination && root.parentElement !== destination) destination.append(root);
   if (key && destination) root.dataset.openAcademicCard = key;
   else delete root.dataset.openAcademicCard;
+  // Ensure child render happens after DOM move
+  if (key && destination) requestAnimationFrame(() => root.dispatchEvent(new CustomEvent('apc-detail-moved', { detail: { view } })));
 }
 
 function placeMigration(view) {
@@ -22,6 +30,10 @@ function placeMigration(view) {
   if (!root || !hub) return;
   const index = ({ 'migration-teacher': 0, 'migration-student': 1 })[view];
   const destination = index !== undefined ? detailSlot(view) : hub;
+  if (index !== undefined && !destination) {
+    requestAnimationFrame(() => placeMigration(view));
+    return;
+  }
   if (destination && root.parentElement !== destination) destination.append(root);
   root.querySelectorAll('.v2-migration-card').forEach((card, i) => {
     card.classList.toggle('is-open', Boolean(destination) && index === i);
@@ -89,7 +101,11 @@ export function placeRenderedDetails(host, attribute, prefix) {
   host.querySelectorAll(`[data-${attribute}]`).forEach(panel => {
     const key = panel.getAttribute(`data-${attribute}`);
     const destination = detailSlot(`${prefix}-${key}`);
-    if (!destination) { panel.remove(); return; }
+    if (!destination) {
+      // Detail slot not yet rendered (e.g. hub not visible) — keep in host hidden instead of deleting
+      panel.hidden = true;
+      return;
+    }
     panel.hidden = false;
     destination.replaceChildren(panel);
   });

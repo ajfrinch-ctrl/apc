@@ -110,3 +110,305 @@
   .apc-pending-item{padding:12px}
   .apc-pending-item__actions,.apc-pending-item__reject-actions{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* ================================================================
+   Facebook-style Notification Panel — Dropdown (desktop) + Bottom Sheet (mobile)
+   Keeps all existing .notice-detail / .notification-dot markup for backward compat.
+   Uses design tokens so light/dark/AMOLED all work.
+   ================================================================ */
+
+/* ---------- Badge 99+ + pulse ---------- */
+.notification-dot.apc-fb-pulse{animation:apc-fb-badge-pulse .6s cubic-bezier(.34,1.56,.64,1)}
+@keyframes apc-fb-badge-pulse{0%{transform:scale(1)}30%{transform:scale(1.25)}100%{transform:scale(1)}}
+
+/* ---------- Backdrop ---------- */
+.apc-fb-backdrop{
+  --apc-fb-panel-width:380px;
+  backdrop-filter:blur(2px);
+  -webkit-backdrop-filter:blur(2px);
+}
+.apc-fb-backdrop[hidden]{display:none !important}
+
+/* ---------- Panel: desktop dropdown ---------- */
+.apc-fb-panel{
+  --fb-radius:16px;
+  position:fixed;
+  width:min(var(--apc-fb-panel-width), calc(100vw - 24px));
+  max-height:min(85vh, 640px);
+  display:flex;
+  flex-direction:column;
+  background:var(--color-surface);
+  border:1px solid var(--color-border);
+  border-radius:var(--fb-radius);
+  box-shadow:0 8px 24px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.08);
+  overflow:hidden;
+  z-index:1001;
+}
+/* arrow pointing to bell (desktop only) */
+.apc-fb-panel::before{
+  content:'';
+  position:absolute;
+  top:-8px;
+  right:24px;
+  width:14px; height:14px;
+  background:var(--color-surface);
+  border-left:1px solid var(--color-border);
+  border-top:1px solid var(--color-border);
+  transform:rotate(45deg);
+}
+@media(max-width:600px){
+  .apc-fb-panel::before{display:none}
+}
+
+/* ---------- Header ---------- */
+.apc-fb-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:var(--space-2);
+  padding:16px 16px 12px;
+  border-bottom:1px solid var(--color-border);
+  background:var(--color-surface);
+  position:sticky;
+  top:0;
+  z-index:2;
+}
+.apc-fb-title{
+  margin:0;
+  font-size:20px;
+  font-weight:800;
+  line-height:1.2;
+  color:var(--color-text);
+  letter-spacing:-.01em;
+}
+.apc-fb-header-actions{display:flex;align-items:center;gap:8px}
+.apc-fb-mark-all{
+  min-height:32px;
+  padding:6px 12px;
+  border-radius:999px;
+  border:none;
+  background:var(--color-surface-muted);
+  color:var(--color-primary);
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+.apc-fb-mark-all:hover{background:var(--color-primary);color:var(--color-on-accent)}
+.apc-fb-mark-all:disabled{opacity:.5;cursor:default}
+.apc-fb-close{
+  width:32px; height:32px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  border:none;
+  background:var(--color-surface-muted);
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+}
+.apc-fb-close:hover{background:var(--color-border)}
+
+/* ---------- Drag handle (mobile) ---------- */
+.apc-fb-handle{
+  display:none;
+  width:36px; height:4px;
+  margin:8px auto 0;
+  border-radius:999px;
+  background:var(--color-border);
+}
+@media(max-width:600px){
+  .apc-fb-handle{display:block}
+}
+
+/* ---------- Filters (pills) ---------- */
+.apc-fb-filters{
+  padding:10px 16px;
+  gap:8px;
+  border-bottom:1px solid var(--color-border);
+  background:var(--color-surface);
+  margin-block:0;
+}
+.apc-fb-chip{
+  min-height:32px;
+  padding:6px 14px;
+  border-radius:999px;
+  border:1px solid var(--color-border);
+  background:var(--color-surface);
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+.apc-fb-chip.active{
+  background:var(--color-primary);
+  border-color:var(--color-primary);
+  color:var(--color-on-accent);
+}
+.apc-fb-chip:hover{border-color:var(--color-primary)}
+
+/* ---------- List ---------- */
+.apc-fb-list{
+  flex:1;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  padding:8px 8px 12px;
+  display:grid;
+  gap:2px;
+  max-height:60vh;
+}
+.apc-fb-status{padding:8px 16px 0; font-size:13px}
+.apc-fb-status:empty{display:none}
+
+/* ---------- Facebook card ---------- */
+.apc-fb-card{
+  position:relative;
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid transparent;
+  background:transparent;
+  cursor:pointer;
+  transition:background .15s ease;
+}
+.apc-fb-card:hover{background:var(--color-surface-muted)}
+.apc-fb-card.apc-fb-unread{
+  background:rgba(46,136,255,.08);
+  border:1px solid rgba(46,136,255,.12);
+}
+html[data-theme="dark"] .apc-fb-card.apc-fb-unread{
+  background:rgba(46,136,255,.12);
+}
+.apc-fb-card.apc-fb-unread:hover{background:rgba(46,136,255,.14)}
+.apc-fb-avatar{
+  flex:0 0 auto;
+  width:40px; height:40px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  font-size:18px;
+}
+.apc-fb-avatar svg{width:22px;height:22px}
+.apc-fb-copy{flex:1;min-width:0;display:grid;gap:3px}
+.apc-fb-title-text{
+  margin:0;
+  font-size:14px;
+  font-weight:600;
+  line-height:1.4;
+  color:var(--color-text);
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  word-break:break-word;
+}
+.apc-fb-unread .apc-fb-title-text{font-weight:700}
+.apc-fb-meta{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;color:var(--color-text-secondary);
+  flex-wrap:wrap;
+}
+.apc-fb-section{
+  padding:1px 6px;
+  border-radius:999px;
+  background:var(--color-surface-muted);
+  border:1px solid var(--color-border);
+  font-size:11px;
+}
+.apc-fb-dot{opacity:.6}
+.apc-fb-time{font-size:12px}
+.apc-fb-preview{
+  margin:2px 0 0;
+  font-size:13px;
+  line-height:1.4;
+  color:var(--color-text-secondary);
+  display:-webkit-box;
+  -webkit-line-clamp:1;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.apc-fb-card-body{
+  margin:4px 0 0;
+  padding:8px 10px;
+  border-radius:8px;
+  font-size:13px;
+  max-height:120px;
+}
+.apc-fb-actions{margin-top:6px}
+.apc-fb-expand{font-size:12px; min-height:28px; padding:4px 10px}
+.apc-fb-action{font-size:13px; min-height:32px}
+.apc-fb-unread-dot{
+  position:absolute;
+  top:50%;
+  right:10px;
+  transform:translateY(-50%);
+  width:10px; height:10px;
+  border-radius:50%;
+  background:#1877F2;
+  box-shadow:0 0 0 2px var(--color-surface);
+}
+.apc-fb-unread .apc-fb-unread-dot{display:block}
+.apc-fb-card:not(.apc-fb-unread) .apc-fb-unread-dot{display:none}
+
+/* Legacy notice-detail compat — keep but hide old dot when fb card */
+.notice-detail.apc-fb-card .notice-unread-dot{display:none}
+
+/* ---------- Footer ---------- */
+.apc-fb-footer{
+  padding:12px 16px;
+  border-top:1px solid var(--color-border);
+  background:var(--color-surface);
+  display:flex;
+  justify-content:center;
+}
+.apc-fb-settings-link{
+  width:100%;
+  min-height:36px;
+  border-radius:999px;
+  border:1px solid var(--color-border);
+  background:var(--color-surface-muted);
+  color:var(--color-text);
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+.apc-fb-settings-link:hover{background:var(--color-border)}
+
+/* ---------- Mobile bottom sheet ---------- */
+@media(max-width:600px){
+  .apc-fb-backdrop{
+    align-items:flex-end;
+    justify-content:center;
+    background:rgba(0,0,0,.4);
+  }
+  .apc-fb-panel{
+    position:fixed !important;
+    inset:auto 0 0 0 !important;
+    width:100% !important;
+    max-width:100vw;
+    max-height:85vh;
+    height:85vh;
+    border-radius:16px 16px 0 0;
+    animation:apc-fb-slide-up .28s cubic-bezier(.2,.8,.2,1);
+  }
+  .apc-fb-list{max-height:none; flex:1}
+  .apc-fb-header{padding-top:8px}
+}
+@keyframes apc-fb-slide-up{
+  from{transform:translateY(100%)}
+  to{transform:translateY(0)}
+}
+
+/* ---------- Empty ---------- */
+.apc-fb-panel .notice-empty{margin:16px}
+
+/* ---------- Accessibility focus ---------- */
+.apc-fb-card:focus-visible{
+  outline:2px solid var(--color-primary);
+  outline-offset:-2px;
+}
+.apc-fb-chip:focus-visible,
+.apc-fb-mark-all:focus-visible,
+.apc-fb-close:focus-visible{
+  outline:2px solid var(--color-primary);
+  outline-offset:2px;
+}

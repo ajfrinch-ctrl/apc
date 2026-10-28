@@ -138,12 +138,13 @@ test('only read===false is unread; read, unread and delivered stamps follow the 
   assert.equal(unreadNotifications('student:AP-1').length, 0);
 });
 
-test('the badge text: 0 hides, 1–9 exact, 10+ shows ১০+', () => {
+test('the badge text: 0 hides, 1–99 exact, 100+ shows ৯৯+', () => {
   assert.equal(unreadBadgeText(0), '');
   assert.equal(unreadBadgeText(1), '১');
   assert.equal(unreadBadgeText(9), '৯');
-  assert.equal(unreadBadgeText(10), '১০+');
-  assert.equal(unreadBadgeText(250), '১০+');
+  assert.equal(unreadBadgeText(10), '১০');
+  assert.equal(unreadBadgeText(99), '৯৯');
+  assert.equal(unreadBadgeText(250), '৯৯+');
 });
 
 test('an update stores what the device already knew as read, so old news never buzzes as unread', async () => {
@@ -242,7 +243,13 @@ test('the student app ships Settings → Notification Settings with every switch
 
   await ctx.waitFor(() => ctx.$$('#notificationSettings .notice-setting-row').length >= 4, 3000);
   const toggles = ctx.$$('#notificationSettings input[type=checkbox]').map(input => input.id);
-  assert.deepEqual(toggles, ['noticeMasterToggle', 'noticeBackgroundToggle', 'noticeInAppToggle', 'noticeSoundToggle']);
+  // Facebook upgrade: 4 core + 8 per-type toggles (notice/result/fee/homework/registration/chat/system/other)
+  for (const id of ['noticeMasterToggle', 'noticeBackgroundToggle', 'noticeInAppToggle', 'noticeSoundToggle']) {
+    assert.ok(toggles.includes(id), `core toggle ${id} is missing`);
+  }
+  for (const id of ['noticeType_notice','noticeType_result','noticeType_fee','noticeType_homework','noticeType_registration','noticeType_chat','noticeType_system','noticeType_other']) {
+    assert.ok(toggles.includes(id), `per-type toggle ${id} is missing`);
+  }
   assert.ok(ctx.$('#notificationSettings [data-notice-preview]'), 'the preview action is missing');
   assert.ok(ctx.$('#notificationSettings [data-notice-read-all-settings]'), 'the read-all action is missing');
   assert.ok(ctx.$('#notificationSettings [data-notice-permission]') || ctx.$('#notificationSettings .notice-permission-ok'), 'the browser permission state is missing');

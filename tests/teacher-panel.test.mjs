@@ -548,7 +548,12 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
   assert.ok(notifMount, 'notification settings mount exists');
   assert.doesNotMatch(notifMount.textContent, /নোটিফিকেশন সিস্টেম চালু হচ্ছে/, 'notification settings never hangs on loading message');
   const notifToggles = $$('#notificationSettings input[type="checkbox"]').map(i => i.id);
-  assert.deepEqual(notifToggles, ['noticeMasterToggle', 'noticeBackgroundToggle', 'noticeInAppToggle', 'noticeSoundToggle']);
+  for (const id of ['noticeMasterToggle', 'noticeBackgroundToggle', 'noticeInAppToggle', 'noticeSoundToggle']) {
+    assert.ok(notifToggles.includes(id), `core toggle ${id} is missing`);
+  }
+  for (const id of ['noticeType_notice','noticeType_result','noticeType_fee','noticeType_homework','noticeType_registration','noticeType_chat','noticeType_system','noticeType_other']) {
+    assert.ok(notifToggles.includes(id), `per-type toggle ${id} is missing`);
+  }
   assert.ok($('#notificationSettings [data-notice-preview]'), 'notification preview button exists');
   assert.ok($('#notificationSettings [data-notice-read-all-settings]'), 'notification mark-all-read button exists');
   assert.ok($('#notificationSettings .notice-history-list'), 'notification history list exists');

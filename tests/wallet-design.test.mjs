@@ -133,12 +133,12 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
       assert.ok(button.querySelector('svg'));
     }
   }
-  /* Admin: a screen inside a hub returns to that hub; the rest go home. */
+  /* Admin: hub panels removed (2026-10-28 refactor) — every main screen returns home; only detail sub-views return to parent hub. */
   const adminDocument = doc('admin');
   const adminBacks = [...adminDocument.querySelectorAll('.pay-back')];
   const mainBacks = adminBacks.filter(button => !button.closest('[data-parent-view]'))
     .map(button => button.getAttribute('data-admin-back') || button.getAttribute('data-admin-view'));
-  assert.deepEqual(mainBacks, ['dashboard', 'dashboard', 'system', 'system', 'dashboard', 'dashboard', 'more', 'data', 'data', 'system', 'system', 'system', 'more', 'more', 'more', 'more', 'more']);
+  assert.deepEqual(mainBacks, Array(17).fill('dashboard'), 'hub toggle panels removed — main screens return home');
   const detailBacks = adminBacks.filter(button => button.closest('[data-parent-view]'));
   assert.equal(detailBacks.length, 35, 'each routed detail has its own Back');
   for (const button of detailBacks) {

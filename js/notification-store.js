@@ -127,7 +127,18 @@ export const NOTIFICATION_DEFAULTS = Object.freeze({
   enabled: true,      // master switch, in-app + system
   sound: true,        // a short tone with an in-app card
   background: true,   // show while the app is in the background / closed
-  inApp: true         // the card inside the app
+  inApp: true,        // the card inside the app
+  // Per-type toggles — Facebook panel spec: 8 types (notice/result/fee/homework/registration/chat/system/other)
+  types: Object.freeze({
+    notice: true,       // নতুন নোটিশ
+    result: true,       // পরীক্ষার ফলাফল
+    fee: true,          // ফি রিমাইন্ডার/বকেয়া
+    homework: true,     // অ্যাসাইনমেন্ট/হোমওয়ার্ক
+    registration: true, // নিবন্ধন approve/reject
+    chat: true,         // ক্লাস চ্যাট
+    system: true,       // সিস্টেম অ্যালার্ট
+    other: true         // অন্যান্য অ্যাডমিন
+  })
 });
 
 const isObject = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -412,18 +423,33 @@ function loadSettingsFile() {
 /** A user who has never opened the screen gets the defaults. */
 export function notificationSettings(userId) {
   const owner = text(userId);
-  if (!owner) return { ...NOTIFICATION_DEFAULTS };
+  if (!owner) return { ...NOTIFICATION_DEFAULTS, types: { ...NOTIFICATION_DEFAULTS.types } };
   const stored = loadSettingsFile().users[owner];
-  return { ...NOTIFICATION_DEFAULTS, ...(isObject(stored) ? stored : {}) };
+  const merged = { ...NOTIFICATION_DEFAULTS, ...(isObject(stored) ? stored : {}) };
+  // Deep-clone types and fill missing keys from defaults (migration)
+  merged.types = { ...NOTIFICATION_DEFAULTS.types, ...(isObject(stored?.types) ? stored.types : {}) };
+  return merged;
 }
 
 export function saveNotificationSettings(userId, patch = {}) {
   const owner = text(userId);
-  if (!owner) return { ...NOTIFICATION_DEFAULTS };
+  if (!owner) return { ...NOTIFICATION_DEFAULTS, types: { ...NOTIFICATION_DEFAULTS.types } };
   const file = loadSettingsFile();
-  const next = { ...notificationSettings(owner) };
+  const next = { ...notificationSettings(owner), types: { ...notificationSettings(owner).types } };
   for (const field of Object.keys(NOTIFICATION_DEFAULTS)) {
-    if (field in patch) next[field] = patch[field] === true;
+    if (field === 'types') {
+      if (isObject(patch.types)) {
+        next.types = { ...next.types };
+        for (const k of Object.keys(NOTIFICATION_DEFAULTS.types)) {
+          if (k in patch.types) next.types[k] = patch.types[k] === true;
+        }
+      }
+    } else if (field in patch) next[field] = patch[field] === true;
+  }
+  // Allow flat per-type patch keys like typeNotice for backward compat with callers
+  for (const k of Object.keys(NOTIFICATION_DEFAULTS.types)) {
+    const flatKey = `type_${k}`;
+    if (flatKey in patch) next.types[k] = patch[flatKey] === true;
   }
   next.updatedAt = new Date().toISOString();
   file.users[owner] = next;

@@ -43,7 +43,19 @@
       "**/node_modules/**",
       "**/tests/**",
       "**/functions/**",
-      "**/tools/**"
+      "**/tools/**",
+      "**/docs/**",
+      "**/*.md",
+      "**/demo/**",
+      "**/supabase/**",
+      "**/assets/sky/**",
+      "**/assets/fonts/*.ttf",
+      "AUDIT-*.md",
+      "LIGHTENING-*.md",
+      "PERFORMANCE-*.md",
+      "playwright-report/**",
+      "test-results/**",
+      ".github/**"
     ],
     "headers": [
       {

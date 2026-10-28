@@ -23,25 +23,63 @@ import { SECTION_LABEL } from './notification-store.js';
  */
 
 const MODAL_ID = 'apcNoticeModal';
+/** Facebook-style: 8 types with distinct avatar colors */
 const KIND_ICON = Object.freeze({
+  // নতুন নোটিশ
   notice: 'icon-megaphone',
   broadcast: 'icon-bell',
-  exam: 'icon-clipboard',
-  homework: 'icon-clipboard',
+  // পরীক্ষার ফলাফল
   result: 'icon-award',
-  registration: 'icon-users',
+  exam: 'icon-clipboard',
   'exam-soon': 'icon-clipboard',
   'exam-live': 'icon-clipboard',
   'exam-review': 'icon-clipboard',
   'exam-returned': 'icon-clipboard',
   'exam-approved': 'icon-clipboard',
-  birthday: 'icon-award',
-  'birthday-soon': 'icon-award',
-  approved: 'icon-award',
-  rejected: 'icon-bell',
+  // ফি রিমাইন্ডার / বকেয়া
   payment: 'icon-bell',
   'payment-review': 'icon-bell',
-  'payment-rejected': 'icon-bell'
+  'payment-rejected': 'icon-bell',
+  fee: 'icon-bell',
+  // অ্যাসাইনমেন্ট / হোমওয়ার্ক
+  homework: 'icon-clipboard',
+  assignment: 'icon-clipboard',
+  // নিবন্ধন
+  registration: 'icon-users',
+  approved: 'icon-award',
+  rejected: 'icon-bell',
+  // ক্লাস চ্যাট
+  chat: 'icon-bell',
+  'class-chat': 'icon-bell',
+  // সিস্টেম অ্যালার্ট
+  system: 'icon-bell',
+  alert: 'icon-bell',
+  // অন্যান্য
+  birthday: 'icon-award',
+  'birthday-soon': 'icon-award',
+  other: 'icon-bell'
+});
+
+/** Avatar background per type — Facebook palette */
+const KIND_AVATAR_BG = Object.freeze({
+  notice: '#E7F3FF', broadcast: '#FFE7E7',
+  exam: '#E6F4EA', result: '#E6F4EA', 'exam-soon': '#FEF3C7', 'exam-live': '#FEE2E2',
+  homework: '#F3E8FF', assignment: '#F3E8FF',
+  registration: '#E0F2F1', approved: '#E6F4EA', rejected: '#FFE7E7',
+  payment: '#FFF7E6', fee: '#FFF7E6', 'payment-review': '#FFF7E6',
+  chat: '#E0F7FA', 'class-chat': '#E0F7FA',
+  system: '#FFF3E0', alert: '#FFF3E0',
+  birthday: '#FCE7F3', other: '#F1F5F9'
+});
+const KIND_AVATAR_FG = Object.freeze({
+  notice: '#1877F2', broadcast: '#E41E3F',
+  exam: '#0B8043', result: '#0B8043', 'exam-soon': '#D97706', 'exam-live': '#DC2626',
+  homework: '#7C3AED', assignment: '#7C3AED',
+  registration: '#00796B', approved: '#0B8043', rejected: '#C62828',
+  payment: '#EA580C', fee: '#EA580C', 'payment-review': '#EA580C',
+  chat: '#0097A7', 'class-chat': '#0097A7',
+  system: '#EF6C00', alert: '#EF6C00',
+  birthday: '#BE185D', other: '#64748B'
 });
 /* The button on an item that asks someone to act. */
 const ACTION_LABEL = Object.freeze({
@@ -65,11 +103,36 @@ const REFRESH_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'teac
 
 const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
 const bn = value => String(value).replace(/\d/g, digit => BN_DIGITS[Number(digit)]);
-/** 0 hides the badge, 1–9 shows the exact number, 10+ shows "১০+". */
+/** Facebook-style badge: 0 hidden, 1–99 exact (Bengali), 99+ capped. */
 export function unreadBadgeText(count) {
   const value = Number(count) || 0;
   if (value <= 0) return '';
-  return value > 9 ? `${bn(10)}+` : bn(value);
+  if (value > 99) return `${bn(99)}+`;
+  return bn(value);
+}
+
+/** Relative time in Bengali — “২ ঘন্টা আগে”, “গতকাল”, “৩ দিন আগে” */
+export function timeAgoBn(at) {
+  const stamp = Number(at);
+  if (!Number.isFinite(stamp) || stamp <= 0) return '';
+  const diff = Date.now() - stamp;
+  if (diff < 0) return 'এইমাত্র';
+  const sec = Math.floor(diff / 1000);
+  if (sec < 45) return 'এইমাত্র';
+  if (sec < 90) return '১ মিনিট আগে';
+  const min = Math.floor(sec / 60);
+  if (min < 45) return `${bn(min)} মিনিট আগে`;
+  if (min < 90) return '১ ঘন্টা আগে';
+  const hr = Math.floor(min / 60);
+  if (hr < 22) return `${bn(hr)} ঘন্টা আগে`;
+  if (hr < 36) return 'গতকাল';
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${bn(day)} দিন আগে`;
+  if (day < 14) return '১ সপ্তাহ আগে';
+  if (day < 30) return `${bn(Math.floor(day / 7))} সপ্তাহ আগে`;
+  const date = new Date(stamp);
+  try { return date.toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }); }
+  catch { return date.toLocaleDateString(); }
 }
 
 let center = null;
@@ -84,16 +147,22 @@ function escapeHtml(value) {
 }
 
 function whenText(item) {
+  // Prefer Facebook relative time; fallback to absolute Bengali date for old items
+  const t = timeAgoBn(item?.at);
+  if (t) return t;
   const at = Number(item?.at);
   if (Number.isFinite(at) && at > 0) {
     const date = new Date(at);
-    try {
-      return date.toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' });
-    } catch {
-      return date.toLocaleString();
-    }
+    try { return date.toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' }); }
+    catch { return date.toLocaleString(); }
   }
   return String(item?.audience || '');
+}
+
+function avatarStyle(kind) {
+  const bg = KIND_AVATAR_BG[kind] || KIND_AVATAR_BG.other;
+  const fg = KIND_AVATAR_FG[kind] || KIND_AVATAR_FG.other;
+  return `background:${bg};color:${fg};border:1px solid ${bg}`;
 }
 
 function iconMarkup(kind) {
@@ -110,25 +179,56 @@ const sectionOf = item => SECTION_LABEL[item?.kind] || 'নোটিশ';
 
 function buildModal() {
   const backdrop = document.createElement('div');
-  backdrop.className = 'modal-backdrop';
+  backdrop.className = 'modal-backdrop apc-fb-backdrop';
   backdrop.id = MODAL_ID;
   backdrop.hidden = true;
   backdrop.innerHTML =
-    '<section class="modal" role="dialog" aria-modal="true" aria-labelledby="apcNoticeTitle">' +
-      '<div class="modal-header"><div><p class="eyebrow">Active Plus আপডেট</p>' +
-      '<h2 id="apcNoticeTitle">অ্যাকশন সেন্টার</h2></div>' +
-      '<button type="button" class="modal-close" data-apc-notice-close aria-label="বন্ধ করুন">×</button></div>' +
-      '<p class="notice-read-status" data-apc-notice-status role="status"></p>' +
-      '<div class="notice-filters" role="tablist" aria-label="নোটিফিকেশন দেখার ধরন">' +
-        '<button type="button" class="chip active" role="tab" aria-selected="true" data-apc-notice-filter="unread">অপঠিত<span data-apc-notice-unread-chip></span></button>' +
-        '<button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="all">সব</button>' +
-        '<button type="button" class="mini-btn notice-read-all" data-apc-notice-read-all>সব পড়া করুন</button>' +
+    '<section class="modal apc-fb-panel" role="dialog" aria-modal="true" aria-labelledby="apcNoticeTitle">' +
+      '<div class="apc-fb-handle" aria-hidden="true"></div>' +
+      '<header class="apc-fb-header">' +
+        '<h2 id="apcNoticeTitle" class="apc-fb-title">নোটিফিকেশন</h2>' +
+        '<div class="apc-fb-header-actions">' +
+          '<button type="button" class="apc-fb-mark-all" data-apc-notice-read-all aria-label="সব নোটিফিকেশন পঠিত করুন">সব পঠিত করুন</button>' +
+          '<button type="button" class="modal-close apc-fb-close" data-apc-notice-close aria-label="বন্ধ করুন">×</button>' +
+        '</div>' +
+      '</header>' +
+      '<div class="notice-filters apc-fb-filters" role="tablist" aria-label="নোটিফিকেশন ফিল্টার">' +
+        '<button type="button" class="chip apc-fb-chip active" role="tab" aria-selected="true" data-apc-notice-filter="all">সব</button>' +
+        '<button type="button" class="chip apc-fb-chip" role="tab" aria-selected="false" data-apc-notice-filter="unread">অপঠিত<span data-apc-notice-unread-chip></span></button>' +
       '</div>' +
-      '<div data-apc-notice-list></div>' +
+      '<p class="notice-read-status apc-fb-status" data-apc-notice-status role="status"></p>' +
+      '<div class="apc-fb-list" data-apc-notice-list role="feed" aria-label="নোটিফিকেশন তালিকা"></div>' +
       '<p class="form-note" data-apc-notice-push role="status"></p>' +
+      '<footer class="apc-fb-footer">' +
+        '<button type="button" class="apc-fb-settings-link" data-apc-notice-settings>⚙️ নোটিফিকেশন সেটিংস</button>' +
+      '</footer>' +
     '</section>';
   document.body.append(backdrop);
   return backdrop;
+}
+
+/** Position Facebook dropdown under bell (desktop) or as bottom sheet (mobile) */
+function positionPanel(modal) {
+  const panel = modal?.querySelector('.apc-fb-panel');
+  const bell = document.getElementById('notificationButton');
+  if (!panel || !bell) return;
+  const isMobile = window.matchMedia('(max-width: 600px)').matches;
+  if (isMobile) {
+    panel.style.top = ''; panel.style.right = ''; panel.style.left = '';
+    panel.style.position = '';
+    return;
+  }
+  try {
+    const rect = bell.getBoundingClientRect();
+    const gap = 10;
+    const panelWidth = 380;
+    panel.style.position = 'fixed';
+    panel.style.top = `${Math.round(rect.bottom + gap)}px`;
+    let right = window.innerWidth - rect.right - (rect.width / 2) + (panelWidth / 2);
+    right = Math.max(12, Math.min(right, window.innerWidth - panelWidth - 12));
+    panel.style.right = `${Math.round(right)}px`;
+    panel.style.left = 'auto';
+  } catch { /* fallback to CSS */ }
 }
 
 /* The pretty empty state: a checked card instead of a row of buttons. */
@@ -205,10 +305,40 @@ export function mountNoticeCenter(api) {
 
   function show(visible) {
     modal.hidden = !visible;
+    const bell = document.getElementById('notificationButton');
     if (visible) {
+      positionPanel(modal);
       modal.querySelector('[data-apc-notice-close]')?.focus?.();
       void paintPush();
+      // Prevent background scroll on mobile sheet
+      if (window.matchMedia('(max-width: 600px)').matches) {
+        document.body.style.overflow = 'hidden';
+      }
+      bell?.setAttribute('aria-expanded', 'true');
+      // Trap focus inside panel
+      trapFocus(modal);
+    } else {
+      document.body.style.overflow = '';
+      bell?.setAttribute('aria-expanded', 'false');
+      bell?.focus?.();
     }
+    // Toggle backdrop scroll lock class
+    modal.classList.toggle('is-open', visible);
+  }
+
+  function trapFocus(container) {
+    const focusable = [...container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(el => !el.hidden && !el.disabled);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const handler = e => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    if (container._apcFocusTrap) container.removeEventListener('keydown', container._apcFocusTrap);
+    container._apcFocusTrap = handler;
+    container.addEventListener('keydown', handler);
   }
 
   const isStudentViewer = () => {
@@ -318,6 +448,7 @@ export function mountNoticeCenter(api) {
     return !item.read;
   }
 
+  let lastUnread = 0;
   function paintBadge(unread) {
     const bell = document.getElementById('notificationButton');
     if (!bell) return;
@@ -335,6 +466,15 @@ export function mountNoticeCenter(api) {
     bell.setAttribute('aria-label', unread
       ? `নোটিফিকেশন — ${bn(unread)}টি অপঠিত`
       : 'নোটিফিকেশন — সব পড়া হয়েছে');
+    bell.setAttribute('aria-expanded', !modal.hidden ? 'true' : 'false');
+    // Facebook pulse on new notifications
+    if (unread > lastUnread && lastUnread !== 0) {
+      dot.classList.remove('apc-fb-pulse');
+      void dot.offsetWidth;
+      dot.classList.add('apc-fb-pulse');
+      setTimeout(() => dot.classList.remove('apc-fb-pulse'), 800);
+    }
+    lastUnread = unread;
   }
 
   function paintCard(item, unread) {
@@ -346,29 +486,35 @@ export function mountNoticeCenter(api) {
     const bodyText = String(item.body || '').trim();
     const longBody = isLongBody(bodyText);
     const expanded = longBody && expandedKeys.has(item.key);
+    const bodyPreview = bodyText ? (expanded ? bodyText : buildCardPreview(bodyText)) : '';
     const bodyMarkup = bodyText
       ? (expanded
-        ? '<div class="notification-body notice-content">' + escapeHtml(bodyText) + '</div>'
-        : '<p class="notification-card-preview">' + escapeHtml(longBody ? buildCardPreview(bodyText) : bodyText) + '</p>')
+        ? '<div class="apc-fb-card-body notification-body notice-content">' + escapeHtml(bodyText) + '</div>'
+        : '<p class="apc-fb-preview notification-card-preview">' + escapeHtml(bodyPreview) + '</p>')
       : '';
     const expandButton = longBody
-      ? '<button type="button" class="mini-btn notice-expand-btn" data-apc-notice-expand="' + escapeHtml(item.key) + '" aria-expanded="' + (expanded ? 'true' : 'false') + '">' + (expanded ? 'সংক্ষিপ্ত করুন' : 'আরও দেখুন') + '</button>'
+      ? '<button type="button" class="mini-btn notice-expand-btn apc-fb-expand" data-apc-notice-expand="' + escapeHtml(item.key) + '" aria-expanded="' + (expanded ? 'true' : 'false') + '">' + (expanded ? 'সংক্ষিপ্ত করুন' : 'আরও দেখুন') + '</button>'
       : '';
     const openButton = label
-      ? '<button type="button" class="mini-btn primary notice-action" data-apc-notice-open="' + escapeHtml(item.key) + '" aria-label="' + escapeHtml(`${label}: ${item.title}`) + '">' + escapeHtml(label) + '</button>'
+      ? '<button type="button" class="mini-btn primary notice-action apc-fb-action" data-apc-notice-open="' + escapeHtml(item.key) + '" aria-label="' + escapeHtml(`${label}: ${item.title}`) + '">' + escapeHtml(label) + '</button>'
       : '';
     const actionsRow = (expandButton || openButton)
-      ? '<div class="notice-card-actions">' + expandButton + openButton + '</div>'
+      ? '<div class="notice-card-actions apc-fb-actions">' + expandButton + openButton + '</div>'
       : '';
-    return '<article class="notice-detail' + (unread ? ' unread' : '') + (opens ? ' actionable' : '') + (label ? ' has-action' : '') + (expanded ? ' is-expanded' : '') + (item.kind === 'birthday' || item.kind === 'birthday-soon' ? ' is-birthday' : '') + '"' +
+    const avatar = '<span class="apc-fb-avatar" style="' + avatarStyle(item.kind) + '" aria-hidden="true">' + iconMarkup(item.kind) + '</span>';
+    const meta = '<div class="apc-fb-meta"><span class="apc-fb-section">' + escapeHtml(sectionOf(item)) + '</span><span class="apc-fb-dot">·</span><span class="notice-time apc-fb-time">' + escapeHtml(whenText(item)) + '</span></div>';
+    // Facebook card: avatar + content + unread dot
+    return '<article class="notice-detail apc-fb-card' + (unread ? ' unread apc-fb-unread' : '') + (opens ? ' actionable' : '') + (label ? ' has-action' : '') + (expanded ? ' is-expanded' : '') + (item.kind === 'birthday' || item.kind === 'birthday-soon' ? ' is-birthday' : '') + '"' +
       (opens ? ' data-apc-notice-open="' + escapeHtml(item.key) + '"' : '') +
       (rowOpens ? ' role="button" tabindex="0"' : '') + '>' +
-      '<span class="notice-detail-icon' + (item.kind === 'broadcast' ? ' light' : '') + (item.kind === 'birthday' || item.kind === 'birthday-soon' ? ' is-birthday' : '') + '">' + iconMarkup(item.kind) + '</span>' +
-      '<div class="notice-detail-copy"><span class="notice-time">' + escapeHtml(whenText(item)) + '</span>' +
-      '<span class="notice-section-chip">' + escapeHtml(sectionOf(item)) + '</span>' +
-      '<h3>' + escapeHtml(heading) + '</h3>' +
-      bodyMarkup + actionsRow + '</div>' +
-      (unread ? '<span class="notice-unread-dot" aria-label="অপঠিত"></span>' : '') + '</article>';
+      avatar +
+      '<div class="notice-detail-copy apc-fb-copy">' +
+        '<h3 class="apc-fb-title-text">' + escapeHtml(heading) + '</h3>' +
+        meta +
+        bodyMarkup + actionsRow +
+      '</div>' +
+      (unread ? '<span class="notice-unread-dot apc-fb-unread-dot" aria-label="অপঠিত"></span>' : '') +
+      '</article>';
   }
 
   function paintDetailSheet(item) {
@@ -385,9 +531,39 @@ export function mountNoticeCenter(api) {
     '</article>';
   }
 
+  // Map feed kind → settings.types key (Facebook 8 types)
+  function kindToSettingType(kind) {
+    const k = String(kind || '').toLowerCase();
+    if (['notice','broadcast','announcement','news'].includes(k)) return 'notice';
+    if (['result','exam','exam-result','exam_result','test','grade'].includes(k)) return 'result';
+    if (['fee','payment','fee_reminder','due','collection','transaction'].includes(k)) return 'fee';
+    if (['homework','assignment','task','home-work','exam-submission'].includes(k)) return 'homework';
+    if (['registration','admission','enrolment'].includes(k)) return 'registration';
+    if (['chat','class_chat','message','conversation'].includes(k)) return 'chat';
+    if (['system','alert','warning','maintenance'].includes(k)) return 'system';
+    return 'other';
+  }
+  function isTypeEnabled(kind) {
+    try {
+      const s = api?.settings?.() || api?.notificationSettings?.() || null;
+      if (s?.types && typeof s.types[kindToSettingType(kind)] === 'boolean') return s.types[kindToSettingType(kind)] !== false;
+      // Fallback: check localStorage settings file
+      const raw = localStorage.getItem('activePlus.notificationSettings.v1');
+      if (raw) {
+        const file = JSON.parse(raw);
+        const vk = typeof api?.viewerKey === 'function' ? api.viewerKey() : '';
+        const us = vk ? file?.users?.[vk] : null;
+        if (us?.types && typeof us.types[kindToSettingType(kind)] === 'boolean') return us.types[kindToSettingType(kind)] !== false;
+      }
+    } catch {}
+    return true;
+  }
+
   function paint() {
     let feed = [];
     try { feed = centerFeed(api.feed() || []); } catch { feed = []; }
+    // Respect per-type toggles: hide disabled types
+    try { feed = feed.filter(item => isTypeEnabled(item.kind || item.type)); } catch {}
     const state = unreadKeys(feed);
     const unreadItems = feed.filter(item => isUnread(item, state));
     const unread = state.count === null ? unreadItems.length : state.count;
@@ -484,11 +660,15 @@ export function mountNoticeCenter(api) {
   }
 
   function open(initialDetailKey = '') {
-    hideAlerts();                              // the list shows them all
+    hideAlerts();
     detailKey = initialDetailKey || '';
-    filter = detailKey ? 'all' : 'unread';
+    filter = 'all';
     paint();
     show(true);
+    // Re-position on resize/scroll while open
+    const reposition = () => { if (!modal.hidden) positionPanel(modal); };
+    window.addEventListener('resize', reposition, { once: true });
+    window.addEventListener('scroll', reposition, { once: true, capture: true });
   }
 
   /* One delegated click handler serves every panel and survives a shell that is
@@ -532,6 +712,21 @@ export function mountNoticeCenter(api) {
       try { api.clear?.(); } catch { /* the list repaints anyway */ }
       paint();
       if (statusLine) statusLine.textContent = 'তালিকা খালি করা হয়েছে।';
+      return;
+    }
+    if (event.target?.closest?.('[data-apc-notice-settings]')) {
+      event.preventDefault();
+      show(false);
+      // Try to open Settings via known selectors (student: data-view="settings", admin: data-admin-view="settings")
+      const settingsBtn = document.querySelector('[data-view="settings"], [data-admin-view="settings"], [data-manager-view="more"], #notificationSettings, [data-view-panel="settings"]');
+      if (settingsBtn) {
+        // If it's a panel section, scroll into view; if button, click it
+        if (settingsBtn.tagName === 'BUTTON' || settingsBtn.hasAttribute('data-view') || settingsBtn.hasAttribute('data-admin-view')) settingsBtn.click();
+        else settingsBtn.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // Fallback: dispatch event to let settings handle
+        window.dispatchEvent(new CustomEvent('apc-open-settings'));
+      }
       return;
     }
     if (!ownsModal) return;

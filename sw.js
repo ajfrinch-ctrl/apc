@@ -1,4 +1,4 @@
-// v432: Passphrase-protected new backups and isolated preview cloud access; production sync configuration unchanged.
+// v433: Passphrase-protected new backups and isolated preview cloud access; production sync configuration unchanged.
 // v431: Admin More and System primary actions open routed full-screen details with browser Back/Forward.
 // v430: Privacy-mask primary lists + isolate More view keeps welcome/date/advice, registration review and staff-portal doors; retires redundant tiles, stats, warnings and artwork.
 // v428: Full-Screen Word-Style Lecture Sheet Editor & PDF Studio across Admin, Teacher, Manager & Student panels with A4 pagination, Bangla typography, equations, offline recovery & E2EE sync.
@@ -178,7 +178,7 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 432;
+const CACHE_VERSION = 433;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',
@@ -243,10 +243,7 @@ const APP_SHELL = [
   './assets/icons/ai-3d/download.svg',
   './assets/icons/ai-3d/edit.svg',
   './assets/icons/ai-3d/exam.svg',
-  './assets/icons/ai-3d/exam.png',
-  './assets/icons/ai-3d/book.png',
-  './assets/icons/ai-3d/calendar.png',
-  './assets/icons/ai-3d/wallet.png',
+  // PNG fallbacks (exam/book/calendar/wallet.png) removed from precache — all icons load as SVG via image href; saves 153 KB
   './assets/icons/ai-3d/approvals.svg',
   './assets/icons/ai-3d/verified.svg',
   './assets/icons/ai-3d/courses.svg',
@@ -493,7 +490,7 @@ const APP_SHELL = [
   './js/routine.js',
   './js/profile.js',
   './js/student-profile-card.js',
-  './vendor/qrcode/encoder.js',
+  // vendor/qrcode/encoder.js (21 KB) removed from precache — no client import; file kept for future QR feature
   './js/login.js',
   './js/staff-auth.js',
   './js/admin-initialization.js',
