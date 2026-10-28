@@ -163,6 +163,20 @@ function paint() {
       '</div>' +
     '</div>' +
 
+    '<div class="profile-section"><p class="eyebrow">নোটিফিকেশনের ধরন</p>' +
+      '<p class="form-note" style="margin-bottom:8px">কোন ধরনের নোটিফিকেশন পাবেন তা এখানে বেছে নিন। বন্ধ করলে সেই ধরনের নোটিশ আর আসবে না।</p>' +
+      '<div class="settings-list">' +
+        toggleRow('noticeType_notice', 'নতুন নোটিশ', 'ক্লাস/ব্যাচের নতুন নোটিশ ও ঘোষণা', settings.types?.notice !== false, off, 'notice', 'mint') +
+        toggleRow('noticeType_result', 'পরীক্ষার ফলাফল', 'পরীক্ষা শেষে ফল প্রকাশ ও র‍্যাংক', settings.types?.result !== false, off, 'trophy', 'green') +
+        toggleRow('noticeType_fee', 'ফি রিমাইন্ডার / বকেয়া', 'মাসিক ফি বকেয়া ও পেমেন্ট রিমাইন্ডার', settings.types?.fee !== false, off, 'wallet', 'amber') +
+        toggleRow('noticeType_homework', 'অ্যাসাইনমেন্ট / হোমওয়ার্ক', 'নতুন অ্যাসাইনমেন্ট ও জমা দেওয়ার সময়সূচি', settings.types?.homework !== false, off, 'assignment', 'purple') +
+        toggleRow('noticeType_registration', 'নিবন্ধন অনুমোদন', 'নিবন্ধন approve/reject ও যাচাইকরণ', settings.types?.registration !== false, off, 'users', 'teal') +
+        toggleRow('noticeType_chat', 'ক্লাস চ্যাট', 'ক্লাস গ্রুপে নতুন মেসেজ ও আলোচনা', settings.types?.chat !== false, off, 'chat', 'blue') +
+        toggleRow('noticeType_system', 'সিস্টেম অ্যালার্ট', 'গুরুত্বপূর্ণ সিস্টেম আপডেট ও সতর্কতা', settings.types?.system !== false, off, 'shield', 'red') +
+        toggleRow('noticeType_other', 'অন্যান্য (অ্যাডমিন)', 'অ্যাডমিনের অন্যান্য ঘোষণা', settings.types?.other !== false, off, 'bell', 'grey') +
+      '</div>' +
+    '</div>' +
+
     '<div class="profile-section"><p class="eyebrow">শব্দ ও প্রিভিউ</p>' +
       '<div class="settings-list">' +
         toggleRow('noticeSoundToggle', 'নোটিফিকেশনের শব্দ', 'নতুন নোটিফিকেশন এলে ছোট একটি টোন বাজবে।', settings.sound, off, 'bell', 'mint') +
@@ -208,6 +222,19 @@ export function initNotificationSettings({ mount } = {}) {
     const input = event.target;
     if (!input?.id) return;
     const api = ready();
+    // Per-type toggles: noticeType_* → patch.types.* 
+    if (input.id.startsWith('noticeType_')) {
+      const typeKey = input.id.replace('noticeType_', '');
+      const patch = { types: { [typeKey]: input.checked } };
+      // Merge with existing types to preserve others
+      const current = api?.settings ? api.settings() : notificationSettings(fallbackViewerKey());
+      const mergedTypes = { ...current.types, ...patch.types };
+      const finalPatch = { types: mergedTypes };
+      if (api?.saveSettings) api.saveSettings(finalPatch);
+      else saveNotificationSettings(fallbackViewerKey(), finalPatch);
+      paint();
+      return;
+    }
     const patch = {
       noticeMasterToggle: { enabled: input.checked },
       noticeBackgroundToggle: { background: input.checked },
