@@ -33,6 +33,21 @@
       ]
     },
     {
+      "source": "/(js|css|assets|vendor|sync|firebase)/(.*)",
+      "has": [
+        {
+          "type": "query",
+          "key": "v"
+        }
+      ],
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
       "source": "/(sw\\.js|firebase-messaging-sw\\.js)",
       "headers": [
         {
@@ -47,6 +62,15 @@
         {
           "key": "Cache-Control",
           "value": "no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/assets/fonts/(.*\\.woff2)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
         }
       ]
     }

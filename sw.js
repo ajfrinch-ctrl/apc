@@ -179,8 +179,21 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 434;
+const CACHE_VERSION = 435;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
+/* One cache, two precache sets, one release pin.
+
+   APP_SHELL is everything the Student app needs with no network: the shared
+   shell, the student modules, both cloud SDKs, icons, fonts and the shared
+   styles. STAFF_SHELL is the staff half — the four panel pages, their panel
+   roots (js/admin.js, js/manager.js, js/teacher.js, js/payment.js), the report
+   builder, the exam manager, the lecture studio and its 598 KB Tiptap SDK.
+
+   Why split: install used to pull every file for every role, so a student on a
+   prepaid 3G connection paid ~2.3 MB gzip — including the panel pages they can
+   never open. The staff half is now cached on first use instead: the fetch
+   handler below is cache-first and remembers every static GET, so the first
+   staff visit stores it and every later visit (online or off) is instant. */
 const APP_SHELL = [
   './assets/icons/ai-3d/class-materials.svg',
   './assets/icons/ai-3d/class-notes.svg',
@@ -297,9 +310,7 @@ const APP_SHELL = [
   './js/time.js',
   './js/storage-safety.js',
   './js/idGenerator.js',
-  './js/guardian-message.js',
   './js/grade-audit.js',
-  './js/admin-boot-guard.js',
   './privacy.html',
   './css/notifications.css',
   './css/academics.css',
@@ -308,10 +319,8 @@ const APP_SHELL = [
   './css/app-polish.css',
   './css/student-record.css',
   './css/ui-wallet.css',
-  './css/teacher-panel.css',
   './css/hero-cards.css' + '?v=379',
   './css/student-home-design.css',
-  './js/student-record.js',
   './sync/cloud-access.js',
   './sync/backend-selection.js',
   './sync/cloud-identity-policy.js',
@@ -341,7 +350,6 @@ const APP_SHELL = [
   './css/ui-features.css',
   './css/notice-board.css',
 
-  './js/panel-lockdown.js',
   './firebase/firebase-config.js',
   './firebase/firebase-config.dev.js',
   './firebase/firebase-init.js',
@@ -387,10 +395,6 @@ const APP_SHELL = [
   './',
   './index.html',
   './student.html',
-  './admin.html',
-  './manager.html',
-  './teacher.html',
-  './payment.html',
   './js/pull-to-refresh.js',
   './js/class-chat-head.js',
   './manifest.json',
@@ -421,12 +425,6 @@ const APP_SHELL = [
   './js/appearance-boot.js',
   './js/theme-logos.js',
   './js/copy.js',
-  './js/payment-auth.js',
-  './js/counter-data.js',
-  './js/counter-privacy.js',
-  './js/counter-report-data.js',
-  './js/counter-reports.js',
-  './js/theme-entry.js',
   './assets/fonts/NotoSansBengali-Variable.woff2',
   './js/class-key.js',
   './js/config.js',
@@ -444,8 +442,6 @@ const APP_SHELL = [
   './js/settings-hub.js',
   './js/academics.js',
   './js/brand.js',
-  './js/admin-academics.js',
-  './js/admin-migration.js',
   './js/exam-data.js',
   './js/exam-ui.js',
   './js/exam-core.js',
@@ -455,20 +451,16 @@ const APP_SHELL = [
   './js/course-hub.js',
   './js/student-study-sections.js',
   './js/student-more.js',
-  './js/course-editor.js',
   './js/rich-sanitize.js',
   './js/daily-quote.js',
   './js/hero-cards.js' + '?v=379',
   './assets/daily-quotes.json',
-  './js/daily-advice.js',
   './assets/daily-advice.json',
   './js/home-hero.js',
   './js/home-hero.js' + '?v=379',
   './js/home-hero-entry.js',
   './js/student-home-hero-entry.js' + '?v=379',
   './js/student-home-daily-hero.js' + '?v=379',
-  './js/advice-admin.js',
-  './js/advice-admin-entry.js',
   './assets/home-hero/hero-own-pace.webp',
   './assets/home-hero/hero-daily-goal.webp',
   './assets/home-hero/hero-joy-of-learning.webp',
@@ -477,7 +469,6 @@ const APP_SHELL = [
   './assets/student-home-hero/hero-daily-goal.webp' + '?v=379',
   './assets/student-home-hero/hero-joy-of-learning.webp' + '?v=379',
   './assets/student-home-hero/hero-daily-tip.webp' + '?v=379',
-  './js/exam-manager.js',
   './js/exam-archive.js',
   './js/exam-pdf.js',
   './js/material-pdf.js',
@@ -507,52 +498,100 @@ const APP_SHELL = [
   './js/fixed-shell.js',
   './js/main.js',
   './js/panel-route.js',
-  './js/admin.js',
-  './js/backup-crypto.js',
-  './js/backup-restore.js',
-  './js/admin-detail-views.js',
-  './js/admin-content.js',
-  './js/staff-self-edit.js',
   './js/staff-role-names.js',
-  './js/factory-reset.js',
-  './js/manager.js',
-  './js/payment.js',
-  './js/teacher.js',
-  './js/teacher-daily-advice.js',
   './js/teaching-data.js',
   './js/teacher-assignments.js',
   './js/student-teaching.js',
   './js/student-notice-board.js',
-  './js/admin-data.js',
   './js/office-data.js',
   './js/org-info.js',
   './js/registration-service.js',
   './js/finance-data.js',
   './js/finance-receipt.js',
-  './js/reports.js',
   './js/report-layout.js',
-  './js/report-catalog.js',
   './js/report-access.js',
-  './js/report-builders.js',
   './js/report-sources.js',
-  './js/admin-permissions.js',
   './js/admin-icons.js',
-  './js/admin-panel-ui.js',
   './js/staff-directory.js',
-  './js/staff-management.js',
-  './js/staff-overview.js',
-  './js/phonebook.js',
   './js/lecture-sheet-store.js',
   './js/lecture-sheet-pdf.js',
-  './js/lecture-sheet-studio.js',
-  './vendor/lecture-studio/sdk.js',
+  './js/reports.js',
+  './js/report-catalog.js',
+  './js/report-builders.js',
   './js/user-id.js',
   './js/storage/migration.js',
-  './js/device-fingerprint.js',
-  './js/admin-device-approvals.js',
-  './sync/device-key-enrollment.js',
-  './sync/device-key-store.js'
+  './sync/device-key-store.js',
+  './sync/device-key-enrollment.js'
 ];
+
+/* Staff half of the precache — see the note above APP_SHELL. These files are
+   fetched the first time a staff panel asks for them, not at install. */
+const STAFF_SHELL = [
+  './css/teacher-panel.css',
+  './admin.html',
+  './manager.html',
+  './teacher.html',
+  './payment.html',
+  './js/exam-manager.js',
+  './js/admin.js',
+  './js/manager.js',
+  './js/payment.js',
+  './js/teacher.js',
+  './js/lecture-sheet-studio.js',
+  './vendor/lecture-studio/sdk.js',
+  './js/admin-academics.js',
+  './js/admin-boot-guard.js',
+  './js/admin-content.js',
+  './js/admin-data.js',
+  './js/admin-detail-views.js',
+  './js/admin-device-approvals.js',
+  './js/admin-migration.js',
+  './js/admin-panel-ui.js',
+  './js/admin-permissions.js',
+  './js/advice-admin.js',
+  './js/advice-admin-entry.js',
+  './js/backup-crypto.js',
+  './js/counter-data.js',
+  './js/counter-privacy.js',
+  './js/counter-report-data.js',
+  './js/counter-reports.js',
+  './js/course-editor.js',
+  './js/daily-advice.js',
+  './js/device-fingerprint.js',
+  './js/factory-reset.js',
+  './js/guardian-message.js',
+  './js/panel-lockdown.js',
+  './js/payment-auth.js',
+  './js/phonebook.js',
+  './js/staff-management.js',
+  './js/staff-overview.js',
+  './js/staff-self-edit.js',
+  './js/student-record.js',
+  './js/teacher-daily-advice.js',
+  './js/theme-entry.js',
+  './js/backup-restore.js',
+];
+
+/* What install() and the activate() retry actually fill. */
+const PRECACHE = [...APP_SHELL, ...STAFF_SHELL];
+
+/* Which set this device asked for. The page registers the worker as
+   './sw.js?v=<build>&shell=staff' on the four staff panels and
+   './sw.js?v=<build>&shell=student' everywhere else (js/service-worker.js and
+   js/cache-refresh.js), so a student device stops paying for the staff half
+   while a staff device still installs — and can go offline on — everything.
+   No hint means "student": the smaller set is always the safe default. */
+function requestedShell() {
+  try {
+    return new URL(self.location.href).searchParams.get('shell') === 'staff' ? 'staff' : 'student';
+  } catch {
+    return 'student';
+  }
+}
+
+function precacheUrls() {
+  return requestedShell() === 'staff' ? PRECACHE : APP_SHELL;
+}
 
 /* Panel lockdown (js/panel-lockdown.js). This device's own panel is the only
    page a tapped notification may open: with no window in sight the worker reads
@@ -644,7 +683,7 @@ self.addEventListener('install', event => {
     // below top up anything not yet stored.
     await self.skipWaiting();
     const cache = await caches.open(CACHE_NAME);
-    await fillCache(cache, APP_SHELL);
+    await fillCache(cache, precacheUrls());
   })());
 });
 
@@ -700,7 +739,8 @@ self.addEventListener('activate', event => {
     // Second chance for anything the install-time fill could not reach.
     const cache = await caches.open(CACHE_NAME);
     const missing = [];
-    for (const url of APP_SHELL) if (!(await cache.match(url))) missing.push(url);
+    const shellUrls = precacheUrls();
+    for (const url of shellUrls) if (!(await cache.match(url))) missing.push(url);
     if (missing.length) await fillCache(cache, missing);
   })());
 });
