@@ -164,3 +164,49 @@ hub → chat full screen → chrome restored), plus the per-panel design suites.
    checklist.
 5. **Institute details are never hard-coded**: every surface reads
    `loadAppConfig()` (documents) or is painted by `js/org-info.js` (markup).
+
+---
+
+## Follow-up — 29 Oct 2026: the login sky followed the wrong district
+
+**Report.** "ওয়েদার লোকেশন ভুল দেখাচ্ছে."
+
+**Why.** `js/login.js` asked the weather service for a literal point:
+
+```js
+const KANUNGOPARA = Object.freeze({ lat: 22.35803, lon: 92.12380 });
+```
+
+That is Kanungopara in the Chittagong Hill Tracts — roughly 430 km from the
+campus described by the single institute record (`দিনাজপুর সদর, দিনাজপুর`,
+25.6217 N / 88.6354 E). Temperature, rain, and sunrise/sunset all came from
+there, so the login backdrop could show a hill-district sky and a sunset twenty
+minutes off. It is the same class of bug as the address report in Phase 1: a
+fact about the institute typed into code instead of read from the record — and
+Admin → Settings had no way to move it.
+
+**Fix — the campus point joins the record.**
+
+* `DEFAULT_APP_SETTINGS` (`js/config.js`) now carries `campusLat` / `campusLon`
+  (Dinajpur town, matching `campusAddress`).
+* `js/login.js` exposes `campusPoint()`, which reads those numbers from
+  `loadAppConfig()` and falls back to the defaults for missing, empty,
+  non-numeric or out-of-range values (never silently 0,0).
+* The weather snapshot is keyed to the point it was taken for
+  (`activePlus.authWeather.v3`, with `lat`/`lon` stored inside): a snapshot for
+  the previous campus is ignored and refetched, so a move never shows the old
+  district's weather.
+* Admin → Settings → ব্র্যান্ডিং ও যোগাযোগ তথ্য gains **ক্যাম্পাসের অক্ষাংশ**
+  and **ক্যাম্পাসের দ্রাঘিমাংশ** right under the address, with a one-line hint
+  that these numbers drive the login sky. `clampCoordinate()` keeps a stored
+  value when the box is emptied, unparseable or out of range.
+
+**Verified.** `tests/auth-sky-theme.test.mjs` (9/9): the point comes from the
+record, the request URL names the saved latitude/longitude and `Asia/Dhaka`, a
+snapshot for another point is refetched, and no module keeps the old
+coordinates. Live walk-through: saving 23.4607 / 91.1809 in Admin → Settings
+changed the request from `latitude=25.6217&longitude=88.6354` to
+`latitude=23.4607&longitude=91.1809`, and junk input kept the previous values.
+
+**Release.** Pin 436 (`?v=436`, `SW_VERSION`, `CACHE_VERSION`,
+`DEFAULT_VERSION`) so devices receive the new login module.

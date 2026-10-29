@@ -848,6 +848,9 @@ function renderAppManagement() {
   if ($('#cfgWhatsapp')) $('#cfgWhatsapp').value = cfg.whatsappNumber || ADMIN_ID || '01819486966';
   if ($('#cfgEmail')) $('#cfgEmail').value = cfg.officialEmail || 'activeplus.coaching@gmail.com';
   if ($('#cfgAddress')) $('#cfgAddress').value = cfg.campusAddress || 'দিনাজপুর সদর, দিনাজপুর';
+  /* The campus point drives the login sky (js/login.js campusPoint). */
+  if ($('#cfgLatitude')) $('#cfgLatitude').value = String(cfg.campusLat ?? DEFAULT_APP_SETTINGS.campusLat);
+  if ($('#cfgLongitude')) $('#cfgLongitude').value = String(cfg.campusLon ?? DEFAULT_APP_SETTINGS.campusLon);
   renderMaintenanceSettings(cfg);
 }
 
@@ -880,6 +883,24 @@ function saveMaintenanceFromForm() {
   toast(on ? 'রক্ষণাবেক্ষণ মোড চালু করা হয়েছে' : 'রক্ষণাবেক্ষণ মোড বন্ধ করা হয়েছে — ব্যানার সরে গেছে');
 }
 
+/* A coordinate typed into Settings: valid numbers are kept (rounded to four
+   decimals, like the map services), anything else falls back to what was
+   already stored rather than silently moving the campus to 0,0. */
+function clampCoordinate(raw, previous, fallback, limit) {
+  /* An emptied or half-typed box means "leave it as it was" — never 0,0. */
+  const text = String(raw ?? '').trim();
+  if (!text) {
+    const kept = Number(previous);
+    return Number.isFinite(kept) && Math.abs(kept) <= limit ? kept : fallback;
+  }
+  const value = Number(text);
+  if (!Number.isFinite(value) || Math.abs(value) > limit) {
+    const kept = Number(previous);
+    return Number.isFinite(kept) && Math.abs(kept) <= limit ? kept : fallback;
+  }
+  return Math.round(value * 10_000) / 10_000;
+}
+
 function saveAppSettingsFromForm() {
   const current = state.appConfig || loadAppConfig();
   state.appConfig = {
@@ -888,7 +909,9 @@ function saveAppSettingsFromForm() {
     helplineMobile: $('#cfgHelpline')?.value.trim() || current.helplineMobile || DEFAULT_APP_SETTINGS.helplineMobile,
     whatsappNumber: $('#cfgWhatsapp')?.value.trim() || current.whatsappNumber || DEFAULT_APP_SETTINGS.whatsappNumber,
     officialEmail: $('#cfgEmail')?.value.trim() || current.officialEmail || DEFAULT_APP_SETTINGS.officialEmail,
-    campusAddress: $('#cfgAddress')?.value.trim() || current.campusAddress || DEFAULT_APP_SETTINGS.campusAddress
+    campusAddress: $('#cfgAddress')?.value.trim() || current.campusAddress || DEFAULT_APP_SETTINGS.campusAddress,
+    campusLat: clampCoordinate($('#cfgLatitude')?.value, current.campusLat, DEFAULT_APP_SETTINGS.campusLat, 90),
+    campusLon: clampCoordinate($('#cfgLongitude')?.value, current.campusLon, DEFAULT_APP_SETTINGS.campusLon, 180)
   };
   const saved = saveAppConfig(state.appConfig);
   // Repaint every live surface in this tab immediately (the settings event also

@@ -47,6 +47,12 @@ export const DEFAULT_APP_SETTINGS = Object.freeze({
   whatsappNumber: '01819486966',
   officialEmail: 'activeplus.coaching@gmail.com',
   campusAddress: 'দিনাজপুর সদর, দিনাজপুর',
+  /* Where the campus is on the map. The login sky asks the weather service for
+     this point (rain, temperature, sunrise/sunset), so it must travel with the
+     address — Admin → Settings edits both. Dinajpur town is the default that
+     matches campusAddress above; no other module may name a location. */
+  campusLat: 25.6217,
+  campusLon: 88.6354,
   broadcastAlert: false,
   broadcastMessage: '',
   broadcastTone: 'green',
