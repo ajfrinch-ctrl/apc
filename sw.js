@@ -179,7 +179,9 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
-const CACHE_VERSION = 438;
+// v439: Yellow Pages hides every primary field by default — one click on a card
+//       reveals that card only; a release no longer wipes the panel-hint cache.
+const CACHE_VERSION = 439;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 /* One cache, two precache sets, one release pin.
 
@@ -719,8 +721,14 @@ self.addEventListener('activate', event => {
       if (!key.startsWith('active-plus-student-v') || key === CACHE_NAME) return false;
       return !/^active-plus-student-v(\d+)-minimal-education$/.test(key);
     });
+    /* Sweep only this app shell's own release caches. `apc-panel-hint` belongs
+       to js/panel-lockdown.js and firebase-messaging-sw.js — it remembers which
+       panel this device may open from a notification tap — so wiping it on
+       every release silently lost that hint until a panel wrote it again. */
     await Promise.all(
-      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      keys
+        .filter(key => key !== CACHE_NAME && key.startsWith('active-plus-student-v'))
+        .map(key => caches.delete(key))
     );
     await self.clients.claim();
     if (hadLegacySilentCache) {

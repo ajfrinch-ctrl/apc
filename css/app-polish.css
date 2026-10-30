@@ -538,6 +538,9 @@
 }
 .yp-reveal-btn.is-hide { border-style: solid; color: var(--color-text-secondary); }
 .yp-reveal-btn.is-all { min-height: 36px; padding: 6px 14px; border-style: solid; background: var(--color-surface); }
+/* A card's own reveal sits under its title block, where the eye lands. */
+.yp-reveal-btn.is-card { margin-top: 2px; border-style: solid; background: var(--color-surface); }
+.yp-avatar.is-masked { color: var(--color-text-muted); letter-spacing: .08em; }
 .yp-privacy-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   flex-wrap: wrap; padding-top: 10px; margin-top: 2px; border-top: 1px dashed var(--color-border);

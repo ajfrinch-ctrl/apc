@@ -238,33 +238,57 @@ office fine-tune the point by a few hundred metres if needed.
 
 ---
 
-## Follow-up — Yellow Pages showed no names (owner report, 29 Oct 2026)
+## Follow-up — Yellow Pages privacy, final rule (owner decision, 29 Oct 2026)
 
-**Report.** "ইয়োলো পেইজে ত স্টুডেন্টদের নাম দেখাচ্ছে না।"
+**Report.** "ইয়োলো পেইজে ত স্টুডেন্টদের নাম দেখাচ্ছে না।" The module masked every
+personal field — name (`গোপন তথ্য`), avatar, ID, guardian name, dues and phone —
+and the "তথ্য দেখুন" step its own header comment promised was never implemented,
+so every card read exactly the same text and staff could not tell two students
+apart.
 
-**Why.** `js/phonebook.js` masked every personal field — name (`গোপন তথ্য`),
-avatar, ID, guardian name, dues and phone — and the "তথ্য দেখুন" step its own
-header comment promised was never implemented. There was no reveal control
-anywhere in the module, so every card and every search hit read exactly the same
-text and staff could not tell two students apart, let alone find one.
+**The owner then settled the rule:** "প্রাইমারি ডেটা হাইড থাকবে সব ক্ষেত্রে।
+ক্লিক করলেই দেখাবে।" Primary data stays hidden in every case; a click shows it.
+An intermediate build made identity readable and hid only numbers; that was
+withdrawn the same day in favour of the masked-by-default contract below.
 
-**Fix — identity readable, numbers opt-in.**
+**Fix — masked by default, click to reveal.**
 
-* Cards now show the student's real name, initials avatar, ID, class, group,
-  guardian name, due amount and month; staff cards show the person's name, role,
-  ID and assignments. Same for the Manager panel (both share this module).
-* Phone numbers stay masked (`•••• ••••`) with **নম্বর দেখান** on each contact
-  row, plus a toolbar switch **সব নম্বর দেখান / সব নম্বর লুকান** for a calling
-  round. The reveal is memory-only — a reload masks them again — and a masked
-  number is not even a `tel:` link.
-* Call / WhatsApp / copy still work while masked: using a number is deliberate.
-* `phonebookInitials()` now ignores bracketed or punctuation-led words, so an
-  account label such as “সিস্টেম মালিক (এডমিন)” draws সিএ, not “সি(”.
+| State | Card shows |
+| --- | --- |
+| Masked (default) | name `গোপন তথ্য`, avatar `••••`, `আইডি: ••••`, `পিতা/অভিভাবক: ••••`, `বকেয়া ••••`, phone `•••• ••••` — not a `tel:` link |
+| After **তথ্য দেখুন** | real name + initials, ID, guardian, due + month, and the number as a `tel:` link |
 
-**Verified.** `tests/phonebook.test.mjs` 7/7: real names on screen, no
-`গোপন তথ্য` placeholder, initials/ID/guardian/due present, numbers masked with
-no link, per-row reveal, reveal-all + re-mask, search finds the named student,
-and the reveal never lands in storage. Related suites (manager/admin shells,
-mobile layout, registration audit) 48/48.
+* Every card — student and staff — carries one **তথ্য দেখুন / তথ্য লুকান**
+  control (`data-yp-action="reveal-card" | "hide-card"`, `aria-expanded`, plus
+  `data-yp-revealed="1"` on the article). One card opens at a time; the others
+  stay masked.
+* The toolbar switch is **সব তথ্য দেখান / সব তথ্য লুকান**, with the note
+  "প্রাইমারি তথ্য লুকানো আছে — যেকোনো কার্ডে “তথ্য দেখুন” চাপুন". Masking again
+  clears every per-card reveal.
+* No real name reaches visible text *or* an aria-label while a card is masked —
+  the contact actions say "এই ব্যক্তি" and the copy button's label is just
+  "নম্বর কপি করুন". Class, batch and status stay readable so cards can still be
+  told apart and found.
+* The reveal is memory-only (`state.revealedCards`, `state.revealAllCards`); it
+  is never written to `localStorage`/`sessionStorage`, so a reload re-masks
+  everything.
+* Call / WhatsApp / copy/draft still work while masked — using a number is a
+  deliberate act — but the number itself is never painted.
+* Search still matches the stored record (ID, name, guardian, mobiles) and
+  returns a *masked* card; the reader opens the one they meant.
 
-**Release.** Pin 438.
+**Scope assumption.** "সব ক্ষেত্রে" is applied to the Yellow Pages directory —
+the shared contact screen, where a list of many people is on display. The
+Manager and Teacher record screens (a single student's own file, opened
+deliberately from the roster) keep names readable, because their job —
+approving applications, marking attendance — would otherwise need a click per
+row. Say the word and the same reveal contract can be extended there.
+
+**Verified.** `tests/phonebook.test.mjs` 8/8: masked default, one click reveals
+only that card, reveal-all + re-mask, search finds the record but stays masked,
+and nothing lands in storage; plus `phonebookInitials()` ("সিস্টেম মালিক
+(এডমিন)" → সিএ). Related suites (manager/admin shells, mobile layout,
+registration audit) 56/56. Probes confirmed no student name appears anywhere in
+the masked DOM text or attributes.
+
+**Release.** Pin 439.
