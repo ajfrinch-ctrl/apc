@@ -235,3 +235,36 @@ office fine-tune the point by a few hundred metres if needed.
 
 **Release.** Pin 437 (`?v=437`, `SW_VERSION`, `CACHE_VERSION`,
 `DEFAULT_VERSION`).
+
+---
+
+## Follow-up — Yellow Pages showed no names (owner report, 29 Oct 2026)
+
+**Report.** "ইয়োলো পেইজে ত স্টুডেন্টদের নাম দেখাচ্ছে না।"
+
+**Why.** `js/phonebook.js` masked every personal field — name (`গোপন তথ্য`),
+avatar, ID, guardian name, dues and phone — and the "তথ্য দেখুন" step its own
+header comment promised was never implemented. There was no reveal control
+anywhere in the module, so every card and every search hit read exactly the same
+text and staff could not tell two students apart, let alone find one.
+
+**Fix — identity readable, numbers opt-in.**
+
+* Cards now show the student's real name, initials avatar, ID, class, group,
+  guardian name, due amount and month; staff cards show the person's name, role,
+  ID and assignments. Same for the Manager panel (both share this module).
+* Phone numbers stay masked (`•••• ••••`) with **নম্বর দেখান** on each contact
+  row, plus a toolbar switch **সব নম্বর দেখান / সব নম্বর লুকান** for a calling
+  round. The reveal is memory-only — a reload masks them again — and a masked
+  number is not even a `tel:` link.
+* Call / WhatsApp / copy still work while masked: using a number is deliberate.
+* `phonebookInitials()` now ignores bracketed or punctuation-led words, so an
+  account label such as “সিস্টেম মালিক (এডমিন)” draws সিএ, not “সি(”.
+
+**Verified.** `tests/phonebook.test.mjs` 7/7: real names on screen, no
+`গোপন তথ্য` placeholder, initials/ID/guardian/due present, numbers masked with
+no link, per-row reveal, reveal-all + re-mask, search finds the named student,
+and the reveal never lands in storage. Related suites (manager/admin shells,
+mobile layout, registration audit) 48/48.
+
+**Release.** Pin 438.

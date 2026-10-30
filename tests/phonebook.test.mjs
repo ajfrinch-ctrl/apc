@@ -164,13 +164,20 @@ test('Admin Panel Phonebook (#phonebook) mounts Yellow Pages class groups, staff
   assert.match(openedUrls.at(-1)?.url || '', /^https:\/\/wa\.me\/8801812345679\?text=/);
   assert.match(decodeURIComponent(openedUrls.at(-1).url), /৳২,০০০/);
 
-  // Switch to Staff Directory tab
+  // Switch to Staff Directory tab. Identity is readable (a directory nobody can
+  // read is not a directory); the number stays masked until asked for.
   ctx.click(mount.querySelector('[data-yp-tab="staff"]'));
   await ctx.waitFor(() => mount.querySelectorAll('[data-yp-staff-card]').length >= 1);
-  assert.match(mount.textContent, /গোপন তথ্য/);
-  assert.doesNotMatch(mount.textContent, /মাহমুদ স্যার|01677889900/, 'the open staff directory masks identity');
+  assert.match(mount.textContent, /মাহমুদ স্যার/, 'the staff name is readable');
+  assert.doesNotMatch(mount.textContent, /01677889900/, 'the staff number stays masked by default');
+  const staffCard = [...mount.querySelectorAll('[data-yp-staff-card]')]
+    .find(card => card.textContent.includes('মাহমুদ স্যার'));
+  assert.match(staffCard.querySelector('.yp-phone-number.is-masked').textContent, /••••/);
   assert.ok(mount.querySelector('a.yp-action-btn.is-call[href="tel:+8801677889900"]'),
     'the contact action still targets the correct number');
+  ctx.click(staffCard.querySelector('[data-yp-action="reveal-phone"]'));
+  await ctx.flush(4);
+  assert.match(mount.textContent, /০১৬৭৭-৮৮৯৯০০/, 'the number shows after the reveal step');
 
   ctx.window.close();
 });
@@ -215,4 +222,109 @@ test('Manager Panel Phonebook (#phonebook) opens from Home and More and filters 
 
   assert.deepEqual(ctx.jsdomErrors, []);
   ctx.window.close();
+});
+
+/* ---------------------------------------------------------------------------
+   Owner report 2026-10-29: “ইয়োলো পেইজে স্টুডেন্টদের নাম দেখাচ্ছে না”.
+   The cards masked name, ID, guardian, dues and phone, and the “তথ্য দেখুন”
+   step the module promised was never built — so every row read “গোপন তথ্য”,
+   search results were indistinguishable, and staff could not find anyone.
+   Identity is now readable; phone numbers stay opt-in.
+   ------------------------------------------------------------------------- */
+
+test('Yellow Pages shows real student names, and only the numbers stay masked', async () => {
+  const roster = [
+    { id: 'YP-1', name: 'নুসরাত জাহান', fatherName: 'আব্দুল্লাহ', className: 'নবম শ্রেণি', group: 'বিজ্ঞান', mobile: '01712345678', guardianMobile: '01812345679', status: 'approved', monthlyFee: 1500 },
+    { id: 'YP-2', name: 'সাদিয়া আফরিন', fatherName: 'মোস্তফা কামাল', className: 'দশম শ্রেণি', group: 'ব্যবসায়', mobile: '01911223344', guardianMobile: '01611223344', status: 'approved', monthlyFee: 1200 }
+  ];
+  const ctx = await loadPage('admin.html', {
+    seed: { 'activePlus.demo.autofill.v1': 'off', [ROSTER_KEY]: JSON.stringify(roster) }
+  });
+  await provisionStaff('admin');
+  seedStaffSession(ctx.window, 'admin');
+  /* Own module instance: an earlier test already booted admin.js against its
+     own document, and a cached module would paint into that one. */
+  await import('../js/admin.js?yp-names-2026-10-29');
+  await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
+  ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
+  ctx.click(ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'));
+  await ctx.waitFor(() => ctx.$$('#adminPhonebookMount [data-yp-student-card]').length === 2);
+
+  const mount = ctx.$('#adminPhonebookMount');
+  /* 1. The complaint itself: names are on screen. */
+  assert.match(mount.textContent, /নুসরাত জাহান/);
+  assert.match(mount.textContent, /সাদিয়া আফরিন/);
+  assert.doesNotMatch(mount.textContent, /গোপন তথ্য/, 'no card falls back to the mask placeholder');
+
+  const card = mount.querySelector('[data-yp-student-card="YP-1"]');
+  assert.equal(card.querySelector('.yp-person-name').textContent, 'নুসরাত জাহান');
+  assert.equal(card.querySelector('.yp-avatar').textContent.trim(), 'নুজা', 'the avatar draws the initials');
+  assert.match(card.querySelector('.yp-id-chip').textContent, /YP-1/);
+  assert.match(card.querySelector('.yp-guardian-sub').textContent, /আব্দুল্লাহ/);
+  assert.match(card.querySelector('.yp-due-chip').textContent, /১৫০০/);
+
+  /* 2. Numbers stay opt-in: masked text, no tel: link, one reveal control. */
+  const guardianRow = card.querySelector('[data-yp-contact-key="student:YP-1:guardian"]');
+  assert.match(guardianRow.querySelector('.yp-phone-number.is-masked').textContent, /••••/);
+  assert.equal(guardianRow.querySelector('a.yp-phone-number'), null, 'a hidden number is not a link');
+  assert.match(guardianRow.textContent, /আব্দুল্লাহ/, 'the guardian name is readable');
+  const reveal = guardianRow.querySelector('[data-yp-action="reveal-phone"]');
+  assert.equal(reveal.textContent.trim(), 'নম্বর দেখান');
+
+  /* 3. Revealing one row shows that row's real number only. */
+  ctx.click(reveal);
+  await ctx.flush(4);
+  const shown = mount.querySelector('[data-yp-contact-key="student:YP-1:guardian"]');
+  assert.equal(shown.querySelector('a.yp-phone-number').getAttribute('href'), 'tel:+8801812345679');
+  assert.match(shown.querySelector('.yp-phone-number').textContent, /০১৮১২-৩৪৫৬৭৯/);
+  assert.match(mount.querySelector('[data-yp-contact-key="student:YP-1:student"] .yp-phone-number').textContent, /••••/,
+    'the other row stays masked');
+
+  /* 4. The toolbar switch reveals and re-masks everything at once. */
+  ctx.click(mount.querySelector('[data-yp-action="toggle-all-phones"]'));
+  await ctx.flush(4);
+  assert.match(mount.querySelector('[data-yp-contact-key="student:YP-1:student"] .yp-phone-number').textContent, /০১৭১২-৩৪৫৬৭৮/);
+  assert.equal(mount.querySelector('[data-yp-action="toggle-all-phones"]').textContent.trim(), 'সব নম্বর লুকান');
+  ctx.click(mount.querySelector('[data-yp-action="toggle-all-phones"]'));
+  await ctx.flush(4);
+  assert.match(mount.querySelector('[data-yp-contact-key="student:YP-1:guardian"] .yp-phone-number').textContent, /••••/);
+  assert.equal(mount.querySelector('[data-yp-action="toggle-all-phones"]').textContent.trim(), 'সব নম্বর দেখান');
+
+  /* 5. With names readable, search returns a findable row. */
+  const input = mount.querySelector('[data-yp-search]');
+  input.value = 'নুসরাত';
+  input.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
+  await ctx.flush(4);
+  const hits = [...mount.querySelectorAll('[data-yp-student-card]')];
+  assert.equal(hits.length, 1, 'search narrows to the named student');
+  assert.match(hits[0].textContent, /নুসরাত জাহান/);
+
+  ctx.window.close();
+});
+
+test('the reveal is memory-only: a reload masks the numbers again', async () => {
+  const roster = [
+    { id: 'YP-3', name: 'ফাহিম রেজা', className: 'নবম শ্রেণি', mobile: '01712345678', guardianMobile: '01812345679', status: 'approved', monthlyFee: 1000 }
+  ];
+  const open = async () => {
+    const ctx = await loadPage('admin.html', {
+      seed: { 'activePlus.demo.autofill.v1': 'off', [ROSTER_KEY]: JSON.stringify(roster) }
+    });
+    await provisionStaff('admin');
+    seedStaffSession(ctx.window, 'admin');
+    await import(`../js/admin.js?yp-reload-${Math.random()}`);
+    await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
+    ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
+    ctx.click(ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'));
+    await ctx.waitFor(() => ctx.$$('#adminPhonebookMount [data-yp-student-card]').length === 1);
+    return ctx;
+  };
+
+  const first = await open();
+  first.click(first.$('#adminPhonebookMount [data-yp-action="toggle-all-phones"]'));
+  await first.flush(4);
+  assert.match(first.$('#adminPhonebookMount .yp-phone-number').textContent, /০১৮১২/, 'revealed in this visit');
+  const stored = Object.keys(first.window.localStorage).filter(key => /reveal|phone|privacy/i.test(key));
+  assert.deepEqual(stored, [], 'the reveal is never written to storage');
+  first.window.close();
 });

@@ -528,6 +528,21 @@
   letter-spacing: .01em; overflow-wrap: anywhere;
 }
 .yp-phone-number small { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); }
+.yp-phone-number.is-masked { color: var(--color-text-muted); letter-spacing: .14em; font-weight: 700; }
+/* The reveal control: identity is readable, contact numbers are opt-in. */
+.yp-reveal-btn {
+  justify-self: start; min-height: 32px; padding: 4px 12px; border-radius: 999px;
+  border: 1px dashed var(--color-border); background: transparent;
+  color: var(--color-primary); font: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; box-sizing: border-box;
+}
+.yp-reveal-btn.is-hide { border-style: solid; color: var(--color-text-secondary); }
+.yp-reveal-btn.is-all { min-height: 36px; padding: 6px 14px; border-style: solid; background: var(--color-surface); }
+.yp-privacy-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap; padding-top: 10px; margin-top: 2px; border-top: 1px dashed var(--color-border);
+}
+.yp-privacy-note { font-size: 12px; line-height: 1.6; color: var(--color-text-secondary); flex: 1 1 200px; min-width: 0; }
 .yp-action-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
 @media (min-width: 560px) {
   .yp-action-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }

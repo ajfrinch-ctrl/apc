@@ -37,27 +37,40 @@ const STUDENT_STATUS_META = Object.freeze({
   rejected: { label: 'বাতিল', badgeClass: 'badge-rejected', rank: 4 }
 });
 
-/* Privacy: Yellow Pages cards mask personal identifiers in the open list.
-   Full name, ID and phone appear only after a “তথ্য দেখুন” step (the draft
-   tray or direct contact actions keep real numbers in data attributes but
-   display masked). */
-const PRIVACY_MASK = '••••';
-const PRIVACY_NAME = 'গোপন তথ্য';
+/* Privacy (owner decision 2026-10-29): identity is readable, contact numbers
+   are not. A directory is useless when every row says “গোপন তথ্য” — search by
+   name returned rows nobody could tell apart — so the name, class, group,
+   guardian, ID and dues show plainly and only the phone numbers stay masked.
+   Each row has a “নম্বর দেখান” control, and the toolbar can reveal them all at
+   once for a calling round; the reveal lives in memory only, so a reload hides
+   them again. The call / WhatsApp / copy buttons keep working while masked,
+   because using a number is a deliberate act. */
+const PRIVACY_MASK = '•••• ••••';
 
 const graphemeSegmenter = typeof Intl !== 'undefined' && Intl.Segmenter
   ? new Intl.Segmenter('bn', { granularity: 'grapheme' })
   : null;
 
 export function phonebookInitials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  /* Only words that start with a letter or digit count: an account label such
+     as “সিস্টেম মালিক (এডমিন)” must not produce a “(” avatar. */
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .map(word => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(Boolean);
   if (!parts.length) return 'শিক্ষা';
   const firstGrapheme = word => {
     if (!graphemeSegmenter) return word.slice(0, 2);
     const iter = graphemeSegmenter.segment(word)[Symbol.iterator]();
     return iter.next().value?.segment || '';
   };
-  if (parts.length === 1) return firstGrapheme(parts[0]).toUpperCase();
-  return (firstGrapheme(parts[0]) + firstGrapheme(parts[parts.length - 1])).toUpperCase();
+  /* One glyph-cluster from the first and the last word: “রাইসা ইসলাম” → রাই.
+     Each side is exactly one grapheme, so the 44px disc never overflows. */
+  const initials = parts.length === 1
+    ? firstGrapheme(parts[0])
+    : firstGrapheme(parts[0]) + firstGrapheme(parts[parts.length - 1]);
+  return initials.toUpperCase();
 }
 
 /**
@@ -385,6 +398,10 @@ export async function mountPhonebook(mount, options = {}) {
     draftTemplate: 'absence',
     draftCustomText: '',
     draftDirty: false,
+    /* Which contact rows show their number, and the toolbar's reveal-all
+       switch. Memory only — never stored, so a reload re-masks. */
+    revealedPhones: new Set(),
+    revealAllPhones: false,
     students: [],
     staff: [],
     transactions: [],
@@ -459,6 +476,7 @@ export async function mountPhonebook(mount, options = {}) {
     }
 
     const telHref = buildTelHref(norm.local);
+    const numberShown = state.revealAllPhones || state.revealedPhones.has(rowKey);
     const activeTemplate = templates.some(t => t.id === state.draftTemplate)
       ? state.draftTemplate
       : templates[0].id;
@@ -471,10 +489,14 @@ export async function mountPhonebook(mount, options = {}) {
         <div class="yp-contact-top">
           <div class="yp-contact-meta">
             <span class="yp-role-pill is-${escapeHtml(badgeTone)}">${escapeHtml(badgeLabel)}</span>
-            ${personSub ? `<span class="yp-contact-person">${escapeHtml(PRIVACY_MASK)}</span>` : ''}
+            ${personSub ? `<span class="yp-contact-person">${escapeHtml(personSub)}</span>` : ''}
             ${sameAsPrimary ? '<span class="yp-same-note">একই নম্বর</span>' : ''}
           </div>
-          <a class="yp-phone-number" href="${escapeHtml(telHref)}" aria-label="${escapeHtml(badgeLabel)} ${escapeHtml(PRIVACY_MASK)} নম্বরে কল করুন">${escapeHtml(PRIVACY_MASK)} <small>(${escapeHtml(PRIVACY_MASK)})</small></a>
+          ${numberShown
+            ? `<a class="yp-phone-number" href="${escapeHtml(telHref)}" aria-label="${escapeHtml(badgeLabel)} ${escapeHtml(norm.formattedBn)} নম্বরে কল করুন">${escapeHtml(norm.formattedBn)} <small>(${escapeHtml(norm.formattedEn)})</small></a>
+               <button class="yp-reveal-btn is-hide" type="button" data-yp-action="hide-phone" data-yp-row="${escapeHtml(rowKey)}" aria-label="${escapeHtml(badgeLabel)} নম্বর লুকান">নম্বর লুকান</button>`
+            : `<span class="yp-phone-number is-masked" aria-label="নম্বর লুকানো আছে">${escapeHtml(PRIVACY_MASK)}</span>
+               <button class="yp-reveal-btn" type="button" data-yp-action="reveal-phone" data-yp-row="${escapeHtml(rowKey)}" aria-label="${escapeHtml(badgeLabel)} নম্বর দেখান">নম্বর দেখান</button>`}
         </div>
         <div class="yp-action-row" role="group" aria-label="${escapeHtml(badgeLabel)} যোগাযোগের মাধ্যম">
           <a class="yp-action-btn is-call" href="${escapeHtml(telHref)}" aria-label="${escapeHtml(draftContext.name || '')} (${escapeHtml(badgeLabel)}) কল করুন">
@@ -645,18 +667,18 @@ export async function mountPhonebook(mount, options = {}) {
         return `
           <article class="yp-card" data-yp-student-card="${escapeHtml(String(student.id || ''))}">
             <header class="yp-card-head">
-              <span class="yp-avatar is-masked" aria-hidden="true">${escapeHtml(PRIVACY_MASK)}</span>
+              <span class="yp-avatar" aria-hidden="true">${escapeHtml(phonebookInitials(baseContext.name))}</span>
               <div class="yp-person-main">
                 <div class="yp-person-title-row">
-                  <h4 class="yp-person-name">${escapeHtml(PRIVACY_NAME)}</h4>
+                  <h4 class="yp-person-name">${escapeHtml(baseContext.name)}</h4>
                   <span class="badge ${statusInfo.badgeClass}">${escapeHtml(statusInfo.label)}</span>
                 </div>
                 <div class="yp-person-tags">
-                  ${student.id ? `<span class="yp-id-chip">আইডি: ${escapeHtml(PRIVACY_MASK)}</span>` : ''}
+                  ${student.id ? `<span class="yp-id-chip">আইডি: ${escapeHtml(String(student.id))}</span>` : ''}
                   ${student.group ? `<span class="yp-meta-chip">ব্যাচ/বিভাগ: ${escapeHtml(String(student.group))}</span>` : ''}
-                  ${dueAmount > 0 ? `<span class="yp-due-chip">বকেয়া ${escapeHtml(PRIVACY_MASK)}</span>` : ''}
+                  ${dueAmount > 0 ? `<span class="yp-due-chip">বকেয়া ${escapeHtml(toBnDigits(dueAmount))}${dueMonth ? ` · ${escapeHtml(dueMonth)}` : ''}</span>` : ''}
                 </div>
-                ${student.fatherName ? `<p class="yp-guardian-sub">পিতা/অভিভাবক: <strong>${escapeHtml(PRIVACY_MASK)}</strong></p>` : ''}
+                ${student.fatherName ? `<p class="yp-guardian-sub">পিতা/অভিভাবক: <strong>${escapeHtml(String(student.fatherName))}</strong></p>` : ''}
               </div>
             </header>
             <div class="yp-contacts-stack">
@@ -780,15 +802,15 @@ export async function mountPhonebook(mount, options = {}) {
         return `
           <article class="yp-card is-staff-card" data-yp-staff-card="${escapeHtml(String(keyId))}">
             <header class="yp-card-head">
-              <span class="yp-avatar is-staff is-masked" aria-hidden="true">${escapeHtml(PRIVACY_MASK)}</span>
+              <span class="yp-avatar is-staff" aria-hidden="true">${escapeHtml(phonebookInitials(member.fullName || staffRoleLabel(role)))}</span>
               <div class="yp-person-main">
                 <div class="yp-person-title-row">
-                  <h4 class="yp-person-name">${escapeHtml(PRIVACY_NAME)}</h4>
+                  <h4 class="yp-person-name">${escapeHtml(member.fullName || member.username || staffRoleLabel(role))}</h4>
                   <span class="badge ${statusBadge}">${escapeHtml(staffStatusLabel(member.status || 'active'))}</span>
                 </div>
                 <div class="yp-person-tags">
                   <span class="yp-id-chip">${escapeHtml(staffRoleLabel(role))}</span>
-                  ${member.staffId ? `<span class="yp-meta-chip">${escapeHtml(PRIVACY_MASK)}</span>` : ''}
+                  ${member.staffId ? `<span class="yp-meta-chip">${escapeHtml(String(member.staffId))}</span>` : ''}
                 </div>
                 ${assignmentText ? `<p class="yp-guardian-sub">দায়িত্বপ্রাপ্ত ক্লাস/বিষয়: <strong>${escapeHtml(assignmentText)}</strong></p>` : ''}
               </div>
@@ -852,6 +874,11 @@ export async function mountPhonebook(mount, options = {}) {
               ${iconMarkup('close', 'yp-clear-svg', { variant: 'glyph' })}
             </button>
           </label>
+          <div class="yp-privacy-bar">
+            <span class="yp-privacy-note" data-yp-privacy-note>নম্বরগুলো লুকানো আছে — নাম দেখে খুঁজুন, প্রয়োজনে নম্বর দেখান</span>
+            <button class="yp-reveal-btn is-all" type="button" data-yp-action="toggle-all-phones"
+              aria-pressed="false" aria-label="সব নম্বর দেখান">সব নম্বর দেখান</button>
+          </div>
         </div>
         <div class="yp-results-region" data-yp-results aria-live="polite"></div>
       </div>`;
@@ -894,6 +921,20 @@ export async function mountPhonebook(mount, options = {}) {
     const clearBtn = mount.querySelector('[data-yp-action="clear-search"]');
     if (input && input.value !== state.query) input.value = state.query;
     if (clearBtn) clearBtn.hidden = !state.query;
+
+    /* The reveal-all switch and its note describe what is on screen right now. */
+    const allBtn = mount.querySelector('[data-yp-action="toggle-all-phones"]');
+    if (allBtn) {
+      allBtn.textContent = state.revealAllPhones ? 'সব নম্বর লুকান' : 'সব নম্বর দেখান';
+      allBtn.setAttribute('aria-pressed', state.revealAllPhones ? 'true' : 'false');
+      allBtn.setAttribute('aria-label', state.revealAllPhones ? 'সব নম্বর লুকান' : 'সব নম্বর দেখান');
+    }
+    const note = mount.querySelector('[data-yp-privacy-note]');
+    if (note) {
+      note.textContent = state.revealAllPhones
+        ? 'সব নম্বর দেখানো আছে — স্ক্রিন থেকে সরে গেলে আবার লুকিয়ে রাখুন'
+        : 'নম্বরগুলো লুকানো আছে — নাম দেখে খুঁজুন, প্রয়োজনে নম্বর দেখান';
+    }
   }
 
   function paintResults() {
@@ -980,6 +1021,27 @@ export async function mountPhonebook(mount, options = {}) {
       state.classFilter = 'all';
       state.statusFilter = 'all';
       state.roleFilter = 'all';
+      paintSummaryAndTabs();
+      paintResults();
+      return;
+    }
+
+    if (action === 'reveal-phone' || action === 'hide-phone') {
+      const row = actionEl.dataset.ypRow;
+      if (!row) return;
+      if (action === 'reveal-phone') state.revealedPhones.add(row);
+      else state.revealedPhones.delete(row);
+      paintResults();
+      // Keep the keyboard where the user was: the same button now does the
+      // opposite job, so focus the re-rendered equivalent.
+      const next = mount.querySelector(`[data-yp-action="${action === 'reveal-phone' ? 'hide' : 'reveal'}-phone"][data-yp-row="${row}"]`);
+      next?.focus?.({ preventScroll: true });
+      return;
+    }
+
+    if (action === 'toggle-all-phones') {
+      state.revealAllPhones = !state.revealAllPhones;
+      if (!state.revealAllPhones) state.revealedPhones.clear();
       paintSummaryAndTabs();
       paintResults();
       return;
