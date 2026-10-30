@@ -24,7 +24,7 @@ import { toBanglaNumber } from './ui.js';
 import { classCodes } from './admin-data.js';
 import { loadAppConfig, saveAppConfig, loadAccount, saveAccount } from './storage.js';
 import { loadRoster, saveRoster, loadNotices, loadRoutine } from './office-data.js';
-import { changeStaffPassword, updateStaffProfile, ensureBootstrapStaffAccounts, readStaffAccount, authenticateStaff, hasStaffSession, clearStaffSession, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
+import { changeStaffPassword, updateStaffProfile, ensureBootstrapStaffAccounts, readStaffAccount, authenticateStaff, hasStaffSession, clearStaffSession, goToLoginPage, readActiveStaffIdentity, STAFF_SESSION_RULES } from './staff-auth.js';
 import { clearLocalAppData } from './factory-reset.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
 import { dateLabel } from './finance-data.js';
@@ -45,10 +45,13 @@ import {
   STAFF_DIRECTORY_KEY,
   STAFF_ROLE_META,
   STAFF_DIRECTORY_RULES,
+  changeDirectoryStaffPassword,
+  findStaff,
   listStaff,
   staffActivitySummary,
   staffCounts,
-  staffRoleLabel
+  staffRoleLabel,
+  updateOwnStaffProfile
 } from './staff-directory.js';
 import { initStaffManagement, renderStaff } from './staff-management.js';
 import { initAdminContent, refreshAdminContentRecords } from './admin-content.js';
@@ -1366,10 +1369,13 @@ async function renderSecurity() {
   const host = $('#securityPanels');
   if (!host) return;
   const owner = await readStaffAccount('admin');
-  const ownerStaff = state.staff.find(staff => staff.role === 'admin') || null;
+  const admin = await signedInAdmin();
+  const ownerStaff = state.staff.find(staff => staff.role === 'admin' && staff.protected) || null;
   const passwordDue = state.staff.filter(staff => staff.mustChangePassword);
   const protectedStaff = state.staff.filter(staff => staff.protected);
   const rows = [
+    /* Who holds the panel right now — the owner or a second Admin. */
+    ['এই সেশনে সাইন-ইন', `${escapeHtml(admin.fullName || '—')}${admin.staffId ? ` • <span class="staff-id-badge">${escapeHtml(admin.staffId)}</span>` : ''}`],
     ['সিস্টেম মালিক', escapeHtml(owner?.fullName || '—')],
     ['মালিকের ইউজারনেম', escapeHtml(owner?.username || '—')],
     ['মালিকের স্টাফ আইডি', ownerStaff ? `<span class="staff-id-badge">${escapeHtml(ownerStaff.staffId)}</span>` : '—'],
@@ -1531,30 +1537,74 @@ function paintAdminSettingsDoors() {
   });
 }
 
+/**
+ * Who is signed in to this Admin panel?
+ *
+ * The device has one canonical Admin account (js/staff-auth.js) and — since the
+ * owner's 2026-10-30 decision — any number of directory Admins created in Staff
+ * Management. `saveStaffSession()` writes the signed-in person's identity when
+ * the session is created, so the panel can tell the two apart: a directory
+ * Admin edits their own profile and password, while the System Owner keeps
+ * using the device account. Everything falls back to the owner when the
+ * identity is missing, stale, or belongs to a record that is no longer an
+ * active Admin.
+ */
+async function signedInAdmin() {
+  const owner = await readStaffAccount('admin');
+  const identity = readActiveStaffIdentity();
+  if (identity?.role === 'admin' && identity.staffId) {
+    const record = await findStaff(String(identity.staffId));
+    if (record && record.role === 'admin' && record.kind !== 'system' && record.status === 'active') {
+      return {
+        source: 'directory',
+        staffId: record.staffId,
+        fullName: record.fullName || identity.fullName || '',
+        username: record.username || identity.username || '',
+        mobile: record.mobile || '',
+        email: record.email || '',
+        createdAt: record.createdAt || ''
+      };
+    }
+  }
+  const ownerStaff = state.staff.find(staff => staff.role === 'admin' && staff.protected) || null;
+  return {
+    source: 'owner',
+    staffId: ownerStaff?.staffId || '',
+    fullName: owner?.fullName || '',
+    username: owner?.username || '',
+    mobile: owner?.mobile || '',
+    email: owner?.email || '',
+    createdAt: owner?.createdAt || ''
+  };
+}
+
 async function renderAdminProfile() {
   const host = $('#adminProfileCard');
   if (!host) return;
-  const account = await readStaffAccount('admin');
-  const staff = state.staff.find(item => item.role === 'admin') || null;
-  const created = account?.createdAt ? new Date(account.createdAt) : null;
+  /* The card always describes the person signed in on this device — the System
+     Owner, or a second Admin created in Staff Management. */
+  const admin = await signedInAdmin();
+  const created = admin.createdAt ? new Date(admin.createdAt) : null;
   const joinedLabel = created && Number.isFinite(created.getTime()) ? dateLabel(created) : '—';
   // Keep only the facts not already in the identity header (name, Login ID,
   // Admin role); these detail rows render inside that same hero card.
   const rows = [
-    ['স্টাফ আইডি', staff ? `<span class="staff-id-badge">${escapeHtml(staff.staffId)}</span>` : '—'],
-    ['মোবাইল', escapeHtml(account?.mobile || '—')],
-    ['ইমেইল', escapeHtml(account?.email || '—')],
-    ['স্ট্যাটাস', '<span class="badge badge-approved">সুরক্ষিত • সক্রিয়</span>'],
+    ['স্টাফ আইডি', admin.staffId ? `<span class="staff-id-badge">${escapeHtml(admin.staffId)}</span>` : '—'],
+    ['মোবাইল', escapeHtml(admin.mobile || '—')],
+    ['ইমেইল', escapeHtml(admin.email || '—')],
+    ['স্ট্যাটাস', admin.source === 'owner'
+      ? '<span class="badge badge-approved">সুরক্ষিত • সক্রিয়</span>'
+      : '<span class="badge badge-approved">সক্রিয়</span>'],
     ['যোগদান', escapeHtml(joinedLabel)]
   ];
   // The same card fills the editable identity form: name, mobile, email.
-  if ($('#adminProfileName')) $('#adminProfileName').value = account?.fullName || '';
-  if ($('#adminProfileMobile')) $('#adminProfileMobile').value = account?.mobile || '';
-  if ($('#adminProfileEmail')) $('#adminProfileEmail').value = account?.email || '';
-  if ($('#adminProfileUserId')) $('#adminProfileUserId').textContent = account?.username || '—';
+  if ($('#adminProfileName')) $('#adminProfileName').value = admin.fullName || '';
+  if ($('#adminProfileMobile')) $('#adminProfileMobile').value = admin.mobile || '';
+  if ($('#adminProfileEmail')) $('#adminProfileEmail').value = admin.email || '';
+  if ($('#adminProfileUserId')) $('#adminProfileUserId').textContent = admin.username || '—';
 
-  const displayName = account?.fullName || 'এডমিন';
-  const adminName = String(account?.fullName || '').trim();
+  const displayName = admin.fullName || 'এডমিন';
+  const adminName = String(admin.fullName || '').trim();
   if ($('#dashTitle')) $('#dashTitle').textContent = adminName ? `স্বাগতম, ${adminName}` : 'স্বাগতম, এডমিন';
   if ($('#adminWelcome')) $('#adminWelcome').textContent = adminName ? `স্বাগতম, ${adminName}` : 'স্বাগতম, এডমিন';
   const initials = initialsOf(displayName);
@@ -1564,7 +1614,7 @@ async function renderAdminProfile() {
         <span class="admin-profile-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
         <div class="admin-profile-identity">
           <h2>${escapeHtml(displayName)}</h2>
-          <p class="admin-profile-meta">লগইন আইডি: ${escapeHtml(account?.username || '—')}</p>
+          <p class="admin-profile-meta">লগইন আইডি: ${escapeHtml(admin.username || '—')}</p>
         </div>
         <span class="admin-profile-status">এডমিন</span>
       </div>
@@ -1572,7 +1622,9 @@ async function renderAdminProfile() {
         ${rows.map(([label, value]) => `
           <div class="profile-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`).join('')}
       </dl>
-      <p class="finance-hint admin-profile-note">সিস্টেম মালিকের পরিচয় সুরক্ষিত: এই অ্যাকাউন্ট মুছে ফেলা, নিষ্ক্রিয় করা বা ভূমিকা বদল করা যায় না — তাই অ্যাকাউন্টে প্রবেশ বন্ধ হয়ে যায় না।</p>
+      ${admin.source === 'owner'
+        ? '<p class="finance-hint admin-profile-note">সিস্টেম মালিকের পরিচয় সুরক্ষিত: এই অ্যাকাউন্ট মুছে ফেলা, নিষ্ক্রিয় করা বা ভূমিকা বদল করা যায় না — তাই অ্যাকাউন্টে প্রবেশ বন্ধ হয়ে যায় না।</p>'
+        : '<p class="finance-hint admin-profile-note">এই এডমিন অ্যাকাউন্টটি স্টাফ ম্যানেজমেন্ট থেকে তৈরি — নিজের নাম, মোবাইল ও পাসওয়ার্ড এখান থেকেই বদলাতে পারবেন; সিস্টেম মালিকের অ্যাকাউন্ট আলাদা ও সুরক্ষিত।</p>'}
       <button class="admin-profile-edit" type="button" data-admin-profile-edit>
         ${iconMarkup('edit', 'apc-icon-svg')}<span>প্রোফাইল সম্পাদনা</span>
       </button>
@@ -1978,10 +2030,14 @@ $('#adminProfileForm')?.addEventListener('submit', async event => {
     if (error) { error.textContent = 'সঠিক ইমেইল ঠিকানা দিন অথবা ফাঁকা রাখুন।'; error.hidden = false; }
     return;
   }
-  // Only name/mobile/email move. The Login User ID and the Staff ID are locked
-  // inside updateStaffProfile, so this form cannot rewrite the identity even
-  // if it is submitted straight from the console.
-  const result = await updateStaffProfile('admin', { fullName, mobile, email });
+  // Only name/mobile/email move. The Login User ID and the Staff ID stay
+  // locked in both paths, so this form cannot rewrite the identity even if it
+  // is submitted straight from the console. A directory Admin writes their own
+  // staff record; the System Owner writes the device account.
+  const admin = await signedInAdmin();
+  const result = admin.source === 'directory'
+    ? await updateOwnStaffProfile(admin.staffId, { fullName, mobile, email })
+    : await updateStaffProfile('admin', { fullName, mobile, email });
   if (!result.ok) {
     if (error) { error.textContent = result.error || 'তথ্য সংরক্ষণ করা যায়নি।'; error.hidden = false; }
     return;
@@ -2005,7 +2061,12 @@ $('#adminPasswordForm')?.addEventListener('submit', async event => {
     if (error) { error.textContent = 'দুইবার লেখা নতুন পাসওয়ার্ড মিলছে না।'; error.hidden = false; }
     return;
   }
-  const result = await changeStaffPassword('admin', current, next, confirm);
+  /* Each Admin changes their OWN password: a directory Admin's credential lives
+     in their staff record, the System Owner's in the device account. */
+  const admin = await signedInAdmin();
+  const result = admin.source === 'directory'
+    ? await changeDirectoryStaffPassword(admin.staffId, current, next, confirm)
+    : await changeStaffPassword('admin', current, next, confirm);
   if (!result.ok) {
     if (error) { error.textContent = result.error || 'পাসওয়ার্ড বদল করা যায়নি।'; error.hidden = false; }
     return;

@@ -292,3 +292,57 @@ registration audit) 56/56. Probes confirmed no student name appears anywhere in
 the masked DOM text or attributes.
 
 **Release.** Pin 439.
+
+---
+
+## Follow-up — one Admin may create another Admin (owner decision, 30 Oct 2026)
+
+**Question.** "এক এডমিন অন্য এডমিন আইডি ক্রিয়েট করতে পারবে?" — the answer used to
+be *no* on every surface, with one exception that had been left open by accident.
+
+| Path | Before | Now |
+| --- | --- | --- |
+| Staff Management → নতুন স্টাফ → role list | Admin missing (`CREATABLE_STAFF_ROLES`) | **Admin offered** |
+| Data layer, `createStaff({ role: 'admin' })` | refused: "Admin (System Owner) Role নতুন করে তৈরি করা যায় না।" | **allowed** |
+| Staff Management → Edit → Role = Admin | allowed by the validator (`&& !existing`), but no panel identity followed it | allowed **and** the account behaves like an Admin |
+| `updateStaff` / `setStaffStatus` / `deleteStaff` on STF-0001 | protected | protected — unchanged |
+
+**What changed.**
+
+* `js/staff-directory.js` — `CREATABLE_STAFF_ROLES` includes `admin`; the
+  create-only veto in `validateStaffFields()` is gone. The reserved thing is not
+  the *role*, it is the **System Owner record** (`STF-0001`, `kind: 'system'`,
+  `protected: true`), and that is still enforced by `protected` in
+  `updateStaff` / `setStaffStatus` / `deleteStaff`, so the institution can never
+  be locked out of its own panel.
+* `js/staff-directory.js` — new `updateOwnStaffProfile(staffId, patch)`: an Admin
+  created in the directory keeps their own name/mobile/email current from the
+  Admin panel. It never regenerates the Login User ID (that id is the identity
+  the panel signed in with) and refuses the System Owner record.
+* `js/staff-management.js` — the create form offers Admin with the hint "এডমিন
+  পুরো প্যানেলের নিয়ন্ত্রণ পায়; System Owner (প্রথম এডমিন) আলাদা ও সুরক্ষিত
+  থাকেন", and an Admin record has its own duty field (no class/batch scope).
+* `js/admin.js` — `signedInAdmin()` reads the identity `saveStaffSession()`
+  already writes, so the profile card, the greeting, "নিজের পাসওয়ার্ড বদল" and
+  the editable identity form all act on **the Admin who signed in**. Before
+  this, a second Admin would have seen the owner's name as their own profile and
+  typed into the owner's record. The security card now also names the current
+  session next to the System Owner.
+* Signing in needed no change: `authenticateDirectoryStaff()` already returns the
+  record, `staffRolePanelOf()` already routes `admin` → `admin.html`, and the
+  admin session is what every `withAdmin()` guard checks.
+
+**Not changed.** The one-time first-Admin cloud claim (`claimFirstAdmin` in
+`js/staff-auth.js`) still guarantees exactly one *institution* Admin bootstrap;
+extra Admins are directory accounts, created by an Admin who is already signed
+in. Cloud rules key on the Firebase `role: admin` claim, which a local directory
+Admin does not hold — Firebase stays opt-in and unchanged.
+
+**Verified.** New `tests/multi-admin.test.mjs` (5 tests): Admin in the create
+form and constant, creation succeeds, directory sign-in returns the admin role,
+the profile shows the signed-in Admin (never the owner), self-service rename
+keeps the login id, and the System Owner stays undeletable while the new Admin
+can be deactivated. Related suites: staff management + profile + shell + login +
+assignment + the new file = 54/54.
+
+**Release.** Pin 440.
