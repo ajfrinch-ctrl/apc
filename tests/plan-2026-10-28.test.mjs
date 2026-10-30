@@ -24,7 +24,7 @@ test('institute details come from one record: no panel hard-codes the address', 
      regression this test exists for. */
   for (const panel of PANELS) {
     const html = read(panel + '.html');
-    assert.doesNotMatch(html, /দিনাজপুর সদর/, `${panel}.html must not carry an address copy`);
+    assert.doesNotMatch(html, /কানুনগোপাড়া, বোয়ালখালী/, `${panel}.html must not carry an address copy`);
     assert.doesNotMatch(html, /01819486966/, `${panel}.html must not carry the phone number copy`);
     assert.doesNotMatch(html, /activeplus\.coaching@gmail\.com/, `${panel}.html must not carry the e-mail copy`);
   }

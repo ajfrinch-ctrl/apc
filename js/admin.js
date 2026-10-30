@@ -847,7 +847,7 @@ function renderAppManagement() {
   if ($('#cfgHelpline')) $('#cfgHelpline').value = cfg.helplineMobile || ADMIN_ID || '01819486966';
   if ($('#cfgWhatsapp')) $('#cfgWhatsapp').value = cfg.whatsappNumber || ADMIN_ID || '01819486966';
   if ($('#cfgEmail')) $('#cfgEmail').value = cfg.officialEmail || 'activeplus.coaching@gmail.com';
-  if ($('#cfgAddress')) $('#cfgAddress').value = cfg.campusAddress || 'দিনাজপুর সদর, দিনাজপুর';
+  if ($('#cfgAddress')) $('#cfgAddress').value = cfg.campusAddress || DEFAULT_APP_SETTINGS.campusAddress;
   /* The campus point drives the login sky (js/login.js campusPoint). */
   if ($('#cfgLatitude')) $('#cfgLatitude').value = String(cfg.campusLat ?? DEFAULT_APP_SETTINGS.campusLat);
   if ($('#cfgLongitude')) $('#cfgLongitude').value = String(cfg.campusLon ?? DEFAULT_APP_SETTINGS.campusLon);

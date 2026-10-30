@@ -210,3 +210,28 @@ changed the request from `latitude=25.6217&longitude=88.6354` to
 
 **Release.** Pin 436 (`?v=436`, `SW_VERSION`, `CACHE_VERSION`,
 `DEFAULT_VERSION`) so devices receive the new login module.
+
+---
+
+## Follow-up — campus address changed (owner decision, 29 Oct 2026)
+
+The institute is in **কানুনগোপাড়া, বোয়ালখালী, চট্টগ্রাম**, not Dinajpur. Because
+every surface reads the one record, the change is:
+
+| Where | Change |
+| --- | --- |
+| `js/config.js` | `campusAddress: 'কানুনগোপাড়া, বোয়ালখালী, চট্টগ্রাম'`, `campusLat: 22.4075`, `campusLon: 91.9783` (Kanungopara 4363, Boalkhali, Chattogram) |
+| Dashboard, login card, Help sheet, receipts, letterheads | no edit — they paint from the record |
+| Admin → Settings | fallback now `DEFAULT_APP_SETTINGS.campusAddress` instead of the old literal |
+| `js/report-layout.js` | the report letterhead's default slogan lost its baked-in `• দিনাজপুর`; the campus is drawn on its own line from the record |
+| `js/admin-data.js` | the demo roster's sample addresses follow the campus (demo data only) |
+
+**Coordinates.** 22.4075 N / 91.9783 E is the postcode-4363 centroid for
+Kanungopara, Boalkhali. Note that the *old* hard-coded pair (22.35803 / 92.1238)
+belonged to Kanungopara in **Rangunia** — a bad auto-geocode from a postal-code
+dataset, roughly 40 km east of the real village. That is why the weather never
+matched the campus even before the address changed. Admin → Settings lets the
+office fine-tune the point by a few hundred metres if needed.
+
+**Release.** Pin 437 (`?v=437`, `SW_VERSION`, `CACHE_VERSION`,
+`DEFAULT_VERSION`).

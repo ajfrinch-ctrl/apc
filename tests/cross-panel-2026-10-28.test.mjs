@@ -125,12 +125,12 @@ test('institute details reach every document surface from the one record', () =>
     const source = read(file);
     assert.match(source, /campusAddress/, `${file} reads the institute address from the shared config`);
     assert.match(source, /loadAppConfig|cfg\./, `${file} takes it from the live config, not a constant`);
-    assert.doesNotMatch(source, /দিনাজপুর সদর|01819486966/, `${file} hard-codes no institute detail`);
+    assert.doesNotMatch(source, /কানুনগোপাড়া, বোয়ালখালী|01819486966/, `${file} hard-codes no institute detail`);
   }
   assert.match(read('js/main.js'), /org-info|orgInfo/, 'the student Help sheet is painted from the one record');
   assert.match(read('student.html'), /data-org-address/, 'the Help sheet carries org hooks, not text');
   /* The same guard for the pages themselves. */
   for (const file of ['admin.html', 'manager.html', 'teacher.html', 'payment.html', 'student.html', 'index.html']) {
-    assert.doesNotMatch(read(file), /দিনাজপুর সদর, দিনাজপুর/, `${file} hard-codes no address`);
+    assert.doesNotMatch(read(file), /কানুনগোপাড়া, বোয়ালখালী, চট্টগ্রাম/, `${file} hard-codes no address`);
   }
 });
