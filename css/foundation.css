@@ -76,8 +76,12 @@
  --icon-gold:#ffc107;--icon-coral:#ff7a4d;--icon-violet:#9a7dff;
  --icon-paper:#fff;--icon-paper-back:#e3edf7;
  --icon-plate-blue:#eaf2ff;--icon-plate-green:#e9f7f0;--icon-plate-gold:#fff4dc;--icon-plate-violet:#f0edfc;
- /* Fixed student viewport: JS measures the actual bars/status inset. */
+ /* Fixed student viewport: JS measures the actual bars/status inset.
+    --sidebar-width is 0 on mobile; JS + desktop media queries promote the
+    bottom-nav into a left rail and expose this width for grid calculations. */
  --shell-header-height:60px;--shell-footer-height:66px;--shell-top-offset:0px;
+ --sidebar-width:0px;--content-max:1280px;
+ --auth-hero-gradient:linear-gradient(135deg,#0e7a55 0%,#0b6548 55%,#083d2b 100%);
  --student-home-height:calc(100dvh - var(--shell-top-offset) - var(--shell-header-height) - var(--shell-footer-height));
  --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--chat-viewport-h:100dvh;
  /* Unified staff portal tokens (Admin, Manager, Payment — matching Teacher): */
@@ -157,6 +161,8 @@ html[data-theme=dark]{
  --auth-card-shadow:none;
  --auth-brand-banner:transparent;
  --auth-brand-border:transparent;--auth-input-bg:var(--color-surface-muted);
+ --auth-hero-gradient:linear-gradient(135deg,#0b6548 0%,#083d2b 65%,#02140e 100%);
+ --sidebar-width:0px;
 }
 *{box-sizing:border-box}html{scroll-padding-block:90px}body{margin:0;background:var(--color-bg);color:var(--color-text);font:400 var(--font-md)/1.65 'Noto Sans Bengali',system-ui,sans-serif}h1,h2,h3,p{margin:0 0 var(--space-3)}h1{font-size:var(--font-xl);line-height:1.4;font-weight:650}h2{font-size:var(--font-lg);line-height:1.5;font-weight:600}h3{font-size:var(--font-md);font-weight:600}strong,b{font-weight:600}small,.eyebrow{font-size:var(--font-xs);color:var(--color-text-secondary)}.eyebrow{letter-spacing:.06em;margin-bottom:var(--space-2)}a{color:var(--color-primary)}img{max-width:100%;object-fit:contain}svg{width:22px;height:22px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}button,a,input,select,textarea{touch-action:manipulation}button{font:inherit;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}:focus-visible{outline:3px solid var(--color-primary);outline-offset:3px}[hidden]{display:none!important}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}p,small,strong,label{overflow-wrap:anywhere}::selection{background:var(--color-surface-muted)}
 html[data-theme=dark] ::selection{background:#5ea9ff38;color:var(--color-text)}

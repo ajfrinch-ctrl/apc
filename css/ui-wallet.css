@@ -8558,7 +8558,7 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
   @media (min-width: 1024px) {
     :is(.app-shell, .admin-shell) {
       display: grid;
-      grid-template-columns: 248px minmax(0, 1fr);
+      grid-template-columns: var(--sidebar-width, 250px) minmax(0, 1fr);
       grid-template-rows: auto minmax(0, 1fr);
     }
     :is(.app-shell, .admin-shell) > .app-topbar { grid-column: 1 / -1; grid-row: 1; }
@@ -8610,41 +8610,27 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
       flex: none;
     }
 
-    /* Payment counter: its shell scrolls with the page, so the rail is fixed. */
-    .pay-shell > .admin-bottom {
-      position: fixed;
-      top: 76px;
-      left: 0;
-      right: auto;
-      bottom: 0;
-      width: 248px;
-      min-height: 0;
-      flex-direction: column;
-      flex-wrap: nowrap;
-      justify-content: flex-start;
-      align-items: stretch;
-      gap: 4px;
-      padding: 14px 10px calc(14px + var(--safe-bottom));
-      border-top: 0;
-      border-right: 1px solid var(--color-border);
-      box-shadow: none;
-      overflow-y: auto;
+    /* Payment counter: unified with app/admin shells — grid rail, no fixed offset duplication */
+    .pay-shell{
+      display:grid;grid-template-columns:var(--sidebar-width, 250px) minmax(0,1fr);
+      grid-template-rows:auto minmax(0,1fr);height:100dvh;overflow:hidden;background:var(--color-bg)
     }
-    .pay-shell > .admin-bottom > .admin-bottom-item {
-      flex: 0 0 auto;
-      flex-direction: row;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 14px;
-      font-size: 14px;
-      text-align: start;
+    .pay-shell > .app-topbar{grid-column:1/-1;grid-row:1}
+    .pay-shell > .pay-main{grid-column:2;grid-row:2;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;max-width:none;margin:0;padding:var(--space-5) clamp(18px,2.2vw,28px) calc(var(--space-6) + var(--safe-bottom))}
+    .pay-shell > .admin-bottom{
+      grid-column:1;grid-row:2;
+      position:static;inset:auto;width:auto;height:auto;min-height:0;
+      flex-direction:column;flex-wrap:nowrap;justify-content:flex-start;align-items:stretch;
+      gap:4px;padding:14px 10px calc(14px + var(--safe-bottom));
+      border-top:0;border-right:1px solid var(--color-border);box-shadow:none;overflow-y:auto;overscroll-behavior:contain
     }
-    .pay-shell > .admin-bottom > .admin-bottom-item .nav-label { font-size: 14px; font-weight: 650; }
-    .pay-shell > .admin-bottom > .admin-bottom-item .nav-chip { width: 34px; height: 34px; flex: none; }
-    .pay-shell > .pay-main { margin-left: 248px; }
+    .pay-shell > .admin-bottom > .admin-bottom-item{
+      flex:0 0 auto;flex-direction:row;justify-content:flex-start;align-items:center;gap:12px;width:100%;
+      padding:10px 12px;border-radius:14px;font-size:14px;text-align:start
+    }
+    .pay-shell > .admin-bottom > .admin-bottom-item .nav-label{font-size:14px;font-weight:650}
+    .pay-shell > .admin-bottom > .admin-bottom-item .nav-chip{width:34px;height:34px;flex:none}
+    .pay-shell > .pay-main{margin-left:0}
 
     /* Full-screen chat takes the whole canvas: no rail, no reserved column. */
     :is(.app-shell, .admin-shell).is-chat-fullscreen { display: block !important; }
@@ -8720,4 +8706,13 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
   .student-help-list dt { color: var(--color-text-secondary); font-size: 12.5px; }
   .student-help-list dd { margin: 0; font-size: 13.5px; font-weight: 650; text-align: end; overflow-wrap: anywhere; }
   .student-help-list dd a { color: var(--color-primary); text-decoration: none; }
+  /* ── Desktop auth parity (must stay inside the single screen wrapper) ─ */
+  @media (min-width:1024px){
+    .auth-screen{
+      display:grid !important;grid-template-columns:minmax(380px,1.08fr) minmax(420px,480px) !important;
+      gap:0;align-items:stretch;padding:0 !important;overflow:hidden;background:var(--color-bg) !important
+    }
+    .auth-hero{display:flex !important}
+    .auth-card{max-width:440px !important;width:100%;margin:auto !important;align-self:center}
+  }
 }

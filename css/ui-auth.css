@@ -38,3 +38,88 @@
   transform: translate(-50%, -50%) rotate(-45deg);
   pointer-events: none;
 }
+
+/* ── Desktop hero (hidden on mobile) ─────────────────────────────────────
+   The .auth-hero element is injected in index.html before .auth-card.
+   Mobile-first: hidden below 1024. Desktop adds a token-driven gradient
+   (no hardcoded colours outside var(--color-primary) family) and stays
+   centred up to 1920px. */
+.auth-hero{display:none}
+.auth-hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:12px;font-weight:700;letter-spacing:.03em}
+.auth-hero h2{color:#fff;font-size:clamp(22px,2.4vw,30px);line-height:1.25;font-weight:700;letter-spacing:-.02em;margin:0}
+.auth-hero p{color:rgba(255,255,255,.92);font-size:14px;line-height:1.6;margin:0}
+.auth-hero-points{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}
+.auth-hero-points li{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.94);font-size:13px}
+.auth-hero-points li::before{content:'';flex:none;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+
+/* ── Tablet refinements (768px+) — no layout break ───────────────────────
+   Keep single-column but tighten gaps, allow 440-480 card to breathe.
+   No change ≤767px. */
+@media (min-width:768px){
+  .auth-screen{padding:var(--space-6) var(--space-5) max(var(--space-6),env(safe-area-inset-bottom))}
+  .auth-card{max-width:480px;padding:28px}
+}
+
+/* ── Desktop two-column (1024px+) ────────────────────────────────────────
+   Fixed inset is preserved; grid splits hero (left) + card (right).
+   Tablet/desktop tokens reuse var(--space*) / var(--radius*) / var(--color*).
+   1024-1280 gets compact padding; 1280-1920 centres content evenly. */
+@media (min-width:1024px){
+  .auth-screen{
+    display:grid;
+    grid-template-columns:minmax(380px,1.08fr) minmax(420px,480px);
+    gap:0;
+    align-items:stretch;
+    padding:0;
+    overflow:hidden;
+    background:var(--color-bg);
+  }
+  .auth-hero{
+    display:flex;flex-direction:column;justify-content:center;
+    gap:var(--space-5);
+    padding:clamp(28px,3.2vw,48px) clamp(28px,3.6vw,56px);
+    background:var(--auth-hero-gradient);
+    color:#fff;
+    position:relative;overflow:hidden;
+    min-height:100dvh;
+  }
+  .auth-hero::after{
+    content:'';position:absolute;right:-80px;bottom:-80px;width:260px;height:260px;border-radius:50%;
+    background:rgba(255,255,255,.07);pointer-events:none;
+  }
+  .auth-hero-head{display:grid;gap:var(--space-4)}
+  .auth-hero-brand{display:flex;align-items:center;gap:14px}
+  .auth-hero-brand img{width:56px;height:56px;border-radius:14px;background:#fff;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+  .auth-hero-brand strong{font-size:18px;line-height:1.2;display:block}
+  .auth-hero-brand small{font-size:12.5px;opacity:.9}
+  .auth-card{
+    max-width:440px;width:100%;margin:auto;align-self:center;
+    padding:32px 28px;
+    border-radius:var(--radius-lg);
+    box-shadow:var(--auth-card-shadow, var(--shadow-sm));
+    background:var(--auth-card-bg);
+    border:1px solid var(--auth-card-border);
+  }
+  .auth-card .auth-brand img{width:64px;height:64px;margin-bottom:10px}
+  .auth-card .auth-brand h1{font-size:22px}
+  /* Focus affordance on desktop */
+  .auth-tab:focus-visible,.auth-submit:focus-visible,.link-button:focus-visible,.inline-link:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px;border-radius:6px}
+  .auth-tab:hover{filter:brightness(1.02)}
+}
+@media (min-width:1024px) and (max-width:1280px){
+  .auth-hero{padding:32px 28px;gap:var(--space-4)}
+  .auth-hero h2{font-size:23px}
+  .auth-card{padding:26px 22px;max-width:420px}
+}
+@media (min-width:1280px){
+  .auth-screen{justify-content:center}
+  .auth-hero{padding-inline:clamp(40px,4vw,72px)}
+}
+@media (min-width:1600px){
+  .auth-screen{grid-template-columns:minmax(520px,1.08fr) minmax(440px,520px)}
+  .auth-card{max-width:480px;padding:36px 32px}
+}
+/* Very large screens: keep the whole canvas centred, never stretched edge-to-edge */
+@media (min-width:1920px){
+  .auth-screen{max-width:1920px;margin:0 auto;box-shadow:0 0 0 1px var(--color-border)}
+}
