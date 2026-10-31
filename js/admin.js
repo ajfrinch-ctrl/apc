@@ -79,14 +79,16 @@ const bn = toBanglaNumber;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 
-/* Primary-data privacy (owner rule: “প্রাইমারি ডেটা হাইড থাকবে সব ক্ষেত্রে।
-   ক্লিক করলেই দেখাবে।”): a list row opens masked, and one click on that row's
-   “তথ্য দেখুন” reveals it in place — the same contract the shared Yellow Pages
-   uses. The reveal is memory only (`state.revealedStudents`), so a reload hides
-   everything again, and a masked row never puts a real name into its text or
-   into an aria-label. */
+/* Privacy (owner rule 2026-10-31, settled against the shared Yellow Pages):
+   NAMES ARE ALWAYS READABLE — ONLY THE STUDENT ID STAYS HIDDEN.
+
+   A roster where every row says “গোপন তথ্য” cannot be read at a glance or
+   searched by eye, so the name and its initials avatar are always painted. The
+   Student ID opens hidden (`••••`) and that row's own “আইডি দেখুন” reveals it —
+   the same memory-only contract as the phonebook: nothing is stored, so a
+   reload masks the IDs again. Phone, guardian number and address never reach
+   this list at all. */
 const PRIVACY_MASK = '••••';
-const PRIVACY_NAME_PLACEHOLDER = 'গোপন তথ্য';
 
 
 const state = {
@@ -566,9 +568,9 @@ function renderStudents() {
   /* The toolbar switch describes what is on screen right now. */
   const revealAllBtn = $('#studentRevealAll');
   if (revealAllBtn) {
-    revealAllBtn.textContent = state.revealAllStudents ? 'সব তথ্য লুকান' : 'সব তথ্য দেখান';
+    revealAllBtn.textContent = state.revealAllStudents ? 'সব আইডি লুকান' : 'সব আইডি দেখান';
     revealAllBtn.setAttribute('aria-pressed', state.revealAllStudents ? 'true' : 'false');
-    revealAllBtn.setAttribute('aria-label', state.revealAllStudents ? 'সব শিক্ষার্থীর তথ্য লুকান' : 'সব শিক্ষার্থীর তথ্য দেখান');
+    revealAllBtn.setAttribute('aria-label', state.revealAllStudents ? 'সব শিক্ষার্থীর আইডি লুকান' : 'সব শিক্ষার্থীর আইডি দেখান');
     revealAllBtn.classList.toggle('active', state.revealAllStudents);
   }
 
@@ -576,17 +578,17 @@ function renderStudents() {
     ? list.map(student => {
         const status = statusMeta[student.status] || statusMeta.pending;
         const rowKey = String(student.id);
-        /* Masked until this row is opened: name, avatar and Student ID all stay
-           placeholder text, and the row's own button does the revealing. */
+        /* The name and avatar are readable at all times; the Student ID is the
+           only thing this row hides, and its own button reveals it. */
         const revealed = state.revealAllStudents || state.revealedStudents.has(rowKey);
         const name = String(student.name || student.nameEn || '').trim() || 'নাম দেওয়া হয়নি';
         return `
           <article class="student-row student-row-redesigned${revealed ? ' is-revealed' : ''}" data-student-row="${escapeHtml(rowKey)}"${revealed ? ' data-student-revealed="1"' : ''}>
             <div class="student-row-main">
-              <span class="student-avatar${revealed ? '' : ' is-masked'}" aria-hidden="true">${escapeHtml(revealed ? initialsOf(name) : PRIVACY_MASK)}</span>
+              <span class="student-avatar" aria-hidden="true">${escapeHtml(initialsOf(name))}</span>
               <div class="student-copy">
                 <div class="student-title-line">
-                  <strong>${escapeHtml(revealed ? name : PRIVACY_NAME_PLACEHOLDER)}</strong>
+                  <strong>${escapeHtml(name)}</strong>
                   <span class="badge ${status.className}">${status.label}</span>
                 </div>
                 <div class="student-meta-line">
@@ -596,7 +598,7 @@ function renderStudents() {
             </div>
             <div class="student-actions">
               <button class="mini-btn ${revealed ? '' : 'primary'}" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}"
-                aria-expanded="${revealed ? 'true' : 'false'}" aria-label="${revealed ? 'শিক্ষার্থীর তথ্য লুকান' : 'শিক্ষার্থীর তথ্য দেখান'}">${revealed ? 'তথ্য লুকান' : 'তথ্য দেখুন'}</button>
+                aria-expanded="${revealed ? 'true' : 'false'}" aria-label="${revealed ? 'শিক্ষার্থীর আইডি লুকান' : 'শিক্ষার্থীর আইডি দেখান'}">${revealed ? 'আইডি লুকান' : 'আইডি দেখুন'}</button>
               <button class="mini-btn" type="button" data-action="view" data-id="${escapeHtml(rowKey)}">প্রোফাইল</button>
               <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(rowKey)}">সম্পাদনা</button>
               <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(rowKey)}">পাসওয়ার্ড রিসেট</button>

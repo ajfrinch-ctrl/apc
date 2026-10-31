@@ -1,18 +1,21 @@
-/* Admin ▸ শিক্ষার্থী ব্যবস্থাপনা — owner report 2026-10-31:
-   "শিক্ষার্থী ব্যবস্থাপনা এ শিক্ষার্থির নাম দেখাচ্ছে না।"
+/* Admin ▸ শিক্ষার্থী ব্যবস্থাপনা — the name-visibility contract.
 
-   The list was masked for privacy (every row read “গোপন তথ্য”) but nothing on
-   the row could reveal it — only the profile modal could, so a screenful of
-   students could not be told apart, and staff had to open one modal per name.
+   History, because it explains the final shape:
+     • the list once masked every field and offered no way to reveal it, so a
+       screenful of rows read “গোপন তথ্য” and staff had to open one profile per
+       name (owner report 2026-10-31: “শিক্ষার্থির নাম দেখাচ্ছে না”);
+     • a fix then masked rows *with* a per-row reveal;
+     • the owner settled the rule on 2026-10-31 —
+       **“তালিকায় নাম সবসময় দেখা যাক, শুধু ফোন/আইডি লুকানো থাকুক”**.
 
-   Owner rule now in force — "প্রাইমারি ডেটা হাইড থাকবে সব ক্ষেত্রে। ক্লিক করলেই
-   দেখাবে।" — so this suite pins the Yellow Pages contract onto this screen:
-     • every row opens masked (name, avatar, Student ID),
-     • one click on that row's “তথ্য দেখুন” reveals only that row,
-     • the toolbar switch reveals / re-masks the whole roster,
-     • the pending-registration queue above it has its own per-application
-       reveal, because an application cannot be approved anonymously,
-     • nothing is stored: a reload masks everything again.
+   So this suite pins the settled rule, not the intermediate one:
+     • the student's name and initials avatar are always painted,
+     • the Student ID opens as `••••` behind that row's own “আইডি দেখুন”,
+     • no phone number ever reaches this list at all,
+     • the toolbar switch reveals / re-masks every ID at once,
+     • the pending-registration queue names the applicant immediately and hides
+       only the mobile + ID,
+     • nothing is stored: a reload masks the IDs again.
 */
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,84 +54,91 @@ const rowFor = id => ctx.$(`#studentList [data-student-row="${id}"]`);
 const revealButton = id => ctx.$(`#studentList [data-action="reveal-student"][data-id="${id}"]`);
 const hideButton = id => ctx.$(`#studentList [data-action="hide-student"][data-id="${id}"]`);
 
-test('every student row opens masked, with no name in the list text or labels', () => {
+test('every row names the student, and only the ID waits behind a button', () => {
   assert.equal(rows().length, roster.length, 'the roster is listed');
   const text = ctx.$('#studentList').textContent;
   for (const student of roster) {
-    assert.equal(text.includes(student.name), false, `${student.name} stays hidden until asked`);
-    assert.equal(text.includes(student.id), false, 'the Student ID stays hidden too');
-    assert.equal(text.includes(student.mobile), false, 'no phone number in the open list');
+    assert.ok(text.includes(student.name), `${student.name} is readable at a glance`);
+    const row = rowFor(student.id);
+    /* The avatar is drawn from the name, never a placeholder. */
+    assert.match(row.querySelector('.student-avatar').textContent.trim(), /^[^\s•]+$/, 'the avatar is initials, not a mask');
+    assert.match(row.textContent, /ID: ••••/, `${student.id} keeps its ID masked`);
+    assert.equal(
+      row.querySelector('.audit-id-badge').textContent.includes(student.id),
+      false,
+      'the real Student ID is not printed before the reveal'
+    );
+  }
+  /* Phone numbers never reach this list, masked or not. */
+  for (const student of roster) {
+    assert.equal(text.includes(student.mobile), false, 'no student mobile in the open list');
     assert.equal(text.includes(student.guardianMobile), false, 'no guardian number either');
   }
-  assert.ok(text.includes('গোপন তথ্য'), 'each row carries the placeholder');
-  // A masked row must not leak the name into an aria-label either.
-  const labels = [...ctx.$('#studentList').querySelectorAll('[aria-label]')].map(node => node.getAttribute('aria-label')).join(' ');
-  assert.equal(/রাইসা|ফারহানা|নুসরাত/.test(labels), false, 'masked rows keep their labels name-free');
   for (const student of roster) {
     const button = revealButton(student.id);
-    assert.ok(button, `${student.id} has its own reveal switch`);
+    assert.ok(button, `${student.id} has its own ID reveal`);
     assert.equal(button.getAttribute('aria-expanded'), 'false');
-    assert.equal(button.textContent.trim(), 'তথ্য দেখুন');
+    assert.equal(button.textContent.trim(), 'আইডি দেখুন');
   }
 });
 
-test('one click reveals that row only — and the same row masks again', async () => {
+test('one click reveals that row\'s ID only — names keep showing either way', async () => {
   ctx.click(revealButton('AP-201'));
   await ctx.flush();
 
   const opened = rowFor('AP-201');
   assert.equal(opened.dataset.studentRevealed, '1', 'the opened row is marked');
-  assert.match(opened.textContent, /রাইসা ইসলাম/, 'the name is shown');
-  assert.match(opened.textContent, /AP-201/, 'and the Student ID');
-  assert.equal(hideButton('AP-201').textContent.trim(), 'তথ্য লুকান');
+  assert.match(opened.querySelector('.audit-id-badge').textContent, /AP-201/, 'the Student ID is shown');
+  assert.match(opened.textContent, /রাইসা ইসলাম/, 'the name is still there');
+  assert.equal(hideButton('AP-201').textContent.trim(), 'আইডি লুকান');
   assert.equal(hideButton('AP-201').getAttribute('aria-expanded'), 'true');
 
-  // Every other row stays masked, and their names still never appear.
   for (const other of ['AP-202', 'AP-203']) {
     assert.equal(rowFor(other).dataset.studentRevealed, undefined, `${other} is still closed`);
-    assert.match(rowFor(other).textContent, /গোপন তথ্য/);
+    assert.match(rowFor(other).textContent, /ID: ••••/, `${other} keeps its ID masked`);
     assert.equal(rowFor(other).textContent.includes(other), false);
   }
 
   ctx.click(hideButton('AP-201'));
   await ctx.flush();
-  assert.match(rowFor('AP-201').textContent, /গোপন তথ্য/);
-  assert.equal(rowFor('AP-201').textContent.includes('রাইসা'), false, 'masking hides the name again');
+  assert.match(rowFor('AP-201').querySelector('.audit-id-badge').textContent, /••••/);
+  assert.match(rowFor('AP-201').textContent, /রাইসা ইসলাম/, 'hiding the ID never hides the name');
 });
 
-test('the toolbar switch reveals the whole roster and masks it again', async () => {
+test('the toolbar switch reveals every ID and masks them again', async () => {
   const toggle = ctx.$('#studentRevealAll');
-  assert.equal(toggle.textContent.trim(), 'সব তথ্য দেখান');
+  assert.equal(toggle.textContent.trim(), 'সব আইডি দেখান');
   assert.equal(toggle.getAttribute('aria-pressed'), 'false');
 
   ctx.click(toggle);
   await ctx.flush();
   for (const student of roster) {
-    assert.match(rowFor(student.id).textContent, new RegExp(student.name), `${student.name} is revealed`);
-    assert.match(rowFor(student.id).textContent, new RegExp(student.id));
+    assert.match(rowFor(student.id).querySelector('.audit-id-badge').textContent, new RegExp(student.id));
+    assert.match(rowFor(student.id).textContent, new RegExp(student.name), 'names stay readable throughout');
   }
-  assert.equal(ctx.$('#studentRevealAll').textContent.trim(), 'সব তথ্য লুকান');
+  assert.equal(ctx.$('#studentRevealAll').textContent.trim(), 'সব আইডি লুকান');
   assert.equal(ctx.$('#studentRevealAll').getAttribute('aria-pressed'), 'true');
 
   ctx.click(ctx.$('#studentRevealAll'));
   await ctx.flush();
   for (const student of roster) {
-    assert.match(rowFor(student.id).textContent, /গোপন তথ্য/, `${student.id} is masked again`);
-    assert.equal(rowFor(student.id).textContent.includes(student.name), false);
+    assert.match(rowFor(student.id).textContent, /ID: ••••/, `${student.id} is masked again`);
+    assert.match(rowFor(student.id).textContent, new RegExp(student.name), 'and still named');
   }
-  assert.equal(ctx.$('#studentRevealAll').textContent.trim(), 'সব তথ্য দেখান');
+  assert.equal(ctx.$('#studentRevealAll').textContent.trim(), 'সব আইডি দেখান');
 });
 
 test('an opened row survives a repaint, and the reveal never lands in storage', async () => {
   ctx.click(revealButton('AP-203'));
   await ctx.flush();
-  // Search repaints the same list: the opened row stays open, the rest masked.
+  // Search repaints the same list: the opened row stays open, others stay masked.
   const search = ctx.$('#studentSearch');
   search.value = 'নুসরাত';
   search.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
   await ctx.flush();
   assert.equal(rows().length, 1, 'the search narrows the roster');
-  assert.match(rows()[0].textContent, /নুসরাত জাহান/, 'the opened row keeps its reveal');
+  assert.match(rows()[0].textContent, /নুসরাত জাহান/, 'the opened row is named');
+  assert.match(rows()[0].querySelector('.audit-id-badge').textContent, /AP-203/, 'and keeps its reveal');
   search.value = '';
   search.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
   await ctx.flush();
@@ -137,7 +147,7 @@ test('an opened row survives a repaint, and the reveal never lands in storage', 
   assert.deepEqual(keys, [], 'the reveal is memory only');
 });
 
-test('a search hit opens masked until the reader asks for it', async () => {
+test('a name search finds the record without needing a reveal', async () => {
   ctx.click(ctx.$('#studentRevealAll')); // reveal-all on
   await ctx.flush();
   ctx.click(ctx.$('#studentRevealAll')); // back to masked
@@ -148,41 +158,44 @@ test('a search hit opens masked until the reader asks for it', async () => {
   search.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
   await ctx.flush();
   assert.equal(rows().length, 1, 'the stored record is found by name');
-  assert.match(rows()[0].textContent, /গোপন তথ্য/, 'but the result is still masked');
+  assert.match(rows()[0].textContent, /ফারহানা নূর/, 'the hit is named — that is the point of the rule');
+  assert.match(rows()[0].textContent, /ID: ••••/, 'its ID is still hidden');
   const button = ctx.$('#studentList [data-action="reveal-student"]');
   assert.equal(button.dataset.id, 'AP-202');
   ctx.click(button);
   await ctx.flush();
-  assert.match(rows()[0].textContent, /ফারহানা নূর/, 'the reader names the record they found');
+  assert.match(rows()[0].querySelector('.audit-id-badge').textContent, /AP-202/, 'the reader sees the ID on request');
 
   search.value = '';
   search.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
   await ctx.flush();
 });
 
-test('the pending-registration queue can name the applicant before a decision', async () => {
+test('the pending queue names the applicant up front and hides only mobile + ID', async () => {
   const queue = ctx.$('#adminPendingRegistrations');
   assert.ok(queue && !queue.hidden, 'the pending application is on screen');
   const item = queue.querySelector('[data-pending-student-row="AP-202"]');
   assert.ok(item, 'the pending student has a queue row');
 
-  assert.match(item.textContent, /গোপন তথ্য/, 'the queue opens masked');
-  assert.equal(item.textContent.includes('ফারহানা নূর'), false);
+  assert.match(item.textContent, /ফারহানা নূর/, 'the applicant is named without a click');
   assert.equal(item.textContent.includes('01912345678'), false, 'the mobile is masked');
   assert.match(item.textContent, /আইডি: ••••/);
+  assert.equal(item.textContent.includes('AP-202'), false, 'the Student ID is masked');
+  /* Decision buttons are usable while the contact layer is hidden. */
+  assert.ok(item.querySelector('[data-pending-approve="AP-202"]'), 'approve is wired');
+  assert.ok(item.querySelector('[data-pending-reject="AP-202"]'), 'reject is wired');
 
   const reveal = item.querySelector('[data-pending-reveal]');
-  assert.equal(reveal.textContent.trim(), 'তথ্য দেখুন');
+  assert.equal(reveal.textContent.trim(), 'নম্বর ও আইডি দেখুন');
   ctx.click(reveal);
   await ctx.flush();
 
   const opened = ctx.$('#adminPendingRegistrations [data-pending-student-row="AP-202"]');
   assert.equal(opened.dataset.pendingRevealed, '1');
-  assert.match(opened.textContent, /ফারহানা নূর/, 'the applicant is named');
-  assert.match(opened.textContent, /01912345678/, 'and their mobile is readable for a callback');
+  assert.match(opened.textContent, /01912345678/, 'the mobile is readable for a callback');
   assert.match(opened.textContent, /AP-202/, 'and the Student ID');
-  assert.equal(opened.querySelector('[data-pending-reveal]').textContent.trim(), 'তথ্য লুকান');
-  // The decision buttons survive the repaint.
+  assert.match(opened.textContent, /ফারহানা নূর/, 'the name never moved');
+  assert.equal(opened.querySelector('[data-pending-reveal]').textContent.trim(), 'নম্বর ও আইডি লুকান');
   assert.ok(opened.querySelector('[data-pending-approve="AP-202"]'), 'approve is still wired');
   assert.ok(opened.querySelector('[data-pending-reject="AP-202"]'), 'reject is still wired');
 });

@@ -521,6 +521,7 @@
 .yp-role-pill.is-student { background: var(--pay-disc); color: var(--color-primary); }
 .yp-role-pill.is-staff { background: var(--tone-blue-soft); color: var(--tone-blue); }
 .yp-contact-person { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.yp-contact-person.is-contact { color: var(--color-text-muted); letter-spacing: .02em; }
 .yp-same-note { font-size: 11px; color: var(--color-text-muted); font-style: italic; }
 .yp-missing-phone { font-size: 12px; color: var(--color-text-muted); }
 .yp-phone-number {
@@ -540,12 +541,10 @@
 .yp-reveal-btn.is-all { min-height: 36px; padding: 6px 14px; border-style: solid; background: var(--color-surface); }
 /* A card's own reveal sits under its title block, where the eye lands. */
 .yp-reveal-btn.is-card { margin-top: 2px; border-style: solid; background: var(--color-surface); }
-.yp-avatar.is-masked { color: var(--color-text-muted); letter-spacing: .08em; }
 
-/* Admin ▸ শিক্ষার্থী ব্যবস্থাপনা — the same masked-until-asked rule as the
-   Yellow Pages: a row opens with “গোপন তথ্য”, and its own switch reveals that
-   row in place. The avatar's placeholder needs the same muted treatment. */
-.student-avatar.is-masked { color: var(--color-text-muted); letter-spacing: .08em; font-weight: 700; }
+/* Admin ▸ শিক্ষার্থী ব্যবস্থাপনা — the name and its initials avatar are always
+   painted; only the Student ID opens masked, behind that row's own switch
+   (owner rule 2026-10-31). The pending queue shares the same reveal control. */
 .apc-pending-item__info { display: grid; gap: 6px; }
 .apc-pending-reveal {
   justify-self: start; min-height: 34px; padding: 4px 12px;

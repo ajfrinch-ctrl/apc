@@ -50,8 +50,12 @@ test('student avatars show the student initials, grapheme-safe', () => {
   const js = read('js/admin.js');
   assert.match(js, /const initialsOf =/, 'one initials helper');
   assert.match(js, /Segmenter\('bn', \{ granularity: 'grapheme' \}\)/, 'Bengali conjuncts are kept whole');
-  // Privacy: list avatar is masked until explicit view
-  assert.match(js, /student-avatar.*is-masked|PRIVACY_MASK/, 'the list avatar is masked for privacy');
+  // Privacy (owner rule 2026-10-31): the name and its initials avatar are
+  // always readable; only the Student ID is masked until it is asked for.
+  assert.match(js, /<span class="student-avatar" aria-hidden="true">\$\{escapeHtml\(initialsOf\(name\)\)\}/,
+    'the roster avatar is drawn from the always-visible name');
+  assert.match(js, /audit-id-badge">ID: \$\{escapeHtml\(revealed \? rowKey : PRIVACY_MASK\)\}/,
+    'the Student ID, and only the Student ID, waits behind the reveal');
 });
 
 test('Admin Home keeps its text-only welcome while the other 16 views retain their 3D hero cards', () => {

@@ -399,3 +399,61 @@ names (it is the working roster for approvals) — only the Admin screen was
 masked without a reveal.
 
 **Release.** Pin 441.
+
+---
+
+## Follow-up — names readable everywhere, only phone/ID hidden (owner decision, 31 Oct 2026)
+
+**The owner's correction.** "তালিকায় নাম সবসময় দেখা যাক, শুধু ফোন/আইডি লুকানো
+থাকুক" — the previous rule ("প্রাইমারি ডেটা হাইড থাকবে সব ক্ষেত্রে") had been
+applied to *names* as well, so the Yellow Pages, শিক্ষার্থী ব্যবস্থাপনা and the
+pending-registration queue all read `গোপন তথ্য` and could not be scanned,
+searched by eye or matched against a class list. Names are directory data, not a
+secret; the phone numbers and the Student/Staff ID are the sensitive part.
+
+**The rule now in force.**
+
+| Always readable | Hidden by default, revealed on click |
+| --- | --- |
+| student name, initials avatar, guardian/father name, class & batch, dues, role label, status badge | every phone number (student, guardian, staff), staff e-mail, Student ID / Staff ID |
+
+*Nothing else changed about the mechanics:* the reveal stays **per card / per
+row**, memory-only (no `localStorage`, no `sessionStorage`), and every masked
+value keeps its own visible control. A masked value is still never a `tel:`
+link, and the reveal buttons name what they open ("নম্বর ও আইডি দেখুন",
+"আইডি দেখুন"), so the control is not confused with the profile action.
+
+**Where it changed.**
+
+| Surface | Now | Switch |
+| --- | --- | --- |
+| Yellow Pages student card (`js/phonebook.js`) | initials avatar, name, guardian, batch, dues visible; `আইডি: ••••` and every `•••• ••••` number hidden | card **নম্বর ও আইডি দেখুন / নম্বর ও আইডি লুকান** |
+| Yellow Pages staff card | avatar, name, role, assignment visible; Staff ID (`••••`) and mobile hidden, staff e-mail moved into the hidden layer (`personSecret`) | same card switch |
+| Yellow Pages toolbar | note explains that numbers and IDs are hidden | **সব নম্বর ও আইডি দেখান / সব নম্বর ও আইডি লুকান** |
+| শিক্ষার্থী ব্যবস্থাপনা (`js/admin.js`) | avatar + name + status + `ID: ••••`; no phone ever reaches this list | row **আইডি দেখুন / আইডি লুকান**, toolbar **সব আইডি দেখান / সব আইডি লুকান** |
+| Pending queue (`js/registration-review.js`, used by the Admin page and the bell drawer) | applicant name readable immediately; `মোবাইল: ••••` and `আইডি: ••••` hidden; approve/reject usable while hidden | item **নম্বর ও আইডি দেখুন / নম্বর ও আইডি লুকান** |
+
+* `PRIVACY_NAME` / `PRIVACY_NAME_PLACEHOLDER` are gone from both modules; only
+  `PRIVACY_MASK` (`••••`), `PRIVACY_ID_MASK` (`••••`) remain.
+* The `.yp-avatar.is-masked` and `.student-avatar.is-masked` CSS skins were dead
+  once the avatars stopped being placeholder text and were removed; the staff
+  e-mail line reuses `.yp-contact-person.is-contact`.
+* `admin.html`'s `#studentRevealAll` initial label/aria-label were aligned with
+  the runtime paint (`সব আইডি দেখান`, `সব শিক্ষার্থীর আইডি দেখান`).
+* Manager's own শিক্ষার্থী ব্যবস্থাপনা list and the staff-management cards were
+  already name-first and were left untouched.
+
+**Superseded by this section.** The masked-name paragraphs in the pin-439 Yellow
+Pages section and the pin-441 student-list section above describe an interim
+contract; their *mechanics* (per-card reveal, memory-only state, aria-expanded,
+repaint-safe listeners) still hold, only the masked fields changed.
+
+**Verified.** `tests/phonebook.test.mjs` (8) and
+`tests/student-list-privacy.test.mjs` (6) were rewritten to the new contract;
+`tests/mobile-layout-requests.test.mjs`, `tests/pending-registration-mobile-layout.test.mjs`,
+`tests/registration-audit-suite.test.mjs`, `tests/realtime-registration-visibility-e2e.test.mjs`,
+`tests/manager-mobile-registration-360.test.mjs` and `tests/admin-panel-design.test.mjs`
+were updated where they had pinned the old masking. Targeted runs: 8/8, 6/6,
+23/23 and 9/9. Full suite at pin 442: **1473 tests / 1469 pass / 0 fail / 4 skipped**.
+
+**Release.** Pin 442.

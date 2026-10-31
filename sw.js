@@ -179,6 +179,10 @@
 // v295: Firebase opt-in panel gate and trusted first-Admin bootstrap staging.
 // v294: Firebase backend selector and pure Auth role-claim policy offline.
 // v293: same-origin Firebase SDK bundle, dev/prod config and Firebase API cache bypass.
+// v442: owner rule 2026-10-31 — in every list the NAME is always readable and only
+//       the phone numbers and the Student/Staff ID stay masked (Yellow Pages cards,
+//       শিক্ষার্থী ব্যবস্থাপনা rows, the pending-registration queue); each hidden
+//       value keeps its own “নম্বর ও আইডি দেখুন / আইডি দেখুন” switch.
 // v441: শিক্ষার্থী ব্যবস্থাপনা — a masked row reveals itself on one click (name, avatar,
 //       Student ID), the toolbar has সব তথ্য দেখান/লুকান, and the pending queue can
 //       name an applicant before a decision.
@@ -186,7 +190,7 @@
 //       the staff directory and edits its own profile; the System Owner stays protected.
 // v439: Yellow Pages hides every primary field by default — one click on a card
 //       reveals that card only; a release no longer wipes the panel-hint cache.
-const CACHE_VERSION = 441;
+const CACHE_VERSION = 442;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 /* One cache, two precache sets, one release pin.
 

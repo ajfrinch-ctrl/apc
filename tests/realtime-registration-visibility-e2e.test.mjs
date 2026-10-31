@@ -87,9 +87,9 @@ test('end-to-end 3-phone realtime sync: Student registration (online & offline-r
     return st.pendingRowIds.includes(String(onlineStudentId)) && st.unread >= 1 ? st : null;
   });
   assert.equal(adminLive1.pendingHostHidden, false, 'Admin pending registrations queue is immediately visible on Students tab');
-  assert.match(adminLive1.hostText, /গোপন তথ্য/);
-  assert.doesNotMatch(adminLive1.hostText, /তানভীর হাসান|01798765432/);
-  assert.equal(adminLive1.hostText.includes(String(onlineStudentId)), false, 'the queue masks identity');
+  assert.match(adminLive1.hostText, /তানভীর হাসান/, 'the live queue names the applicant at once');
+  assert.doesNotMatch(adminLive1.hostText, /01798765432/);
+  assert.equal(adminLive1.hostText.includes(String(onlineStudentId)), false, 'the queue masks the mobile and ID');
   assert.match(adminLive1.pendingCardLabel, /১/, 'Admin pending card displays live count');
   assert.equal(adminLive1.badgeHidden, false, 'Admin bell unread badge is visible');
   assert.equal(adminLive1.badgeText, '১', 'Admin bell unread badge shows ১');

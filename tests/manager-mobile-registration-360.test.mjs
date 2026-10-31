@@ -79,13 +79,14 @@ test('Manager panel at 360px mobile viewport renders unread badge, toast, "অ�
   assert.equal(toastEl.hidden, false);
   assert.equal(toastEl.textContent, 'নতুন শিক্ষার্থী রেজিস্ট্রেশন করেছে');
 
-  // The public queue masks identity; the existing review flow owns the details.
+  // The queue names the applicant; only the mobile and Student ID stay masked
+  // (owner rule 2026-10-31), so a decision can be made without a detour.
   ctx.click(bell);
   await ctx.waitFor(() => ctx.$$('[data-pending-student-row]').length === 2);
   const queueHost = ctx.$('[data-apc-pending-registrations]');
   assert.match(queueHost.textContent, /অনুমোদনের অপেক্ষায়/);
-  assert.match(queueHost.textContent, /গোপন তথ্য/);
-  for (const privateValue of ['নুসরাত জাহান', '01722334455', '261022011']) {
+  assert.match(queueHost.textContent, /নুসরাত জাহান/, 'the applicant is named');
+  for (const privateValue of ['01722334455', '261022011']) {
     assert.equal(queueHost.textContent.includes(privateValue), false, `${privateValue} stays masked`);
   }
   assert.match(queueHost.textContent, /তারিখ:/);
