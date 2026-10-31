@@ -9,7 +9,7 @@ import { SECTION_LABEL } from './notification-store.js';
  * broadcast, and — for the student who is taking part — a new exam or a
  * published result.
  *
- * The list has two answers: অপঠিত (default) and সব. The count on the bell comes
+ * The list has two answers: সব (default) and অপঠিত — Facebook parity, filter default is “সব”. The count on the bell comes
  * from the record store (js/notification-store.js), where only `read === false`
  * counts, so it survives a refresh and never mixes two people on one device.
  *
@@ -23,40 +23,40 @@ import { SECTION_LABEL } from './notification-store.js';
  */
 
 const MODAL_ID = 'apcNoticeModal';
-/** Facebook-style: 8 types with distinct avatar colors */
+/** Facebook-style: 8 types with distinct avatar colors — type-appropriate icons from icons.js */
 const KIND_ICON = Object.freeze({
   // নতুন নোটিশ
-  notice: 'icon-megaphone',
+  notice: 'icon-notice',
   broadcast: 'icon-bell',
   // পরীক্ষার ফলাফল
-  result: 'icon-award',
-  exam: 'icon-clipboard',
-  'exam-soon': 'icon-clipboard',
-  'exam-live': 'icon-clipboard',
-  'exam-review': 'icon-clipboard',
-  'exam-returned': 'icon-clipboard',
-  'exam-approved': 'icon-clipboard',
-  // ফি রিমাইন্ডার / বকেয়া
-  payment: 'icon-bell',
-  'payment-review': 'icon-bell',
-  'payment-rejected': 'icon-bell',
-  fee: 'icon-bell',
-  // অ্যাসাইনমেন্ট / হোমওয়ার্ক
-  homework: 'icon-clipboard',
-  assignment: 'icon-clipboard',
+  result: 'icon-result',
+  exam: 'icon-exam',
+  'exam-soon': 'icon-exam',
+  'exam-live': 'icon-exam',
+  'exam-review': 'icon-exam',
+  'exam-returned': 'icon-exam',
+  'exam-approved': 'icon-exam',
+  // ফি রিমাইন্ডার / বকেয়া — wallet
+  payment: 'icon-wallet',
+  'payment-review': 'icon-wallet',
+  'payment-rejected': 'icon-wallet',
+  fee: 'icon-wallet',
+  // অ্যাসাইনমেন্ট / হোমওয়ার্ক — assignment
+  homework: 'icon-assignment',
+  assignment: 'icon-assignment',
   // নিবন্ধন
   registration: 'icon-users',
-  approved: 'icon-award',
+  approved: 'icon-approval',
   rejected: 'icon-bell',
-  // ক্লাস চ্যাট
-  chat: 'icon-bell',
-  'class-chat': 'icon-bell',
-  // সিস্টেম অ্যালার্ট
-  system: 'icon-bell',
-  alert: 'icon-bell',
+  // ক্লাস চ্যাট — chat
+  chat: 'icon-chat',
+  'class-chat': 'icon-chat',
+  // সিস্টেম অ্যালার্ট — shield/warning
+  system: 'icon-shield',
+  alert: 'icon-warning',
   // অন্যান্য
-  birthday: 'icon-award',
-  'birthday-soon': 'icon-award',
+  birthday: 'icon-result',
+  'birthday-soon': 'icon-result',
   other: 'icon-bell'
 });
 
@@ -186,9 +186,8 @@ function buildModal() {
     '<section class="modal apc-fb-panel" role="dialog" aria-modal="true" aria-labelledby="apcNoticeTitle">' +
       '<div class="apc-fb-handle" aria-hidden="true"></div>' +
       '<header class="apc-fb-header">' +
-        /* The bell opens the Action Centre: every row carries the action it
-           unlocks, so the sheet is named for the job, not for the plumbing. */
-        '<h2 id="apcNoticeTitle" class="apc-fb-title">অ্যাকশন সেন্টার</h2>' +
+        /* Facebook parity: header is Notification, not Action Centre plumbing */
+        '<h2 id="apcNoticeTitle" class="apc-fb-title">নোটিফিকেশন</h2>' +
         '<div class="apc-fb-header-actions">' +
           '<button type="button" class="apc-fb-mark-all" data-apc-notice-read-all aria-label="সব নোটিফিকেশন পঠিত করুন">সব পঠিত করুন</button>' +
           '<button type="button" class="modal-close apc-fb-close" data-apc-notice-close aria-label="বন্ধ করুন">×</button>' +
@@ -270,9 +269,11 @@ export function mountNoticeCenter(api) {
   const pushNote = modal.querySelector('[data-apc-notice-push]');
   let pushRow = null;
   let shownFeed = [];
-  let filter = 'unread';
+  let filter = 'all';
   let detailKey = '';
   const expandedKeys = new Set();
+  const PAGE_SIZE = 40;
+  let visibleLimit = PAGE_SIZE;
 
   const PREVIEW_CHAR_LIMIT = 140;
   const isLongBody = value => {
@@ -290,13 +291,14 @@ export function mountNoticeCenter(api) {
 
   /* The filter tabs and the "read all" action, for a page modal that has the
      list but not this shell (index.html). */
+  /* Facebook parity: default “সব” — filter, chip HTML, open() and paint() aligned */
   let filterRow = modal.querySelector('.notice-filters');
   if (!filterRow && listBox) {
     filterRow = document.createElement('div');
     filterRow.className = 'notice-filters';
     filterRow.innerHTML =
-      '<button type="button" class="chip active" role="tab" aria-selected="true" data-apc-notice-filter="unread">অপঠিত<span data-apc-notice-unread-chip></span></button>' +
-      '<button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="all">সব</button>' +
+      '<button type="button" class="chip active" role="tab" aria-selected="true" data-apc-notice-filter="all">সব</button>' +
+      '<button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="unread">অপঠিত<span data-apc-notice-unread-chip></span></button>' +
       '<button type="button" class="mini-btn notice-read-all" data-apc-notice-read-all>সব পড়া করুন</button>';
     listBox.before(filterRow);
   }
@@ -574,6 +576,7 @@ export function mountNoticeCenter(api) {
     return true;
   }
 
+  let lastPaintFilter = filter;
   function paint() {
     let feed = [];
     try { feed = centerFeed(api.feed() || []); } catch { feed = []; }
@@ -583,6 +586,8 @@ export function mountNoticeCenter(api) {
     const unreadItems = feed.filter(item => isUnread(item, state));
     const unread = state.count === null ? unreadItems.length : state.count;
     shownFeed = feed;
+    // reset pagination when filter changes (gap 1 consistency)
+    if (lastPaintFilter !== filter) { visibleLimit = PAGE_SIZE; lastPaintFilter = filter; }
 
     if (clearButton) clearButton.hidden = feed.length === 0 || Boolean(detailKey);
 
@@ -617,9 +622,18 @@ export function mountNoticeCenter(api) {
     }
     detailKey = '';
     const visible = filter === 'unread' ? unreadItems : feed;
-    listBox.innerHTML = visible.length
-      ? visible.map(item => paintCard(item, isUnread(item, state))).join('')
-      : emptyState('সব নোটিফিকেশন দেখা হয়েছে', 'এখন নতুন কোনো নোটিফিকেশন নেই।');
+    // pagination — first N only, hard cap + load more (gap 3)
+    if (visible.length > visibleLimit) {
+      const slice = visible.slice(0, visibleLimit);
+      const remaining = visible.length - visibleLimit;
+      listBox.innerHTML = slice.map(item => paintCard(item, isUnread(item, state))).join('') +
+        '<button type="button" class="mini-btn apc-fb-load-more" data-apc-notice-load-more>আরও দেখুন (' + bn(remaining) + 'টি বাকি)</button>';
+    } else {
+      listBox.innerHTML = visible.length
+        ? visible.map(item => paintCard(item, isUnread(item, state))).join('') +
+          (visible.length > PAGE_SIZE ? '<p class="apc-fb-end-note">সব নোটিফিকেশন দেখানো হয়েছে</p>' : '')
+        : emptyState('সব নোটিফিকেশন দেখা হয়েছে', 'এখন নতুন কোনো নোটিফিকেশন নেই।');
+    }
     return { unread, total: feed.length };
   }
 
@@ -715,6 +729,15 @@ export function mountNoticeCenter(api) {
       paint();
       return;
     }
+    const loadMore = event.target?.closest?.('[data-apc-notice-load-more]');
+    if (loadMore) {
+      event.preventDefault();
+      visibleLimit = Math.min(visibleLimit + PAGE_SIZE, 500);
+      paint();
+      // keep focus for accessibility
+      modal.querySelector('[data-apc-notice-load-more]')?.focus?.();
+      return;
+    }
     if (event.target?.closest?.('[data-apc-notice-read-all]')) {
       event.preventDefault();
       readAll();
@@ -744,8 +767,14 @@ export function mountNoticeCenter(api) {
       }
       return;
     }
+    const closeBtn = event.target?.closest?.('[data-apc-notice-close]');
+    const isBackdrop = event.target === modal;
+    if (closeBtn || isBackdrop) {
+      event.preventDefault();
+      show(false);
+      return;
+    }
     if (!ownsModal) return;
-    if (event.target?.closest?.('[data-apc-notice-close]') || event.target === modal) show(false);
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !modal.hidden) show(false);
