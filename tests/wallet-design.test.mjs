@@ -34,10 +34,8 @@ test('the active wallet skin parses, is screen-only and resolves its palette tok
 });
 
 test('all portals keep the same uncluttered brand bar — chat only where a chat page exists', () => {
-  // Owner request 2026-10-28: the "শ্রেণি চ্যাট ও মডারেশন" console was removed
-  // from Admin and Manager, so their top bars hold bell + exit only. Student and
-  // Teacher keep the chat page and therefore its shortcut.
-  const CHAT_PORTALS = new Set(['student', 'teacher']);
+  // Class Chat restored for all 4 portals with true full-screen edge-to-edge.
+  const CHAT_PORTALS = new Set(['student', 'teacher', 'manager', 'admin']);
   for (const name of portals) {
     const document = doc(name);
     const bar = document.querySelector('.app-topbar');

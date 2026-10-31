@@ -89,8 +89,79 @@
   .pay-grid.is-3{grid-template-columns:repeat(3,minmax(0,1fr))}
   .pay-grid.is-2{grid-template-columns:repeat(2,minmax(0,1fr))}
   .app-control-grid,.manager-profile-list{grid-template-columns:repeat(2,minmax(0,1fr))}
-  /* Chat fullscreen fills content area (not viewport) */
-  .class-chat-shell, .wa-shell, .chat-shell{height:calc(100dvh - var(--shell-header-height) - var(--space-5)*2);max-height:none;display:flex;flex-direction:column}
+  /* ── Class Chat true edge-to-edge full-screen (desktop 1024+) ────────────
+     Overrides max-width:1160/1280 leak and grid rail when chat is open.
+     Uses --chat-viewport-h (visualViewport + safe-area) for correct height. */
+  :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen,
+  :is(.app-shell, .admin-shell).is-chat-fullscreen {
+    display: block !important;
+    grid-template-columns: none !important;
+    grid-template-rows: none !important;
+    grid-template-areas: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: var(--chat-viewport-h, 100dvh) !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    position: fixed !important;
+    inset: 0 !important;
+  }
+  :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen > :is(.app-topbar, .bottom-nav, .admin-bottom),
+  :is(.app-shell, .admin-shell).is-chat-fullscreen > :is(.app-topbar, .bottom-nav, .admin-bottom) {
+    display: none !important;
+  }
+  :is(#appMain, #teacherMain, #managerMain, #adminMain).is-chat-view,
+  :is(.app-main, .admin-main).is-chat-view {
+    max-width: none !important;
+    width: 100% !important;
+    height: var(--chat-viewport-h, 100dvh) !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    grid-area: auto !important;
+  }
+  :is(#appMain, #teacherMain, #managerMain, #adminMain).is-chat-view > *,
+  :is(.app-main, .admin-main).is-chat-view > *,
+  :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen .view,
+  :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen .admin-view,
+  :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen .manager-view,
+  :is(.app-shell, .admin-shell).is-chat-fullscreen .view,
+  :is(.app-shell, .admin-shell).is-chat-fullscreen .admin-view,
+  :is(.app-shell, .admin-shell).is-chat-fullscreen .manager-view {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen :is(#classChatView, #teacherClassChat, #managerClassChat, #adminClassChat),
+  :is(.app-shell, .admin-shell).is-chat-fullscreen :is(#classChatView, #teacherClassChat, #managerClassChat, #adminClassChat),
+  :is(#appMain, #teacherMain, #managerMain, #adminMain).is-chat-view :is(#classChatView, #teacherClassChat, #managerClassChat, #adminClassChat),
+  :is(.app-main, .admin-main).is-chat-view :is(#classChatView, #teacherClassChat, #managerClassChat, #adminClassChat) {
+    max-width: none !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  [data-class-chat-mount],
+  #studentClassChatMount,
+  #teacherClassChatMount,
+  #managerClassChatMount,
+  #adminClassChatMount,
+  .class-chat-shell {
+    max-width: none !important;
+    width: 100% !important;
+    height: 100% !important;
+    height: var(--chat-viewport-h, 100dvh) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .class-chat-shell, .wa-shell, .chat-shell{height:var(--chat-viewport-h, 100dvh) !important; max-height:none !important; display:flex !important; flex-direction:column !important; width:100% !important; max-width:none !important}
   .class-chat-messages,.wa-messages{flex:1;overflow-y:auto}
   /* Avoid CLS: reserve stable header/sidebar heights */
   .app-topbar,.bottom-nav,.admin-bottom{contain:layout}

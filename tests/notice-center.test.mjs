@@ -45,9 +45,8 @@ function normalised(bar) {
   // ids, titles, data-actions and per-portal view routing attributes differ
   // per panel by necessity (that is how each shell wires them); strip those
   // volatile attributes before comparing the common APC brand/chat/bell/sign-out structure.
-  /* The class-chat shortcut is content, not layout: it exists only on the two
-     panels that still own a chat page (owner request 2026-10-28 removed it from
-     Admin and Manager), so the shared shell is compared without it. */
+  /* Class Chat is now on all 4 portals with true full-screen; keep brand check
+     stable by stripping only the volatile chat shortcut for comparison. */
   const clone = bar.cloneNode(true);
   clone.querySelectorAll('#classChatTopbarButton').forEach(node => node.remove());
   return clone.outerHTML
@@ -111,9 +110,8 @@ test('every panel shares the APC topbar; teacher identity lives only on its hero
       assert.ok(exit, `${page.file}: sign-out is missing`);
       assert.equal(exit.id, page.exit, `${page.file}: sign-out changed id`);
       assert.ok(drawable(exit.querySelector('svg[data-icon="logout"]')), `${page.file}: sign-out has no icon`);
-      /* Owner request 2026-10-28: the class-chat console was removed from Admin
-         and Manager, so only the two chat-owning panels keep its shortcut. */
-      const chatPortals = ['student.html', 'teacher.html'];
+      /* Class Chat is now on all 4 portals with true full-screen edge-to-edge. */
+      const chatPortals = ['student.html', 'teacher.html', 'manager.html', 'admin.html'];
       const expectedButtons = chatPortals.includes(page.file) ? 3 : 2;
       if (chatPortals.includes(page.file)) {
         const chatBtn = actions.querySelector('#classChatTopbarButton');

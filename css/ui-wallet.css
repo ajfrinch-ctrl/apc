@@ -6173,41 +6173,72 @@ body.payment-reference [data-settings-hub="payment"] [data-settings-group][hidde
 }
 
 /* ── Authentic WhatsApp Group-Chat Skin — Full-Screen Mode (light + dark) ────────
-   The chat page lives in the Student and Teacher panels only: the Admin and
-   Manager "শ্রেণি চ্যাট ও মডারেশন" consoles were removed on 2026-10-28, so their
-   shell selectors are gone with them. */
+   True edge-to-edge full-screen for all 4 portals (Student/Teacher/Manager/Admin).
+   Contract: .class-chat-shell x=0 y=0 w=100% h=var(--chat-viewport-h) with
+   .app-topbar/.bottom-nav/.admin-bottom hidden, no max-width:1160 leak, and
+   --chat-viewport-h driven by visualViewport+safe-area. */
 :is(
   #appShell.is-chat-fullscreen,
   #teacherShell.is-chat-fullscreen,
+  #managerShell.is-chat-fullscreen,
+  #adminShell.is-chat-fullscreen,
   .app-shell.is-chat-fullscreen,
+  .admin-shell.is-chat-fullscreen,
   .app-shell:has(> .app-main > #classChatView.active:not([hidden])),
-  .admin-shell:has(> .admin-main > #teacherClassChat:not([hidden]))
+  .admin-shell:has(> .admin-main > #teacherClassChat:not([hidden])),
+  .admin-shell:has(> .admin-main > #managerClassChat:not([hidden])),
+  .admin-shell:has(> .admin-main > #adminClassChat:not([hidden])),
+  #appShell:has(> #appMain > #classChatView.active:not([hidden])),
+  #teacherShell:has(> #teacherMain > #teacherClassChat:not([hidden])),
+  #managerShell:has(> #managerMain > #managerClassChat:not([hidden])),
+  #adminShell:has(> #adminMain > #adminClassChat:not([hidden]))
 ),
 body.student-reference #appShell.is-chat-fullscreen,
 body.student-reference #appShell:has(> #appMain > #classChatView.active:not([hidden])),
 .teacher-reference .teacher-shell.is-chat-fullscreen,
 .teacher-reference .teacher-shell:has(> .admin-main > #teacherClassChat:not([hidden])) {
+  position: fixed !important;
+  inset: 0 !important;
+  left: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   width: 100% !important;
   max-width: none !important;
   height: 100vh !important;
-  height: var(--chat-viewport-h) !important;
+  height: var(--chat-viewport-h, 100dvh) !important;
   min-height: 0 !important;
   margin: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   overflow: hidden !important;
+  z-index: 30;
 }
 
 :is(
+  #appShell.is-chat-fullscreen,
+  #teacherShell.is-chat-fullscreen,
+  #managerShell.is-chat-fullscreen,
+  #adminShell.is-chat-fullscreen,
   .app-shell.is-chat-fullscreen,
+  .admin-shell.is-chat-fullscreen,
   .app-shell:has(> .app-main > #classChatView.active:not([hidden])),
-  .admin-shell:has(> .admin-main > #teacherClassChat:not([hidden]))
+  .admin-shell:has(> .admin-main > #teacherClassChat:not([hidden])),
+  .admin-shell:has(> .admin-main > #managerClassChat:not([hidden])),
+  .admin-shell:has(> .admin-main > #adminClassChat:not([hidden]))
 ) > :is(.app-topbar, .bottom-nav, .admin-bottom),
 :is(
+  #appShell.is-chat-fullscreen,
+  #teacherShell.is-chat-fullscreen,
+  #managerShell.is-chat-fullscreen,
+  #adminShell.is-chat-fullscreen,
   .app-shell.is-chat-fullscreen,
+  .admin-shell.is-chat-fullscreen,
   .app-shell:has(> .app-main > #classChatView.active:not([hidden])),
-  .admin-shell:has(> .admin-main > #teacherClassChat:not([hidden]))
+  .admin-shell:has(> .admin-main > #teacherClassChat:not([hidden])),
+  .admin-shell:has(> .admin-main > #managerClassChat:not([hidden])),
+  .admin-shell:has(> .admin-main > #adminClassChat:not([hidden]))
 ) .class-chat-head {
   display: none !important;
 }
@@ -6215,10 +6246,14 @@ body.student-reference #appShell:has(> #appMain > #classChatView.active:not([hid
 :is(
   #appMain.is-chat-view,
   #teacherMain.is-chat-view,
+  #managerMain.is-chat-view,
+  #adminMain.is-chat-view,
   .app-main.is-chat-view,
   .admin-main.is-chat-view,
   .app-main:has(> #classChatView.active:not([hidden])),
-  .admin-main:has(> #teacherClassChat:not([hidden]))
+  .admin-main:has(> #teacherClassChat:not([hidden])),
+  .admin-main:has(> #managerClassChat:not([hidden])),
+  .admin-main:has(> #adminClassChat:not([hidden]))
 ),
 body.student-reference #appMain.is-chat-view,
 body.student-reference #appMain:has(> #classChatView.active:not([hidden])),
@@ -6237,58 +6272,89 @@ body.student-reference #appMain:has(> #classChatView.active:not([hidden])),
 }
 
 #classChatView > .page-intro,
-#teacherClassChat > :is(.page-intro, .teacher-home-intro) {
+#teacherClassChat > :is(.page-intro, .teacher-home-intro),
+#managerClassChat > :is(.page-intro, .teacher-home-intro, .manager-sub-hero),
+#adminClassChat > :is(.page-intro, .admin-hero, .admin-sub-hero) {
   display: none !important;
 }
 
 #classChatView.active:not([hidden]),
 #teacherClassChat:not([hidden]),
+#managerClassChat:not([hidden]),
+#adminClassChat:not([hidden]),
 .teacher-reference #teacherClassChat:not([hidden]) {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: none;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  animation: none;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  animation: none !important;
 }
 
 [data-class-chat-mount],
 #studentClassChatMount,
-#teacherClassChatMount {
-  flex: 1 1 auto;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+#teacherClassChatMount,
+#managerClassChatMount,
+#adminClassChatMount {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .class-chat-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  width: 100%;
-  height: 100%;
-  min-height: 360px;
-  max-height: none;
-  margin: 0;
-  background: var(--wa-wallpaper-bg);
-  border: 0;
-  border-radius: 0;
-  overflow: hidden;
-  box-shadow: none;
+  position: relative;
+  inset: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: var(--wa-wallpaper-bg) !important;
+  background-image: var(--wa-wallpaper-doodle, none) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
 }
-:is(#classChatView, #teacherClassChat) .class-chat-shell {
-  height: 100%;
-  min-height: 0;
-  max-height: none;
+:is(#classChatView, #teacherClassChat, #managerClassChat, #adminClassChat) .class-chat-shell,
+[data-class-chat-mount] .class-chat-shell,
+#studentClassChatMount .class-chat-shell,
+#teacherClassChatMount .class-chat-shell,
+#managerClassChatMount .class-chat-shell,
+#adminClassChatMount .class-chat-shell {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  height: var(--chat-viewport-h, 100dvh) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
 }
 
 .class-chat-shell .wa-svg {
@@ -7609,6 +7675,13 @@ body.student-reference #appMain:has(> #classChatView.active:not([hidden])),
   .class-chat-composer-wrap {
     padding-inline: max(16px, calc((100% - 1080px) / 2));
   }
+  :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen :is(.class-chat-topbar, .class-chat-switcher-wrap, .class-chat-search-drawer, .class-chat-pinned, .class-chat-lock-banner, .class-chat-feed, .class-chat-composer-wrap),
+  :is(.app-shell, .admin-shell).is-chat-fullscreen :is(.class-chat-topbar, .class-chat-switcher-wrap, .class-chat-search-drawer, .class-chat-pinned, .class-chat-lock-banner, .class-chat-feed, .class-chat-composer-wrap),
+  :is(#appMain, #teacherMain, #managerMain, #adminMain).is-chat-view :is(.class-chat-topbar, .class-chat-switcher-wrap, .class-chat-search-drawer, .class-chat-pinned, .class-chat-lock-banner, .class-chat-feed, .class-chat-composer-wrap),
+  :is(.app-main, .admin-main).is-chat-view :is(.class-chat-topbar, .class-chat-switcher-wrap, .class-chat-search-drawer, .class-chat-pinned, .class-chat-lock-banner, .class-chat-feed, .class-chat-composer-wrap) {
+    padding-inline: 12px !important;
+    max-width: none !important;
+  }
 }
 
 @media (max-width: 640px) {
@@ -8558,7 +8631,7 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
   @media (min-width: 1024px) {
     :is(.app-shell, .admin-shell) {
       display: grid;
-      grid-template-columns: var(--sidebar-width, 250px) minmax(0, 1fr);
+      grid-template-columns: 248px minmax(0, 1fr);
       grid-template-rows: auto minmax(0, 1fr);
     }
     :is(.app-shell, .admin-shell) > .app-topbar { grid-column: 1 / -1; grid-row: 1; }
@@ -8612,7 +8685,7 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
 
     /* Payment counter: unified with app/admin shells — grid rail, no fixed offset duplication */
     .pay-shell{
-      display:grid;grid-template-columns:var(--sidebar-width, 250px) minmax(0,1fr);
+      display:grid;grid-template-columns:248px minmax(0,1fr);
       grid-template-rows:auto minmax(0,1fr);height:100dvh;overflow:hidden;background:var(--color-bg)
     }
     .pay-shell > .app-topbar{grid-column:1/-1;grid-row:1}
@@ -8633,11 +8706,37 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
     .pay-shell > .pay-main{margin-left:0}
 
     /* Full-screen chat takes the whole canvas: no rail, no reserved column. */
-    :is(.app-shell, .admin-shell).is-chat-fullscreen { display: block !important; }
-    :is(.app-shell, .admin-shell).is-chat-fullscreen > :is(.app-main, .admin-main) {
-      grid-column: auto;
-      grid-row: auto;
+    :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen,
+    :is(.app-shell, .admin-shell).is-chat-fullscreen {
+      display: block !important;
+      position: fixed !important;
+      inset: 0 !important;
       width: 100% !important;
+      max-width: none !important;
+      height: var(--chat-viewport-h, 100dvh) !important;
+      grid-template-columns: none !important;
+      grid-template-rows: none !important;
+      overflow: hidden !important;
+    }
+    :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen > :is(.app-topbar, .bottom-nav, .admin-bottom),
+    :is(.app-shell, .admin-shell).is-chat-fullscreen > :is(.app-topbar, .bottom-nav, .admin-bottom) {
+      display: none !important;
+    }
+    :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen > :is(.app-main, .admin-main),
+    :is(.app-shell, .admin-shell).is-chat-fullscreen > :is(.app-main, .admin-main),
+    :is(#appMain, #teacherMain, #managerMain, #adminMain).is-chat-view,
+    :is(.app-main, .admin-main).is-chat-view {
+      grid-column: auto !important;
+      grid-row: auto !important;
+      width: 100% !important;
+      max-width: none !important;
+      height: 100% !important;
+      height: var(--chat-viewport-h, 100dvh) !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
     }
     .pay-shell:has(> .admin-bottom[hidden]) > .pay-main { margin-left: 0; }
   }

@@ -29,9 +29,9 @@ const doc = file => new JSDOM(read(file), { url: 'http://localhost/' });
 
 const PANELS = [
   { file: 'teacher.html', attr: 'data-teacher-view', studio: '#teacherLectureSheetsMount', chat: true },
-  { file: 'manager.html', attr: 'data-manager-view', studio: '#managerLectureSheetsMount', chat: false },
+  { file: 'manager.html', attr: 'data-manager-view', studio: '#managerLectureSheetsMount', chat: true },
   { file: 'payment.html', attr: 'data-pay-section', studio: null, chat: false },
-  { file: 'admin.html', attr: 'data-admin-view', studio: '#adminLectureSheetsMount', chat: false }
+  { file: 'admin.html', attr: 'data-admin-view', studio: '#adminLectureSheetsMount', chat: true }
 ];
 
 test('all four staff panels share one navigation contract', () => {
@@ -72,29 +72,36 @@ test('one bottom bar on phones, one rail on desktop — no second implementation
   }
 });
 
-test('the chat is full screen, and only the panel that owns one links it', () => {
+test('the chat is full screen for all 4 portals with no max-width leak', () => {
   const css = read('css/ui-wallet.css');
   assert.match(css, /\.app-shell\.is-chat-fullscreen/, 'the shell escapes to full screen');
+  assert.match(css, /#managerShell\.is-chat-fullscreen/, 'manager shell escapes to full screen');
+  assert.match(css, /#adminShell\.is-chat-fullscreen/, 'admin shell escapes to full screen');
   assert.match(css, /:has\(> \.app-main > #classChatView\.active/, 'only the chat page triggers it');
+  assert.match(css, /:has\(> \.admin-main > #managerClassChat/, 'manager chat view triggers fullscreen');
+  assert.match(css, /:has\(> \.admin-main > #adminClassChat/, 'admin chat view triggers fullscreen');
+  assert.match(css, /max-width: none !important/, 'no max-width leak in fullscreen');
+  assert.match(css, /var\(--chat-viewport-h/, 'visualViewport height used');
 
-  const teacher = doc('teacher.html').window;
-  const teacherChatEntry = teacher.document.querySelector('[data-teacher-view="class-chat"]');
-  assert.ok(teacherChatEntry, 'the teacher panel links its chat page');
-  assert.ok(teacher.document.querySelector('#teacherClassChat'), 'the teacher chat page exists');
-  for (const role of ['manager', 'payment', 'admin']) {
-    const window = doc(`${role}.html`).window;
-    assert.equal(window.document.querySelector('[data-class-chat-mount], #classChatTopbarButton, [data-manager-view="class-chat"], [data-admin-view="class-chat"], [data-pay-section="class-chat"]'),
-      null, `${role} has no chat page or shortcut`);
-    /* Nor do the panel routers mount one. */
-    assert.doesNotMatch(read(`js/${role}.js`), /mountClassChat|addClassChatTopbarButton|ClassChatMount/,
-      `${role}.js mounts no chat`);
+  for (const panel of ['teacher', 'manager', 'admin']) {
+    const { window } = doc(`${panel}.html`);
+    assert.ok(window.document.querySelector(`[data-${panel}-view="class-chat"]`), `${panel} links its chat page`);
+    assert.ok(window.document.querySelector(panel === 'teacher' ? '#teacherClassChat' : panel === 'manager' ? '#managerClassChat' : '#adminClassChat'), `${panel} chat page exists`);
+    assert.ok(window.document.querySelector('[data-class-chat-mount]'), `${panel} has chat mount`);
+    assert.ok(window.document.querySelector('#classChatTopbarButton'), `${panel} has chat topbar button`);
+    assert.match(read(`js/${panel}.js`), /mount.*ClassChat|ClassChatMount/, `${panel}.js mounts chat`);
     window.close();
   }
-  /* Student and Teacher keep theirs, and both go full screen. */
+  const paymentWindow = doc('payment.html').window;
+  assert.equal(paymentWindow.document.querySelector('[data-class-chat-mount], #classChatTopbarButton, [data-pay-section="class-chat"]'), null, 'payment has no chat page or shortcut');
+  assert.doesNotMatch(read('js/payment.js'), /mountClassChat|ClassChatMount/, 'payment.js mounts no chat');
+  paymentWindow.close();
+  /* Student, Teacher, Manager and Admin keep theirs, all go full screen. */
   assert.match(read('student.html'), /id="classChatView"/, 'the student chat page stays');
   assert.match(read('js/shell.js'), /is-chat-fullscreen/, 'the student shell escapes to full screen');
   assert.match(read('js/teacher.js'), /is-chat-fullscreen/, 'the teacher shell escapes to full screen');
-  teacher.close();
+  assert.match(read('js/manager.js'), /is-chat-fullscreen/, 'the manager shell escapes to full screen');
+  assert.match(read('js/admin.js'), /is-chat-fullscreen/, 'the admin shell escapes to full screen');
 });
 
 test('the lecture-sheet studio is staff work, never a counter task', () => {

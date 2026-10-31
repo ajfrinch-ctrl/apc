@@ -179,7 +179,8 @@ const MAIN_VIEW_CAPABILITIES = Object.freeze({
   profile: CAPABILITIES.PROFILE_VIEW,
   more: CAPABILITIES.PROFILE_VIEW,
   advice: CAPABILITIES.ADVICE_MANAGE,
-  phonebook: CAPABILITIES.STUDENTS_VIEW
+  phonebook: CAPABILITIES.STUDENTS_VIEW,
+  'class-chat': CAPABILITIES.PROFILE_VIEW
 });
 
 /* Every Admin detail page inherits exactly its hub's capability — including the
@@ -230,7 +231,7 @@ export const ADMIN_MORE_NAV = Object.freeze([
 const MAIN_VIEW_SEAT = Object.freeze({
   roles: 'system', security: 'system', settings: 'system', academics: 'system', migration: 'system',
   data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', content: 'more', phonebook: 'more',
-  students: 'dashboard'
+  students: 'dashboard', 'class-chat': 'more'
 });
 export const VIEW_SEAT = Object.freeze({
   ...MAIN_VIEW_SEAT,

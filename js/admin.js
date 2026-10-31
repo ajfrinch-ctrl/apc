@@ -323,6 +323,10 @@ function setView(view, { history = 'replace', clearBack = false } = {}) {
   activateAdminDetail(target);
   state.activeView = target;
   $('#adminMain')?.classList.toggle('is-staff-view', target === 'staff');
+  const isAdminChatFullscreen = target === 'class-chat';
+  document.getElementById('adminShell')?.classList.toggle('is-chat-fullscreen', isAdminChatFullscreen);
+  document.getElementById('adminMain')?.classList.toggle('is-chat-view', isAdminChatFullscreen);
+  if (isAdminChatFullscreen) mountAdminClassChat();
   $$('.admin-view').forEach(panel => {
     const active = panel.dataset.viewPanel === target;
     panel.classList.toggle('active', active);
@@ -1732,10 +1736,14 @@ const VIEW_REFRESHERS = {
   phonebook: () => mountAdminPhonebook()
 };
 
-/* Class Chat & Moderation was removed from the Admin Panel on 2026-10-28
-   (owner request): no monitoring view, no pin/remove/lock controls and no
-   chat route. The chat messages themselves remain a shared collection that
-   students and teachers use, so backups keep exporting KEYS.classChat. */
+let adminClassChatFlight = null;
+function mountAdminClassChat() {
+  const mount = document.getElementById('adminClassChatMount');
+  if (!mount) return;
+  adminClassChatFlight ??= import('./class-chat.js').catch(err => { adminClassChatFlight = null; throw err; });
+  void adminClassChatFlight.then(mod => mod.mountClassChat(mount, { portal: 'admin', getStaff: () => state.adminAccount || state.staff.find(s => s.role === 'admin') }))
+    .catch(err => console.warn('[Active Plus] admin class-chat failed:', err?.message));
+}
 
 let adminPhonebookFlight = null;
 function mountAdminPhonebook() {

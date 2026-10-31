@@ -36,10 +36,10 @@ test('Admin Home omits the picture, four counters, both reminders and five dupli
     'maintenance status remains in System Settings');
   assert.ok(document.querySelector('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'),
     'phonebook remains accessible from More');
-  // Class Chat & Moderation was removed from this panel (owner request
-  // 2026-10-28): the chat shortcut must not come back.
-  assert.equal(document.querySelector('#classChatTopbarButton'), null, 'no global chat shortcut');
-  assert.equal(document.querySelector('[data-admin-view="class-chat"]'), null, 'no chat route');
+  // Class Chat restored for true edge-to-edge full-screen (all 4 portals).
+  assert.ok(document.querySelector('#classChatTopbarButton'), 'global chat shortcut present');
+  assert.ok(document.querySelector('[data-admin-view="class-chat"]'), 'chat route present');
+  assert.ok(document.querySelector('#adminClassChatMount'), 'chat mount present');
 });
 
 test('text-only Home contracts to its content without a phantom image or clipped Bangla advice', () => {

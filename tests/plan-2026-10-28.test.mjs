@@ -85,22 +85,26 @@ test('documents read the shared record at generation time', () => {
 
 /* ------------------------------------------------------------------ Phase 1b */
 
-test('the class-chat & moderation console is gone from Admin and Manager', () => {
-  for (const panel of ['admin', 'manager']) {
+test('the class-chat is true edge-to-edge full-screen for all 4 portals', () => {
+  for (const panel of ['admin', 'manager', 'student', 'teacher']) {
     const html = read(panel + '.html');
     const document = doc(panel);
-    assert.equal(document.querySelector('#classChatTopbarButton'), null, `${panel}: chat topbar button removed`);
-    assert.equal(document.querySelector('[data-class-chat-mount]'), null, `${panel}: chat mount removed`);
-    assert.equal(document.querySelector(`[data-${panel}-view="class-chat"]`), null, `${panel}: chat route removed`);
-    assert.doesNotMatch(html, /class-chat-head\.js/, `${panel}: chat head script removed`);
-    assert.doesNotMatch(html, /মডারেশন/, `${panel}: no moderation copy left`);
+    assert.ok(document.querySelector('#classChatTopbarButton'), `${panel}: chat topbar button present`);
+    assert.ok(document.querySelector('[data-class-chat-mount]'), `${panel}: chat mount present`);
+    assert.ok(document.querySelector(`[data-${panel}-view="class-chat"]`) || document.querySelector(`#${panel === 'student' ? 'classChatView' : panel === 'teacher' ? 'teacherClassChat' : panel + 'ClassChat'}`), `${panel}: chat route present`);
+    assert.equal(document.querySelector('[data-class-chat-mount]')?.getAttribute('data-class-chat-mount'), panel === 'student' ? 'student' : panel, `${panel}: mount portal correct`);
   }
   const adminJs = read('js/admin.js');
-  assert.doesNotMatch(adminJs, /mountAdminClassChat/, 'the admin chat mount is deleted');
+  assert.match(adminJs, /mountAdminClassChat/, 'the admin chat mount exists');
   const managerJs = read('js/manager.js');
-  assert.doesNotMatch(managerJs, /mountManagerClassChat|managerChatFlight/, 'the manager chat mount is deleted');
+  assert.match(managerJs, /mountManagerClassChat|managerClassChatFlight/, 'the manager chat mount exists');
   const perms = read('js/admin-permissions.js');
-  assert.doesNotMatch(perms, /'class-chat'/, 'no chat route in the capability map');
+  assert.match(perms, /'class-chat'/, 'chat route in the capability map');
+  const css = read('css/ui-wallet.css');
+  assert.match(css, /#managerShell\.is-chat-fullscreen/, 'manager shell fullscreen');
+  assert.match(css, /#adminShell\.is-chat-fullscreen/, 'admin shell fullscreen');
+  assert.match(css, /#managerClassChatMount/, 'manager mount styled');
+  assert.match(css, /#adminClassChatMount/, 'admin mount styled');
 });
 
 test('moderation primitives are deleted from the chat data layer', () => {
@@ -115,7 +119,7 @@ test('moderation primitives are deleted from the chat data layer', () => {
 });
 
 test('the remaining chat pages still work for the roles that use them', () => {
-  for (const panel of ['student', 'teacher']) {
+  for (const panel of ['student', 'teacher', 'manager', 'admin']) {
     const document = doc(panel);
     assert.ok(document.querySelector('#classChatTopbarButton'), `${panel} keeps its chat shortcut`);
     assert.ok(document.querySelector('[data-class-chat-mount]'), `${panel} keeps its chat page`);
@@ -210,24 +214,37 @@ test('a desktop rail turns the same bottom bar sideways — one implementation',
   const css = read('css/ui-wallet.css');
   assert.match(css, /@media \(min-width: 1024px\)/, 'the rail is a desktop-only layer');
   assert.match(css, /grid-template-columns: 248px minmax\(0, 1fr\)/, 'the shell reserves one rail column');
-  assert.match(css, /flex-direction: column;[\s\S]{0,400}?\.pay-shell > \.admin-bottom/, 'the counter rail is the same list');
+  assert.match(css, /flex-direction: column;[\s\S]{0,2000}?\.pay-shell > \.admin-bottom/, 'the counter rail is the same list');
   /* No second sidebar implementation may appear anywhere else. */
   for (const file of ['css/ui-layout.css', 'css/ui-components.css', 'css/ui-modern.css', 'css/app-polish.css']) {
     assert.doesNotMatch(read(file), /grid-template-columns: 248px/, `${file} must not add a second rail`);
   }
 });
 
-test('chat opens full-screen, and only the panels that own a chat page can', () => {
+test('chat opens full-screen for all 4 portals with no max-width leak', () => {
   const css = read('css/ui-wallet.css');
   assert.match(css, /\.app-shell\.is-chat-fullscreen/, 'the Student shell escapes to full screen');
+  assert.match(css, /#managerShell\.is-chat-fullscreen/, 'the Manager shell escapes to full screen');
+  assert.match(css, /#adminShell\.is-chat-fullscreen/, 'the Admin shell escapes to full screen');
   assert.match(css, /:has\(> \.app-main > #classChatView\.active/, 'the chat view alone triggers it');
+  assert.match(css, /:has\(> \.admin-main > #managerClassChat/, 'manager chat view triggers fullscreen');
+  assert.match(css, /:has\(> \.admin-main > #adminClassChat/, 'admin chat view triggers fullscreen');
+  assert.match(css, /max-width: none !important/, 'no max-width leak in fullscreen');
+  assert.match(css, /height: var\(--chat-viewport-h/, 'visualViewport height used');
   const student = read('js/shell.js');
   assert.match(student, /is-chat-fullscreen/, 'the student router toggles the class');
   const teacher = read('js/teacher.js');
   assert.match(teacher, /is-chat-fullscreen/, 'the teacher router toggles the class');
+  const manager = read('js/manager.js');
+  assert.match(manager, /is-chat-fullscreen/, 'the manager router toggles the class');
+  const admin = read('js/admin.js');
+  assert.match(admin, /is-chat-fullscreen/, 'the admin router toggles the class');
   /* Full-screen mode must not leave the shared chrome over the conversation. */
   const chromeRule = css.slice(css.indexOf(') > :is(.app-topbar, .bottom-nav, .admin-bottom),'));
-  assert.match(chromeRule.slice(0, 400), /display: none !important/, 'the chrome hides while the chat is open');
+  assert.match(chromeRule.slice(0, 800), /display: none !important/, 'the chrome hides while the chat is open');
+  const uiLayout = read('css/ui-layout.css');
+  assert.match(uiLayout, /is-chat-view/, 'layout overrides max-width when chat view active');
+  assert.match(uiLayout, /is-chat-fullscreen/, 'layout hides rail when fullscreen');
 });
 
 test('every staff panel route is deep-linkable and Back returns to the parent page', () => {
