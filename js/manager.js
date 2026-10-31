@@ -45,11 +45,16 @@ const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
 /* The Manager keeps five bottom seats. Reports and the advice editor live in
    More; their route names and data hooks remain unchanged. */
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'phonebook', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'lecture-sheets', 'results', 'reports', 'advice', 'profile', 'settings', 'more']);
-/* Class Chat & Moderation was removed from the Manager Panel (owner request
-   2026-10-28): no room monitoring, no pin/remove/lock controls, no chat route.
-   Class discussion itself stays in the Student/Teacher panels. */
+const MANAGER_VIEWS = Object.freeze(['dashboard', 'students', 'academic', 'academic-records', 'classes', 'phonebook', 'teachers', 'finance', 'notices', 'routine', ...ROUTINE_CHILD_VIEWS, 'exams', 'courses', 'lecture-sheets', 'results', 'reports', 'advice', 'profile', 'settings', 'more', 'class-chat']);
 let managerPhonebookFlight = null;
+let managerClassChatFlight = null;
+function mountManagerClassChat() {
+  const mount = document.getElementById('managerClassChatMount');
+  if (!mount) return;
+  managerClassChatFlight ??= import('./class-chat.js').catch(err => { managerClassChatFlight = null; throw err; });
+  void managerClassChatFlight.then(mod => mod.mountClassChat(mount, { portal: 'manager', getStaff: () => managerAccount }))
+    .catch(err => console.warn('[Active Plus] manager class-chat failed:', err?.message));
+}
 function mountManagerPhonebook() {
   const mount = $('#managerPhonebookMount');
   if (!mount) return;
@@ -204,8 +209,13 @@ function renderView(view) {
   view = target.view;
   activeView = view;
   $$('.manager-view').forEach(panel => { const active = panel.dataset.viewPanel === view; panel.classList.toggle('active', active); panel.hidden = !active; });
+  const isChatFullscreen = view === 'class-chat';
+  document.getElementById('managerShell')?.classList.toggle('is-chat-fullscreen', isChatFullscreen);
+  document.getElementById('managerMain')?.classList.toggle('is-chat-view', isChatFullscreen);
+  if (isChatFullscreen) mountManagerClassChat();
   const seat = view === 'dashboard' ? 'dashboard'
     : view === 'students' ? 'students'
+      : view === 'class-chat' ? 'more'
       : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'lecture-sheets', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
         : view === 'finance' ? 'finance' : 'more';
   $$('.manager-bottom [data-manager-view]').forEach(button => {

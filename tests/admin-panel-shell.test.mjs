@@ -134,9 +134,11 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
   assert.ok(brand, 'the topbar has no brand');
   assert.equal(brand.querySelectorAll('img').length, 1, 'the brand paints more than one logo');
   assert.ok(brand.querySelector('[data-fixed-tagline]').textContent.trim().length > 1, 'the slogan is missing');
-  // Class Chat & Moderation was removed from this panel (owner request
-  // 2026-10-28): the topbar keeps only the bell and sign-out.
-  assert.equal(header.querySelector('#classChatTopbarButton'), null, 'the removed chat button must not come back');
+  // Class Chat restored for true full-screen (all 4 portals edge-to-edge).
+  const chatBtn = header.querySelector('#classChatTopbarButton');
+  assert.ok(chatBtn, 'the chat button is present for full-screen chat');
+  assert.equal(chatBtn.getAttribute('data-admin-view'), 'class-chat', 'chat button routes to class-chat');
+  assert.ok(chatBtn.querySelector('svg[data-icon="chat"]'), 'chat button has chat icon');
   const bell = header.querySelector('#notificationButton');
   assert.ok(bell, 'the topbar has no notification button');
   assert.equal(bell.querySelectorAll('svg').length, 1, 'the bell paints more than one icon');
@@ -147,7 +149,7 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
   assert.equal(exit.id, 'adminExitButton');
   assert.equal(exit.querySelectorAll('svg').length, 1, 'sign-out paints more than one icon');
   assert.ok(exit.querySelector('svg[data-icon="logout"]'));
-  assert.equal(header.querySelectorAll('button').length, 2, 'the topbar holds notification + sign-out');
+  assert.equal(header.querySelectorAll('button').length, 3, 'the topbar holds chat + notification + sign-out');
   assert.equal(header.querySelectorAll('[data-theme-toggle], time, .student-date').length, 0, 'a control that belongs elsewhere is still in the topbar');
   // Dark mode stays reachable: it lives in System Settings as a switch row —
   // icon chip (sun in light, moon in dark), label and the app's toggle switch.
@@ -327,15 +329,21 @@ test('Account → Security → Account reopens the correct Admin content on ever
   await ctx.flush(2);
 });
 
-test('Class Chat & Moderation is fully removed from the Admin shell', async () => {
-  // Owner request 2026-10-28: no chat/monitoring view, no chat trigger (top bar,
-  // tile or hub row) and no chat route survives in the Admin Panel.
-  assert.equal(ctx.$('#classChatTopbarButton'), null, 'no chat button in the top bar');
-  assert.equal(ctx.$('#adminClassChatMount'), null, 'no chat mount in the panel');
-  assert.equal(ctx.$('.admin-view[data-view-panel="class-chat"]'), null, 'no class-chat view');
-  assert.equal(ctx.$('[data-admin-view="class-chat"]'), null, 'no navigation entry points at a chat view');
-  assert.equal(ctx.$$('[data-admin-view]').some(node => node.dataset.adminView === 'class-chat'), false);
-  assert.equal(ctx.$('#adminMain').classList.contains('is-chat-view'), false);
+test('Class Chat is present with true full-screen contract', async () => {
+  assert.ok(ctx.$('#classChatTopbarButton'), 'chat button in the top bar');
+  assert.ok(ctx.$('#adminClassChatMount'), 'chat mount in the panel');
+  assert.ok(ctx.$('.admin-view[data-view-panel="class-chat"]'), 'class-chat view exists');
+  assert.ok(ctx.$('[data-admin-view="class-chat"]'), 'navigation entry points at a chat view');
+  assert.equal(ctx.$$('[data-admin-view]').some(node => node.dataset.adminView === 'class-chat'), true);
+  assert.equal(ctx.$('#adminMain').classList.contains('is-chat-view'), false, 'not fullscreen until navigated');
+  ctx.window.location.hash = '#class-chat';
+  await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="class-chat"]').classList.contains('active'));
+  assert.equal(ctx.$('#adminShell').classList.contains('is-chat-fullscreen'), true, 'shell fullscreen when chat open');
+  assert.equal(ctx.$('#adminMain').classList.contains('is-chat-view'), true, 'main is-chat-view when chat open');
+  ctx.window.location.hash = '#dashboard';
+  await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="dashboard"]').classList.contains('active'));
+  assert.equal(ctx.$('#adminShell').classList.contains('is-chat-fullscreen'), false, 'shell restored after back');
+  assert.equal(ctx.$('#adminMain').classList.contains('is-chat-view'), false, 'main restored after back');
 });
 
 test('a role with no capability leaves the panel empty — menus, cards and routes', async () => {

@@ -607,9 +607,8 @@ test('8. Offline classmates can pull within 7 days, and after 7 days Firebase au
 });
 
 test('9. Topbar Chat Icon & Floating Chat Head stay synced, enforce RBAC unread isolation, auto-hide inside chat, and jump staff to unread class', async () => {
-  // Chat survives only where it is used: Student and Teacher. The Admin and
-  // Manager "শ্রেণি চ্যাট ও মডারেশন" surfaces were removed on 2026-10-28.
-  for (const portalFile of ['student.html', 'teacher.html']) {
+  // Chat is present for all 4 portals with true full-screen edge-to-edge contract.
+  for (const portalFile of ['student.html', 'teacher.html', 'manager.html', 'admin.html']) {
     const html = readFileSync(new URL(`../${portalFile}`, import.meta.url), 'utf8');
     const doc = new JSDOM(html).window.document;
     const btn = doc.querySelector('.app-topbar #classChatTopbarButton');
@@ -617,7 +616,7 @@ test('9. Topbar Chat Icon & Floating Chat Head stay synced, enforce RBAC unread 
     assert.ok(btn.querySelector('svg[data-icon="chat"]'), `${portalFile} topbar chat button has chat glyph`);
     assert.ok(btn.querySelector('[data-chat-unread-dot]'), `${portalFile} topbar chat button has unread dot`);
   }
-  for (const strippedFile of ['manager.html', 'admin.html', 'payment.html']) {
+  for (const strippedFile of ['payment.html']) {
     const doc = new JSDOM(readFileSync(new URL(`../${strippedFile}`, import.meta.url), 'utf8')).window.document;
     assert.equal(doc.querySelector('#classChatTopbarButton'), null, `${strippedFile} has no topbar chat button`);
     assert.equal(doc.querySelector('[data-class-chat-mount]'), null, `${strippedFile} has no chat mount`);
