@@ -94,8 +94,8 @@ export function studentIdCardSVG(student, photo = '', side = 'front') {
     <rect x="86" y="112" width="188" height="188" rx="20" fill="#ffffff" stroke="${LINE}" stroke-width="1.5"/>
     ${qrMarkup(student, 94, 120, 172)}
     <text x="180" y="326" text-anchor="middle" font-size="14" font-weight="700" fill="${INK}">স্ক্যান করে Student ID দেখুন</text>
-    ${infoRow('অভিভাবকের মোবাইল', maskedPhone(student?.guardianMobile), 366)}
-    ${infoRow('শিক্ষার্থীর মোবাইল', maskedPhone(student?.studentMobile), 400)}
+    ${infoRow('অভিভাবকের মোবাইল', String(student?.guardianMobile || '').trim() || '—', 366)}
+    ${infoRow('শিক্ষার্থীর মোবাইল', String(student?.studentMobile || '').trim() || '—', 400)}
     <text x="30" y="434" font-size="12" fill="${MUTED}">ঠিকানা</text>
     ${address.map((line, i) => `<text x="330" y="${434 + i * 18}" text-anchor="end" font-size="13" font-weight="600" fill="${INK}">${esc(line)}</text>`).join('')}
     <path d="M30 ${434 + (address.length - 1) * 18 + 10}h300" stroke="${LINE}"/>
