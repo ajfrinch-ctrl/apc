@@ -1879,21 +1879,22 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
 .student-reference #myProfileView #studentAdditionalMobiles[hidden] { display: none; }
 }
 
-/* Digital ID card: landscape front/back preview, no third-party QR requests. */
+/* Digital ID card: CR80 portrait (360×570) — refined from লাইভ প্রিভিউ, brand #0e7a55 */
 @media screen {
-.student-reference #studentIdCardView { width: 100%; max-width: 720px; margin-inline: auto; }
+.student-reference #studentIdCardView { width: 100%; max-width: 720px; margin-inline: auto; padding-bottom: calc(12px + env(safe-area-inset-bottom,0px)); }
 .student-reference #studentIdCardView .page-intro { margin-bottom: 12px; padding-top: 16px; gap: 8px; }
 .student-reference #studentIdCardView .page-intro h1 { font-size: 20px; font-weight: 500; }
 .student-reference #studentIdCardView .pay-back { color: var(--color-text); background: transparent; border: 0; width: 28px; min-width: 28px; }
-.student-reference #studentIdCardView .student-id-preview { width: min(100%, 420px); margin-inline: auto; border-radius: 22px; overflow: hidden; background: var(--student-id-face); box-shadow: 0 12px 30px color-mix(in srgb, var(--student-id-ink) 12%, transparent); }
+.student-reference #studentIdCardView .student-id-preview { width: min(100%, 360px); margin-inline: auto; border-radius: 26px; overflow: hidden; background: var(--student-id-face); box-shadow: 0 14px 34px rgba(11,107,74,.18), 0 2px 8px rgba(0,0,0,.08); }
 .student-reference #studentIdCardView .student-id-preview > svg { display: block; width: 100%; height: auto; }
-.student-reference #studentIdCardView .student-id-side-tabs { display: flex; justify-content: center; gap: 6px; margin: 12px 0; }
-.student-reference #studentIdCardView .student-id-side-tabs button { min-height: 36px; padding: 6px 12px; border: 0; background: transparent; color: var(--color-text-secondary); border-radius: 12px; font-size: 12px; }
-.student-reference #studentIdCardView .student-id-side-tabs [aria-pressed="true"] { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); }
-.student-reference #studentIdCardView .student-id-actions { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; }
-.student-reference #studentIdCardView .student-id-actions button { min-height: 44px; padding: 10px 6px; border-radius: 13px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font-size: 14px; }
+.student-reference #studentIdCardView .student-id-side-tabs { display: flex; justify-content: center; gap: 6px; margin: 12px auto; max-width: 360px; }
+.student-reference #studentIdCardView .student-id-side-tabs button { min-height: 36px; padding: 6px 14px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); border-radius: 999px; font-size: 12px; font-weight: 600; }
+.student-reference #studentIdCardView .student-id-side-tabs [aria-pressed="true"] { color: var(--pay-on-hero); background: var(--color-primary); border-color: var(--color-primary); }
+.student-reference #studentIdCardView .student-id-actions { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; max-width: 360px; margin: 0 auto; }
+.student-reference #studentIdCardView .student-id-actions button { min-height: 44px; padding: 10px 6px; border-radius: 14px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font-size: 13px; font-weight: 600; }
 .student-reference #studentIdCardView #studentIdCardDownload { color: var(--pay-on-hero); background: var(--color-primary); border-color: var(--color-primary); }
-.student-reference #studentIdCardView .student-id-note { margin-top: 12px; font-size: 11px; line-height: 1.7; text-align: center; color: var(--color-text-secondary); }
+.student-reference #studentIdCardView #studentIdCardFlip { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border)); }
+.student-reference #studentIdCardView .student-id-note { margin: 12px auto 0; max-width: 360px; font-size: 11px; line-height: 1.7; text-align: center; color: var(--color-text-secondary); }
 }
 
 /* Study results: comparable summary, recent marks and honest subject trends. */
