@@ -541,6 +541,21 @@
 /* A card's own reveal sits under its title block, where the eye lands. */
 .yp-reveal-btn.is-card { margin-top: 2px; border-style: solid; background: var(--color-surface); }
 .yp-avatar.is-masked { color: var(--color-text-muted); letter-spacing: .08em; }
+
+/* Admin ▸ শিক্ষার্থী ব্যবস্থাপনা — the same masked-until-asked rule as the
+   Yellow Pages: a row opens with “গোপন তথ্য”, and its own switch reveals that
+   row in place. The avatar's placeholder needs the same muted treatment. */
+.student-avatar.is-masked { color: var(--color-text-muted); letter-spacing: .08em; font-weight: 700; }
+.apc-pending-item__info { display: grid; gap: 6px; }
+.apc-pending-reveal {
+  justify-self: start; min-height: 34px; padding: 4px 12px;
+  border: 1px solid var(--color-border); border-radius: 999px;
+  background: var(--color-surface); color: var(--color-primary);
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.apc-pending-reveal:hover { border-color: var(--color-primary); }
+.apc-pending-reveal:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.apc-pending-item.is-revealed .apc-pending-item__name { color: var(--color-text); }
 .yp-privacy-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   flex-wrap: wrap; padding-top: 10px; margin-top: 2px; border-top: 1px dashed var(--color-border);
@@ -665,4 +680,5 @@ html[data-theme="dark"] .yp-class-banner,
 html[data-theme="dark"] .yp-card,
 html[data-theme="dark"] .yp-mode-tab.is-active { box-shadow: none; }
 html[data-theme="dark"] .yp-contact-line.is-guardian { background: var(--wa-enc-bg); }
+html[data-theme="dark"] .apc-pending-reveal { background: var(--color-surface-muted); }
 

@@ -410,6 +410,9 @@ export function mountNoticeCenter(api) {
       pendingHost.innerHTML = reviewMod.pendingQueueMarkup(items);
       reviewMod.bindPendingQueueActions(pendingHost, {
         role,
+        /* The drawer repaints itself so an opened application shows its name
+           without leaving the notification list. */
+        onRevealToggle: () => paintPendingRegistrations(),
         onFeedback: msg => {
           if (statusLine && msg) statusLine.textContent = msg;
           showSubtleRegistrationToast(msg);

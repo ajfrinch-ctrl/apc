@@ -16,6 +16,17 @@ export const DECIDED_EVENT = 'apc-registration-decided';
 const PRIVACY_MASK = '••••';
 const PRIVACY_NAME = 'গোপন তথ্য';
 
+/* Owner rule: primary data is hidden in every case and one click shows it.
+   The pending queue is where an application is approved, so a row that cannot
+   say who applied is unusable — each item therefore carries its own
+   “তথ্য দেখুন / তথ্য লুকান” switch. The state lives in memory only, so a reload
+   (or a fresh queue) masks every application again. */
+const revealedPending = new Set();
+
+function pendingRevealed(studentId) {
+  return revealedPending.has(String(studentId));
+}
+
 let busy = false;
 
 async function verifyReviewerAccess(role) {
@@ -251,14 +262,19 @@ export function pendingQueueMarkup(items = listPendingRegistrations()) {
       <span class="apc-pending-queue__count">${escapeHtml(toBanglaNumber(items.length))} জন</span>
     </div>
     <ul class="apc-pending-queue__list">
-      ${items.map(item => `<li class="apc-pending-item" data-pending-student-row="${escapeHtml(item.id)}">
+      ${items.map(item => {
+        const revealed = pendingRevealed(item.id);
+        const who = String(item.name || '').trim() || 'নাম নেই';
+        return `<li class="apc-pending-item${revealed ? ' is-revealed' : ''}" data-pending-student-row="${escapeHtml(item.id)}"${revealed ? ' data-pending-revealed="1"' : ''}>
         <div class="apc-pending-item__info">
-          <strong class="apc-pending-item__name">${escapeHtml(PRIVACY_NAME)}</strong>
+          <strong class="apc-pending-item__name">${escapeHtml(revealed ? who : PRIVACY_NAME)}</strong>
           <div class="apc-pending-item__meta">
-            <span>মোবাইল: <b dir="ltr">${escapeHtml(PRIVACY_MASK)}</b></span>
-            <span>আইডি: <b dir="ltr">${escapeHtml(PRIVACY_MASK)}</b></span>
+            <span>মোবাইল: <b dir="ltr">${escapeHtml(revealed ? String(item.mobile || '—') : PRIVACY_MASK)}</b></span>
+            <span>আইডি: <b dir="ltr">${escapeHtml(revealed ? String(item.id) : PRIVACY_MASK)}</b></span>
             <span>তারিখ: ${escapeHtml(item.dateLabel)}</span>
           </div>
+          <button type="button" class="apc-pending-reveal" data-pending-reveal="${escapeHtml(item.id)}" data-pending-revealed="${revealed ? '1' : '0'}"
+            aria-expanded="${revealed ? 'true' : 'false'}" aria-label="${revealed ? 'এই আবেদনের তথ্য লুকান' : 'এই আবেদনের তথ্য দেখান'}">${revealed ? 'তথ্য লুকান' : 'তথ্য দেখুন'}</button>
         </div>
         <div class="apc-pending-item__actions">
           <button type="button" class="mini-btn approve primary apc-pending-btn" data-pending-approve="${escapeHtml(item.id)}">অনুমোদন দিন</button>
@@ -272,16 +288,29 @@ export function pendingQueueMarkup(items = listPendingRegistrations()) {
           </div>
         </div>
         <p class="apc-pending-item__feedback" data-pending-feedback="${escapeHtml(item.id)}" role="status" aria-live="polite" hidden></p>
-      </li>`).join('')}
+      </li>`;
+      }).join('')}
     </ul>
   </section>`;
 }
 
-export function bindPendingQueueActions(host, { role, onDecided, onFeedback } = {}) {
+export function bindPendingQueueActions(host, { role, onDecided, onFeedback, onRevealToggle } = {}) {
   if (!host || host.dataset.pendingQueueBound === 'true') return;
   host.dataset.pendingQueueBound = 'true';
 
   host.addEventListener('click', async event => {
+    /* The queue's own reveal. The host repaints (the caller owns the list), so
+       this only flips the memory state and hands the id back. */
+    const revealBtn = event.target.closest('[data-pending-reveal]');
+    if (revealBtn) {
+      const id = String(revealBtn.getAttribute('data-pending-reveal') || '');
+      if (!id) return;
+      if (revealedPending.has(id)) revealedPending.delete(id);
+      else revealedPending.add(id);
+      onRevealToggle?.(id, revealedPending.has(id));
+      return;
+    }
+
     const approveBtn = event.target.closest('[data-pending-approve]');
     if (approveBtn) {
       const id = approveBtn.getAttribute('data-pending-approve');

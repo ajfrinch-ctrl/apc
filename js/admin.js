@@ -79,9 +79,12 @@ const bn = toBanglaNumber;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 
-/* Primary-data privacy: list views never show personal identifiers.
-   The list row keeps only status; name/ID/phone appear only after
-   an explicit “তথ্য দেখুন” / “View” click (the detail modal). */
+/* Primary-data privacy (owner rule: “প্রাইমারি ডেটা হাইড থাকবে সব ক্ষেত্রে।
+   ক্লিক করলেই দেখাবে।”): a list row opens masked, and one click on that row's
+   “তথ্য দেখুন” reveals it in place — the same contract the shared Yellow Pages
+   uses. The reveal is memory only (`state.revealedStudents`), so a reload hides
+   everything again, and a masked row never puts a real name into its text or
+   into an aria-label. */
 const PRIVACY_MASK = '••••';
 const PRIVACY_NAME_PLACEHOLDER = 'গোপন তথ্য';
 
@@ -97,6 +100,10 @@ const state = {
   filter: 'all',
   classFilter: 'all',
   query: '',
+  /* Which student rows the reader opened, and the toolbar's reveal-all switch.
+     Memory only — never stored, so a reload re-masks every row. */
+  revealedStudents: new Set(),
+  revealAllStudents: false,
   /* Staff directory snapshot: kept in sync with js/staff-directory.js so
      reports, security and staff views read the same truth. */
   staff: [],
@@ -541,7 +548,14 @@ function renderStudents() {
       pendingHost.innerHTML = pendingQueueMarkup(pendingItems);
       bindPendingQueueActions(pendingHost, {
         role: 'admin',
-        onFeedback: (msg, ok) => toast(msg, !ok)
+        onFeedback: (msg, ok) => toast(msg, !ok),
+        /* An opened application is repainted by the list itself, then the
+           keyboard lands back on that application's own switch. */
+        onRevealToggle: id => {
+          renderStudents();
+          const safe = String(id).replace(/["\\]/g, '\\$&');
+          $('#adminPendingRegistrations [data-pending-reveal="' + safe + '"]')?.focus?.({ preventScroll: true });
+        }
       });
     } else {
       pendingHost.hidden = true;
@@ -549,31 +563,45 @@ function renderStudents() {
     }
   }
 
+  /* The toolbar switch describes what is on screen right now. */
+  const revealAllBtn = $('#studentRevealAll');
+  if (revealAllBtn) {
+    revealAllBtn.textContent = state.revealAllStudents ? 'সব তথ্য লুকান' : 'সব তথ্য দেখান';
+    revealAllBtn.setAttribute('aria-pressed', state.revealAllStudents ? 'true' : 'false');
+    revealAllBtn.setAttribute('aria-label', state.revealAllStudents ? 'সব শিক্ষার্থীর তথ্য লুকান' : 'সব শিক্ষার্থীর তথ্য দেখান');
+    revealAllBtn.classList.toggle('active', state.revealAllStudents);
+  }
+
   $('#studentList').innerHTML = list.length
     ? list.map(student => {
         const status = statusMeta[student.status] || statusMeta.pending;
-        // Privacy: even name and Student ID stay hidden in the open list —
-        // they appear only after “তথ্য দেখুন” (the detail modal).
+        const rowKey = String(student.id);
+        /* Masked until this row is opened: name, avatar and Student ID all stay
+           placeholder text, and the row's own button does the revealing. */
+        const revealed = state.revealAllStudents || state.revealedStudents.has(rowKey);
+        const name = String(student.name || student.nameEn || '').trim() || 'নাম দেওয়া হয়নি';
         return `
-          <article class="student-row student-row-redesigned">
+          <article class="student-row student-row-redesigned${revealed ? ' is-revealed' : ''}" data-student-row="${escapeHtml(rowKey)}"${revealed ? ' data-student-revealed="1"' : ''}>
             <div class="student-row-main">
-              <span class="student-avatar is-masked" aria-hidden="true">${PRIVACY_MASK}</span>
+              <span class="student-avatar${revealed ? '' : ' is-masked'}" aria-hidden="true">${escapeHtml(revealed ? initialsOf(name) : PRIVACY_MASK)}</span>
               <div class="student-copy">
                 <div class="student-title-line">
-                  <strong>${escapeHtml(PRIVACY_NAME_PLACEHOLDER)}</strong>
+                  <strong>${escapeHtml(revealed ? name : PRIVACY_NAME_PLACEHOLDER)}</strong>
                   <span class="badge ${status.className}">${status.label}</span>
                 </div>
                 <div class="student-meta-line">
-                  <span class="audit-id-badge">ID: ${PRIVACY_MASK}</span>
+                  <span class="audit-id-badge">ID: ${escapeHtml(revealed ? rowKey : PRIVACY_MASK)}</span>
                 </div>
               </div>
             </div>
             <div class="student-actions">
-              <button class="mini-btn primary" type="button" data-action="view" data-id="${escapeHtml(student.id)}">তথ্য দেখুন</button>
-              <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(student.id)}">সম্পাদনা</button>
-              <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(student.id)}">পাসওয়ার্ড রিসেট</button>
+              <button class="mini-btn ${revealed ? '' : 'primary'}" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}"
+                aria-expanded="${revealed ? 'true' : 'false'}" aria-label="${revealed ? 'শিক্ষার্থীর তথ্য লুকান' : 'শিক্ষার্থীর তথ্য দেখান'}">${revealed ? 'তথ্য লুকান' : 'তথ্য দেখুন'}</button>
+              <button class="mini-btn" type="button" data-action="view" data-id="${escapeHtml(rowKey)}">প্রোফাইল</button>
+              <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(rowKey)}">সম্পাদনা</button>
+              <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(rowKey)}">পাসওয়ার্ড রিসেট</button>
               ${student.status === 'pending' && access.has(CAPABILITIES.STUDENTS_APPROVE)
-                ? `<button class="mini-btn approve" type="button" data-action="review-registration" data-id="${escapeHtml(student.id)}">রিভিউ ও অনুমোদন</button>`
+                ? `<button class="mini-btn approve" type="button" data-action="review-registration" data-id="${escapeHtml(rowKey)}">রিভিউ ও অনুমোদন</button>`
                 : ''}
             </div>
           </article>`;
@@ -1949,6 +1977,19 @@ const studentAction = event => {
     renderStudents();
     return;
   }
+  /* The row's own reveal: one card at a time, exactly like the Yellow Pages.
+     Repainting keeps every other row masked and restores focus to the button
+     that flipped, so a keyboard user is never dropped back to the top. */
+  if (action === 'reveal-student' || action === 'hide-student') {
+    const rowKey = String(id);
+    if (action === 'reveal-student') state.revealedStudents.add(rowKey);
+    else state.revealedStudents.delete(rowKey);
+    renderStudents();
+    const next = $(`#studentList [data-action="${action === 'reveal-student' ? 'hide' : 'reveal'}-student"][data-id="${rowKey}"]`);
+    next?.focus?.({ preventScroll: true });
+    return;
+  }
+
   const student = findStudent(id);
   if (!student) return;
   // Registration decisions go through the shared review dialog, and only for a
@@ -1966,6 +2007,14 @@ const studentAction = event => {
   }
 };
 $('#studentList')?.addEventListener('click', studentAction);
+
+/* Reveal-all for a whole class in one tap — and the same tap masks them again.
+   Masking also clears every per-row reveal so nothing is left open by habit. */
+$('#studentRevealAll')?.addEventListener('click', () => {
+  state.revealAllStudents = !state.revealAllStudents;
+  if (!state.revealAllStudents) state.revealedStudents.clear();
+  renderStudents();
+});
 
 /* Notice publishing and routine entry now live in the Manager portal, so this
    panel keeps no handler for them. */

@@ -346,3 +346,56 @@ can be deactivated. Related suites: staff management + profile + shell + login +
 assignment + the new file = 54/54.
 
 **Release.** Pin 440.
+
+---
+
+## Follow-up — শিক্ষার্থী ব্যবস্থাপনা showed no names (owner report, 31 Oct 2026)
+
+**Report.** "শিক্ষার্থী ব্যবস্থাপনা এ শিক্ষার্থির নাম দেখাচ্ছে না।"
+
+**Why.** The Admin panel's student list was masked for privacy — every row read
+`•••• · গোপন তথ্য · অনুমোদিত · ID: ••••` — and **nothing on the row could reveal
+it**. The only way to a name was the profile modal, one student at a time, so a
+screenful of rows could not be told apart and a search hit arrived anonymous.
+(The Manager panel renders the same roster with names, so this was Admin-only.)
+
+**Fix — masked by default, one click reveals that row.** The owner's rule
+("প্রাইমারি ডেটা হাইড থাকবে সব ক্ষেত্রে। ক্লিক করলেই দেখাবে।") now runs on this
+screen exactly as it does on the Yellow Pages:
+
+| Where | Masked (default) | After the click |
+| --- | --- | --- |
+| Student row | avatar `••••`, name `গোপন তথ্য`, `ID: ••••` | initials avatar, real name, real Student ID |
+| Row switch | **তথ্য দেখুন** (`aria-expanded="false"`) | **তথ্য লুকান** (`aria-expanded="true"`) |
+| Toolbar | **সব তথ্য দেখান** (`aria-pressed="false"`) | **সব তথ্য লুকান**; masking again clears every row reveal |
+| Pending queue | `গোপন তথ্য`, mobile `••••`, ID `••••` | applicant's name, mobile and Student ID — because an application must be able to say who applied before it is approved |
+
+* State is memory only (`state.revealedStudents`, `state.revealAllStudents`, and
+  `revealedPending` inside `js/registration-review.js`); nothing is stored, so a
+  reload masks everything again.
+* A masked row never puts a real name into its visible text **or** its
+  aria-labels ("শিক্ষার্থীর তথ্য দেখান"), and the phone/guardian/address still
+  never reach the list.
+* Search still matches the stored record and returns a *masked* row; the reader
+  opens the one they meant.
+* The profile action was renamed **প্রোফাইল** so the row does not carry two
+  different buttons both called "তথ্য দেখুন".
+* `pendingQueueMarkup()` gained the per-item switch and
+  `bindPendingQueueActions()` a `onRevealToggle` callback: the Admin students
+  page repaints through `renderStudents()`, the notification drawer through
+  `paintPendingRegistrations()` — the decision buttons stay wired across the
+  repaint because the listener sits on the persistent host.
+
+**Verified.** New `tests/student-list-privacy.test.mjs` (6 tests): masked default
+with no name in text or aria-labels, one row reveals alone and masks again, the
+toolbar switch reveals/re-masks everything, a search hit opens masked, the
+pending queue names its applicant while keeping approve/reject working, and
+nothing lands in storage. Related suites (mobile layout, pending registration
+layout, admin panel/shell/design, registration audit, manager 360, realtime
+registration visibility, phonebook, manager shell) 71/71.
+
+**Not changed.** The Manager panel's own শিক্ষার্থী ব্যবস্থাপনা list already shows
+names (it is the working roster for approvals) — only the Admin screen was
+masked without a reveal.
+
+**Release.** Pin 441.

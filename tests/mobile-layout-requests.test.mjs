@@ -48,8 +48,10 @@ test('the student list shows no phone, class or guardian until it is asked for',
     if (student.address) assert.ok(!text.includes(student.address), 'the address is not printed');
   }
   assert.ok(text.includes('গোপন তথ্য') || text.includes('••••'), 'masked placeholder is shown');
-  // The full record is one deliberate tap away.
-  assert.ok(admin.$('#studentList [data-action="view"]'), 'the "তথ্য দেখুন" action stays');
+  // The row names itself only when asked, and the full record stays one more
+  // deliberate tap away (owner report 2026-10-31: the list showed no names).
+  assert.ok(admin.$('#studentList [data-action="reveal-student"]'), 'each row keeps its own reveal switch');
+  assert.ok(admin.$('#studentList [data-action="view"]'), 'the profile action stays');
 });
 
 test('the class and status filters are folded away until the filter button is used', () => {
