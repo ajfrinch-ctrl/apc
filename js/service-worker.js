@@ -12,7 +12,7 @@
  * that, long-lived app windows re-check whenever they become visible. */
 import { requestPersistentStorage } from './storage-safety.js';
 
-export const SW_VERSION = 451;
+export const SW_VERSION = 452;
 const ACK_STORAGE_KEY = 'apc_sw_ack_version';
 const CURRENT_CACHE = `active-plus-student-v${SW_VERSION}-minimal-education`;
 
