@@ -3635,6 +3635,47 @@ html[data-theme="dark"] .app-shell .app-topbar { background: var(--pay-hero-a); 
   }
 }
 
+/* ── Desktop auto-fit overrides for login & lecture sheet list (audit) ─────
+   Phone-shell 430px persists globally, but these surfaces escape it at ≥1024px
+   to fill screen appropriately. Studio overlay (.ls-studio-overlay) stays
+   fixed inset 0 100vw/100dvh — untouched, mobile zero-overflow preserved. */
+@media screen and (min-width: 1024px) {
+  /* Login: free .auth-screen from 430 shell, enable ui-auth two-column grid */
+  .auth-screen {
+    left: auto !important; right: auto !important; width: 100% !important; max-width: 1280px !important;
+    margin: 0 auto !important; transform: none !important; border-inline: 0 !important;
+    padding: 0 !important; background: var(--color-bg) !important;
+    display: grid !important; grid-template-columns: minmax(380px,1.08fr) minmax(420px,480px) !important;
+    gap: 0 !important; align-items: stretch !important; overflow: hidden !important;
+  }
+  .auth-screen .auth-hero { display: flex !important; }
+
+  /* Lecture sheets list: shells that contain the active lecture view become wide */
+  #managerShell:has(.manager-view[data-view-panel="lecture-sheets"].active),
+  .manager-shell:has(.manager-view[data-view-panel="lecture-sheets"].active),
+  #adminShell:has(.admin-view[data-view-panel="content-lecture-sheets"].active),
+  .admin-shell:has(.admin-view[data-view-panel="content-lecture-sheets"].active),
+  #teacherShell:has(#teacherLectureSheets.active),
+  .teacher-shell:has(#teacherLectureSheets.active),
+  .teacher-reference .teacher-shell:has(#teacherLectureSheets.active) {
+    width: 100% !important; max-width: 1280px !important; margin-inline: auto !important;
+    left: auto !important; right: auto !important; transform: none !important; border-inline: 0 !important;
+  }
+  #managerShell:has(.manager-view[data-view-panel="lecture-sheets"].active) .admin-main,
+  #adminShell:has(.admin-view[data-view-panel="content-lecture-sheets"].active) .admin-main,
+  #teacherShell:has(#teacherLectureSheets.active) .admin-main {
+    width: 100% !important; max-width: none !important; margin-inline: 0 !important;
+    padding-inline: clamp(18px,2.2vw,28px) !important;
+  }
+  /* Keep nav fixed bottom via phone-shell when lecture list is wide — no sidebar */
+  #managerShell:has(.manager-view[data-view-panel="lecture-sheets"].active) .admin-bottom,
+  #adminShell:has(.admin-view[data-view-panel="content-lecture-sheets"].active) .admin-bottom,
+  #teacherShell:has(#teacherLectureSheets.active) .admin-bottom {
+    left: 50% !important; right: auto !important; width: min(100vw,430px) !important; max-width: 430px !important; transform: translateX(-50%) !important;
+    position: fixed !important; bottom: 0 !important; flex-direction: row !important; height: auto !important; min-height: calc(66px + var(--safe-bottom)) !important;
+  }
+}
+
 /* Student identity and progress presentation: keep the greeting calm, the
    summary card clear, and real metrics distinct in both themes. */
 body.student-reference #homeView .pay-hero {
