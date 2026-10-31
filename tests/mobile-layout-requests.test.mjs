@@ -35,21 +35,25 @@ before(async () => {
 });
 after(() => admin?.window.close());
 
-test('the student list shows no phone, class or guardian until it is asked for', () => {
+test('the student list names every student and hides only phone and ID', () => {
   const rows = admin.$$('#studentList .student-row');
   assert.ok(rows.length > 0);
   assert.equal(admin.$$('#studentList .student-meta-line small').length, 0, 'no phone line in the list');
   assert.equal(admin.$$('#studentList .student-meta-line span').length, rows.length, 'each row keeps only the Student ID chip');
   const text = admin.$('#studentList').textContent;
   for (const student of adminStudents) {
-    assert.ok(!text.includes(student.name), `${student.name} must stay hidden in the open list`);
+    /* Owner rule 2026-10-31: “তালিকায় নাম সবসময় দেখা যাক, শুধু ফোন/আইডি
+       লুকানো থাকুক” — a roster that cannot name its students is unusable. */
+    assert.ok(text.includes(student.name), `${student.name} must be readable in the open list`);
     if (student.mobile) assert.ok(!text.includes(student.mobile), 'the phone number is not printed');
     if (student.guardianMobile) assert.ok(!text.includes(student.guardianMobile), 'the guardian number is not printed');
     if (student.address) assert.ok(!text.includes(student.address), 'the address is not printed');
+    assert.ok(!text.includes(student.id), `${student.id} stays masked until asked`);
   }
-  assert.ok(text.includes('গোপন তথ্য') || text.includes('••••'), 'masked placeholder is shown');
-  // The full record is one deliberate tap away.
-  assert.ok(admin.$('#studentList [data-action="view"]'), 'the "তথ্য দেখুন" action stays');
+  assert.ok(text.includes('ID: ••••'), 'the Student ID carries the mask');
+  // The ID opens on request, and the full record stays one more deliberate tap away.
+  assert.ok(admin.$('#studentList [data-action="reveal-student"]'), 'each row keeps its own ID reveal');
+  assert.ok(admin.$('#studentList [data-action="view"]'), 'the profile action stays');
 });
 
 test('the class and status filters are folded away until the filter button is used', () => {

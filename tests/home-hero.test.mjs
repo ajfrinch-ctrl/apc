@@ -41,6 +41,19 @@ function pointerEvent(window, type, { pointerType = 'touch', x, y }) {
   return event;
 }
 
+/* The Payment Counter used to host the shared carousel. Owner request
+   2026-10-28 removed that hero card; the shared implementation is still used by
+   Student Home, so its behaviour tests mount it on a fresh element instead of a
+   staff page. */
+async function carouselPage() {
+  const ctx = await loadPage('student.html');
+  contexts.push(ctx);
+  const mount = ctx.document.createElement('div');
+  mount.setAttribute('data-home-hero', '');
+  ctx.document.body.appendChild(mount);
+  return { ctx, mount };
+}
+
 test('Student Home replaces the visible advice card with a private hero while Payment keeps its shared hook', () => {
   const studentHtml = readFileSync(new URL('../student.html', import.meta.url), 'utf8');
   const studentDocument = new JSDOM(studentHtml).window.document;
@@ -96,11 +109,12 @@ test('Student Home replaces the visible advice card with a private hero while Pa
   assert.ok(managerToday.compareDocumentPosition(managerQuick) & manager.defaultView.Node.DOCUMENT_POSITION_FOLLOWING,
     'Manager summary, today classes, and quick actions stay in the required order');
 
+  // Owner request 2026-10-28: no hero card outside Student Home, so the Payment
+  // Counter carries no carousel mount and no carousel entry script.
   const payment = readFileSync(new URL('../payment.html', import.meta.url), 'utf8');
   const paymentDocument = new JSDOM(payment).window.document;
-  assert.equal(paymentDocument.querySelectorAll('[data-home-hero]').length, 1, 'payment retains its existing mount hook');
-  assert.match(payment, /js\/home-hero-entry\.js\?v=\d+/u, 'payment continues loading the shared hero entry');
-  assert.match(readFileSync(new URL('../js/home-hero-entry.js', import.meta.url), 'utf8'), /pay-counter-minimal/u);
+  assert.equal(paymentDocument.querySelectorAll('[data-home-hero], .hero-slider').length, 0, 'payment carries no hero mount');
+  assert.doesNotMatch(payment, /js\/home-hero-entry\.js/u, 'payment no longer loads the shared hero entry');
   assert.equal(HERO_FIRST_DELAY_MS, 5000);
   assert.equal(HERO_AUTOPLAY_MS, 5000);
   assert.equal(HERO_TRANSITION_MS, 380);
@@ -211,8 +225,7 @@ test('Student daily inspiration changes at Dhaka midnight and catches up after a
 });
 
 test('the carousel has four linked illustrations, exact Bangla copy, alt text, arrows and active dots', async () => {
-  const ctx = await loadPage('payment.html'); contexts.push(ctx);
-  const mount = ctx.$('[data-home-hero]');
+  const { ctx, mount } = await carouselPage();
   const carousel = initHomeHero(mount);
   const expected = [
     ['own-pace', 'নিজের ছন্দে', 'অন্যের সঙ্গে নয়, গতকালের নিজের সঙ্গে প্রতিযোগিতা করো।', 'hero-own-pace.webp'],
@@ -262,9 +275,8 @@ test('shared and Student-specific hero files are included in the offline worker 
 });
 
 test('autoplay advances every five seconds, wraps after four slides, and pauses on hover/press', async () => {
-  const ctx = await loadPage('payment.html'); contexts.push(ctx);
+  const { ctx, mount } = await carouselPage();
   const timers = fakeTimers(ctx.window);
-  const mount = ctx.$('[data-home-hero]');
   mount.getBoundingClientRect = () => ({ top: 100, bottom: 420 });
   Object.defineProperty(ctx.window, 'innerHeight', { value: 800, configurable: true });
   const carousel = initHomeHero(mount);
@@ -288,9 +300,8 @@ test('autoplay advances every five seconds, wraps after four slides, and pauses 
 });
 
 test('a hidden document pauses autoplay and visibility restores it at the five-second interval', async () => {
-  const ctx = await loadPage('payment.html'); contexts.push(ctx);
+  const { ctx, mount } = await carouselPage();
   const timers = fakeTimers(ctx.window);
-  const mount = ctx.$('[data-home-hero]');
   mount.getBoundingClientRect = () => ({ top: 100, bottom: 420 });
   Object.defineProperty(ctx.window, 'innerHeight', { value: 800, configurable: true });
   const carousel = initHomeHero(mount);
@@ -311,9 +322,8 @@ test('a hidden document pauses autoplay and visibility restores it at the five-s
 });
 
 test('touch swipe moves horizontally but leaves vertical scrolling gestures alone', async () => {
-  const ctx = await loadPage('payment.html'); contexts.push(ctx);
+  const { ctx, mount } = await carouselPage();
   const timers = fakeTimers(ctx.window);
-  const mount = ctx.$('[data-home-hero]');
   mount.getBoundingClientRect = () => ({ top: 100, bottom: 420 });
   Object.defineProperty(ctx.window, 'innerHeight', { value: 800, configurable: true });
   const carousel = initHomeHero(mount);
@@ -333,7 +343,7 @@ test('touch swipe moves horizontally but leaves vertical scrolling gestures alon
 });
 
 test('reduced motion disables autoplay/transitions but leaves all slides and manual arrows usable', async () => {
-  const ctx = await loadPage('payment.html'); contexts.push(ctx);
+  const { ctx, mount } = await carouselPage();
   const timers = fakeTimers(ctx.window);
   ctx.window.matchMedia = query => ({
     media: query,
@@ -341,7 +351,6 @@ test('reduced motion disables autoplay/transitions but leaves all slides and man
     addEventListener() {},
     removeEventListener() {}
   });
-  const mount = ctx.$('[data-home-hero]');
   const carousel = initHomeHero(mount);
   assert.equal(mount.classList.contains('is-reduced-motion'), true);
   assert.equal(ctx.$$('[data-hero-slide]').length, 4);
@@ -355,8 +364,7 @@ test('reduced motion disables autoplay/transitions but leaves all slides and man
 });
 
 test('missing artwork falls back to the pastel card without removing slide copy or navigation', async () => {
-  const ctx = await loadPage('payment.html'); contexts.push(ctx);
-  const mount = ctx.$('[data-home-hero]');
+  const { ctx, mount } = await carouselPage();
   const carousel = initHomeHero(mount);
   ctx.$('[data-hero-id="daily-goal"] img').dispatchEvent(new ctx.window.Event('error'));
   assert.equal(ctx.$$('[data-hero-slide]').length, 4);

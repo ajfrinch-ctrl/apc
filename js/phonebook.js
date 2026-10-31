@@ -37,27 +37,45 @@ const STUDENT_STATUS_META = Object.freeze({
   rejected: { label: 'বাতিল', badgeClass: 'badge-rejected', rank: 4 }
 });
 
-/* Privacy: Yellow Pages cards mask personal identifiers in the open list.
-   Full name, ID and phone appear only after a “তথ্য দেখুন” step (the draft
-   tray or direct contact actions keep real numbers in data attributes but
-   display masked). */
-const PRIVACY_MASK = '••••';
-const PRIVACY_NAME = 'গোপন তথ্য';
+/* Privacy (owner decision 2026-10-29, settled by the owner on 2026-10-31):
+   NAMES ARE ALWAYS READABLE — ONLY THE PHONE NUMBERS AND THE ID STAY HIDDEN.
+
+   A directory whose every row says "গোপন তথ্য" cannot be used to find anybody,
+   so the student/staff name, the initials avatar, the guardian name, the class,
+   the batch, the dues and the assignments are painted straight away. What opens
+   hidden is the contact layer: every phone number (`•••• ••••`) and the
+   Student/Staff ID (`••••`). Each card carries one "নম্বর ও আইডি দেখুন" control
+   that reveals its own numbers and ID in place, and the toolbar does the same
+   for the whole list before a calling round. The reveal lives in memory only,
+   so a reload hides them again. Call / WhatsApp / copy keep working while a
+   number is hidden, because using a number is a deliberate act. */
+const PRIVACY_MASK = '•••• ••••';
+const PRIVACY_ID_MASK = '••••';
 
 const graphemeSegmenter = typeof Intl !== 'undefined' && Intl.Segmenter
   ? new Intl.Segmenter('bn', { granularity: 'grapheme' })
   : null;
 
 export function phonebookInitials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  /* Only words that start with a letter or digit count: an account label such
+     as “সিস্টেম মালিক (এডমিন)” must not produce a “(” avatar. */
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .map(word => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(Boolean);
   if (!parts.length) return 'শিক্ষা';
   const firstGrapheme = word => {
     if (!graphemeSegmenter) return word.slice(0, 2);
     const iter = graphemeSegmenter.segment(word)[Symbol.iterator]();
     return iter.next().value?.segment || '';
   };
-  if (parts.length === 1) return firstGrapheme(parts[0]).toUpperCase();
-  return (firstGrapheme(parts[0]) + firstGrapheme(parts[parts.length - 1])).toUpperCase();
+  /* One glyph-cluster from the first and the last word: “রাইসা ইসলাম” → রাই.
+     Each side is exactly one grapheme, so the 44px disc never overflows. */
+  const initials = parts.length === 1
+    ? firstGrapheme(parts[0])
+    : firstGrapheme(parts[0]) + firstGrapheme(parts[parts.length - 1]);
+  return initials.toUpperCase();
 }
 
 /**
@@ -385,6 +403,10 @@ export async function mountPhonebook(mount, options = {}) {
     draftTemplate: 'absence',
     draftCustomText: '',
     draftDirty: false,
+    /* Which cards the reader has opened, and the toolbar's reveal-all switch.
+       Memory only — never stored, so a reload re-masks everything. */
+    revealedCards: new Set(),
+    revealAllCards: false,
     students: [],
     staff: [],
     transactions: [],
@@ -433,14 +455,21 @@ export async function mountPhonebook(mount, options = {}) {
     }
   }
 
+  /* `revealed` is the owning card's state: the card's own “নম্বর ও আইডি দেখুন”
+     decides whether this row paints a real number. The person's name above it
+     is always readable. `personSecret` is contact data that belongs to the
+     hidden layer (a staff e-mail), so it is masked with the number even though
+     it sits beside the name. */
   function renderContactLine({
     rowKey,
     badgeLabel,
     badgeTone = 'student',
     personSub = '',
+    personSecret = '',
     rawPhone = '',
     sameAsPrimary = false,
-    draftContext
+    draftContext,
+    revealed = false
   }) {
     const norm = normalizeBdPhone(rawPhone);
     const isDraftOpen = state.openDraftKey === rowKey;
@@ -459,6 +488,8 @@ export async function mountPhonebook(mount, options = {}) {
     }
 
     const telHref = buildTelHref(norm.local);
+    /* Names are readable, so a contact action may name the person outright. */
+    const actionWho = draftContext.name || '';
     const activeTemplate = templates.some(t => t.id === state.draftTemplate)
       ? state.draftTemplate
       : templates[0].id;
@@ -471,17 +502,21 @@ export async function mountPhonebook(mount, options = {}) {
         <div class="yp-contact-top">
           <div class="yp-contact-meta">
             <span class="yp-role-pill is-${escapeHtml(badgeTone)}">${escapeHtml(badgeLabel)}</span>
-            ${personSub ? `<span class="yp-contact-person">${escapeHtml(PRIVACY_MASK)}</span>` : ''}
+            ${personSub ? `<span class="yp-contact-person">${escapeHtml(personSub)}</span>` : ''}
+            ${personSecret ? `<span class="yp-contact-person is-contact">${escapeHtml(revealed ? personSecret : PRIVACY_ID_MASK)}</span>` : ''}
             ${sameAsPrimary ? '<span class="yp-same-note">একই নম্বর</span>' : ''}
           </div>
-          <a class="yp-phone-number" href="${escapeHtml(telHref)}" aria-label="${escapeHtml(badgeLabel)} ${escapeHtml(PRIVACY_MASK)} নম্বরে কল করুন">${escapeHtml(PRIVACY_MASK)} <small>(${escapeHtml(PRIVACY_MASK)})</small></a>
+          ${revealed
+            ? `<a class="yp-phone-number" href="${escapeHtml(telHref)}" aria-label="${escapeHtml(badgeLabel)} ${escapeHtml(norm.formattedBn)} নম্বরে কল করুন">${escapeHtml(norm.formattedBn)} <small>(${escapeHtml(norm.formattedEn)})</small></a>`
+            : `<span class="yp-phone-number is-masked" aria-label="নম্বর লুকানো আছে — নম্বর ও আইডি দেখুন চাপুন">${escapeHtml(PRIVACY_MASK)}</span>`
+          }
         </div>
         <div class="yp-action-row" role="group" aria-label="${escapeHtml(badgeLabel)} যোগাযোগের মাধ্যম">
-          <a class="yp-action-btn is-call" href="${escapeHtml(telHref)}" aria-label="${escapeHtml(draftContext.name || '')} (${escapeHtml(badgeLabel)}) কল করুন">
+          <a class="yp-action-btn is-call" href="${escapeHtml(telHref)}" aria-label="${escapeHtml(actionWho)} (${escapeHtml(badgeLabel)}) কল করুন">
             ${iconMarkup('phone', 'yp-btn-icon', { variant: 'glyph' })}
             <span>কল</span>
           </a>
-          <button class="yp-action-btn is-wa" type="button" data-yp-action="wa-direct" data-yp-phone="${escapeHtml(norm.local)}" aria-label="${escapeHtml(draftContext.name || '')} (${escapeHtml(badgeLabel)}) সরাসরি WhatsApp খুলুন">
+          <button class="yp-action-btn is-wa" type="button" data-yp-action="wa-direct" data-yp-phone="${escapeHtml(norm.local)}" aria-label="${escapeHtml(actionWho)} (${escapeHtml(badgeLabel)}) সরাসরি WhatsApp খুলুন">
             ${iconMarkup('whatsapp', 'yp-btn-icon', { variant: 'glyph' })}
             <span>WhatsApp</span>
           </button>
@@ -489,7 +524,7 @@ export async function mountPhonebook(mount, options = {}) {
             ${iconMarkup('chat', 'yp-btn-icon', { variant: 'glyph' })}
             <span>ড্রাফট বার্তা</span>
           </button>
-          <button class="yp-action-btn is-copy" type="button" data-yp-action="copy-phone" data-yp-phone="${escapeHtml(norm.local)}" aria-label="${escapeHtml(norm.local)} নম্বর কপি করুন">
+          <button class="yp-action-btn is-copy" type="button" data-yp-action="copy-phone" data-yp-phone="${escapeHtml(norm.local)}" aria-label="নম্বর কপি করুন">
             ${iconMarkup('copy', 'yp-btn-icon', { variant: 'glyph' })}
             <span>কপি</span>
           </button>
@@ -641,22 +676,27 @@ export async function mountPhonebook(mount, options = {}) {
         };
         const guardianKey = `student:${student.id}:guardian`;
         const studentKey = `student:${student.id}:student`;
+        const cardKey = String(student.id || studentKey);
+        const revealed = state.revealAllCards || state.revealedCards.has(cardKey);
 
         return `
-          <article class="yp-card" data-yp-student-card="${escapeHtml(String(student.id || ''))}">
+          <article class="yp-card" data-yp-student-card="${escapeHtml(cardKey)}"${revealed ? ' data-yp-revealed="1"' : ''}>
             <header class="yp-card-head">
-              <span class="yp-avatar is-masked" aria-hidden="true">${escapeHtml(PRIVACY_MASK)}</span>
+              <span class="yp-avatar" aria-hidden="true">${escapeHtml(phonebookInitials(baseContext.name))}</span>
               <div class="yp-person-main">
                 <div class="yp-person-title-row">
-                  <h4 class="yp-person-name">${escapeHtml(PRIVACY_NAME)}</h4>
+                  <h4 class="yp-person-name">${escapeHtml(baseContext.name)}</h4>
                   <span class="badge ${statusInfo.badgeClass}">${escapeHtml(statusInfo.label)}</span>
                 </div>
                 <div class="yp-person-tags">
-                  ${student.id ? `<span class="yp-id-chip">আইডি: ${escapeHtml(PRIVACY_MASK)}</span>` : ''}
+                  ${student.id ? `<span class="yp-id-chip">আইডি: ${escapeHtml(revealed ? String(student.id) : PRIVACY_ID_MASK)}</span>` : ''}
                   ${student.group ? `<span class="yp-meta-chip">ব্যাচ/বিভাগ: ${escapeHtml(String(student.group))}</span>` : ''}
-                  ${dueAmount > 0 ? `<span class="yp-due-chip">বকেয়া ${escapeHtml(PRIVACY_MASK)}</span>` : ''}
+                  ${dueAmount > 0 ? `<span class="yp-due-chip">বকেয়া ${escapeHtml(toBnDigits(dueAmount))}${dueMonth ? ` · ${escapeHtml(dueMonth)}` : ''}</span>` : ''}
                 </div>
-                ${student.fatherName ? `<p class="yp-guardian-sub">পিতা/অভিভাবক: <strong>${escapeHtml(PRIVACY_MASK)}</strong></p>` : ''}
+                ${student.fatherName ? `<p class="yp-guardian-sub">পিতা/অভিভাবক: <strong>${escapeHtml(String(student.fatherName))}</strong></p>` : ''}
+                <button class="yp-reveal-btn is-card" type="button" data-yp-action="${revealed ? 'hide-card' : 'reveal-card'}"
+                  data-yp-card="${escapeHtml(cardKey)}" aria-expanded="${revealed ? 'true' : 'false'}"
+                  aria-label="${revealed ? 'নম্বর ও আইডি লুকান' : 'নম্বর ও আইডি দেখান'}">${revealed ? 'নম্বর ও আইডি লুকান' : 'নম্বর ও আইডি দেখুন'}</button>
               </div>
             </header>
             <div class="yp-contacts-stack">
@@ -667,7 +707,8 @@ export async function mountPhonebook(mount, options = {}) {
                 personSub: student.fatherName ? String(student.fatherName) : '',
                 rawPhone: student.guardianMobile,
                 sameAsPrimary: false,
-                draftContext: { ...baseContext, recipientKind: 'guardian' }
+                draftContext: { ...baseContext, recipientKind: 'guardian' },
+                revealed
               })}
               ${renderContactLine({
                 rowKey: studentKey,
@@ -676,7 +717,8 @@ export async function mountPhonebook(mount, options = {}) {
                 personSub: '',
                 rawPhone: student.mobile,
                 sameAsPrimary: samePhone,
-                draftContext: { ...baseContext, recipientKind: 'student' }
+                draftContext: { ...baseContext, recipientKind: 'student' },
+                revealed
               })}
             </div>
           </article>`;
@@ -777,20 +819,25 @@ export async function mountPhonebook(mount, options = {}) {
         const keyId = member.staffId || member.username || member.role;
         const rowKey = `staff:${keyId}`;
         const statusBadge = member.status === 'active' ? 'badge-approved' : member.status === 'suspended' ? 'badge-rejected' : 'badge-pending';
+        const cardKey = `staff:${member.username || keyId}`;
+        const revealed = state.revealAllCards || state.revealedCards.has(cardKey);
         return `
-          <article class="yp-card is-staff-card" data-yp-staff-card="${escapeHtml(String(keyId))}">
+          <article class="yp-card is-staff-card" data-yp-staff-card="${escapeHtml(String(keyId))}"${revealed ? ' data-yp-revealed="1"' : ''}>
             <header class="yp-card-head">
-              <span class="yp-avatar is-staff is-masked" aria-hidden="true">${escapeHtml(PRIVACY_MASK)}</span>
+              <span class="yp-avatar is-staff" aria-hidden="true">${escapeHtml(phonebookInitials(member.fullName || staffRoleLabel(role)))}</span>
               <div class="yp-person-main">
                 <div class="yp-person-title-row">
-                  <h4 class="yp-person-name">${escapeHtml(PRIVACY_NAME)}</h4>
+                  <h4 class="yp-person-name">${escapeHtml(member.fullName || member.username || staffRoleLabel(role))}</h4>
                   <span class="badge ${statusBadge}">${escapeHtml(staffStatusLabel(member.status || 'active'))}</span>
                 </div>
                 <div class="yp-person-tags">
                   <span class="yp-id-chip">${escapeHtml(staffRoleLabel(role))}</span>
-                  ${member.staffId ? `<span class="yp-meta-chip">${escapeHtml(PRIVACY_MASK)}</span>` : ''}
+                  ${member.staffId ? `<span class="yp-meta-chip">${escapeHtml(revealed ? String(member.staffId) : PRIVACY_ID_MASK)}</span>` : ''}
                 </div>
                 ${assignmentText ? `<p class="yp-guardian-sub">দায়িত্বপ্রাপ্ত ক্লাস/বিষয়: <strong>${escapeHtml(assignmentText)}</strong></p>` : ''}
+                <button class="yp-reveal-btn is-card" type="button" data-yp-action="${revealed ? 'hide-card' : 'reveal-card'}"
+                  data-yp-card="${escapeHtml(cardKey)}" aria-expanded="${revealed ? 'true' : 'false'}"
+                  aria-label="${revealed ? 'নম্বর ও আইডি লুকান' : 'নম্বর ও আইডি দেখান'}">${revealed ? 'নম্বর ও আইডি লুকান' : 'নম্বর ও আইডি দেখুন'}</button>
               </div>
             </header>
             <div class="yp-contacts-stack">
@@ -798,14 +845,16 @@ export async function mountPhonebook(mount, options = {}) {
                 rowKey,
                 badgeLabel: staffRoleLabel(role),
                 badgeTone: 'staff',
-                personSub: member.email ? String(member.email) : '',
+                personSub: '',
+                personSecret: member.email ? String(member.email) : '',
                 rawPhone: member.mobile,
                 sameAsPrimary: false,
                 draftContext: {
                   recipientKind: 'staff',
                   name: member.fullName || staffRoleLabel(role),
                   roleLabel: staffRoleLabel(role)
-                }
+                },
+                revealed
               })}
             </div>
           </article>`;
@@ -852,6 +901,11 @@ export async function mountPhonebook(mount, options = {}) {
               ${iconMarkup('close', 'yp-clear-svg', { variant: 'glyph' })}
             </button>
           </label>
+          <div class="yp-privacy-bar">
+            <span class="yp-privacy-note" data-yp-privacy-note>নম্বর ও আইডি লুকানো আছে — নাম দেখেই খুঁজে নিন; দরকারে কার্ডে “নম্বর ও আইডি দেখুন” চাপুন</span>
+            <button class="yp-reveal-btn is-all" type="button" data-yp-action="toggle-all-cards"
+              aria-pressed="false" aria-label="সব নম্বর ও আইডি দেখান">সব নম্বর ও আইডি দেখান</button>
+          </div>
         </div>
         <div class="yp-results-region" data-yp-results aria-live="polite"></div>
       </div>`;
@@ -894,6 +948,20 @@ export async function mountPhonebook(mount, options = {}) {
     const clearBtn = mount.querySelector('[data-yp-action="clear-search"]');
     if (input && input.value !== state.query) input.value = state.query;
     if (clearBtn) clearBtn.hidden = !state.query;
+
+    /* The reveal-all switch and its note describe what is on screen right now. */
+    const allBtn = mount.querySelector('[data-yp-action="toggle-all-cards"]');
+    if (allBtn) {
+      allBtn.textContent = state.revealAllCards ? 'সব নম্বর ও আইডি লুকান' : 'সব নম্বর ও আইডি দেখান';
+      allBtn.setAttribute('aria-pressed', state.revealAllCards ? 'true' : 'false');
+      allBtn.setAttribute('aria-label', state.revealAllCards ? 'সব নম্বর ও আইডি লুকান' : 'সব নম্বর ও আইডি দেখান');
+    }
+    const note = mount.querySelector('[data-yp-privacy-note]');
+    if (note) {
+      note.textContent = state.revealAllCards
+        ? 'সব নম্বর ও আইডি দেখানো আছে — স্ক্রিন ছেড়ে গেলে “সব নম্বর ও আইডি লুকান” চেপে দিন'
+        : 'নম্বর ও আইডি লুকানো আছে — নাম দেখেই খুঁজে নিন; দরকারে কার্ডে “নম্বর ও আইডি দেখুন” চাপুন';
+    }
   }
 
   function paintResults() {
@@ -980,6 +1048,27 @@ export async function mountPhonebook(mount, options = {}) {
       state.classFilter = 'all';
       state.statusFilter = 'all';
       state.roleFilter = 'all';
+      paintSummaryAndTabs();
+      paintResults();
+      return;
+    }
+
+    if (action === 'reveal-card' || action === 'hide-card') {
+      const card = actionEl.dataset.ypCard;
+      if (!card) return;
+      if (action === 'reveal-card') state.revealedCards.add(card);
+      else state.revealedCards.delete(card);
+      paintResults();
+      /* The button flips its job, so move the keyboard onto its replacement
+         instead of dropping focus back to the top of the page. */
+      const next = mount.querySelector(`[data-yp-action="${action === 'reveal-card' ? 'hide' : 'reveal'}-card"][data-yp-card="${card}"]`);
+      next?.focus?.({ preventScroll: true });
+      return;
+    }
+
+    if (action === 'toggle-all-cards') {
+      state.revealAllCards = !state.revealAllCards;
+      if (!state.revealAllCards) state.revealedCards.clear();
       paintSummaryAndTabs();
       paintResults();
       return;

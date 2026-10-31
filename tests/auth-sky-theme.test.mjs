@@ -6,6 +6,7 @@
    index.html auth screen. */
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { loadPage } from './jsdom-harness.mjs';
 import {
   seasonFromDate, daypartFromClock, skyConditionFromWeather,
@@ -105,8 +106,12 @@ test('the login screen repaints as time passes — sun, season line and all', as
 });
 
 test('cached weather of the day overrides the clock sky on repaint', async () => {
-  ctx.window.sessionStorage.setItem('activePlus.authWeather.kanungopara.v2', JSON.stringify({
-    code: 61, tempC: 22, sunrise: 375, sunset: 1025, at: Date.now()
+  /* The snapshot carries the campus point it was taken for; the cache key is
+     the shared one (activePlus.authWeather.v3), and a mismatch means "ignore". */
+  const { campusPoint } = await import('../js/login.js');
+  const point = campusPoint();
+  ctx.window.sessionStorage.setItem('activePlus.authWeather.v3', JSON.stringify({
+    code: 61, tempC: 22, sunrise: 375, sunset: 1025, lat: point.lat, lon: point.lon, at: Date.now()
   }));
   await paintAuthSky(new Date('2026-01-10T12:00:00'));
   const screen = ctx.$('#authScreen');
@@ -115,5 +120,109 @@ test('cached weather of the day overrides the clock sky on repaint', async () =>
   // Dawn the same day: rain still owns the photograph, but the line knows.
   await paintAuthSky(new Date('2026-01-10T06:20:00'));
   assert.equal(screen.dataset.sky, 'rain');
-  ctx.window.sessionStorage.removeItem('activePlus.authWeather.kanungopara.v2');
+  ctx.window.sessionStorage.removeItem('activePlus.authWeather.v3');
+});
+
+/* ---------------------------------------------------------------------------
+   The sky belongs to the campus (owner report 2026-10-29: "ওয়েদার লোকেশন ভুল
+   দেখাচ্ছে"). The login screen used to ask for one hard-coded village, so the
+   temperature, the rain and the sunrise/sunset described another district no
+   matter what Admin → Settings said the address was.
+   ------------------------------------------------------------------------- */
+
+test('the campus point comes from the shared record, never from a constant', async () => {
+  const { campusPoint } = await import('../js/login.js');
+  const { DEFAULT_APP_SETTINGS } = await import('../js/config.js');
+  const { loadAppConfig, saveAppConfig } = await import('../js/storage.js');
+
+  const saved = loadAppConfig();
+
+  /* Nothing stored: the defaults are the campus address's own district. */
+  saveAppConfig({ ...saved, campusLat: undefined, campusLon: undefined });
+  assert.equal(DEFAULT_APP_SETTINGS.campusAddress, 'কানুনগোপাড়া, বোয়ালখালী, চট্টগ্রাম');
+  assert.deepEqual(campusPoint(), {
+    lat: DEFAULT_APP_SETTINGS.campusLat, lon: DEFAULT_APP_SETTINGS.campusLon
+  });
+
+  /* Move the campus the way the Settings form does — the point follows. */
+  saveAppConfig({ ...saved, campusLat: 22.3357, campusLon: 91.9266 });
+  assert.deepEqual(campusPoint(), { lat: 22.3357, lon: 91.9266 });
+
+  /* Junk in storage falls back to the default instead of pointing at 0,0. */
+  saveAppConfig({ ...saved, campusLat: 'north', campusLon: NaN });
+  assert.deepEqual(campusPoint(), {
+    lat: DEFAULT_APP_SETTINGS.campusLat, lon: DEFAULT_APP_SETTINGS.campusLon
+  });
+  saveAppConfig(saved);
+});
+
+test('the weather request names the saved campus point and no other place', async () => {
+  const { paintAuthSky } = await import('../js/login.js');
+  const { loadAppConfig, saveAppConfig } = await import('../js/storage.js');
+  const asked = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async url => {
+    asked.push(String(url));
+    return {
+      ok: true,
+      async json() {
+        return {
+          current: { weather_code: 3, is_day: 1, temperature_2m: 24 },
+          daily: { sunrise: ['2026-10-29T06:12'], sunset: ['2026-10-29T17:25'] }
+        };
+      }
+    };
+  };
+  try {
+    saveAppConfig({ ...loadAppConfig(), campusLat: 22.3357, campusLon: 91.9266 });
+    ctx.window.sessionStorage.removeItem('activePlus.authWeather.v3');
+    await paintAuthSky(new Date('2026-10-29T12:00:00'));
+    const url = new URL(asked.at(-1));
+    assert.equal(url.host, 'api.open-meteo.com');
+    assert.equal(url.searchParams.get('latitude'), '22.3357');
+    assert.equal(url.searchParams.get('longitude'), '91.9266');
+    assert.equal(url.searchParams.get('timezone'), 'Asia/Dhaka');
+
+    /* A snapshot taken for the previous point is not reused: the next paint
+       asks again for the campus the app now describes. */
+    ctx.window.sessionStorage.setItem('activePlus.authWeather.v3', JSON.stringify({
+      code: 61, tempC: 22, sunrise: 375, sunset: 1025, lat: 22.4075, lon: 91.9783, at: Date.now()
+    }));
+    const before = asked.length;
+    await paintAuthSky(new Date('2026-10-29T12:00:00'));
+    assert.equal(asked.length, before + 1, 'a snapshot for another point is ignored');
+  } finally {
+    globalThis.fetch = originalFetch;
+    ctx.window.sessionStorage.removeItem('activePlus.authWeather.v3');
+  }
+});
+
+test('no module hard-codes a campus location any more', () => {
+  const files = ['js/login.js', 'js/main.js', 'js/config.js', 'js/org-info.js', 'js/admin.js', 'js/report-layout.js'];
+  for (const file of files) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    /* The bad auto-geocode that started this (Kanungopara in Rangunia) must
+       never come back, and the old constant may not be reborn. */
+    assert.doesNotMatch(source, /22\.35803|92\.1238/, `${file} still carries the old geocode`);
+    assert.doesNotMatch(source, /\bKANUNGOPARA\b/, `${file} still declares a location constant`);
+  }
+  /* Only the one record may spell the campus address out. */
+  for (const file of files.filter(file => file !== 'js/config.js')) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /কানুনগোপাড়া, বোয়ালখালী/, `${file} hard-codes the campus address`);
+    assert.doesNotMatch(source, /দিনাজপুর/, `${file} still names the previous campus town`);
+  }
+  /* The weather URL is built from the record, never from literal numbers. */
+  const login = readFileSync(new URL('../js/login.js', import.meta.url), 'utf8');
+  assert.match(login, /const point = campusPoint\(\);/, 'the request reads the campus point');
+  assert.match(login, /latitude=\$\{point\.lat\}&longitude=\$\{point\.lon\}/, 'and interpolates it');
+  /* The Admin Settings form edits the point next to the address it belongs to. */
+  const adminHtml = readFileSync(new URL('../admin.html', import.meta.url), 'utf8');
+  for (const id of ['cfgAddress', 'cfgLatitude', 'cfgLongitude']) {
+    assert.ok(adminHtml.includes(`id="${id}"`), `${id} is part of the branding card`);
+  }
+  const adminJs = readFileSync(new URL('../js/admin.js', import.meta.url), 'utf8');
+  assert.match(adminJs, /campusLat:/, 'the saver writes the latitude');
+  assert.match(adminJs, /campusLon:/, 'the saver writes the longitude');
+  assert.match(adminJs, /function clampCoordinate/, 'a typed coordinate is validated before it is stored');
 });

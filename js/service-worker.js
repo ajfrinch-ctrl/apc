@@ -12,7 +12,7 @@
  * that, long-lived app windows re-check whenever they become visible. */
 import { requestPersistentStorage } from './storage-safety.js';
 
-export const SW_VERSION = 433;
+export const SW_VERSION = 442;
 const ACK_STORAGE_KEY = 'apc_sw_ack_version';
 const CURRENT_CACHE = `active-plus-student-v${SW_VERSION}-minimal-education`;
 
@@ -31,6 +31,19 @@ function alreadyAcknowledgedCurrentBuild() {
     return window.sessionStorage.getItem(ACK_STORAGE_KEY) === String(SW_VERSION);
   } catch {
     return false;
+  }
+}
+
+/* The four staff panels own the staff half of the precache (see sw.js), so the
+   registration URL names which shell this device needs. Every other page —
+   the Student app, the login door, the privacy page — asks for the light one. */
+const STAFF_PAGES = ['admin.html', 'manager.html', 'teacher.html', 'payment.html'];
+function shellHint() {
+  try {
+    const page = location.pathname.split('/').pop() || 'index.html';
+    return STAFF_PAGES.includes(page) ? 'staff' : 'student';
+  } catch {
+    return 'student';
   }
 }
 
@@ -93,7 +106,7 @@ export function registerServiceWorker() {
     hadController = true;
   });
 
-  const register = () => navigator.serviceWorker.register(`./sw.js?v=${SW_VERSION}`).then(registration => {
+  const register = () => navigator.serviceWorker.register(`./sw.js?v=${SW_VERSION}&shell=${shellHint()}`).then(registration => {
     activeRegistration = registration;
     if (registration.waiting) showUpdate(registration.waiting.scriptURL || '');
     registration.addEventListener('updatefound', () => {

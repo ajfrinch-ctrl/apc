@@ -84,6 +84,23 @@ export async function loadPage(file, { seed = {}, hash = '', width = null, heigh
   window.Element.prototype.scrollTo = function scrollTo() {};
   window.scrollTo = () => {};
 
+  /* jsdom ships no window.matchMedia either. The app asks it only about look
+     and feel (prefers-reduced-motion, prefers-color-scheme, the mobile
+     drawer), so every query answers "no" — the same answer a browser gives for
+     a query the viewport does not satisfy. No app logic is replaced. */
+  if (typeof window.matchMedia !== 'function') {
+    window.matchMedia = query => ({
+      media: String(query),
+      matches: false,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent: () => false
+    });
+  }
+
   for (const key of GLOBAL_KEYS) {
     if (!(key in window)) continue;
     Object.defineProperty(globalThis, key, { value: window[key], configurable: true, writable: true });

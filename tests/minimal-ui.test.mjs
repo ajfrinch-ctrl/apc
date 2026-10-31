@@ -47,7 +47,11 @@ test('no panel keeps a standing offline-workspace or sync-not-connected notice',
  assert.doesNotMatch(read('css/ui-components.css'),/manager-local-notice/);
 });
 test('precache URLs are unique and all local shell assets exist',()=>{
- const shell=read('sw.js').split('const APP_SHELL = [')[1].split('];')[0];
+ /* Two sets share one cache and one release pin (see the note in sw.js): the
+    student half every device installs, and the staff half a staff panel asks
+    for. The uniqueness/existence contract covers both. */
+ const shell=read('sw.js').split('const APP_SHELL = [')[1].split('];')[0]
+  +read('sw.js').split('const STAFF_SHELL = [')[1].split('];')[0];
  // Keep query strings: the Student slider imports the same source at its
  // versioned URL while legacy pages still use the unversioned module URL.
  const entries=[...shell.matchAll(/'(\.\/[^']*)'(?:\s*\+\s*'([^']*)')?/g)]

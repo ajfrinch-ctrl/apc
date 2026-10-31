@@ -124,8 +124,9 @@
 /* ---------- Backdrop ---------- */
 .apc-fb-backdrop{
   --apc-fb-panel-width:380px;
-  backdrop-filter:blur(2px);
-  -webkit-backdrop-filter:blur(2px);
+  /* Flat scrim: .modal-backdrop already paints var(--modal-backdrop). The sheet
+     must not add glass blur of its own — the wallet skin owns every blur. */
+  background:var(--modal-backdrop);
 }
 .apc-fb-backdrop[hidden]{display:none !important}
 

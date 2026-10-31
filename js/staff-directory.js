@@ -78,9 +78,14 @@ export const STAFF_ROLE_META = Object.freeze({
   other: { label: 'Other Staff', labelBn: 'অন্যান্য স্টাফ', systemRole: null, order: 5 }
 });
 
-/** Roles Admin may pick when creating a new staff account. The system owner
- *  role is reserved for the one Admin account this device already has. */
-export const CREATABLE_STAFF_ROLES = Object.freeze(['manager', 'teacher', 'cash-counter', 'other']);
+/** Roles Admin may pick when creating a new staff account. Admin is creatable
+ *  (owner decision 2026-10-30): an institution may keep more than one Admin, so
+ *  a second person can run the office when the owner is away. What stays
+ *  reserved is the *System Owner* — the FIRST admin record (STF-0001, `kind:
+ *  'system'`, `protected: true`) — and that record can never be demoted,
+ *  deactivated or deleted. A newly created Admin is an ordinary account: it can
+ *  be edited, demoted, deactivated and (while it has no history) deleted. */
+export const CREATABLE_STAFF_ROLES = Object.freeze(['admin', 'manager', 'teacher', 'cash-counter', 'other']);
 
 export const STAFF_STATUS = Object.freeze({
   active: { label: 'সক্রিয়', labelEn: 'Active', className: 'badge-approved' },
@@ -463,7 +468,10 @@ export function validateStaffFields(fields, { records, existing = null, autoUser
 
   const role = String(fields.role || '').trim();
   if (!STAFF_ROLES.includes(role)) errors.role = 'সঠিক Role নির্বাচন করুন।';
-  else if (role === 'admin' && !existing) errors.role = 'Admin (System Owner) Role নতুন করে তৈরি করা যায় না।';
+  /* Admin is creatable (owner decision 2026-10-30): several Admins may run
+     the institution. The reserved one is the System Owner record, and
+     that is enforced by `protected` in updateStaff / setStaffStatus /
+     deleteStaff — not here. */
 
   const status = String(fields.status || 'active').trim();
   if (!STAFF_STATUS_KEYS.includes(status)) errors.status = 'সঠিক Status নির্বাচন করুন।';
@@ -862,6 +870,61 @@ export async function changeDirectoryStaffPassword(staffId, currentPassword, nex
     return { ok: false, error: 'পাসওয়ার্ড সংরক্ষণ করা যায়নি — স্টোরেজ পরীক্ষা করুন।', code: 'STORAGE' };
   }
   return { ok: true };
+}
+
+/* -------------------------------------------------------------------------
+   SELF-SERVICE — a directory Admin edits their own profile
+   ---------------------------------------------------------------------- */
+
+/**
+ * An Admin created in Staff Management (as opposed to this device's System
+ * Owner) keeps their own name, mobile and email current from the Admin panel.
+ *
+ * The Login User ID is deliberately NOT regenerated here: it is the identity
+ * the panel signed in with, so renaming yourself can never swap the account
+ * being edited for a new one. The Staff ID is permanent in the same way.
+ */
+export async function updateOwnStaffProfile(staffId, patch = {}) {
+  return withAdmin(async () => {
+    const directory = await ensureDirectory();
+    const records = Array.isArray(directory.records) ? directory.records : [];
+    const index = records.findIndex(record => record.staffId === staffId);
+    if (index < 0) return { ok: false, error: 'স্টাফ অ্যাকাউন্ট পাওয়া যায়নি।', code: 'NOT_FOUND' };
+    const current = records[index];
+    /* The System Owner is the device role account (js/staff-auth.js); the Admin
+       panel keeps saving that one through updateStaffProfile. */
+    if (current.protected || current.kind === 'system') {
+      return { ok: false, error: 'System Owner-এর প্রোফাইল এখান থেকে বদলানো যায় না।', code: 'PROTECTED' };
+    }
+
+    const fullName = clean(patch.fullName, 100);
+    const mobile = patch.mobile ? normalizeBdMobile(patch.mobile) : '';
+    const email = clean(patch.email).toLowerCase();
+    const errors = {};
+    if (fullName.length < 2) errors.fullName = 'পূর্ণ নাম লিখুন (কমপক্ষে ২ অক্ষর)।';
+    if (mobile && !MOBILE_PATTERN.test(mobile)) errors.mobile = 'সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন (যেমন: ০১৭XXXXXXXX)।';
+    if (email && !EMAIL_PATTERN.test(email)) errors.email = 'সঠিক ইমেইল ঠিকানা দিন অথবা ফাঁকা রাখুন।';
+    if (Object.keys(errors).length) return { ok: false, error: Object.values(errors)[0], errors };
+
+    const now = new Date().toISOString();
+    const updated = {
+      ...current,
+      fullName,
+      mobile,
+      email,
+      status: current.status,
+      updatedAt: now,
+      history: [
+        ...(Array.isArray(current.history) ? current.history : []).slice(-24),
+        { at: now, action: 'profile', detail: 'নিজের প্রোফাইল হালনাগাদ করেছেন' }
+      ]
+    };
+    const nextRecords = records.map((record, position) => (position === index ? updated : record));
+    if (!(await writeDirectory({ version: 1, records: nextRecords, updatedAt: now }))) {
+      return { ok: false, error: 'প্রোফাইল সংরক্ষণ করা যায়নি — স্টোরেজ পরীক্ষা করুন।', code: 'STORAGE' };
+    }
+    return { ok: true, staff: publicStaff(updated) };
+  });
 }
 
 /* -------------------------------------------------------------------------

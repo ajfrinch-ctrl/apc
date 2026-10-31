@@ -503,8 +503,8 @@ test('Scenario 1 & 8 (Admin 360px Mobile) — Mobile viewport (360px) notificati
   await adminCtx.waitFor(() => adminCtx.$$('#apcNoticeModal [data-pending-student-row]').length === 2);
   const queueText = adminCtx.$('#apcNoticeModal [data-apc-pending-registrations]').textContent;
   assert.match(queueText, /অনুমোদনের অপেক্ষায়/);
-  assert.match(queueText, /গোপন তথ্য/);
-  assert.doesNotMatch(queueText, /তানভীর আহমেদ|01711000001|261022001/);
+  assert.match(queueText, /তানভীর আহমেদ/, 'the applicant is named in the queue');
+  assert.doesNotMatch(queueText, /01711000001|261022001/, 'the mobile and Student ID stay masked');
   assert.match(queueText, /তারিখ:/);
 
   const approveBtn = adminCtx.$('#apcNoticeModal [data-pending-approve="261022001"]');

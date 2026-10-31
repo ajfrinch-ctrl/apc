@@ -41,7 +41,10 @@ export const FONT = 'ReceiptBangla';
 export const TEXT_BASELINE = 0.78;
 
 const BRAND = 'Active Plus Coaching';
-const TAGLINE = 'শিখতে থাকো, এগিয়ে যাও • দিনাজপুর';
+/* The slogan only. The campus address is drawn on its own line below it (see
+   drawHeader), so a district name must never be baked in here — that is how the
+   letterhead kept printing the old town after the campus moved. */
+const TAGLINE = 'শিখতে থাকো, এগিয়ে যাও';
 
 export const COLORS = PRINT_COLORS;
 

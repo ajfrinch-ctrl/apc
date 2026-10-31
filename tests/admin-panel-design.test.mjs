@@ -50,8 +50,12 @@ test('student avatars show the student initials, grapheme-safe', () => {
   const js = read('js/admin.js');
   assert.match(js, /const initialsOf =/, 'one initials helper');
   assert.match(js, /Segmenter\('bn', \{ granularity: 'grapheme' \}\)/, 'Bengali conjuncts are kept whole');
-  // Privacy: list avatar is masked until explicit view
-  assert.match(js, /student-avatar.*is-masked|PRIVACY_MASK/, 'the list avatar is masked for privacy');
+  // Privacy (owner rule 2026-10-31): the name and its initials avatar are
+  // always readable; only the Student ID is masked until it is asked for.
+  assert.match(js, /<span class="student-avatar" aria-hidden="true">\$\{escapeHtml\(initialsOf\(name\)\)\}/,
+    'the roster avatar is drawn from the always-visible name');
+  assert.match(js, /audit-id-badge">ID: \$\{escapeHtml\(revealed \? rowKey : PRIVACY_MASK\)\}/,
+    'the Student ID, and only the Student ID, waits behind the reveal');
 });
 
 test('Admin Home keeps its text-only welcome while the other 16 views retain their 3D hero cards', () => {
@@ -76,18 +80,20 @@ test('Admin Home keeps its text-only welcome while the other 16 views retain the
   assert.doesNotMatch(academicsJs, /<p class="eyebrow">Subjects<\/p>/, 'English Subjects eyebrow is gone');
 });
 
-test('Payment Counter panel has 3D hero cards and horizontal toggle action cards across all 5 views', () => {
+test('Payment Counter keeps horizontal toggle action cards but no hero card (removed 2026-10-28)', () => {
   const payHtml = read('payment.html');
   assert.match(payHtml, /<body class="pay-body payment-reference">/, 'payment body carries .payment-reference');
   for (const panel of ['home', 'students', 'payment', 'reports', 'more']) {
     const start = payHtml.indexOf(`data-pay-panel="${panel}"`);
     const next = payHtml.indexOf('data-pay-panel="', start + 15);
     const chunk = payHtml.slice(start, next === -1 ? undefined : next);
-    assert.match(chunk, /teacher-hero-scene/, `payment ${panel} has a 3D hero scene`);
-    assert.match(chunk, /data-pay-hero-art/, `payment ${panel} has a 3D hero art image`);
-    assert.match(chunk, /teacher-hero-date-pill/, `payment ${panel} has top-right weekday·date pill`);
-    assert.match(chunk, /teacher-hero-glint/, `payment ${panel} has top-right sun/moon glint`);
-    assert.match(chunk, /data-pay-hero-advice=/, `payment ${panel} has daily rotating advice`);
+    // Owner request 2026-10-28: no panel outside Student Home carries a hero
+    // card. The counter keeps its compact page head, date pill and advice line.
+    assert.doesNotMatch(chunk, /teacher-hero-scene|data-pay-hero-art|teacher-hero-glint/,
+      `payment ${panel} has no hero artwork`);
+    assert.match(chunk, /panel-compact-head/, `payment ${panel} uses the compact page head`);
+    assert.match(chunk, /data-pay-hero-date|teacher-hero-date-pill/, `payment ${panel} still shows the date`);
+    assert.match(chunk, /data-pay-hero-advice=/, `payment ${panel} keeps its daily advice line`);
   }
   for (const toggle of ['today-list', 'student-search', 'payment-entry', 'select-student', 'reports-builder']) {
     assert.match(payHtml, new RegExp(`data-pay-toggle="${toggle}"`), `payment has action card ${toggle}`);

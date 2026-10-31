@@ -9,7 +9,7 @@
  *   3. Receiving devices decrypt envelopes for their authorized class room(s),
  *      save them permanently to local storage, and post a lightweight delivery ACK.
  *   4. Firebase acts strictly as a temporary relay:
- *      • Unpinned messages automatically expire and are purged from Firebase
+ *      • Every relayed message automatically expires and is purged from Firebase
  *        after 7 days (`CLASS_CHAT_RELAY_TTL_MS = 7 * 24 * 60 * 60 * 1000`).
  *      • Once every expected class recipient (all approved class students + active
  *        staff) acknowledges receipt, the relay deletes the message from Firebase
@@ -374,7 +374,7 @@ export function computeExpectedRecipientsByRoom(storage = globalThis.window?.loc
 }
 
 function allExpectedRecipientsAcked(entry, expectedRecipientsByRoom) {
-  if (!expectedRecipientsByRoom || entry?.pinned) return false;
+  if (!expectedRecipientsByRoom) return false;
   const expected = expectedRecipientsByRoom[entry?.roomKey];
   if (!Array.isArray(expected) || expected.length === 0) return false;
   const acks = entry?.acks && typeof entry.acks === 'object' ? entry.acks : {};
@@ -385,17 +385,17 @@ function allExpectedRecipientsAcked(entry, expectedRecipientsByRoom) {
   });
 }
 
-function isEntryExpired(entry, pinnedIdsByRoom, now) {
+/* Chat moderation (pin / lock) was retired 2026-10-28, so the relay keeps no
+   permanent records any more: every room and message entry expires on the same
+   7-day TTL as before. Legacy `locked`/`pinned` flags on old entries are
+   ignored instead of extending their life. */
+function isEntryExpired(entry, _pinnedIdsByRoom, now) {
   if (!entry || typeof entry !== 'object') return true;
   if (entry._syncKind === 'metadata') return false;
   if (entry._syncKind === 'encrypted-room' || entry._syncKind === 'room') {
     const expiresAt = Number(entry.expiresAt) || 0;
-    if (entry.locked || entry.hasPin) return false;
     return expiresAt > 0 && now >= expiresAt;
   }
-  const msgId = entry.recordId || entry.record?.id || '';
-  const pinnedInRoom = pinnedIdsByRoom.get(entry.roomKey) === msgId || Boolean(entry.pinned);
-  if (pinnedInRoom) return false;
   const expiresAt = Number(entry.expiresAt) || (
     (parseTimestamp(entry.createdAtMs || entry.record?.createdAt || entry.updatedAt) || now) + CLASS_CHAT_RELAY_TTL_MS
   );
@@ -404,10 +404,10 @@ function isEntryExpired(entry, pinnedIdsByRoom, now) {
 
 /**
  * Pure synchronous cloud-state reducer executed inside Firebase `runTransaction`.
- *   1. Purges expired relay messages (>= 7 days old and not pinned).
+ *   1. Purges relay messages older than the 7-day TTL.
  *   2. Upserts outgoing AES-256-GCM encrypted envelopes.
  *   3. Records delivery ACKs for decrypted messages.
- *   4. Immediately purges any unpinned message once all expected recipients ACKed.
+ *   4. Immediately purges a message once all expected recipients ACKed.
  */
 export function applyRelayCloudTransaction(currentDecoded, {
   outgoingMessages = [],
@@ -427,13 +427,6 @@ export function applyRelayCloudTransaction(currentDecoded, {
     const prev = next[roomNode.id];
     if (!prev || Number(roomNode.updatedAt) >= Number(prev.updatedAt || 0)) {
       next[roomNode.id] = roomNode;
-    }
-  }
-
-  const pinnedIdsByRoom = new Map();
-  for (const value of Object.values(next)) {
-    if ((value._syncKind === 'encrypted-room' || value._syncKind === 'room') && value.roomKey) {
-      if (value.pinnedMessageId) pinnedIdsByRoom.set(value.roomKey, value.pinnedMessageId);
     }
   }
 
@@ -461,7 +454,7 @@ export function applyRelayCloudTransaction(currentDecoded, {
   }
 
   for (const [nodeKey, entry] of Object.entries(next)) {
-    if (isEntryExpired(entry, pinnedIdsByRoom, now)) {
+    if (isEntryExpired(entry, null, now)) {
       delete next[nodeKey];
       continue;
     }
@@ -491,16 +484,14 @@ async function buildOutgoingBundles(localStore, relayState, {
 } = {}) {
   const outgoingRooms = [];
   const outgoingMessages = [];
-  const pinnedByRoom = new Map();
 
   for (const [roomKey, room] of Object.entries(localStore.rooms || {})) {
     if (!roomKey || !room || typeof room !== 'object') continue;
-    if (room.pinnedMessageId) pinnedByRoom.set(roomKey, room.pinnedMessageId);
     if (allowedRoomKeys && !allowedRoomKeys.has(roomKey)) continue;
     const updatedAt = Number(room.updatedAt) || 0;
     const relayedAt = Number(relayState.relayedRooms[roomKey] || 0);
     if (!updatedAt || updatedAt <= relayedAt) continue;
-    if (!room.locked && !room.pinnedMessageId && relayedAt === 0 && (now - updatedAt) >= CLASS_CHAT_RELAY_TTL_MS) {
+    if (relayedAt === 0 && (now - updatedAt) >= CLASS_CHAT_RELAY_TTL_MS) {
       continue;
     }
     const envelope = await encryptChatPayload('room', roomKey, roomKey, room, { secretSeed });
@@ -510,9 +501,6 @@ async function buildOutgoingBundles(localStore, relayState, {
       recordId: roomKey,
       roomKey,
       classId: room.classId || '',
-      locked: Boolean(room.locked),
-      hasPin: Boolean(room.pinnedMessageId),
-      pinnedMessageId: room.pinnedMessageId || '',
       updatedAt,
       expiresAt: now + CLASS_CHAT_RELAY_TTL_MS,
       envelope
@@ -528,11 +516,8 @@ async function buildOutgoingBundles(localStore, relayState, {
     if (updatedAt <= relayedAt) continue;
 
     const createdAtMs = parseTimestamp(msg.createdAt) || updatedAt || now;
-    const isPinned = pinnedByRoom.get(msg.roomKey) === msg.id;
-    const expiresAt = isPinned
-      ? Math.max(createdAtMs, now) + CLASS_CHAT_RELAY_TTL_MS
-      : createdAtMs + CLASS_CHAT_RELAY_TTL_MS;
-    if (!isPinned && now >= expiresAt) {
+    const expiresAt = createdAtMs + CLASS_CHAT_RELAY_TTL_MS;
+    if (now >= expiresAt) {
       // Never upload messages older than 7 days from local device archive to Firebase.
       relayState.relayedMessages[msg.id] = updatedAt;
       continue;
@@ -564,7 +549,6 @@ async function buildOutgoingBundles(localStore, relayState, {
       recordId: msg.id,
       roomKey: msg.roomKey,
       classId: msg.classId,
-      pinned: Boolean(isPinned),
       deleted: Boolean(msg.deleted),
       createdAtMs,
       updatedAt,
@@ -596,16 +580,9 @@ export async function mergeCloudRelayIntoLocal(cloudDecoded, localStore, relaySt
   let hasExpiredInCloud = false;
   const cleanAckKey = sanitizeAckKey(ackKey);
 
-  const pinnedIdsByRoom = new Map();
-  for (const item of entries) {
-    if ((item._syncKind === 'encrypted-room' || item._syncKind === 'room') && item.roomKey && item.pinnedMessageId) {
-      pinnedIdsByRoom.set(item.roomKey, item.pinnedMessageId);
-    }
-  }
-
   for (const item of entries) {
     if (item._syncKind === 'metadata') continue;
-    if (isEntryExpired(item, pinnedIdsByRoom, now)) {
+    if (isEntryExpired(item, null, now)) {
       hasExpiredInCloud = true;
       continue;
     }

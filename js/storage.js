@@ -454,6 +454,16 @@ export function saveAppConfig(config) {
     try {
       writeJSON(LOCAL_WRITE_KEY, markLocalSource(readJSON(LOCAL_WRITE_KEY, null), 'settings', 'broadcast'));
     } catch { /* best effort */ }
+    /* Same-tab notification: the `storage` event only fires in OTHER tabs. Every
+       live surface that shows institute details (Dashboard card, top-bar slogan,
+       Help sheet, receipt headers) listens for this and repaints from the record
+       that was just written, so a saved address is visible immediately with no
+       manual reload. js/org-info.js reads the value, never this event payload. */
+    try {
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('apc-app-config-saved', { detail: { keys: Object.keys(config || {}) } }));
+      }
+    } catch { /* non-browser environment (tests, workers) */ }
   }
   return saved;
 }

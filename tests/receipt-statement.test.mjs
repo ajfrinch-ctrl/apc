@@ -164,27 +164,44 @@ test('the existing report/exam brand loader still supplies its logo and the same
 
 test('the offline shell precaches the complete local entry/module graph and payment font', () => {
   const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
-  const shell = read('sw.js').split('const APP_SHELL = [')[1].split('];')[0];
-  const cached = new Set([...shell.matchAll(/'\.\/([^']+)'/g)].map(match => match[1]));
-  const pending = [...cached].filter(file => file.endsWith('.js'));
-  const seen = new Set();
-  while (pending.length) {
-    const file = pending.pop();
-    if (seen.has(file)) continue;
-    seen.add(file);
-    for (const [, specifier] of read(file).matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?)["']([^"']+)["']/g)) {
-      if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue;
-      const resolved = (specifier.startsWith('/') ? specifier.slice(1) : path.posix.join(path.posix.dirname(file), specifier)).split('?')[0];
-      assert.ok(cached.has(resolved), `${file} imports uncached offline dependency ${resolved}`);
-      if (resolved.endsWith('.js')) pending.push(resolved);
+  /* Two sets, one cache (see the note above APP_SHELL in sw.js): the student
+     half every device installs, and the staff half a staff panel asks for. The
+     graph must therefore be complete per role — a student module may only
+     import student modules, while a staff module may reach either half. */
+  const entries = name => new Set([...read('sw.js')
+    .split(`const ${name} = [`)[1].split('];')[0]
+    .matchAll(/'\.\/([^']+)'/g)].map(match => match[1]));
+  const app = entries('APP_SHELL');
+  const staff = entries('STAFF_SHELL');
+  const all = new Set([...app, ...staff]);
+  const verify = (roots, reachable) => {
+    const pending = [...roots].filter(file => file.endsWith('.js'));
+    const seen = new Set();
+    while (pending.length) {
+      const file = pending.pop();
+      if (seen.has(file)) continue;
+      seen.add(file);
+      for (const [, specifier] of read(file).matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?)["']([^"']+)["']/g)) {
+        if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue;
+        const resolved = (specifier.startsWith('/') ? specifier.slice(1) : path.posix.join(path.posix.dirname(file), specifier)).split('?')[0];
+        assert.ok(reachable.has(resolved), `${file} imports uncached offline dependency ${resolved}`);
+        if (resolved.endsWith('.js')) pending.push(resolved);
+      }
     }
-  }
-  for (const page of ['index','admin','manager','teacher','payment']) {
+  };
+  verify(app, app);          // a student device can go offline with only the student half
+  verify(staff, all);        // a staff device installs both halves
+  for (const page of ['index', 'student']) {
     for (const [, src] of read(page + '.html').matchAll(/<script[^>]+src="([^"]+)"/g)) {
-      assert.ok(cached.has(src.split('?')[0]), `${page} entry script ${src} is missing from the PWA cache`);
+      assert.ok(app.has(src.split('?')[0]), `${page} entry script ${src} is missing from the student precache`);
     }
   }
-  assert.ok(cached.has('assets/fonts/NotoSansBengali-Variable.woff2'), 'the WOFF2 receipt font is precached');
+  for (const page of ['admin', 'manager', 'teacher', 'payment']) {
+    for (const [, src] of read(page + '.html').matchAll(/<script[^>]+src="([^"]+)"/g)) {
+      assert.ok(all.has(src.split('?')[0]), `${page} entry script ${src} is missing from the staff precache`);
+    }
+  }
+  assert.ok(app.has('assets/fonts/NotoSansBengali-Variable.woff2'), 'the WOFF2 receipt font is precached');
 });
 
 test('a restricted font cache/failing load can be retried without a CDN or a stuck asset promise', async () => {

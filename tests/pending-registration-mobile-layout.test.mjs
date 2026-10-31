@@ -140,7 +140,9 @@ test('360px Action Center + Student Registration Detail Modal render clean DOM h
   assert.ok(modal, 'Action Center modal exists');
 
   const children = [...modal.children];
-  const idxHeader = children.findIndex(el => el.classList.contains('modal-header'));
+  /* The sheet's sticky header is .apc-fb-header (a themed variant of the old
+     .modal-header); accept either so the ordering contract stays the point. */
+  const idxHeader = children.findIndex(el => el.classList.contains('apc-fb-header') || el.classList.contains('modal-header'));
   const idxStatus = children.findIndex(el => el.hasAttribute('data-apc-notice-status'));
   const idxPending = children.findIndex(el => el.hasAttribute('data-apc-pending-host'));
   const idxFilters = children.findIndex(el => el.classList.contains('notice-filters'));
@@ -154,9 +156,11 @@ test('360px Action Center + Student Registration Detail Modal render clean DOM h
   const pendingHost = modal.querySelector('[data-apc-pending-host]');
   assert.equal(pendingHost.classList.contains('is-empty'), false, 'pending host is visible when pending items exist');
   assert.match(pendingHost.textContent, /অনুমোদনের অপেক্ষায়/);
-  assert.match(pendingHost.textContent, /গোপন তথ্য/);
-  assert.doesNotMatch(pendingHost.textContent, /মোহাম্মদ সাইফ|01811980540|261023001/,
-    'the queue masks identity until the review modal is opened');
+  /* Owner rule 2026-10-31: the applicant's name is readable straight away;
+     only the mobile number and the Student ID wait for the reveal. */
+  assert.match(pendingHost.textContent, /মোহাম্মদ সাইফ/, 'the applicant is named in the queue');
+  assert.doesNotMatch(pendingHost.textContent, /01811980540|261023001/,
+    'the mobile and the Student ID stay masked until asked');
 
   const pushCopy = modal.querySelector('[data-apc-notice-push] .notice-push-copy');
   const pushBtn = modal.querySelector('[data-apc-notice-push] .notice-push-btn');

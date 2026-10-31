@@ -58,7 +58,10 @@ test('owner design 2026-10-16: a dark identity band over row-shaped group doors'
   // not inside the (initially hidden) account group.
   assert.ok(html.indexOf('id="adminProfileCard"') < html.indexOf('data-settings-hub="admin"'),
     'the identity card sits above the settings hub');
-  assert.match(js, /লগইন আইডি: \$\{escapeHtml\(account\?\.username/, 'the band names the Login ID in Bengali');
+  /* The band names the person signed in — the System Owner, or a second Admin
+     created in Staff Management (2026-10-30), which is why the value comes from
+     signedInAdmin() rather than straight off the device account. */
+  assert.match(js, /লগইন আইডি: \$\{escapeHtml\(admin\.username/, 'the band names the Login ID in Bengali');
   assert.match(js, /<span class="admin-profile-status">এডমিন<\/span>/, 'the band carries the Admin pill in Bengali');
   assert.match(js, /<dl class="profile-list admin-profile-facts">/, 'all remaining Admin facts are inside the hero band');
   assert.match(js, /data-admin-profile-edit/, 'the hero keeps a profile edit action');

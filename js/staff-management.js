@@ -142,6 +142,13 @@ function roleAssignmentFields(role, knownClasses = []) {
       { name: 'notes', label: 'দায়িত্বের বিবরণ', type: 'textarea', max: 300, placeholder: 'ম্যানেজারের দায়িত্ব সংক্ষেপে লিখুন' }
     ];
   }
+  if (role === 'admin') {
+    /* A directory Admin has no class/batch scope: the whole panel is the job.
+       The note is the place to say what this particular Admin runs. */
+    return [
+      { name: 'notes', label: 'দায়িত্বের বিবরণ', type: 'textarea', max: 300, placeholder: 'যেমন: অর্থ ও স্টাফ ব্যবস্থাপনা, একাডেমিক তত্ত্বাবধান' }
+    ];
+  }
   if (role === 'cash-counter') {
     return [
       { name: 'counter', label: 'কাউন্টার / ডেস্ক', placeholder: 'যেমন: প্রধান কাউন্টার' },
@@ -552,7 +559,8 @@ function staffFormHtml(record) {
       { name: 'password', label: 'পাসওয়ার্ড', type: 'password', required: true, hint: `${bn(STAFF_DIRECTORY_RULES.passwordMin)}–${bn(STAFF_DIRECTORY_RULES.passwordMax)} অক্ষর` },
       { name: 'confirmPassword', label: 'পাসওয়ার্ড নিশ্চিত করুন', type: 'password', required: true }
     ]),
-    { name: 'role', label: 'রোল', type: 'select', required: true, options: roleOptions, value: role },
+    { name: 'role', label: 'রোল', type: 'select', required: true, options: roleOptions, value: role,
+      hint: 'এডমিন পুরো প্যানেলের নিয়ন্ত্রণ পায়; System Owner (প্রথম এডমিন) আলাদা ও সুরক্ষিত থাকেন' },
     { name: 'status', label: 'স্ট্যাটাস', type: 'select', options: statusOptions, value: record?.status || 'active' },
     { name: 'mobile', label: 'মোবাইল নম্বর', placeholder: '01XXXXXXXXX', value: record?.mobile },
     { name: 'email', label: 'ইমেইল (ঐচ্ছিক)', type: 'email', value: record?.email },

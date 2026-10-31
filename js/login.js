@@ -1,5 +1,5 @@
 import { LEGACY_CLOUD_ENABLED, CLOUD_PAUSED_MESSAGE, cloudPausedResult, backendMode } from '../sync/cloud-access.js';
-import { defaultStudent } from './config.js';
+import { defaultStudent, DEFAULT_APP_SETTINGS } from './config.js';
 import { $, $$, setAuthMessage, scrollToTop, toBanglaNumber } from './ui.js';
 import { contactNumber, normalizeUsername } from './account-policy.js';
 import { matchesLoginIdentifier, studentIdOf } from './sync-merge.js';
@@ -532,8 +532,32 @@ export function initLogin({ state, onAuthenticated }) {
   warmCloudBridge();
 }
 
-const KANUNGOPARA = Object.freeze({ lat: 22.35803, lon: 92.12380 });
-const WEATHER_CACHE_KEY = 'activePlus.authWeather.kanungopara.v2';
+/* The sky belongs to the campus, not to the module: the point comes from the
+   app config (Admin → Settings → campus coordinates) so a move from Dinajpur
+   to anywhere else moves the weather with it. The old build hard-coded one
+   village here, which is why the login screen kept reporting another district's
+   weather no matter what the address said. */
+export function campusPoint() {
+  let cfg = {};
+  try { cfg = loadAppConfig() || {}; } catch { /* storage blocked: use defaults */ }
+  /* Read the numbers strictly: `Number(null)` and `Number('')` are 0, and a
+     stored null must fall back to the default rather than move the campus to
+     the equator. Only a real number (or a numeric string) counts. */
+  const read = value => {
+    if (typeof value === 'number') return value;
+    const text = String(value ?? '').trim();
+    return text ? Number(text) : Number.NaN;
+  };
+  const lat = read(cfg.campusLat);
+  const lon = read(cfg.campusLon);
+  const valid = value => Number.isFinite(value) && Math.abs(value) <= 180;
+  return {
+    lat: valid(lat) ? lat : DEFAULT_APP_SETTINGS.campusLat,
+    lon: valid(lon) ? lon : DEFAULT_APP_SETTINGS.campusLon
+  };
+}
+
+const WEATHER_CACHE_KEY = 'activePlus.authWeather.v3';
 
 const SEASONS = Object.freeze([
   { key: 'sheet',   label: 'শীত',   from: [12, 15], to: [2, 14],  sunrise: 375, sunset: 1025 },
@@ -675,13 +699,20 @@ export function applyAuthState(state) {
 function readWeatherCache() {
   try {
     const cached = JSON.parse(sessionStorage.getItem(WEATHER_CACHE_KEY) || 'null');
-    if (cached && Number.isFinite(Number(cached.at))) return cached;
+    if (!cached || !Number.isFinite(Number(cached.at))) return null;
+    /* A snapshot taken for another point (the address was changed, or the tab
+       is old) must never describe this campus. Its stale sky is ignored; the
+       next paint fetches the real one. */
+    const point = campusPoint();
+    if (Number(cached.lat) !== point.lat || Number(cached.lon) !== point.lon) return null;
+    return cached;
   } catch { }
   return null;
 }
 
 async function fetchWeatherSnapshot() {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${KANUNGOPARA.lat}&longitude=${KANUNGOPARA.lon}&current=weather_code,is_day,temperature_2m&daily=sunrise,sunset&timezone=Asia%2FDhaka`;
+  const point = campusPoint();
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${point.lat}&longitude=${point.lon}&current=weather_code,is_day,temperature_2m&daily=sunrise,sunset&timezone=Asia%2FDhaka`;
   const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
   if (!response.ok) return null;
   const data = await response.json();
@@ -697,6 +728,8 @@ async function fetchWeatherSnapshot() {
     tempC: Number(current.temperature_2m),
     sunrise: toMinutes(sunriseText),
     sunset: toMinutes(sunsetText),
+    lat: point.lat,
+    lon: point.lon,
     at: Date.now()
   };
 }

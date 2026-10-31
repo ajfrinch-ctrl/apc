@@ -47,7 +47,7 @@ test('Manager cold boot shows branded loading until session validation opens the
 test('Manager boots on the operational dashboard with only its allow-listed sections', () => {
   assert.deepEqual(ctx.jsdomErrors, []);
   const views = ctx.$$('.manager-view').map(view => view.dataset.viewPanel);
-  assert.deepEqual(views, ['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other', 'exams', 'courses', 'results', 'reports', 'profile', 'settings', 'advice', 'class-chat', 'phonebook', 'more']);
+  assert.deepEqual(views, ['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other', 'exams', 'courses', 'lecture-sheets', 'results', 'reports', 'profile', 'settings', 'advice', 'phonebook', 'more']);
   const routes = ctx.$$('[data-manager-view]').map(button => button.dataset.managerView);
   for (const forbidden of ['staff', 'roles', 'permissions', 'security', 'backup', 'restore', 'admin']) assert.equal(routes.includes(forbidden), false);
   assert.equal(ctx.$('#managerMain a[href*="admin"]'), null);

@@ -24,7 +24,7 @@ import { toBanglaNumber } from './ui.js';
 import { classCodes } from './admin-data.js';
 import { loadAppConfig, saveAppConfig, loadAccount, saveAccount } from './storage.js';
 import { loadRoster, saveRoster, loadNotices, loadRoutine } from './office-data.js';
-import { changeStaffPassword, updateStaffProfile, ensureBootstrapStaffAccounts, readStaffAccount, authenticateStaff, hasStaffSession, clearStaffSession, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
+import { changeStaffPassword, updateStaffProfile, ensureBootstrapStaffAccounts, readStaffAccount, authenticateStaff, hasStaffSession, clearStaffSession, goToLoginPage, readActiveStaffIdentity, STAFF_SESSION_RULES } from './staff-auth.js';
 import { clearLocalAppData } from './factory-reset.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
 import { dateLabel } from './finance-data.js';
@@ -45,10 +45,13 @@ import {
   STAFF_DIRECTORY_KEY,
   STAFF_ROLE_META,
   STAFF_DIRECTORY_RULES,
+  changeDirectoryStaffPassword,
+  findStaff,
   listStaff,
   staffActivitySummary,
   staffCounts,
-  staffRoleLabel
+  staffRoleLabel,
+  updateOwnStaffProfile
 } from './staff-directory.js';
 import { initStaffManagement, renderStaff } from './staff-management.js';
 import { initAdminContent, refreshAdminContentRecords } from './admin-content.js';
@@ -56,10 +59,14 @@ import { ROLE_CAPABILITIES } from './admin-permissions.js';
 import { runMigrations } from './storage/migration.js';
 import { encryptBackupData, decryptBackupData, validBackupPassphrase } from './backup-crypto.js';
 import { prepareBackupRestore, applyBackupRestore } from './backup-restore.js';
+import { initOrgInfo, applyOrgInfo, readOrgInfo } from './org-info.js';
 
 initFixedShell();
 registerServiceWorker();
 runMigrations();
+/* Institute details are painted from the settings document as soon as the page
+   exists, and again after every save / synced settings update. */
+initOrgInfo();
 
 // The Admin backup format stores these existing collection values as raw JSON
 // strings. Keep the export/restore allowlist explicit: no sessions, staff
@@ -72,11 +79,16 @@ const bn = toBanglaNumber;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 
-/* Primary-data privacy: list views never show personal identifiers.
-   The list row keeps only status; name/ID/phone appear only after
-   an explicit “তথ্য দেখুন” / “View” click (the detail modal). */
+/* Privacy (owner rule 2026-10-31, settled against the shared Yellow Pages):
+   NAMES ARE ALWAYS READABLE — ONLY THE STUDENT ID STAYS HIDDEN.
+
+   A roster where every row says “গোপন তথ্য” cannot be read at a glance or
+   searched by eye, so the name and its initials avatar are always painted. The
+   Student ID opens hidden (`••••`) and that row's own “আইডি দেখুন” reveals it —
+   the same memory-only contract as the phonebook: nothing is stored, so a
+   reload masks the IDs again. Phone, guardian number and address never reach
+   this list at all. */
 const PRIVACY_MASK = '••••';
-const PRIVACY_NAME_PLACEHOLDER = 'গোপন তথ্য';
 
 
 const state = {
@@ -90,6 +102,10 @@ const state = {
   filter: 'all',
   classFilter: 'all',
   query: '',
+  /* Which student rows the reader opened, and the toolbar's reveal-all switch.
+     Memory only — never stored, so a reload re-masks every row. */
+  revealedStudents: new Set(),
+  revealAllStudents: false,
   /* Staff directory snapshot: kept in sync with js/staff-directory.js so
      reports, security and staff views read the same truth. */
   staff: [],
@@ -152,7 +168,7 @@ async function enterPanel() {
   });
   paintAdminSettingsDoors();
   mountReports($('#adminReports'), { panel: 'admin' });
-  // A deep link (admin.html#staff or admin.html#class-chat) opens only when
+  // A deep link (admin.html#staff) opens only when
   // this role may see it; anything else falls back to the first permitted tab.
   const route = routeFromHash(window.location.hash);
   const initialTarget = route && access.allowsView(route) ? route : state.activeView;
@@ -306,9 +322,7 @@ function setView(view, { history = 'replace', clearBack = false } = {}) {
   // Rehome existing mounted controls only after the permission/route guard.
   activateAdminDetail(target);
   state.activeView = target;
-  $('#adminShell')?.classList.toggle('is-chat-fullscreen', target === 'class-chat');
   $('#adminMain')?.classList.toggle('is-staff-view', target === 'staff');
-  $('#adminMain')?.classList.toggle('is-chat-view', target === 'class-chat');
   $$('.admin-view').forEach(panel => {
     const active = panel.dataset.viewPanel === target;
     panel.classList.toggle('active', active);
@@ -327,7 +341,6 @@ function setView(view, { history = 'replace', clearBack = false } = {}) {
     });
   }
   openDefaultPrimarySection(target);
-  if (target === 'class-chat') mountAdminClassChat();
   if (target === 'phonebook') mountAdminPhonebook();
   syncAdminHeroCards();
   const seat = seatFor(target);
@@ -433,6 +446,8 @@ function renderGradeAudit() {
   }
 }
 function renderDashboard() {
+  // Institute card always reads the CURRENT record (address change bug fix).
+  applyOrgInfo();
   const studentFeatureTile = $('#adminFeatureGrid [data-admin-view="students"]');
   if (studentFeatureTile) {
     const pendingCount = access.has(CAPABILITIES.STUDENTS_APPROVE) ? listPendingRegistrations().length : 0;
@@ -535,7 +550,14 @@ function renderStudents() {
       pendingHost.innerHTML = pendingQueueMarkup(pendingItems);
       bindPendingQueueActions(pendingHost, {
         role: 'admin',
-        onFeedback: (msg, ok) => toast(msg, !ok)
+        onFeedback: (msg, ok) => toast(msg, !ok),
+        /* An opened application is repainted by the list itself, then the
+           keyboard lands back on that application's own switch. */
+        onRevealToggle: id => {
+          renderStudents();
+          const safe = String(id).replace(/["\\]/g, '\\$&');
+          $('#adminPendingRegistrations [data-pending-reveal="' + safe + '"]')?.focus?.({ preventScroll: true });
+        }
       });
     } else {
       pendingHost.hidden = true;
@@ -543,31 +565,45 @@ function renderStudents() {
     }
   }
 
+  /* The toolbar switch describes what is on screen right now. */
+  const revealAllBtn = $('#studentRevealAll');
+  if (revealAllBtn) {
+    revealAllBtn.textContent = state.revealAllStudents ? 'সব আইডি লুকান' : 'সব আইডি দেখান';
+    revealAllBtn.setAttribute('aria-pressed', state.revealAllStudents ? 'true' : 'false');
+    revealAllBtn.setAttribute('aria-label', state.revealAllStudents ? 'সব শিক্ষার্থীর আইডি লুকান' : 'সব শিক্ষার্থীর আইডি দেখান');
+    revealAllBtn.classList.toggle('active', state.revealAllStudents);
+  }
+
   $('#studentList').innerHTML = list.length
     ? list.map(student => {
         const status = statusMeta[student.status] || statusMeta.pending;
-        // Privacy: even name and Student ID stay hidden in the open list —
-        // they appear only after “তথ্য দেখুন” (the detail modal).
+        const rowKey = String(student.id);
+        /* The name and avatar are readable at all times; the Student ID is the
+           only thing this row hides, and its own button reveals it. */
+        const revealed = state.revealAllStudents || state.revealedStudents.has(rowKey);
+        const name = String(student.name || student.nameEn || '').trim() || 'নাম দেওয়া হয়নি';
         return `
-          <article class="student-row student-row-redesigned">
+          <article class="student-row student-row-redesigned${revealed ? ' is-revealed' : ''}" data-student-row="${escapeHtml(rowKey)}"${revealed ? ' data-student-revealed="1"' : ''}>
             <div class="student-row-main">
-              <span class="student-avatar is-masked" aria-hidden="true">${PRIVACY_MASK}</span>
+              <span class="student-avatar" aria-hidden="true">${escapeHtml(initialsOf(name))}</span>
               <div class="student-copy">
                 <div class="student-title-line">
-                  <strong>${escapeHtml(PRIVACY_NAME_PLACEHOLDER)}</strong>
+                  <strong>${escapeHtml(name)}</strong>
                   <span class="badge ${status.className}">${status.label}</span>
                 </div>
                 <div class="student-meta-line">
-                  <span class="audit-id-badge">ID: ${PRIVACY_MASK}</span>
+                  <span class="audit-id-badge">ID: ${escapeHtml(revealed ? rowKey : PRIVACY_MASK)}</span>
                 </div>
               </div>
             </div>
             <div class="student-actions">
-              <button class="mini-btn primary" type="button" data-action="view" data-id="${escapeHtml(student.id)}">তথ্য দেখুন</button>
-              <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(student.id)}">সম্পাদনা</button>
-              <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(student.id)}">পাসওয়ার্ড রিসেট</button>
+              <button class="mini-btn ${revealed ? '' : 'primary'}" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}"
+                aria-expanded="${revealed ? 'true' : 'false'}" aria-label="${revealed ? 'শিক্ষার্থীর আইডি লুকান' : 'শিক্ষার্থীর আইডি দেখান'}">${revealed ? 'আইডি লুকান' : 'আইডি দেখুন'}</button>
+              <button class="mini-btn" type="button" data-action="view" data-id="${escapeHtml(rowKey)}">প্রোফাইল</button>
+              <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(rowKey)}">সম্পাদনা</button>
+              <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(rowKey)}">পাসওয়ার্ড রিসেট</button>
               ${student.status === 'pending' && access.has(CAPABILITIES.STUDENTS_APPROVE)
-                ? `<button class="mini-btn approve" type="button" data-action="review-registration" data-id="${escapeHtml(student.id)}">রিভিউ ও অনুমোদন</button>`
+                ? `<button class="mini-btn approve" type="button" data-action="review-registration" data-id="${escapeHtml(rowKey)}">রিভিউ ও অনুমোদন</button>`
                 : ''}
             </div>
           </article>`;
@@ -844,7 +880,10 @@ function renderAppManagement() {
   if ($('#cfgHelpline')) $('#cfgHelpline').value = cfg.helplineMobile || ADMIN_ID || '01819486966';
   if ($('#cfgWhatsapp')) $('#cfgWhatsapp').value = cfg.whatsappNumber || ADMIN_ID || '01819486966';
   if ($('#cfgEmail')) $('#cfgEmail').value = cfg.officialEmail || 'activeplus.coaching@gmail.com';
-  if ($('#cfgAddress')) $('#cfgAddress').value = cfg.campusAddress || 'দিনাজপুর সদর, দিনাজপুর';
+  if ($('#cfgAddress')) $('#cfgAddress').value = cfg.campusAddress || DEFAULT_APP_SETTINGS.campusAddress;
+  /* The campus point drives the login sky (js/login.js campusPoint). */
+  if ($('#cfgLatitude')) $('#cfgLatitude').value = String(cfg.campusLat ?? DEFAULT_APP_SETTINGS.campusLat);
+  if ($('#cfgLongitude')) $('#cfgLongitude').value = String(cfg.campusLon ?? DEFAULT_APP_SETTINGS.campusLon);
   renderMaintenanceSettings(cfg);
 }
 
@@ -877,6 +916,24 @@ function saveMaintenanceFromForm() {
   toast(on ? 'রক্ষণাবেক্ষণ মোড চালু করা হয়েছে' : 'রক্ষণাবেক্ষণ মোড বন্ধ করা হয়েছে — ব্যানার সরে গেছে');
 }
 
+/* A coordinate typed into Settings: valid numbers are kept (rounded to four
+   decimals, like the map services), anything else falls back to what was
+   already stored rather than silently moving the campus to 0,0. */
+function clampCoordinate(raw, previous, fallback, limit) {
+  /* An emptied or half-typed box means "leave it as it was" — never 0,0. */
+  const text = String(raw ?? '').trim();
+  if (!text) {
+    const kept = Number(previous);
+    return Number.isFinite(kept) && Math.abs(kept) <= limit ? kept : fallback;
+  }
+  const value = Number(text);
+  if (!Number.isFinite(value) || Math.abs(value) > limit) {
+    const kept = Number(previous);
+    return Number.isFinite(kept) && Math.abs(kept) <= limit ? kept : fallback;
+  }
+  return Math.round(value * 10_000) / 10_000;
+}
+
 function saveAppSettingsFromForm() {
   const current = state.appConfig || loadAppConfig();
   state.appConfig = {
@@ -885,17 +942,28 @@ function saveAppSettingsFromForm() {
     helplineMobile: $('#cfgHelpline')?.value.trim() || current.helplineMobile || DEFAULT_APP_SETTINGS.helplineMobile,
     whatsappNumber: $('#cfgWhatsapp')?.value.trim() || current.whatsappNumber || DEFAULT_APP_SETTINGS.whatsappNumber,
     officialEmail: $('#cfgEmail')?.value.trim() || current.officialEmail || DEFAULT_APP_SETTINGS.officialEmail,
-    campusAddress: $('#cfgAddress')?.value.trim() || current.campusAddress || DEFAULT_APP_SETTINGS.campusAddress
+    campusAddress: $('#cfgAddress')?.value.trim() || current.campusAddress || DEFAULT_APP_SETTINGS.campusAddress,
+    campusLat: clampCoordinate($('#cfgLatitude')?.value, current.campusLat, DEFAULT_APP_SETTINGS.campusLat, 90),
+    campusLon: clampCoordinate($('#cfgLongitude')?.value, current.campusLon, DEFAULT_APP_SETTINGS.campusLon, 180)
   };
-  saveAppConfig(state.appConfig);
+  const saved = saveAppConfig(state.appConfig);
+  // Repaint every live surface in this tab immediately (the settings event also
+  // fires from js/storage.js; this direct call keeps the confirmation instant).
+  applyOrgInfo();
   renderAppManagement();
-  toast('ব্র্যান্ডিং ও যোগাযোগের তথ্য সংরক্ষিত হয়েছে');
+  const info = readOrgInfo();
+  toast(saved
+    ? `ব্র্যান্ডিং ও যোগাযোগের তথ্য সংরক্ষিত হয়েছে — ${info.address}`
+    : 'তথ্য সংরক্ষণ করা যায়নি — ব্রাউজার স্টোরেজ পরীক্ষা করুন');
+  if (!saved) return;
+  // The card lives on Home; a save from Settings must update it even though the
+  // view is still open, so the Admin sees the new value before navigating back.
+  renderDashboard();
 }
 
 /* Urgent announcement: one switch + one message that every device receives as
    a notification. Clearing the message turns it off on every device too. */
 function saveBroadcastFromForm() {
-  if (state.activeView === 'class-chat') return;
   const current = state.appConfig || loadAppConfig();
   const message = $('#cfgBroadcastMessage')?.value.trim().slice(0, 500) || '';
   const alert = Boolean($('#cfgBroadcastAlert')?.checked) && Boolean(message);
@@ -945,6 +1013,9 @@ const CAPABILITY_LABELS = Object.freeze({
   'exams.view': 'পরীক্ষা দেখা',
   'exams.publish': 'পরীক্ষা প্রকাশ/প্রত্যাখ্যান',
   'teaching.panel': 'শিক্ষক প্যানেল',
+  /* Owner decision 2026-10-28: lecture-sheet authoring is shared with the
+     Teacher and Manager panels (matrix shows who may create/publish). */
+  'content.lecture-sheets': 'লেকচার শিট তৈরি ও প্রকাশ',
   'payment.panel': 'Payment প্যানেল'
 });
 
@@ -1328,10 +1399,13 @@ async function renderSecurity() {
   const host = $('#securityPanels');
   if (!host) return;
   const owner = await readStaffAccount('admin');
-  const ownerStaff = state.staff.find(staff => staff.role === 'admin') || null;
+  const admin = await signedInAdmin();
+  const ownerStaff = state.staff.find(staff => staff.role === 'admin' && staff.protected) || null;
   const passwordDue = state.staff.filter(staff => staff.mustChangePassword);
   const protectedStaff = state.staff.filter(staff => staff.protected);
   const rows = [
+    /* Who holds the panel right now — the owner or a second Admin. */
+    ['এই সেশনে সাইন-ইন', `${escapeHtml(admin.fullName || '—')}${admin.staffId ? ` • <span class="staff-id-badge">${escapeHtml(admin.staffId)}</span>` : ''}`],
     ['সিস্টেম মালিক', escapeHtml(owner?.fullName || '—')],
     ['মালিকের ইউজারনেম', escapeHtml(owner?.username || '—')],
     ['মালিকের স্টাফ আইডি', ownerStaff ? `<span class="staff-id-badge">${escapeHtml(ownerStaff.staffId)}</span>` : '—'],
@@ -1493,30 +1567,74 @@ function paintAdminSettingsDoors() {
   });
 }
 
+/**
+ * Who is signed in to this Admin panel?
+ *
+ * The device has one canonical Admin account (js/staff-auth.js) and — since the
+ * owner's 2026-10-30 decision — any number of directory Admins created in Staff
+ * Management. `saveStaffSession()` writes the signed-in person's identity when
+ * the session is created, so the panel can tell the two apart: a directory
+ * Admin edits their own profile and password, while the System Owner keeps
+ * using the device account. Everything falls back to the owner when the
+ * identity is missing, stale, or belongs to a record that is no longer an
+ * active Admin.
+ */
+async function signedInAdmin() {
+  const owner = await readStaffAccount('admin');
+  const identity = readActiveStaffIdentity();
+  if (identity?.role === 'admin' && identity.staffId) {
+    const record = await findStaff(String(identity.staffId));
+    if (record && record.role === 'admin' && record.kind !== 'system' && record.status === 'active') {
+      return {
+        source: 'directory',
+        staffId: record.staffId,
+        fullName: record.fullName || identity.fullName || '',
+        username: record.username || identity.username || '',
+        mobile: record.mobile || '',
+        email: record.email || '',
+        createdAt: record.createdAt || ''
+      };
+    }
+  }
+  const ownerStaff = state.staff.find(staff => staff.role === 'admin' && staff.protected) || null;
+  return {
+    source: 'owner',
+    staffId: ownerStaff?.staffId || '',
+    fullName: owner?.fullName || '',
+    username: owner?.username || '',
+    mobile: owner?.mobile || '',
+    email: owner?.email || '',
+    createdAt: owner?.createdAt || ''
+  };
+}
+
 async function renderAdminProfile() {
   const host = $('#adminProfileCard');
   if (!host) return;
-  const account = await readStaffAccount('admin');
-  const staff = state.staff.find(item => item.role === 'admin') || null;
-  const created = account?.createdAt ? new Date(account.createdAt) : null;
+  /* The card always describes the person signed in on this device — the System
+     Owner, or a second Admin created in Staff Management. */
+  const admin = await signedInAdmin();
+  const created = admin.createdAt ? new Date(admin.createdAt) : null;
   const joinedLabel = created && Number.isFinite(created.getTime()) ? dateLabel(created) : '—';
   // Keep only the facts not already in the identity header (name, Login ID,
   // Admin role); these detail rows render inside that same hero card.
   const rows = [
-    ['স্টাফ আইডি', staff ? `<span class="staff-id-badge">${escapeHtml(staff.staffId)}</span>` : '—'],
-    ['মোবাইল', escapeHtml(account?.mobile || '—')],
-    ['ইমেইল', escapeHtml(account?.email || '—')],
-    ['স্ট্যাটাস', '<span class="badge badge-approved">সুরক্ষিত • সক্রিয়</span>'],
+    ['স্টাফ আইডি', admin.staffId ? `<span class="staff-id-badge">${escapeHtml(admin.staffId)}</span>` : '—'],
+    ['মোবাইল', escapeHtml(admin.mobile || '—')],
+    ['ইমেইল', escapeHtml(admin.email || '—')],
+    ['স্ট্যাটাস', admin.source === 'owner'
+      ? '<span class="badge badge-approved">সুরক্ষিত • সক্রিয়</span>'
+      : '<span class="badge badge-approved">সক্রিয়</span>'],
     ['যোগদান', escapeHtml(joinedLabel)]
   ];
   // The same card fills the editable identity form: name, mobile, email.
-  if ($('#adminProfileName')) $('#adminProfileName').value = account?.fullName || '';
-  if ($('#adminProfileMobile')) $('#adminProfileMobile').value = account?.mobile || '';
-  if ($('#adminProfileEmail')) $('#adminProfileEmail').value = account?.email || '';
-  if ($('#adminProfileUserId')) $('#adminProfileUserId').textContent = account?.username || '—';
+  if ($('#adminProfileName')) $('#adminProfileName').value = admin.fullName || '';
+  if ($('#adminProfileMobile')) $('#adminProfileMobile').value = admin.mobile || '';
+  if ($('#adminProfileEmail')) $('#adminProfileEmail').value = admin.email || '';
+  if ($('#adminProfileUserId')) $('#adminProfileUserId').textContent = admin.username || '—';
 
-  const displayName = account?.fullName || 'এডমিন';
-  const adminName = String(account?.fullName || '').trim();
+  const displayName = admin.fullName || 'এডমিন';
+  const adminName = String(admin.fullName || '').trim();
   if ($('#dashTitle')) $('#dashTitle').textContent = adminName ? `স্বাগতম, ${adminName}` : 'স্বাগতম, এডমিন';
   if ($('#adminWelcome')) $('#adminWelcome').textContent = adminName ? `স্বাগতম, ${adminName}` : 'স্বাগতম, এডমিন';
   const initials = initialsOf(displayName);
@@ -1526,7 +1644,7 @@ async function renderAdminProfile() {
         <span class="admin-profile-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
         <div class="admin-profile-identity">
           <h2>${escapeHtml(displayName)}</h2>
-          <p class="admin-profile-meta">লগইন আইডি: ${escapeHtml(account?.username || '—')}</p>
+          <p class="admin-profile-meta">লগইন আইডি: ${escapeHtml(admin.username || '—')}</p>
         </div>
         <span class="admin-profile-status">এডমিন</span>
       </div>
@@ -1534,7 +1652,9 @@ async function renderAdminProfile() {
         ${rows.map(([label, value]) => `
           <div class="profile-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`).join('')}
       </dl>
-      <p class="finance-hint admin-profile-note">সিস্টেম মালিকের পরিচয় সুরক্ষিত: এই অ্যাকাউন্ট মুছে ফেলা, নিষ্ক্রিয় করা বা ভূমিকা বদল করা যায় না — তাই অ্যাকাউন্টে প্রবেশ বন্ধ হয়ে যায় না।</p>
+      ${admin.source === 'owner'
+        ? '<p class="finance-hint admin-profile-note">সিস্টেম মালিকের পরিচয় সুরক্ষিত: এই অ্যাকাউন্ট মুছে ফেলা, নিষ্ক্রিয় করা বা ভূমিকা বদল করা যায় না — তাই অ্যাকাউন্টে প্রবেশ বন্ধ হয়ে যায় না।</p>'
+        : '<p class="finance-hint admin-profile-note">এই এডমিন অ্যাকাউন্টটি স্টাফ ম্যানেজমেন্ট থেকে তৈরি — নিজের নাম, মোবাইল ও পাসওয়ার্ড এখান থেকেই বদলাতে পারবেন; সিস্টেম মালিকের অ্যাকাউন্ট আলাদা ও সুরক্ষিত।</p>'}
       <button class="admin-profile-edit" type="button" data-admin-profile-edit>
         ${iconMarkup('edit', 'apc-icon-svg')}<span>প্রোফাইল সম্পাদনা</span>
       </button>
@@ -1609,21 +1729,13 @@ const VIEW_REFRESHERS = {
   staff: () => { void renderStaff(); },
   content: () => { void refreshAdminContentRecords(); },
   reports: () => refreshReports($('#adminReports')),
-  'class-chat': () => mountAdminClassChat(),
   phonebook: () => mountAdminPhonebook()
 };
 
-let adminChatFlight = null;
-function mountAdminClassChat() {
-  const mount = $('#adminClassChatMount');
-  if (!mount) return;
-  adminChatFlight ??= import('./class-chat.js').catch(err => { adminChatFlight = null; throw err; });
-  void adminChatFlight.then(mod => mod.mountClassChat(mount, {
-    portal: 'admin',
-    getStaff: () => state.adminAccount
-  }))
-    .catch(err => console.warn('[Active Plus] admin class-chat failed:', err?.message));
-}
+/* Class Chat & Moderation was removed from the Admin Panel on 2026-10-28
+   (owner request): no monitoring view, no pin/remove/lock controls and no
+   chat route. The chat messages themselves remain a shared collection that
+   students and teachers use, so backups keep exporting KEYS.classChat. */
 
 let adminPhonebookFlight = null;
 function mountAdminPhonebook() {
@@ -1867,6 +1979,19 @@ const studentAction = event => {
     renderStudents();
     return;
   }
+  /* The row's own reveal: one card at a time, exactly like the Yellow Pages.
+     Repainting keeps every other row masked and restores focus to the button
+     that flipped, so a keyboard user is never dropped back to the top. */
+  if (action === 'reveal-student' || action === 'hide-student') {
+    const rowKey = String(id);
+    if (action === 'reveal-student') state.revealedStudents.add(rowKey);
+    else state.revealedStudents.delete(rowKey);
+    renderStudents();
+    const next = $(`#studentList [data-action="${action === 'reveal-student' ? 'hide' : 'reveal'}-student"][data-id="${rowKey}"]`);
+    next?.focus?.({ preventScroll: true });
+    return;
+  }
+
   const student = findStudent(id);
   if (!student) return;
   // Registration decisions go through the shared review dialog, and only for a
@@ -1884,6 +2009,14 @@ const studentAction = event => {
   }
 };
 $('#studentList')?.addEventListener('click', studentAction);
+
+/* Reveal-all for a whole class in one tap — and the same tap masks them again.
+   Masking also clears every per-row reveal so nothing is left open by habit. */
+$('#studentRevealAll')?.addEventListener('click', () => {
+  state.revealAllStudents = !state.revealAllStudents;
+  if (!state.revealAllStudents) state.revealedStudents.clear();
+  renderStudents();
+});
 
 /* Notice publishing and routine entry now live in the Manager portal, so this
    panel keeps no handler for them. */
@@ -1948,10 +2081,14 @@ $('#adminProfileForm')?.addEventListener('submit', async event => {
     if (error) { error.textContent = 'সঠিক ইমেইল ঠিকানা দিন অথবা ফাঁকা রাখুন।'; error.hidden = false; }
     return;
   }
-  // Only name/mobile/email move. The Login User ID and the Staff ID are locked
-  // inside updateStaffProfile, so this form cannot rewrite the identity even
-  // if it is submitted straight from the console.
-  const result = await updateStaffProfile('admin', { fullName, mobile, email });
+  // Only name/mobile/email move. The Login User ID and the Staff ID stay
+  // locked in both paths, so this form cannot rewrite the identity even if it
+  // is submitted straight from the console. A directory Admin writes their own
+  // staff record; the System Owner writes the device account.
+  const admin = await signedInAdmin();
+  const result = admin.source === 'directory'
+    ? await updateOwnStaffProfile(admin.staffId, { fullName, mobile, email })
+    : await updateStaffProfile('admin', { fullName, mobile, email });
   if (!result.ok) {
     if (error) { error.textContent = result.error || 'তথ্য সংরক্ষণ করা যায়নি।'; error.hidden = false; }
     return;
@@ -1975,7 +2112,12 @@ $('#adminPasswordForm')?.addEventListener('submit', async event => {
     if (error) { error.textContent = 'দুইবার লেখা নতুন পাসওয়ার্ড মিলছে না।'; error.hidden = false; }
     return;
   }
-  const result = await changeStaffPassword('admin', current, next, confirm);
+  /* Each Admin changes their OWN password: a directory Admin's credential lives
+     in their staff record, the System Owner's in the device account. */
+  const admin = await signedInAdmin();
+  const result = admin.source === 'directory'
+    ? await changeDirectoryStaffPassword(admin.staffId, current, next, confirm)
+    : await changeStaffPassword('admin', current, next, confirm);
   if (!result.ok) {
     if (error) { error.textContent = result.error || 'পাসওয়ার্ড বদল করা যায়নি।'; error.hidden = false; }
     return;

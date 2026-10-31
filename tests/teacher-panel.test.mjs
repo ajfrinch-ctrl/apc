@@ -69,13 +69,16 @@ test('the welcome hero shows the teacher name from the staff profile, never the 
   ctx.window.dispatchEvent(new ctx.window.CustomEvent('teaching-data-updated'));
   await ctx.waitFor(() => $('#teacherHomeTitle').textContent === 'স্বাগতম, পরীক্ষা শিক্ষক');
   assert.equal($('#teacherHomeTitle').textContent, 'স্বাগতম, পরীক্ষা শিক্ষক');
-  assert.equal($('#teacherHomeInitial').textContent, 'প', 'the hero avatar uses the name initial');
+  /* Owner request 2026-10-28: the identity avatar lived inside the hero card,
+     which no longer exists; the welcome title is the only identity the panel
+     head carries. */
+  assert.equal($('#teacherHomeInitial'), null, 'the hero avatar is gone with the hero card');
   /* মালিক-আদেশ ২০২৬-১০-২১: সময়-ভিত্তিক শুভেচ্ছা ("শুভ অপরাহ্ন!") ও "শিক্ষক প্যানেল"
      সাবলাইন হিরো থেকে বাদ; পরিচয়-স্ট্রিপে শুধু অ্যাভাটার-অক্ষর ও দিন/রাত glint। */
   assert.equal($('#teacherToday'), null, 'the time-of-day greeting is removed');
   assert.equal($('.teacher-hero-greet'), null, 'the greeting wrapper is removed');
   assert.equal($('.teacher-hero-sub'), null, 'the panel subline is removed');
-  assert.ok($('#teacherHeroGlint'), 'the day/night glint stays on the identity strip');
+  assert.equal($('#teacherHeroGlint'), null, 'the day/night glint is gone with the hero card');
   assert.equal($('.teacher-hero-warm').textContent, pickTeacherAdvice(), 'the warm line shows today’s rotating advice');
   assert.ok($('.teacher-hero-warm').textContent.trim().length > 0, 'the daily advice is never blank');
   assert.equal($('#teacherIdentityBadge'), null, 'the role/id sub-card was removed from the hero by owner request');
@@ -504,16 +507,19 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
     assert.match(bankSearch.placeholder, /প্রশ্ন কোড/);
   }
 
-  // Runtime audit of all 11 Hero Cards, আরও actions, আমার প্রোফাইল vs সেটিংস, and পাসওয়ার্ড পরিবর্তন
+  // Runtime audit of every page head, আরও actions, আমার প্রোফাইল vs সেটিংস, and পাসওয়ার্ড পরিবর্তন
   for (const viewEl of $$('.teacher-view')) {
     const hero = viewEl.querySelector(':scope > .home-dashboard-intro.teacher-home-intro');
-    assert.ok(hero, `${viewEl.id} has a 3D Hero Card at runtime`);
+    assert.ok(hero, `${viewEl.id} has the shared compact head at runtime`);
     const datePill = hero.querySelector('[data-teacher-hero-date]');
     assert.ok(datePill && datePill.textContent.trim().length > 0, `${viewEl.id} Hero Card date pill is populated`);
     const advice = hero.querySelector('.teacher-hero-advice');
     assert.ok(advice && advice.textContent.trim().length > 0, `${viewEl.id} Hero Card daily advice is populated`);
+    /* Sub-pages (the lecture studio) may show a real Back control; the others
+       keep the hidden top Back because the bottom bar already returns home. */
     const backBtn = hero.querySelector('.pay-back');
-    if (backBtn) assert.equal(backBtn.hidden, true, `${viewEl.id} top back button stays hidden`);
+    const subPage = viewEl.id === 'teacherLectureSheets';
+    if (backBtn) assert.equal(backBtn.hidden, !subPage, `${viewEl.id} top back button visibility`);
   }
 
   ctx.click($('.admin-bottom [data-teacher-view="more"]'));
@@ -568,7 +574,9 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
 
   // Audit remaining views for full-width .teacher-action-card cards & hidden primary data by default
   assert.equal($$('#teacherOnlineExams .teacher-action-card').length, 6, 'পরীক্ষা uses 6 full-width action cards');
-  assert.equal($$('#teacherAcademic .teacher-action-card').length, 7, 'একাডেমিক uses 7 full-width action cards (includes নতুন লেকচার শিট button)');
+  /* 8 since the dedicated lecture-sheet studio page got its own door
+     (owner decision 2026-10-28). */
+  assert.equal($$('#teacherAcademic .teacher-action-card').length, 8, 'একাডেমিক uses 8 full-width action cards (includes লেকচার শিট স্টুডিও)');
   assert.equal($$('#teacherRecords .teacher-action-card').length, 2, 'রেকর্ডস uses 2 full-width action cards');
   assert.equal($$('#teacherNotice .teacher-action-card').length, 2, 'নোটিশ uses 2 full-width action cards');
   assert.equal($$('#teacherRoutine .teacher-action-card').length, 2, 'রুটিন uses 2 full-width action cards');

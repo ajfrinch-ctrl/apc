@@ -27,7 +27,7 @@
 | 14 | `profile` | আমার প্রোফাইল ও সেটিংস | `more` | — | `PROFILE_VIEW` | `settings-hub` groups (account/notification/app/security/data) — hub internal |
 | 15 | `advice` | দৈনিক পরামর্শ ব্যবস্থাপনা | `more` | — | `ADVICE_MANAGE` | `advice-editor` |
 | 16 | `content` | নোটিশ ও কনটেন্ট তদারকি | `more` | — | `DATA_MANAGE` | `lecture-sheets`, `content-notices`, `content-records` |
-| 17 | `class-chat` | শ্রেণি চ্যাট ও মডারেশন | `more` | — | `DATA_MANAGE` | — (mount `adminClassChatMount`) |
+| ~~17~~ | ~~`class-chat`~~ | **Removed 2026-10-28** (owner request): the চ্যাট ও মডারেশন console no longer exists | — | — | — | — |
 | 18 | `phonebook` | ফোনবুক · ইয়েলো পেইজ | `more` | — | `STUDENTS_VIEW` | — (mount `adminPhonebookMount`) |
 | 19 | `more` | আরও ও সিস্টেম টুলস | `more` | MORE hub | `PROFILE_VIEW` | hub: data/content/profile/advice + cards: class-chat/phonebook/logout |
 
@@ -141,7 +141,7 @@ rememberRoute(target) // ← replaceState only (Back = leave panel)
 | Profile + 5-group hub | `profile` | same, hub groups `account/notification/app/security/data` | **Correct** (hub internal, not separate views) |
 | Advice editor | `advice` | same, subs: `advice-editor` + link to `content` | **Correct** |
 | Content oversight (read+delete) | `content` | same, subs: `lecture-sheets/content-notices/records` | **Correct** |
-| Class Chat | `class-chat` | same, mount `adminClassChatMount` | **Correct** (full-screen via `is-chat-fullscreen`) |
+| Class Chat | `class-chat` | **removed 2026-10-28** — no view, no mount, no route | n/a |
 | Phonebook | `phonebook` | same, mount `adminPhonebookMount` | **Correct** |
 | More hub | `more` | hub: data/content/profile/advice/class-chat/phonebook | **Correct** (hub, not feature) |
 | V2 migration | `migration` | same, subs: `migration-card` | **Correct** |
@@ -237,3 +237,24 @@ rememberRoute(target) // ← replaceState only (Back = leave panel)
 
 **অনুমোদন দিলে:** Phase 4 এ উপরের 3 ফাংশনে ন্যূনতম পরিবর্তন (~15 lines) করে উপরের checklist যাচাই করে ফলাফল, পরিবর্তিত ফাইলের তালিকা ও ব্যর্থতা (যদি থাকে) রিপোর্ট করব।
 
+
+---
+
+## Update — 2026-10-28 (owner/stakeholder feedback, master plan)
+
+* **শ্রেণি চ্যাট ও মডারেশন removed** from the Admin and Manager panels: the view,
+  the top-bar shortcut, the More card, the mount, the route and the moderation
+  primitives (pin, unpin, delete, chat lock) are gone. The chat pages that the
+  Student and Teacher panels own are unchanged, so `KEYS.classChat` still
+  round-trips through backups and the encrypted relay.
+* **Lecture sheets shared with staff**: `CAPABILITIES.CONTENT_LECTURE_SHEETS`
+  (`content.lecture-sheets`) is granted to Admin, Manager **and** Teacher, and
+  each panel mounts `mountLectureSheetManager({ role })` on its own
+  single-purpose page (`content-lecture-sheets`, `lecture-sheets`). The Admin
+  view keeps inheriting its `content` hub capability, so the detail-page
+  invariant in `tests/admin-detail-routes.test.mjs` is unchanged.
+* **No hero cards outside Student Home**; every staff page opens on the shared
+  compact head (`css/ui-wallet.css` → PANEL SHELL block).
+* **Institute details** are painted from one record (`js/org-info.js`), so an
+  Admin → Settings save reaches the dashboard, the login card, the Help sheet
+  and every document immediately.

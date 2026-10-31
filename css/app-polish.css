@@ -521,6 +521,7 @@
 .yp-role-pill.is-student { background: var(--pay-disc); color: var(--color-primary); }
 .yp-role-pill.is-staff { background: var(--tone-blue-soft); color: var(--tone-blue); }
 .yp-contact-person { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.yp-contact-person.is-contact { color: var(--color-text-muted); letter-spacing: .02em; }
 .yp-same-note { font-size: 11px; color: var(--color-text-muted); font-style: italic; }
 .yp-missing-phone { font-size: 12px; color: var(--color-text-muted); }
 .yp-phone-number {
@@ -528,6 +529,37 @@
   letter-spacing: .01em; overflow-wrap: anywhere;
 }
 .yp-phone-number small { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); }
+.yp-phone-number.is-masked { color: var(--color-text-muted); letter-spacing: .14em; font-weight: 700; }
+/* The reveal control: identity is readable, contact numbers are opt-in. */
+.yp-reveal-btn {
+  justify-self: start; min-height: 32px; padding: 4px 12px; border-radius: 999px;
+  border: 1px dashed var(--color-border); background: transparent;
+  color: var(--color-primary); font: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; box-sizing: border-box;
+}
+.yp-reveal-btn.is-hide { border-style: solid; color: var(--color-text-secondary); }
+.yp-reveal-btn.is-all { min-height: 36px; padding: 6px 14px; border-style: solid; background: var(--color-surface); }
+/* A card's own reveal sits under its title block, where the eye lands. */
+.yp-reveal-btn.is-card { margin-top: 2px; border-style: solid; background: var(--color-surface); }
+
+/* Admin ▸ শিক্ষার্থী ব্যবস্থাপনা — the name and its initials avatar are always
+   painted; only the Student ID opens masked, behind that row's own switch
+   (owner rule 2026-10-31). The pending queue shares the same reveal control. */
+.apc-pending-item__info { display: grid; gap: 6px; }
+.apc-pending-reveal {
+  justify-self: start; min-height: 34px; padding: 4px 12px;
+  border: 1px solid var(--color-border); border-radius: 999px;
+  background: var(--color-surface); color: var(--color-primary);
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.apc-pending-reveal:hover { border-color: var(--color-primary); }
+.apc-pending-reveal:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.apc-pending-item.is-revealed .apc-pending-item__name { color: var(--color-text); }
+.yp-privacy-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap; padding-top: 10px; margin-top: 2px; border-top: 1px dashed var(--color-border);
+}
+.yp-privacy-note { font-size: 12px; line-height: 1.6; color: var(--color-text-secondary); flex: 1 1 200px; min-width: 0; }
 .yp-action-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
 @media (min-width: 560px) {
   .yp-action-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -647,4 +679,5 @@ html[data-theme="dark"] .yp-class-banner,
 html[data-theme="dark"] .yp-card,
 html[data-theme="dark"] .yp-mode-tab.is-active { box-shadow: none; }
 html[data-theme="dark"] .yp-contact-line.is-guardian { background: var(--wa-enc-bg); }
+html[data-theme="dark"] .apc-pending-reveal { background: var(--color-surface-muted); }
 

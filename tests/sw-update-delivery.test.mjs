@@ -22,7 +22,10 @@ test('the registered worker URL carries the build number', () => {
   assert.ok(Number.isSafeInteger(cacheVersion) && cacheVersion >= 1, 'CACHE_VERSION is a build number');
   const registered = Number(registrar.match(/export const SW_VERSION = (\d+)/)?.[1]);
   assert.equal(registered, cacheVersion, 'SW_VERSION must equal CACHE_VERSION or updates silently stall');
-  assert.match(registrar, /register\(`\.\/sw\.js\?v=\$\{SW_VERSION\}`\)/,
+  /* The URL stays build-specific (the whole point of the pin) and additionally
+     names the shell this device needs: staff panels ask for the staff half of
+     the precache, every other page for the student half. */
+  assert.match(registrar, /register\(`\.\/sw\.js\?v=\$\{SW_VERSION\}&shell=\$\{shellHint\(\)\}`\)/,
     'registration must use the versioned worker URL');
   assert.equal(registrar.includes("register('./sw.js')"), false, 'the unversioned worker URL is gone');
 

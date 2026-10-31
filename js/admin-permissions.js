@@ -57,6 +57,13 @@ export const CAPABILITIES = Object.freeze({
   PROFILE_VIEW: 'profile.view',
   ADVICE_MANAGE: 'advice.manage',
 
+  /* Lecture sheets (owner decision 2026-10-28, stakeholder feedback): creating
+     and publishing A4 lecture sheets is authoring work, so it is granted to
+     Teacher and Manager as well — not only to the Admin. The capability itself
+     is role-agnostic; the data layer still scopes every write to the signed-in
+     staff account (js/course-content.js requireCourseWriter). */
+  CONTENT_LECTURE_SHEETS: 'content.lecture-sheets',
+
   /* Student registration approval: Manager and — by owner decision
      2026-09-30 — Admin (js/registration-review.js is the shared path). */
   STUDENTS_APPROVE: 'students.approve',
@@ -92,7 +99,8 @@ const ADMIN = Object.freeze([
   CAPABILITIES.SECURITY_MANAGE,
   CAPABILITIES.SETTINGS_MANAGE,
   CAPABILITIES.PROFILE_VIEW,
-  CAPABILITIES.ADVICE_MANAGE
+  CAPABILITIES.ADVICE_MANAGE,
+  CAPABILITIES.CONTENT_LECTURE_SHEETS
 ]);
 
 /* Kept for completeness so the same helper can drive any staff panel later.
@@ -102,10 +110,20 @@ const MANAGER = Object.freeze([
   CAPABILITIES.STUDENTS_APPROVE,
   CAPABILITIES.EXAMS_VIEW,
   CAPABILITIES.EXAMS_PUBLISH,
-  CAPABILITIES.REPORTS_VIEW
+  CAPABILITIES.REPORTS_VIEW,
+  /* Lecture sheets (owner decision 2026-10-28): the Manager authors and
+     publishes the studio's sheets for every class. */
+  CAPABILITIES.CONTENT_LECTURE_SHEETS
 ]);
 
-const TEACHER = Object.freeze([CAPABILITIES.TEACHING_PANEL, CAPABILITIES.ROUTINE_MANAGE, CAPABILITIES.EXAMS_VIEW]);
+const TEACHER = Object.freeze([
+  CAPABILITIES.TEACHING_PANEL,
+  CAPABILITIES.ROUTINE_MANAGE,
+  CAPABILITIES.EXAMS_VIEW,
+  /* Lecture sheets (owner decision 2026-10-28): a teacher creates them for the
+     classes and subjects the Manager assigned — never outside that scope. */
+  CAPABILITIES.CONTENT_LECTURE_SHEETS
+]);
 const PAYMENT = Object.freeze([CAPABILITIES.PAYMENT_PANEL, CAPABILITIES.FINANCE_COLLECT, CAPABILITIES.STUDENTS_VIEW]);
 const STUDENT = Object.freeze([]);
 
@@ -161,10 +179,14 @@ const MAIN_VIEW_CAPABILITIES = Object.freeze({
   profile: CAPABILITIES.PROFILE_VIEW,
   more: CAPABILITIES.PROFILE_VIEW,
   advice: CAPABILITIES.ADVICE_MANAGE,
-  'class-chat': CAPABILITIES.DATA_MANAGE,
   phonebook: CAPABILITIES.STUDENTS_VIEW
 });
 
+/* Every Admin detail page inherits exactly its hub's capability — including the
+   lecture-sheet studio: inside the Admin panel it stays part of content
+   oversight. The Teacher and Manager panels mount the same studio from their own
+   composition roots, gated by CAPABILITIES.CONTENT_LECTURE_SHEETS, so authoring
+   no longer needs an Admin session while the Admin boundary stays unchanged. */
 export const VIEW_CAPABILITIES = Object.freeze({
   ...MAIN_VIEW_CAPABILITIES,
   ...Object.fromEntries(Object.entries(DETAIL_VIEW_PARENTS)
@@ -207,7 +229,7 @@ export const ADMIN_MORE_NAV = Object.freeze([
 /** Which seat lights up for a view that lives inside a hub. */
 const MAIN_VIEW_SEAT = Object.freeze({
   roles: 'system', security: 'system', settings: 'system', academics: 'system', migration: 'system',
-  data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', content: 'more', 'class-chat': 'more', phonebook: 'more',
+  data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', content: 'more', phonebook: 'more',
   students: 'dashboard'
 });
 export const VIEW_SEAT = Object.freeze({

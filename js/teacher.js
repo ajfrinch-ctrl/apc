@@ -22,9 +22,11 @@ import { registerServiceWorker } from './service-worker.js';
 import { mountReports, refreshReports } from './reports.js';
 import { teachingRepository, DEMO_TEACHER, ACTIVITY_TYPES, PROGRESS_LABELS, escapeText as esc, todayISO, displayDate, safeResourceURL, matchesStudent, watchTeachingData } from './teaching-data.js';
 import { pickTeacherAdvice, pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { initOrgInfo } from './org-info.js';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
+initOrgInfo();
 const state = { db: { activities: [] }, courses: [], students: [], assignments: [], teacher: null, exams: null, view: 'home', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', routineTab: 'today' };
 let modalTrigger, toastTimer;
 initFixedShell();
@@ -134,38 +136,9 @@ function renderTypeCounts() {
     academicDot.textContent = bn(pendingAcademic);
   }
 }
-function syncHeroArtMode() {
-  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
-  const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark' || Boolean($('#darkModeToggle')?.checked);
-  const isDay = !isDarkTheme && hour >= 6 && hour < 18;
-  $$('#teacherHeroGlint, [data-teacher-hero-glint]').forEach(glint => {
-    glint.setAttribute('href', `assets/icons/ai-3d/${isDay ? 'sun' : 'moon'}.svg`);
-    const glintSvg = glint.closest('svg');
-    if (glintSvg) glintSvg.setAttribute('data-icon', isDay ? 'sun' : 'moon');
-  });
-  const mode = isDay ? 'day' : 'night';
-  $$('.teacher-home-intro, .teacher-sub-hero').forEach(card => {
-    card.dataset.heroMode = mode;
-  });
-  $$('#teacherHeroArt, [data-teacher-hero-art]').forEach(heroArt => {
-    if (!heroArt.__apcErrorWired) {
-      heroArt.__apcErrorWired = true;
-      heroArt.addEventListener('error', () => { heroArt.classList.add('is-broken'); });
-    }
-    const cardKey = heroArt.dataset.heroCard || '';
-    const nextSrc = cardKey
-      ? `assets/images/teacher-hero/${cardKey}-${mode}.webp`
-      : `assets/teacher-hero/teacher-hero-${mode}.webp`;
-    if (heroArt.dataset.mode !== mode || heroArt.getAttribute('src') !== nextSrc) {
-      heroArt.classList.add('is-fading');
-      setTimeout(() => {
-        heroArt.setAttribute('src', nextSrc);
-        heroArt.dataset.mode = mode;
-        heroArt.classList.remove('is-fading', 'is-broken');
-      }, 180);
-    }
-  });
-}
+/* The staff panels no longer carry hero art (owner request 2026-10-28): the
+   date/advice nodes that survived the hero removal are painted by renderHome()
+   itself, so there is no image/glint sync left to run. */
 function renderHome() {
   const hasAssignments = state.assignments.length > 0;
   /* "No class assigned" may only appear when the data actually came back
@@ -173,13 +146,11 @@ function renderHome() {
      owns those states), and never from a stale snapshot: the pickers, the
      profile and every publish gate read the same assignment rows. */
   $('#teacherAssignmentNotice').hidden = hasAssignments || !state.ready;
-  syncHeroArtMode();
   /* শিক্ষকের নাম হিরো কার্ডে শুধু শিরোনাম ও অ্যাভাটার-অক্ষরে; টপবারে নামের
      পুনরাবৃত্তি নেই। ভূমিকা ও শিক্ষক আইডি এখন শুধু "আমার প্রোফাইল" স্ক্রিনে
      (renderTeacherProfile) — হিরোর পরিচিতি সাব-কার্ডটি মালিক-নির্দেশে বাদ। */
   const name = String(state.teacher?.fullName || '').trim();
   $('#teacherHomeTitle').textContent = name ? `স্বাগতম, ${name}` : 'স্বাগতম';
-  if ($('#teacherHomeInitial')) $('#teacherHomeInitial').textContent = name.charAt(0) || 'শি';
   const now = new Date();
   let weekday = '';
   try {
@@ -228,11 +199,6 @@ function renderRecords() {
   $('#teacherRecordsTitle').textContent = ACTIVITY_TYPES[state.view].plural;
   const recordAdvice = $('#teacherRecords [data-teacher-hero-advice="records"]');
   if (recordAdvice) recordAdvice.textContent = pickTeacherSectionAdvice(state.view || 'homework');
-  const recordHeroArt = $('#teacherRecords [data-teacher-hero-art]');
-  if (recordHeroArt) {
-    recordHeroArt.dataset.heroCard = state.view === 'routine' ? 'attendance' : state.view === 'exam' ? 'exam' : 'homework';
-    syncHeroArtMode();
-  }
   const status = $('#teacherStatusFilter');
   if (status && status.tagName === 'SELECT') status.value = state.status;
   $('#teacherNewActivity').hidden = state.view === 'exam';
@@ -522,7 +488,7 @@ function showAddChapterModal(course) {
 
 function render() { renderHome(); renderRecords(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports(); renderTeacherProfile(); renderAcademic(); renderNotices(); renderCourseChapters(); }
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'online-exams', 'courses', 'classes', 'class-chat', 'routine-view', 'reports', 'profile', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
+const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'online-exams', 'courses', 'lecture-sheets', 'classes', 'class-chat', 'routine-view', 'reports', 'profile', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
 let teacherChatFlight = null;
 function mountTeacherClassChat() {
   const mount = $('#teacherClassChatMount');
@@ -542,6 +508,20 @@ function syncClassTabs(active = 'list') {
     tab.classList.toggle('is-active', selected);
   });
 }
+/* লেকচার শিট স্টুডিও (owner decision 2026-10-28): the same manager the Admin
+   panel mounts, started with the teacher role so the store only ever offers the
+   classes/subjects this teacher is assigned. */
+let teacherLectureFlight = null;
+function mountTeacherLectureSheets() {
+  const mount = $('#teacherLectureSheetsMount');
+  if (!mount) return;
+  teacherLectureFlight ??= import('./lecture-sheet-studio.js')
+    .catch(err => { teacherLectureFlight = null; throw err; });
+  void teacherLectureFlight
+    .then(mod => mod.mountLectureSheetManager({ mount, role: 'teacher', toast: message => toast(message) }))
+    .catch(err => console.warn('[Active Plus] teacher lecture studio failed:', err?.message));
+}
+
 function setView(view) {
   if (!TEACHER_VIEWS.includes(view)) return;
   /* The nine routine pages are one screen now; their routes stay as aliases
@@ -555,7 +535,7 @@ function setView(view) {
     state.recordLimit = 15;
   }
   state.view = view;
-  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', classes: 'teacherClasses', 'class-chat': 'teacherClassChat', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
+  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', 'lecture-sheets': 'teacherLectureSheets', classes: 'teacherClasses', 'class-chat': 'teacherClassChat', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
   $$('.teacher-view').forEach(el => { el.hidden = el.id !== panel; });
   const isChatFullscreen = view === 'class-chat';
   $('#teacherShell')?.classList.toggle('is-chat-fullscreen', isChatFullscreen);
@@ -576,7 +556,7 @@ function setView(view) {
   /* The bottom bar keeps its four seats: the academic/class screens light up
      the ক্লাস seat, the class-test results the পরীক্ষা seat. */
   const bottomView = view === 'home' ? 'home'
-    : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'notice', 'routine', 'routine-view', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'classes'
+    : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'lecture-sheets', 'notice', 'routine', 'routine-view', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'classes'
         : ['exam', 'online-exams'].includes(view) ? 'online-exams' : 'more';
   $$('.admin-bottom [data-teacher-view]').forEach(el => {
     const active = el.dataset.teacherView === bottomView;
@@ -584,6 +564,7 @@ function setView(view) {
     if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
   // Returning to the Teacher's Settings screen always opens the group menu.
+  if (view === 'lecture-sheets') mountTeacherLectureSheets();
   if (view === 'profile') {
     resetSettingsHub('[data-settings-hub="teacher"]');
     $$('#teacherSettingsTabs [data-settings-tab]').forEach(btn => {
@@ -1294,7 +1275,6 @@ document.addEventListener('click', event => {
     }
     if (kind === 'theme') {
       $('#darkModeToggle')?.click();
-      syncHeroArtMode();
       const themeStatus = $('[data-more-theme-status]');
       if (themeStatus) {
         const isDark = document.documentElement.dataset.theme === 'dark';
@@ -1500,9 +1480,9 @@ if (typeof window !== 'undefined' && window.HTMLInputElement) {
         }
       }
     }).observe(document.body, { childList: true, subtree: true });
-    new MutationObserver(() => syncHeroArtMode()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
   }
-  $('#darkModeToggle')?.addEventListener('change', () => setTimeout(syncHeroArtMode, 0));
+  // Theme changes repaint the panel head dates/advice on the next render.
+  $('#darkModeToggle')?.addEventListener('change', () => setTimeout(() => { try { renderHome(); } catch { /* render self-guards */ } }, 0));
 }
 
 // An existing device-bound session opens the panel without asking again.

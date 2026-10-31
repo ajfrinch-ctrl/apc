@@ -4,7 +4,7 @@
    SW_VERSION / CACHE_VERSION, and defers worker registration until after
    window.load so precaching never starves initial CSS/JS rendering. */
 (function refreshStaleAppShellCache() {
-  const DEFAULT_VERSION = 433;
+  const DEFAULT_VERSION = 442;
   if (typeof window === 'undefined' || !('caches' in window)) return;
   const scriptEl = document.currentScript || document.querySelector('script[src*="cache-refresh.js"]');
   let parsed = DEFAULT_VERSION;
@@ -47,7 +47,12 @@
       // APP_SHELL precache never competes with first-paint CSS/JS on mobile links.
       if ('serviceWorker' in navigator) {
         const registerAfterLoad = () => {
-          navigator.serviceWorker.register(`./sw.js?v=${TARGET_VERSION}`)
+          /* Name the shell (staff panels vs the student app) exactly like
+             js/service-worker.js does, so a student device never installs the
+             staff half of the precache. */
+          const staffPage = ['admin.html', 'manager.html', 'teacher.html', 'payment.html']
+            .includes((window.location.pathname.split('/').pop() || 'index.html'));
+          navigator.serviceWorker.register(`./sw.js?v=${TARGET_VERSION}&shell=${staffPage ? 'staff' : 'student'}`)
             .then(reg => reg.update())
             .catch(() => {});
         };

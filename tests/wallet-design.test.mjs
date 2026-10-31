@@ -33,22 +33,26 @@ test('the active wallet skin parses, is screen-only and resolves its palette tok
   assert.doesNotMatch(declarations, /#[\da-f]{3,8}\b|\brgba?\(|\bhsla?\(/i, 'component colours belong in the one palette');
 });
 
-test('all portals retain the same uncluttered brand bar (chat + bell + exit on academic/admin portals, bell + exit on payment)', () => {
+test('all portals keep the same uncluttered brand bar — chat only where a chat page exists', () => {
+  // Owner request 2026-10-28: the "শ্রেণি চ্যাট ও মডারেশন" console was removed
+  // from Admin and Manager, so their top bars hold bell + exit only. Student and
+  // Teacher keep the chat page and therefore its shortcut.
+  const CHAT_PORTALS = new Set(['student', 'teacher']);
   for (const name of portals) {
     const document = doc(name);
     const bar = document.querySelector('.app-topbar');
     assert.ok(bar, name + ' appbar missing');
     assert.ok(bar.querySelector('.app-brand-logo[src*="logo-128"]'));
-    const expectedCount = name === 'payment' ? 2 : 3;
+    const expectedCount = CHAT_PORTALS.has(name) ? 3 : 2;
     assert.equal(bar.querySelectorAll('.app-topbar-actions > button').length, expectedCount, name);
-    assert.equal(bar.querySelectorAll('button').length, expectedCount, 'identity/settings belong in the hero or More, not the appbar');
-    if (name !== 'payment') {
-      const chatBtn = bar.querySelector('#classChatTopbarButton');
+    assert.equal(bar.querySelectorAll('button').length, expectedCount, 'identity/settings belong in the page head or More, not the appbar');
+    const chatBtn = bar.querySelector('#classChatTopbarButton');
+    if (CHAT_PORTALS.has(name)) {
       assert.ok(chatBtn, name + ' topbar chat shortcut missing');
       assert.ok(chatBtn.querySelector('svg[data-icon="chat"]'), name + ' topbar chat icon missing');
       assert.ok(chatBtn.querySelector('[data-chat-unread-dot]'), name + ' topbar chat unread dot missing');
     } else {
-      assert.equal(bar.querySelector('#classChatTopbarButton'), null, 'payment counter carries no class chat button');
+      assert.equal(chatBtn, null, name + ' must not carry a chat shortcut');
     }
     assert.match(bar.querySelector('[data-fixed-tagline]').textContent, /শিখতে থাকো/);
   }
@@ -127,7 +131,11 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
     for (const button of backs) {
       const staffHubPage = button.closest('[data-view-panel="profile"], #teacherProfile');
       const parent = button.getAttribute(attribute);
-      const allowedParents = staffHubPage ? ['more'] : [target, 'routine', 'routine-view', 'academic', 'more'];
+      /* Owner decision 2026-10-28: the lecture-sheet studio is a dedicated
+         sub-page, so its Back returns to the hub that opened it. */
+      const allowedParents = staffHubPage
+        ? ['more']
+        : [target, 'routine', 'routine-view', 'academic', 'more', 'courses'];
       assert.ok(allowedParents.includes(parent), name + ' back ' + parent);
       assert.ok(button.getAttribute('aria-label'));
       assert.ok(button.querySelector('svg'));
@@ -138,7 +146,7 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
   const adminBacks = [...adminDocument.querySelectorAll('.pay-back')];
   const mainBacks = adminBacks.filter(button => !button.closest('[data-parent-view]'))
     .map(button => button.getAttribute('data-admin-back') || button.getAttribute('data-admin-view'));
-  assert.deepEqual(mainBacks, Array(17).fill('dashboard'), 'hub toggle panels removed — main screens return home');
+  assert.deepEqual(mainBacks, Array(16).fill('dashboard'), 'hub toggle panels removed — main screens return home');
   const detailBacks = adminBacks.filter(button => button.closest('[data-parent-view]'));
   assert.equal(detailBacks.length, 35, 'each routed detail has its own Back');
   for (const button of detailBacks) {

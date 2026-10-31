@@ -3,10 +3,10 @@ import { iconMarkup } from './icons.js';
 import { runMigrations } from './storage/migration.js';
 import { KEYS, listDocuments } from './database.js';
 import { syncAccountStatus, syncStudentProfileFromRoster, ROSTER_KEY } from './office-data.js';
-import { APP_TAGLINE, STORAGE_KEYS, defaultStudent, maintenanceState } from './config.js';
+import { STORAGE_KEYS, defaultStudent, maintenanceState } from './config.js';
 import { loadStudent, loadAccount, hasSession, saveStudent, clearSession, loadAppConfig } from './storage.js';
 import { escapeHtml } from './sanitize.js';
-import { $, setAuthMessage, showFeedback } from './ui.js';
+import { $, setAuthMessage, showFeedback, openModal } from './ui.js';
 import { renderStudent, openStudentApp, showAuthScreen, setView, viewRouteFromHash } from './shell.js';
 import { initAppearance } from './appearance.js';
 import { activeStaffRoles } from './staff-auth.js';
@@ -35,6 +35,16 @@ switchAuthTab('login');
 
 initFixedShell();
 runMigrations();
+/* The login card, the signed-in shell and the Help sheet all show the ONE
+   institute record (js/org-info.js). It is loaded as a lazy chunk so the login
+   screen's first paint stays inside the load budget; the painter installs its
+   listeners as soon as the module lands and re-runs after every settings
+   save/sync. */
+let orgInfo = null;
+const orgInfoReady = import('./org-info.js')
+  .then(mod => { orgInfo = mod; mod.initOrgInfo(); return mod; })
+  .catch(() => null);
+const repaintOrgInfo = () => { try { orgInfo?.applyOrgInfo(); } catch { /* paint self-guards */ } };
 
 const appConfig = loadAppConfig();
 
@@ -87,11 +97,8 @@ function applyMaintenanceMode(cfg = loadAppConfig()) {
 function applyAppConfig(cfg) {
   if (!cfg) return;
 
-  // 1. Tagline — shown on its own line under the institute name.
-  const taglineText = cfg.tagline || APP_TAGLINE;
-  document.querySelectorAll('[data-fixed-tagline]').forEach(tagline => {
-    tagline.textContent = taglineText;
-  });
+  // 1. Institute name / slogan / contact — one record, one painter.
+  repaintOrgInfo();
 
   // 3. Maintenance Mode
   applyMaintenanceMode(cfg);
@@ -307,7 +314,10 @@ function handleAction(action) {
       showFeedback('সব ফলাফল খুব শিগগির যুক্ত হবে');
       break;
     case 'help':
-      showFeedback('অফিসে যোগাযোগের জন্য অ্যাপের নোটিশ দেখুন');
+      // Reads the CURRENT institute record at open time (address change bug fix).
+      openModal('studentHelpModal');
+      repaintOrgInfo();
+      void orgInfoReady.then(mod => mod?.applyOrgInfo());
       break;
     /* Home icon-grid shortcuts. Each one only opens something that already
        exists: a filtered list, the bell's inbox, or the fee card on Home. */
