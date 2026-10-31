@@ -3364,11 +3364,10 @@ html[data-theme="dark"] .app-shell .app-topbar { background: var(--pay-hero-a); 
   transform: none;
 }
 
-/* The product is a phone UI at every viewport size. A desktop browser receives
-   the same 430px shell, centered as a phone preview; there is no wide dashboard
-   or alternate navigation. This block is screen-only so receipt/PDF/print
-   renderers remain their existing paper layouts. */
-@media screen and (min-width: 431px) {
+/* Phone shell — auto-adaptive: fixed 430px preview only up to tablet (≤1023px).
+   Desktop ≥1024px receives true wide/full-screen via ui-layout.css + ui-auth.css.
+   Receipt/PDF/print remain unaffected (screen-only). */
+@media screen and (min-width: 431px) and (max-width: 1023px) {
   html, body { min-height: 100dvh; background: var(--color-surface-muted); }
   body { overflow-x: hidden; }
 
@@ -3632,6 +3631,57 @@ html[data-theme="dark"] .app-shell .app-topbar { background: var(--pay-hero-a); 
   .staff-modal-backdrop.is-more-sheet .staff-modal {
     width: 100%; max-width: none; max-height: min(76dvh, 620px); margin: 0;
     border-radius: 26px 26px 0 0; padding-bottom: calc(20px + var(--safe-bottom));
+  }
+}
+
+/* Desktop ≥1024px: release phone-shell — true wide/full-screen, auto-adaptive */
+@media screen and (min-width: 1024px) {
+  html, body { background: var(--color-bg); }
+  :is(.app-shell, .admin-shell, .pay-shell, .teacher-shell, .manager-shell, .teacher-reference .teacher-shell),
+  .app-shell, .admin-shell, .pay-shell, .teacher-shell, .manager-shell, #managerShell, #teacherShell, #adminShell, #appShell {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    left: auto;
+    right: auto;
+    transform: none;
+    border-inline: 0;
+    background: var(--color-bg);
+  }
+  .auth-screen, .launch-screen, .manager-boot-screen {
+    left: auto;
+    right: auto;
+    width: 100%;
+    max-width: none;
+    transform: none;
+    margin-inline: 0;
+    border-inline: 0;
+  }
+  #appStatusSurface, #apcUpdateBanner, #apcStorageWarning {
+    left: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    transform: none !important;
+    margin-inline: 0 !important;
+    border-inline: 0 !important;
+  }
+  .modal-backdrop, .admin-modal-backdrop, .staff-pw-backdrop, .apc-lock-overlay, .apc-alert-backdrop,
+  .pay-stickybar, .admin-toast, .feedback-toast, .pay-toast, .install-toast, .apc-lock-notice {
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+    margin-inline: 0 !important;
+  }
+  .bottom-nav, .admin-bottom, .manager-shell > .manager-bottom, .teacher-reference .teacher-shell > .admin-bottom {
+    left: auto;
+    right: auto;
+    width: auto;
+    max-width: none;
+    transform: none;
+    margin-inline: 0;
   }
 }
 
