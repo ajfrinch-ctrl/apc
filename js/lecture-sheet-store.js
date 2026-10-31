@@ -24,6 +24,7 @@ import {
   saveCourseRecord,
   setContentPublished,
   archiveCourseRecord,
+  deleteCourseRecord,
   announceCourseChange,
   typeOf
 } from './course-content.js';
@@ -518,9 +519,18 @@ export async function saveLectureSheet(draft = {}, {
   const staff = await verifyCourseStaffActor(role);
   const classRec = draft.classId ? classById(draft.classId) : classByName(draft.className || '');
   if (!classRec) throw new Error('শ্রেণি নির্বাচন করুন।');
-  const subRec = subjectsForClass(classRec.name).find(s =>
+  const customNameRaw = text(draft.customSubjectName || draft.subjectName);
+  const incomingSubjectId = text(draft.subjectId);
+  const isCustomDraft = Boolean(text(draft.customSubjectName)) || incomingSubjectId.startsWith('custom-');
+  let subRec = subjectsForClass(classRec.name).find(s =>
     (draft.subjectId && s.id === draft.subjectId) || (draft.subjectName && s.name === draft.subjectName)
   );
+  if (!subRec && isCustomDraft) {
+    const customLabel = customNameRaw || incomingSubjectId.slice(7).replace(/-/g, ' ') || 'কাস্টম বিষয়';
+    const slug = customLabel.normalize('NFC').toLocaleLowerCase('bn').replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'custom';
+    const virtualId = incomingSubjectId.startsWith('custom-') ? incomingSubjectId : `custom-${slug}-${Date.now().toString(36).slice(-4)}`;
+    subRec = { id: virtualId, name: customLabel.slice(0, 80) };
+  }
   if (!subRec) throw new Error('বিষয় নির্বাচন করুন।');
 
   const isPublished = draft.status === 'published' || draft.published === true;
@@ -639,6 +649,14 @@ export async function setLectureSheetLifecycle(id, action, { role = '', actor = 
   }
   if (saved) announceCourseChange({ id: saved.id, role, kind: `lecture-sheet-${action}` });
   return saved;
+}
+
+export async function deleteLectureSheet(id, { role = '', actor = '' } = {}) {
+  const current = contentById(id);
+  if (!current) throw new Error('লেকচার শিটটি পাওয়া যায়নি।');
+  const result = await deleteCourseRecord(id, { role, actor });
+  if (result) announceCourseChange({ id, role, kind: 'lecture-sheet-delete' });
+  return result;
 }
 
 export async function restoreLectureSheetVersion(id, versionNumber, { role = '', actor = '', renderMath = null } = {}) {

@@ -1,6 +1,6 @@
 import { dhakaKey } from './time.js';
-import { DAILY_ADVICE_SEEDS, pickDailyAdvice, readAdviceCache } from './daily-advice.js';
-import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { pickDailyAdvice, readAdviceCache } from './daily-advice.js';
+import { pickAdminOperationalAdvice, ADMIN_OPERATIONAL_ADVICE_SEEDS, pickAdminSectionAdvice } from './admin-operational-advice.js';
 import { initExamManager } from './exam-manager.js';
 import { studentRecordMarkup } from './student-record.js';
 import { initAdminAcademics } from './admin-academics.js';
@@ -266,7 +266,7 @@ function syncAdminHeroCards() {
     const key = welcomeBox.dataset.adminHeroAdvice || 'admin-dashboard';
     if (key === 'admin-dashboard') return;
     const p = welcomeBox.querySelector('p');
-    const line = pickTeacherSectionAdvice(key);
+    const line = pickAdminSectionAdvice(key);
     if (p && line) p.textContent = line;
   });
 }
@@ -487,9 +487,15 @@ function renderDashboard() {
   }
   const adviceNode = $('#adminHeroAdvice');
   if (adviceNode) {
-    const items = readAdviceCache()?.items || DAILY_ADVICE_SEEDS;
-    const picked = pickDailyAdvice(items, dateKey);
-    if (picked?.text) adviceNode.textContent = picked.text;
+    const cacheItems = readAdviceCache()?.items;
+    const hasCustomAdvice = Array.isArray(cacheItems) && cacheItems.length;
+    if (hasCustomAdvice) {
+      const picked = pickDailyAdvice(cacheItems, dateKey);
+      if (picked?.text) adviceNode.textContent = picked.text;
+    } else {
+      const picked = pickAdminOperationalAdvice(dateKey, ADMIN_OPERATIONAL_ADVICE_SEEDS);
+      if (picked?.text) adviceNode.textContent = picked.text;
+    }
   }
   syncAdminHeroCards();
 }
@@ -582,13 +588,12 @@ function renderStudents() {
     ? list.map(student => {
         const status = statusMeta[student.status] || statusMeta.pending;
         const rowKey = String(student.id);
-        /* The name and avatar are readable at all times; the Student ID is the
-           only thing this row hides, and its own button reveals it. */
         const revealed = state.revealAllStudents || state.revealedStudents.has(rowKey);
         const name = String(student.name || student.nameEn || '').trim() || 'নাম দেওয়া হয়নি';
+        const isPending = student.status === 'pending';
         return `
-          <article class="student-row student-row-redesigned${revealed ? ' is-revealed' : ''}" data-student-row="${escapeHtml(rowKey)}"${revealed ? ' data-student-revealed="1"' : ''}>
-            <div class="student-row-main">
+          <article class="student-row student-row-redesigned${revealed ? ' is-revealed' : ''}${isPending ? ' is-pending' : ''}" data-student-row="${escapeHtml(rowKey)}"${revealed ? ' data-student-revealed="1"' : ''}>
+            <div class="student-row-main" role="button" tabindex="0" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}" aria-expanded="${revealed ? 'true' : 'false'}">
               <span class="student-avatar" aria-hidden="true">${escapeHtml(initialsOf(name))}</span>
               <div class="student-copy">
                 <div class="student-title-line">
@@ -596,19 +601,26 @@ function renderStudents() {
                   <span class="badge ${status.className}">${status.label}</span>
                 </div>
                 <div class="student-meta-line">
-                  <span class="audit-id-badge">ID: ${escapeHtml(revealed ? rowKey : PRIVACY_MASK)}</span>
+                  <span class="student-short-hint">${isPending ? 'অপেক্ষমাণ — বিস্তারিত দেখুন' : (student.className ? escapeHtml(student.className) : 'বিস্তারিত দেখুন')}</span>
                 </div>
               </div>
+              <span class="student-row-chevron" aria-hidden="true">${revealed ? '▴' : '▾'}</span>
             </div>
-            <div class="student-actions">
-              <button class="mini-btn ${revealed ? '' : 'primary'}" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}"
-                aria-expanded="${revealed ? 'true' : 'false'}" aria-label="${revealed ? 'শিক্ষার্থীর আইডি লুকান' : 'শিক্ষার্থীর আইডি দেখান'}">${revealed ? 'আইডি লুকান' : 'আইডি দেখুন'}</button>
-              <button class="mini-btn" type="button" data-action="view" data-id="${escapeHtml(rowKey)}">প্রোফাইল</button>
-              <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(rowKey)}">সম্পাদনা</button>
-              <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(rowKey)}">পাসওয়ার্ড রিসেট</button>
-              ${student.status === 'pending' && access.has(CAPABILITIES.STUDENTS_APPROVE)
-                ? `<button class="mini-btn approve" type="button" data-action="review-registration" data-id="${escapeHtml(rowKey)}">রিভিউ ও অনুমোদন</button>`
-                : ''}
+            <div class="student-row-detail" ${revealed ? '' : 'hidden'}>
+              <div class="student-meta-line">
+                <span class="audit-id-badge">ID: ${escapeHtml(rowKey)}</span>
+                ${student.className ? `<span class="badge">${escapeHtml(student.className)}</span>` : ''}
+                ${student.mobile ? `<span class="audit-id-badge" dir="ltr">${escapeHtml(student.mobile)}</span>` : ''}
+              </div>
+              <div class="student-actions">
+                <button class="mini-btn" type="button" data-action="view" data-id="${escapeHtml(rowKey)}">প্রোফাইল</button>
+                <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(rowKey)}">সম্পাদনা</button>
+                <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(rowKey)}">পাসওয়ার্ড রিসেট</button>
+                ${student.status === 'pending' && access.has(CAPABILITIES.STUDENTS_APPROVE)
+                  ? `<button class="mini-btn approve primary" type="button" data-action="review-registration" data-id="${escapeHtml(rowKey)}">রিভিউ ও অনুমোদন</button>`
+                  : ''}
+                <button class="mini-btn" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}" aria-expanded="${revealed ? 'true' : 'false'}">${revealed ? 'সংক্ষিপ্ত করুন' : 'আইডি দেখুন'}</button>
+              </div>
             </div>
           </article>`;
       }).join('')

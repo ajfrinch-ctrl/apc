@@ -373,9 +373,7 @@ function staffCard(record) {
         <div class="staff-card-identity">
           <strong class="staff-card-name">${escapeHtml(record.fullName)}</strong>
           <div class="staff-card-summary-line">
-            <span class="staff-id-badge">Staff ID: ${escapeHtml(record.staffId)}</span>
             <span class="staff-tag role-${escapeHtml(record.role)}">${escapeHtml(meta.labelBn)}</span>
-            <span class="staff-card-mobile-summary" aria-label="মোবাইল নম্বর">${icon('phone', 'staff-inline-icon')}<span>${escapeHtml(record.mobile || 'মোবাইল নেই')}</span></span>
             ${record.protected ? '<span class="staff-tag protected">Protected</span>' : ''}
           </div>
         </div>
@@ -388,6 +386,7 @@ function staffCard(record) {
         </div>
       </div>
       <div class="staff-card-details" id="${escapeHtml(detailId)}"${detailsOpen ? '' : ' hidden'}>
+        <p class="staff-card-line"><span class="staff-meta">Staff ID: <span class="staff-id-badge">${escapeHtml(record.staffId)}</span></span></p>
         <p class="staff-card-line"><span class="staff-meta">Login User ID: <strong>${escapeHtml(record.username)}</strong></span></p>
         <p class="staff-card-line"><span class="staff-meta">${icon('phone', 'staff-inline-icon')} ${escapeHtml(record.mobile || 'মোবাইল নেই')}</span></p>
         ${assignment.length ? `<p class="staff-card-line"><span class="staff-meta">${icon('book', 'staff-inline-icon')} ${escapeHtml(assignment.join(' • '))}</span></p>` : ''}
