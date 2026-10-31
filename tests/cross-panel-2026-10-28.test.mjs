@@ -56,17 +56,21 @@ test('all four staff panels share one navigation contract', () => {
   }
 });
 
-test('one bottom bar on phones, one rail on desktop — no second implementation', () => {
+test('one bottom bar on phones and desktops — stays fixed bottom, no rail', () => {
   const css = read('css/ui-wallet.css');
   /* Phone: one rule paints both bars, so height and safe area cannot drift. */
   assert.match(css, /\.bottom-nav, \.admin-bottom \{[^}]*min-height: calc\(66px \+ var\(--safe-bottom\)\)/,
     'the phone bar has one height for every panel');
-  /* Desktop: the same list turns sideways inside the shared shell grid. */
-  const desktop = css.slice(css.indexOf('@media (min-width: 1024px)', css.indexOf('PANEL SHELL')));
-  assert.match(desktop, /grid-template-columns: 248px minmax\(0, 1fr\)/, 'the rail reserves one column');
-  assert.match(desktop, /flex-direction: column/, 'the bottom list turns sideways');
-  for (const shell of ['.app-shell', '.admin-shell']) assert.ok(desktop.includes(shell), `${shell} uses the rail`);
-  assert.match(desktop, /\.pay-shell > \.admin-bottom/, 'the counter uses the same rail');
+  /* Phone-shell persists at all sizes (no wide dashboard). */
+  assert.match(css, /@media screen and \(min-width: 431px\)/, 'phone-shell rule exists');
+  assert.match(css, /there is no wide dashboard/, 'phone preview comment retained');
+  /* Desktop must NOT turn nav into a sidebar rail */
+  const layout = read('css/ui-layout.css');
+  assert.doesNotMatch(layout, /grid-area:\s*sidebar/, 'no sidebar grid-area');
+  assert.doesNotMatch(layout, /grid-template-columns:\s*248px/, 'no sidebar column in layout');
+  assert.doesNotMatch(css, /grid-template-columns: 248px/, 'no sidebar column in wallet');
+  // Nav must remain fixed bottom row
+  assert.match(layout, /\.bottom-nav,\s*\.admin-bottom\s*\{\s*position:\s*fixed/i, 'nav stays fixed bottom');
   for (const file of ['css/ui-layout.css', 'css/ui-components.css', 'css/ui-features.css', 'css/ui-forms.css']) {
     assert.doesNotMatch(read(file), /grid-template-columns: 248px/, `${file} must not add a second rail`);
   }

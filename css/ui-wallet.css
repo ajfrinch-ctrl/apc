@@ -3364,10 +3364,11 @@ html[data-theme="dark"] .app-shell .app-topbar { background: var(--pay-hero-a); 
   transform: none;
 }
 
-/* Phone shell — auto-adaptive: fixed 430px preview only up to tablet (≤1023px).
-   Desktop ≥1024px receives true wide/full-screen via ui-layout.css + ui-auth.css.
-   Receipt/PDF/print remain unaffected (screen-only). */
-@media screen and (min-width: 431px) and (max-width: 1023px) {
+/* The product is a phone UI at every viewport size. A desktop browser receives
+   the same 430px shell, centered as a phone preview; there is no wide dashboard
+   or alternate navigation. This block is screen-only so receipt/PDF/print
+   renderers remain their existing paper layouts. */
+@media screen and (min-width: 431px) {
   html, body { min-height: 100dvh; background: var(--color-surface-muted); }
   body { overflow-x: hidden; }
 
@@ -3631,57 +3632,6 @@ html[data-theme="dark"] .app-shell .app-topbar { background: var(--pay-hero-a); 
   .staff-modal-backdrop.is-more-sheet .staff-modal {
     width: 100%; max-width: none; max-height: min(76dvh, 620px); margin: 0;
     border-radius: 26px 26px 0 0; padding-bottom: calc(20px + var(--safe-bottom));
-  }
-}
-
-/* Desktop ≥1024px: release phone-shell — true wide/full-screen, auto-adaptive */
-@media screen and (min-width: 1024px) {
-  html, body { background: var(--color-bg); }
-  :is(.app-shell, .admin-shell, .pay-shell, .teacher-shell, .manager-shell, .teacher-reference .teacher-shell),
-  .app-shell, .admin-shell, .pay-shell, .teacher-shell, .manager-shell, #managerShell, #teacherShell, #adminShell, #appShell {
-    width: 100%;
-    max-width: none;
-    margin-inline: 0;
-    left: auto;
-    right: auto;
-    transform: none;
-    border-inline: 0;
-    background: var(--color-bg);
-  }
-  .auth-screen, .launch-screen, .manager-boot-screen {
-    left: auto;
-    right: auto;
-    width: 100%;
-    max-width: none;
-    transform: none;
-    margin-inline: 0;
-    border-inline: 0;
-  }
-  #appStatusSurface, #apcUpdateBanner, #apcStorageWarning {
-    left: auto !important;
-    right: auto !important;
-    width: 100% !important;
-    max-width: none !important;
-    transform: none !important;
-    margin-inline: 0 !important;
-    border-inline: 0 !important;
-  }
-  .modal-backdrop, .admin-modal-backdrop, .staff-pw-backdrop, .apc-lock-overlay, .apc-alert-backdrop,
-  .pay-stickybar, .admin-toast, .feedback-toast, .pay-toast, .install-toast, .apc-lock-notice {
-    left: auto !important;
-    right: auto !important;
-    width: auto !important;
-    max-width: none !important;
-    transform: none !important;
-    margin-inline: 0 !important;
-  }
-  .bottom-nav, .admin-bottom, .manager-shell > .manager-bottom, .teacher-reference .teacher-shell > .admin-bottom {
-    left: auto;
-    right: auto;
-    width: auto;
-    max-width: none;
-    transform: none;
-    margin-inline: 0;
   }
 }
 
@@ -8677,84 +8627,11 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
   }
   html[data-theme="dark"] .panel-compact-head h1 { color: var(--color-text) !important; }
 
-  /* ---------- 2. Desktop rail: the same five seats, turned on their side ---- */
+  /* ---------- 2. Desktop: nav stays fixed bottom (no sidebar rail) — phone-shell 430px persists ----
+     The phone-shell block (min-width:431px) already centers 430px and fixes bottom nav.
+     This desktop layer adds nothing that would turn nav into a sidebar; chat fullscreen
+     still escapes the shell when open. */
   @media (min-width: 1024px) {
-    :is(.app-shell, .admin-shell) {
-      display: grid;
-      grid-template-columns: 248px minmax(0, 1fr);
-      grid-template-rows: auto minmax(0, 1fr);
-    }
-    :is(.app-shell, .admin-shell) > .app-topbar { grid-column: 1 / -1; grid-row: 1; }
-    :is(.app-shell, .admin-shell) > :is(.bottom-nav, .admin-bottom) {
-      grid-column: 1;
-      grid-row: 2;
-      position: static;
-      inset: auto;
-      width: auto;
-      height: auto;
-      min-height: 0;
-      flex-direction: column;
-      flex-wrap: nowrap;
-      justify-content: flex-start;
-      align-items: stretch;
-      gap: 4px;
-      padding: 14px 10px calc(14px + var(--safe-bottom));
-      border-top: 0;
-      border-right: 1px solid var(--color-border);
-      box-shadow: none;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-    :is(.app-shell, .admin-shell) > :is(.app-main, .admin-main) {
-      grid-column: 2;
-      grid-row: 2;
-      min-height: 0;
-    }
-    :is(.app-shell, .admin-shell) > :is(.bottom-nav, .admin-bottom) > :is(.bottom-link, .admin-bottom-item) {
-      flex: 0 0 auto;
-      flex-direction: row;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 14px;
-      font-size: 14px;
-      text-align: start;
-    }
-    :is(.app-shell, .admin-shell) > :is(.bottom-nav, .admin-bottom) > :is(.bottom-link, .admin-bottom-item) .nav-label,
-    :is(.app-shell, .admin-shell) > :is(.bottom-nav, .admin-bottom) > :is(.bottom-link, .admin-bottom-item) > span:last-child {
-      font-size: 14px;
-      font-weight: 650;
-    }
-    :is(.app-shell, .admin-shell) > :is(.bottom-nav, .admin-bottom) > :is(.bottom-link, .admin-bottom-item) .nav-chip {
-      width: 34px;
-      height: 34px;
-      flex: none;
-    }
-
-    /* Payment counter: unified with app/admin shells — grid rail, no fixed offset duplication */
-    .pay-shell{
-      display:grid;grid-template-columns:248px minmax(0,1fr);
-      grid-template-rows:auto minmax(0,1fr);height:100dvh;overflow:hidden;background:var(--color-bg)
-    }
-    .pay-shell > .app-topbar{grid-column:1/-1;grid-row:1}
-    .pay-shell > .pay-main{grid-column:2;grid-row:2;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;max-width:none;margin:0;padding:var(--space-5) clamp(18px,2.2vw,28px) calc(var(--space-6) + var(--safe-bottom))}
-    .pay-shell > .admin-bottom{
-      grid-column:1;grid-row:2;
-      position:static;inset:auto;width:auto;height:auto;min-height:0;
-      flex-direction:column;flex-wrap:nowrap;justify-content:flex-start;align-items:stretch;
-      gap:4px;padding:14px 10px calc(14px + var(--safe-bottom));
-      border-top:0;border-right:1px solid var(--color-border);box-shadow:none;overflow-y:auto;overscroll-behavior:contain
-    }
-    .pay-shell > .admin-bottom > .admin-bottom-item{
-      flex:0 0 auto;flex-direction:row;justify-content:flex-start;align-items:center;gap:12px;width:100%;
-      padding:10px 12px;border-radius:14px;font-size:14px;text-align:start
-    }
-    .pay-shell > .admin-bottom > .admin-bottom-item .nav-label{font-size:14px;font-weight:650}
-    .pay-shell > .admin-bottom > .admin-bottom-item .nav-chip{width:34px;height:34px;flex:none}
-    .pay-shell > .pay-main{margin-left:0}
-
     /* Full-screen chat takes the whole canvas: no rail, no reserved column. */
     :is(#appShell, #teacherShell, #managerShell, #adminShell).is-chat-fullscreen,
     :is(.app-shell, .admin-shell).is-chat-fullscreen {

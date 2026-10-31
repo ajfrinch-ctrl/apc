@@ -1,7 +1,7 @@
 /* Reserve the actual fixed-bar heights, including safe areas and loaded fonts.
    Only the main panel scrolls; neither view animations nor long forms move the bars.
-   Desktop (≥1024px): bottom-nav becomes left rail — measure sidebar width,
-   collapse footer to 0, debounce resize/orientationchange to avoid CLS. */
+   All viewports keep bottom nav fixed bottom (no sidebar); desktop ≥1024px is wide
+   but navigation stays bottom-row, so footer height is always reserved. */
 export function initFixedShell() {
   const DESKTOP_MQ = '(min-width: 1024px)';
   const isDesktop = () => {
@@ -81,27 +81,13 @@ export function initFixedShell() {
         const h = ceilSize(element);
         if (h > 0) setSize(shell, variable, `${h}px`);
       } else if (kind === 'footer') {
-        if (desktop) {
-          // Footer becomes sidebar — collapse height, expose width
-          setSize(shell, '--shell-footer-height', '0px');
-          const w = ceilWidth(element);
-          if (w > 40 && w < 400) setSize(shell, '--sidebar-width', `${w}px`);
-          else if (w >= 400) setSize(shell, '--sidebar-width', '250px');
-        } else {
-          const h = ceilSize(element);
-          if (h > 0) setSize(shell, variable, `${h}px`);
-          setSize(shell, '--sidebar-width', '0px');
-        }
+        const h = ceilSize(element);
+        if (h > 0) setSize(shell, variable, `${h}px`);
+        setSize(shell, '--sidebar-width', '0px');
       }
     }
-    // Ensure every shell has a sidebar width var (desktop CSS fallback uses it)
     for (const s of shells) {
-      if (!isDesktop()) {
-        // mobile: reset to 0 if not already
-        if (s.style.getPropertyValue('--sidebar-width') !== '0px') setSize(s, '--sidebar-width', '0px');
-      } else if (!s.style.getPropertyValue('--sidebar-width')) {
-        setSize(s, '--sidebar-width', '250px');
-      }
+      if (s.style.getPropertyValue('--sidebar-width') !== '0px') setSize(s, '--sidebar-width', '0px');
     }
   };
 

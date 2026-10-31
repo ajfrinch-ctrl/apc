@@ -210,13 +210,22 @@ test('all non-student panels share one navigation language: same seats, same ico
   }
 });
 
-test('a desktop rail turns the same bottom bar sideways — one implementation', () => {
-  const css = read('css/ui-wallet.css');
-  assert.match(css, /@media \(min-width: 1024px\)/, 'the rail is a desktop-only layer');
-  assert.match(css, /grid-template-columns: 248px minmax\(0, 1fr\)/, 'the shell reserves one rail column');
-  assert.match(css, /flex-direction: column;[\s\S]{0,2000}?\.pay-shell > \.admin-bottom/, 'the counter rail is the same list');
-  /* No second sidebar implementation may appear anywhere else. */
-  for (const file of ['css/ui-layout.css', 'css/ui-components.css', 'css/ui-modern.css', 'css/app-polish.css']) {
+test('navigation stays fixed bottom on desktop — no sidebar rail (audit fix)', () => {
+  const wallet = read('css/ui-wallet.css');
+  const layout = read('css/ui-layout.css');
+  // Phone-shell 430px remains for all viewports (product comment)
+  assert.match(wallet, /@media screen and \(min-width: 431px\)/, 'phone-shell persists');
+  assert.match(wallet, /there is no wide dashboard/, 'phone preview comment retained');
+  // No sidebar grid should exist in wallet desktop layer
+  assert.doesNotMatch(wallet, /grid-template-columns: 248px minmax\(0, 1fr\)/, 'no 248px rail in wallet');
+  // Layout must not turn bottom nav into sidebar
+  assert.doesNotMatch(layout, /grid-area:\s*sidebar/, 'layout does not create sidebar area');
+  assert.doesNotMatch(layout, /grid-template-columns:\s*248px/, 'layout has no sidebar column');
+  assert.doesNotMatch(layout, /position:\s*static[\s\S]{0,300}?flex-direction:\s*column[\s\S]{0,500}?\.bottom-nav/, 'nav not turned to vertical rail');
+  // Bottom nav must stay fixed bottom row on all viewports
+  assert.match(layout, /\.bottom-nav,\s*\.admin-bottom\s*\{\s*position:\s*fixed/i, 'nav base is fixed');
+  // No second sidebar implementation elsewhere
+  for (const file of ['css/ui-components.css', 'css/ui-modern.css', 'css/app-polish.css']) {
     assert.doesNotMatch(read(file), /grid-template-columns: 248px/, `${file} must not add a second rail`);
   }
 });

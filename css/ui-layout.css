@@ -30,30 +30,24 @@
   .admin-feature-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 
-/* ── Desktop 1024px+: left rail sidebar + centred content ───────────────
-   Bottom-nav → left sidebar 240-260px. Topbar spans full width.
-   Cards use 2-3 col grids; content centred 1200-1400px.
+/* ── Desktop 1024px+: wide full-screen, bottom nav fixed (no sidebar) ─────
+   Shell stays single-column; content centred 1200-1400px.
    Tokens only: var(--space*)/var(--color*)/var(--radius*)/var(--font*). */
 @media (min-width:1024px){
-  :root{--sidebar-width:250px;--content-max:1280px}
-  /* Shell becomes 2-col grid: header spans both, sidebar + main */
+  :root{--sidebar-width:0px;--content-max:1280px}
+  /* Shell stays single-column, full-width — nav remains fixed bottom on all viewports (no sidebar) */
   .app-shell,.admin-shell,.pay-shell, #managerShell.manager-shell, #teacherShell.teacher-shell{
-    display:grid;grid-template-columns:var(--sidebar-width) 1fr;
-    grid-template-rows:var(--shell-header-height) 1fr;
-    grid-template-areas:"topbar topbar" "sidebar main";
-    height:100dvh;min-height:100dvh;overflow:hidden;
-    background:var(--color-bg);
+    display:flex;flex-direction:column;height:100dvh;min-height:100dvh;overflow:hidden;background:var(--color-bg);
   }
   .app-shell>.app-topbar,.admin-shell>.app-topbar,.pay-shell>.app-topbar,
-  .manager-shell>.app-topbar,.teacher-shell>.app-topbar{grid-area:topbar;position:sticky;top:0}
-  .app-topbar-inner{max-width:none;margin:0;min-height:var(--shell-header-height,68px);padding:0 clamp(16px,2vw,28px)}
+  .manager-shell>.app-topbar,.teacher-shell>.app-topbar{position:sticky;top:0;z-index:30}
+  .app-topbar-inner{max-width:var(--content-max,1280px);margin:0 auto;min-height:var(--shell-header-height,68px);padding:0 clamp(16px,2vw,28px);width:100%}
   .app-topbar{border-bottom:1px solid var(--color-border)}
-  /* Main fills content area, scrolls independently */
+  /* Main fills remaining height, scrolls, reserves space for fixed bottom nav */
   .app-main,.admin-main,.pay-main,#adminMain,#managerMain,#teacherMain,body>main{
-    grid-area:main;max-width:none;margin:0;width:100%;flex:none;
-    height:calc(100dvh - var(--shell-header-height));
+    max-width:none;margin:0;width:100%;flex:1;min-height:0;
     overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;
-    padding:var(--space-5) clamp(18px,2.2vw,28px) calc(var(--space-6) + var(--safe-bottom));
+    padding:var(--space-5) clamp(18px,2.2vw,28px) calc(110px + var(--safe-bottom));
     background:transparent;
   }
   /* Centre inner content 1200-1400px: wrappers inside main */
@@ -62,23 +56,7 @@
   }
   .view,.admin-view,.manager-view{max-width:var(--content-max);margin-inline:auto;width:100%}
   .view.active,.admin-view.active,.manager-view.active{width:100%}
-  /* Sidebar: former bottom-nav becomes vertical rail */
-  .bottom-nav,.admin-bottom{
-    grid-area:sidebar;position:static;left:auto;right:auto;bottom:auto;
-    flex-direction:column;align-items:stretch;justify-content:flex-start;
-    gap:6px;min-height:0;height:calc(100dvh - var(--shell-header-height));
-    overflow-y:auto;overflow-x:hidden;
-    padding:var(--space-4) var(--space-3) calc(var(--space-4) + var(--safe-bottom));
-    background:var(--color-surface);border-top:0;border-right:1px solid var(--color-border);
-    z-index:20;
-  }
-  .bottom-link,.admin-bottom-item{
-    flex:0 0 auto;flex-direction:row;align-items:center;justify-content:flex-start;
-    gap:var(--space-3);min-height:44px;min-width:0;
-    padding:10px var(--space-3);border-radius:var(--radius-md);
-    font-size:var(--font-sm);font-weight:600;text-align:left;white-space:nowrap;
-  }
-  .nav-chip{width:36px;height:32px;border-radius:10px;flex:none;display:grid;place-items:center}
+  /* Bottom nav: phone-shell (min-width:431px) already fixes 430px centered row — no desktop sidebar override */
   .bottom-link:hover,.admin-bottom-item:hover{background:var(--color-surface-muted);color:var(--color-text)}
   .bottom-link:focus-visible,.admin-bottom-item:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
   .bottom-link.active,.admin-bottom-item.active{background:var(--pay-disc, var(--color-surface-muted));color:var(--color-primary);font-weight:700}
@@ -166,12 +144,9 @@
   /* Avoid CLS: reserve stable header/sidebar heights */
   .app-topbar,.bottom-nav,.admin-bottom{contain:layout}
 }
-/* Compact desktop 1024-1280: sidebar 240px, tighter padding */
+/* Compact desktop 1024-1280: tighter padding, bottom nav stays fixed */
 @media (min-width:1024px) and (max-width:1280px){
-  :root{--sidebar-width:240px}
   .app-main,.admin-main,.pay-main{padding:var(--space-4) 18px}
-  .bottom-nav,.admin-bottom{padding:var(--space-3) 10px}
-  .bottom-link,.admin-bottom-item{padding:8px 10px;gap:10px}
 }
 /* Wide 1280-1920: breathe, stay centred */
 @media (min-width:1280px){
@@ -181,7 +156,7 @@
 }
 /* Ultra-wide ≥1600: max content 1400 */
 @media (min-width:1600px){
-  :root{--content-max:1360px;--sidebar-width:260px}
+  :root{--content-max:1360px}
 }
 /* Extra-large ≥1920: shell centred with side chrome */
 @media (min-width:1920px){
