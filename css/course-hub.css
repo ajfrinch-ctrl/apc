@@ -1435,3 +1435,70 @@ html[data-theme="dark"] .ls-workspace {
   }
 }
 
+/* ===== 6-Fix: grouped/collapsed lecture sheets + delete confirm + pending collapse ===== */
+.ls-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.ls-group + .ls-group { margin-top: 10px; }
+.ls-group-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-surface-muted);
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+.ls-group-summary::-webkit-details-marker { display: none; }
+.ls-group-title { flex: 1 1 auto; font-size: 14px; }
+.ls-group-count { color: var(--color-text-secondary); font-size: 12px; font-weight: 600; }
+.ls-group-chevron { font-size: 16px; color: var(--color-text-secondary); }
+.ls-group-body { padding: 10px; display: grid; gap: 10px; background: var(--color-surface); }
+.ls-sheet-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.ls-sheet-card-summary { flex: 1 1 auto; min-width: 0; }
+.ls-sheet-chevron { flex: 0 0 auto; font-size: 16px; color: var(--color-text-secondary); margin-top: 4px; }
+.ls-sheet-card.is-expanded { border-color: var(--color-primary); }
+.ls-sheet-meta--compact { color: var(--color-text-secondary); font-size: 12.5px; }
+.ls-sheet-detail { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--color-border); margin-top: 2px; }
+.ls-card-btn-danger { color: #b91c1c; border-color: rgba(185,28,28,0.35); }
+.ls-card-btn-danger:hover { background: rgba(239,68,68,0.08); border-color: #b91c1c; }
+.ls-delete-confirm {
+  position: relative;
+  padding: 12px;
+  border: 1px solid rgba(185,28,28,0.35);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+.ls-delete-card { display: grid; gap: 8px; }
+.ls-delete-card h4 { margin: 0; color: #b91c1c; font-size: 15px; }
+.ls-delete-card p { margin: 0; font-size: 13px; color: var(--color-text-secondary); }
+.ls-delete-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Student roster collapse (pending-dues pattern) */
+.student-row-main { cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.student-row-detail { display: grid; gap: 6px; padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--color-border); }
+.student-row-chevron { color: var(--color-text-secondary); font-size: 16px; }
+.student-short-hint { color: var(--color-text-secondary); font-size: 12.5px; }
+.student-row.is-pending { border-color: #f59e0b; }
+
+/* Pending queue collapse */
+.apc-pending-item__meta--summary { color: var(--color-text-secondary); font-size: 12.5px; }
+.apc-pending-item__detail { display: grid; gap: 8px; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--color-border); }
+.apc-pending-short-badge { display: inline-flex; padding: 2px 8px; border-radius: 999px; background: rgba(245,158,11,0.14); color: #b45309; font-size: 11px; font-weight: 700; }
+
+/* Staff card minimal summary */
+.staff-card-summary-line { gap: 6px; }
+.staff-card-identity { min-width: 0; overflow-wrap: anywhere; }
+

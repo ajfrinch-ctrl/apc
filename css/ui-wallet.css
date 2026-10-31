@@ -3635,44 +3635,59 @@ html[data-theme="dark"] .app-shell .app-topbar { background: var(--pay-hero-a); 
   }
 }
 
-/* ── Desktop auto-fit overrides for login & lecture sheet list (audit) ─────
-   Phone-shell 430px persists globally, but these surfaces escape it at ≥1024px
-   to fill screen appropriately. Studio overlay (.ls-studio-overlay) stays
-   fixed inset 0 100vw/100dvh — untouched, mobile zero-overflow preserved. */
+/* ── Desktop auto-fit overrides (audit v447→448): full auto skin fit ─────────
+   Phone-shell 430px remains for mobile (<1024). At ≥1024 all shells escape 430,
+   fill viewport responsively. Studio overlay (.ls-studio-overlay) stays fixed
+   inset 0 100vw/100dvh — untouched, mobile zero-overflow preserved. */
 @media screen and (min-width: 1024px) {
-  /* Login: free .auth-screen from 430 shell, enable ui-auth two-column grid */
+  /* Login: desktop identical to mobile — single column, no hero (user request) */
   .auth-screen {
-    left: auto !important; right: auto !important; width: 100% !important; max-width: 1280px !important;
-    margin: 0 auto !important; transform: none !important; border-inline: 0 !important;
-    padding: 0 !important; background: var(--color-bg) !important;
-    display: grid !important; grid-template-columns: minmax(380px,1.08fr) minmax(420px,480px) !important;
-    gap: 0 !important; align-items: stretch !important; overflow: hidden !important;
+    position: fixed !important; inset: 0 !important; left: 0 !important; right: 0 !important;
+    width: auto !important; max-width: none !important; height: 100dvh !important; min-height: 100dvh !important;
+    margin: 0 !important; transform: none !important; border: 0 !important; border-inline: 0 !important;
+    padding: var(--space-6) var(--space-4) var(--space-7) !important; background: var(--color-bg) !important;
+    display: block !important; overflow-y: auto !important; overflow-x: hidden !important;
+    gap: normal !important; grid-template-columns: none !important; align-items: normal !important;
   }
-  .auth-screen .auth-hero { display: flex !important; }
+  .auth-screen .auth-hero { display: none !important; }
+  .auth-screen .auth-card { max-width: 480px !important; margin: 0 auto !important; }
 
-  /* Lecture sheets list: shells that contain the active lecture view become wide */
-  #managerShell:has(.manager-view[data-view-panel="lecture-sheets"].active),
-  .manager-shell:has(.manager-view[data-view-panel="lecture-sheets"].active),
-  #adminShell:has(.admin-view[data-view-panel="content-lecture-sheets"].active),
-  .admin-shell:has(.admin-view[data-view-panel="content-lecture-sheets"].active),
-  #teacherShell:has(#teacherLectureSheets.active),
-  .teacher-shell:has(#teacherLectureSheets.active),
-  .teacher-reference .teacher-shell:has(#teacherLectureSheets.active) {
-    width: 100% !important; max-width: 1280px !important; margin-inline: auto !important;
-    left: auto !important; right: auto !important; transform: none !important; border-inline: 0 !important;
+  /* All panel shells: desktop auto-fit wide (1400 centered), 430 removed */
+  :is(.app-shell, .admin-shell, .pay-shell, .teacher-shell, .manager-shell, .teacher-reference .teacher-shell),
+  #appShell, #adminShell, #managerShell, #teacherShell, #payShell {
+    width: 100% !important; max-width: 1400px !important; margin-inline: auto !important;
+    left: auto !important; right: auto !important; transform: none !important;
+    border-inline: 0 !important; background: var(--color-bg) !important;
   }
-  #managerShell:has(.manager-view[data-view-panel="lecture-sheets"].active) .admin-main,
-  #adminShell:has(.admin-view[data-view-panel="content-lecture-sheets"].active) .admin-main,
-  #teacherShell:has(#teacherLectureSheets.active) .admin-main {
+  #appStatusSurface {
+    width: 100% !important; max-width: 1400px !important; margin-inline: auto !important;
+    border-inline: 0 !important;
+  }
+  #apcUpdateBanner, #apcStorageWarning {
+    left: 0 !important; right: 0 !important; width: 100% !important; max-width: 1400px !important;
+    margin-inline: auto !important; transform: none !important; border-inline: 0 !important;
+  }
+  .app-topbar-inner {
+    max-width: 1400px !important; margin: 0 auto !important; width: 100% !important;
+  }
+  .app-main, .admin-main, .pay-main, body > main,
+  .manager-shell > .manager-main {
     width: 100% !important; max-width: none !important; margin-inline: 0 !important;
-    padding-inline: clamp(18px,2.2vw,28px) !important;
+    padding-inline: clamp(18px,2.2vw,32px) !important;
   }
-  /* Keep nav fixed bottom via phone-shell when lecture list is wide — no sidebar */
-  #managerShell:has(.manager-view[data-view-panel="lecture-sheets"].active) .admin-bottom,
-  #adminShell:has(.admin-view[data-view-panel="content-lecture-sheets"].active) .admin-bottom,
-  #teacherShell:has(#teacherLectureSheets.active) .admin-bottom {
-    left: 50% !important; right: auto !important; width: min(100vw,430px) !important; max-width: 430px !important; transform: translateX(-50%) !important;
-    position: fixed !important; bottom: 0 !important; flex-direction: row !important; height: auto !important; min-height: calc(66px + var(--safe-bottom)) !important;
+  /* Nav: fixed bottom, wide-shell compatible (full width up to 1400 centered), not 430 */
+  .bottom-nav, .admin-bottom, .manager-shell > .manager-bottom,
+  .teacher-reference .teacher-shell > .admin-bottom {
+    left: 0 !important; right: 0 !important; width: 100% !important; max-width: 1400px !important;
+    margin-inline: auto !important; transform: none !important;
+    position: fixed !important; bottom: 0 !important; flex-direction: row !important;
+    justify-content: space-around !important; height: auto !important;
+    min-height: calc(66px + var(--safe-bottom)) !important;
+    border-top: 1px solid var(--color-border) !important; background: var(--color-surface) !important;
+  }
+  /* Lecture sheets mounts already covered by general shell wide, ensure no 430 cap */
+  #managerLectureSheetsMount, #adminLectureSheetsMount, #teacherLectureSheetsMount {
+    max-width: none !important;
   }
 }
 

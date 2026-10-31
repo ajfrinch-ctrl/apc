@@ -266,17 +266,23 @@ export function pendingQueueMarkup(items = listPendingRegistrations()) {
         return `<li class="apc-pending-item${revealed ? ' is-revealed' : ''}" data-pending-student-row="${escapeHtml(item.id)}"${revealed ? ' data-pending-revealed="1"' : ''}>
         <div class="apc-pending-item__info">
           <strong class="apc-pending-item__name">${escapeHtml(who)}</strong>
-          <div class="apc-pending-item__meta">
-            <span>মোবাইল: <b dir="ltr">${escapeHtml(revealed ? String(item.mobile || '—') : PRIVACY_MASK)}</b></span>
-            <span>আইডি: <b dir="ltr">${escapeHtml(revealed ? String(item.id) : PRIVACY_MASK)}</b></span>
+          <div class="apc-pending-item__meta apc-pending-item__meta--summary">
             <span>তারিখ: ${escapeHtml(item.dateLabel)}</span>
+            <span class="apc-pending-short-badge">অপেক্ষমাণ</span>
           </div>
           <button type="button" class="apc-pending-reveal" data-pending-reveal="${escapeHtml(item.id)}" data-pending-revealed="${revealed ? '1' : '0'}"
-            aria-expanded="${revealed ? 'true' : 'false'}" aria-label="${revealed ? 'এই আবেদনের নম্বর ও আইডি লুকান' : 'এই আবেদনের নম্বর ও আইডি দেখান'}">${revealed ? 'নম্বর ও আইডি লুকান' : 'নম্বর ও আইডি দেখুন'}</button>
+            aria-expanded="${revealed ? 'true' : 'false'}" aria-label="${revealed ? 'এই আবেদনের বিস্তারিত লুকান' : 'এই আবেদনের বিস্তারিত দেখান'}">${revealed ? 'সংক্ষিপ্ত করুন' : 'বিস্তারিত দেখুন'}</button>
         </div>
-        <div class="apc-pending-item__actions">
-          <button type="button" class="mini-btn approve primary apc-pending-btn" data-pending-approve="${escapeHtml(item.id)}">অনুমোদন দিন</button>
-          <button type="button" class="mini-btn reject danger apc-pending-btn" data-pending-reject="${escapeHtml(item.id)}">বাতিল করুন</button>
+        <div class="apc-pending-item__detail" ${revealed ? '' : 'hidden'}>
+          <div class="apc-pending-item__meta">
+            <span>মোবাইল: <b dir="ltr">${escapeHtml(String(item.mobile || '—'))}</b></span>
+            <span>আইডি: <b dir="ltr">${escapeHtml(String(item.id))}</b></span>
+            <span>তারিখ: ${escapeHtml(item.dateLabel)}</span>
+          </div>
+          <div class="apc-pending-item__actions">
+            <button type="button" class="mini-btn approve primary apc-pending-btn" data-pending-approve="${escapeHtml(item.id)}">অনুমোদন দিন</button>
+            <button type="button" class="mini-btn reject danger apc-pending-btn" data-pending-reject="${escapeHtml(item.id)}">বাতিল করুন</button>
+          </div>
         </div>
         <div class="apc-pending-item__reject-box" data-pending-reject-box="${escapeHtml(item.id)}" hidden>
           <input type="text" class="apc-pending-item__reason-input" data-pending-reject-note="${escapeHtml(item.id)}" maxlength="300" placeholder="বাতিল করার কারণ লিখুন…" aria-label="বাতিলের কারণ">

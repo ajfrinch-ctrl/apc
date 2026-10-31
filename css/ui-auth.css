@@ -123,3 +123,9 @@
 @media (min-width:1920px){
   .auth-screen{max-width:1920px;margin:0 auto;box-shadow:0 0 0 1px var(--color-border)}
 }
+/* Desktop login must match mobile exactly (user request): single column, no hero */
+@media (min-width:1024px){
+  .auth-screen{position:fixed!important;inset:0!important;display:block!important;grid-template-columns:none!important;justify-content:normal!important;padding:var(--space-6) var(--space-4) var(--space-7)!important;overflow-y:auto!important;overflow-x:hidden!important;background:var(--color-bg)!important;max-width:none!important;width:auto!important;margin:0!important;transform:none!important;box-shadow:none!important;height:100dvh!important;min-height:100dvh!important;border:0!important}
+  .auth-hero{display:none!important}
+  .auth-card{max-width:480px!important;margin:0 auto!important;align-self:auto!important;padding:var(--space-6)!important}
+}

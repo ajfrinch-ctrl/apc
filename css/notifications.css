@@ -402,6 +402,56 @@ html[data-theme="dark"] .apc-fb-card.apc-fb-unread{
 /* ---------- Empty ---------- */
 .apc-fb-panel .notice-empty{margin:16px}
 
+/* ---------- Pagination — আরও দেখুন ---------- */
+.apc-fb-load-more{
+  width:100%;
+  min-height:40px;
+  margin:8px 0 4px;
+  border-radius:999px;
+  border:1px solid var(--color-border);
+  background:var(--color-surface-muted);
+  color:var(--color-primary);
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+.apc-fb-load-more:hover{background:var(--color-surface);border-color:var(--color-primary)}
+.apc-fb-end-note{margin:8px 0 0;text-align:center;color:var(--color-text-secondary);font-size:12px}
+
+/* ---------- Desktop dropdown stability — override .modal centering ---------- */
+.apc-fb-backdrop .apc-fb-panel{
+  /* .modal is centered via margin:auto/inset; fixed dropdown must win */
+  position:fixed !important;
+  margin:0 !important;
+  transform:none !important;
+  inset:auto !important;
+}
+@media(min-width:601px){
+  .apc-fb-backdrop{
+    /* keep scrim but don't flex-center; panel is fixed near bell */
+    display:block;
+    background:var(--modal-backdrop);
+  }
+  .apc-fb-backdrop[hidden]{display:none !important}
+  .apc-fb-panel{
+    /* positionPanel() sets top/right via inline; keep fixed */
+    position:fixed !important;
+    left:auto !important;
+    margin:0 !important;
+    transform:none !important;
+  }
+}
+
+/* ---------- Mobile safe-area (home indicator) ---------- */
+@media(max-width:600px){
+  .apc-fb-panel{
+    padding-bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .apc-fb-footer{
+    padding-bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* ---------- Accessibility focus ---------- */
 .apc-fb-card:focus-visible{
   outline:2px solid var(--color-primary);
@@ -409,7 +459,8 @@ html[data-theme="dark"] .apc-fb-card.apc-fb-unread{
 }
 .apc-fb-chip:focus-visible,
 .apc-fb-mark-all:focus-visible,
-.apc-fb-close:focus-visible{
+.apc-fb-close:focus-visible,
+.apc-fb-load-more:focus-visible{
   outline:2px solid var(--color-primary);
   outline-offset:2px;
 }

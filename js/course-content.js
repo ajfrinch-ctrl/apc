@@ -22,7 +22,7 @@
 import { KEYS, readRaw, writeRaw, listDocuments } from './database.js';
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
 import { classById, listClasses, subjectsForClass } from './academics.js';
-import { isTeacherAssignedSubject } from './teacher-assignments.js';
+import { isTeacherAssignedSubject, isTeacherAssigned, assignedClasses } from './teacher-assignments.js';
 import { sanitizeRichHtml, sanitizeLectureHtml, isSafeLectureImageSrc } from './rich-sanitize.js';
 
 export const COURSE_CONTENT_KEY = KEYS.courseContent;
@@ -375,7 +375,7 @@ function clean(patch, { records, id, actor }) {
 /** Verify every content write against the active staff role and, for a
  * Teacher, their assigned class/batch/subject. The editor controls are not the
  * permission boundary. */
-async function requireCourseWriter(role, classId, subjectId, group = '') {
+async function requireCourseWriter(role, classId, subjectId, group = '', subjectNameHint = '') {
   if (!['admin', 'teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
     throw Object.assign(new Error('সক্রিয় শিক্ষক, ম্যানেজার বা অ্যাডমিন সেশন ছাড়া কনটেন্ট বদলানো যাবে না।'), { code: 'ACCESS_DENIED' });
   }
@@ -385,14 +385,33 @@ async function requireCourseWriter(role, classId, subjectId, group = '') {
   }
   const classRecord = classById(text(classId));
   if (!classRecord || !listClasses().some(item => item.id === classRecord.id)) throw new Error('সক্রিয় Academic Setup-এর শ্রেণি নির্বাচন করুন।');
-  const subject = subjectsForClass(classRecord.name).find(item => item.id === text(subjectId));
+  const sid = text(subjectId);
+  const isCustomSubject = sid.startsWith('custom-');
+  let subject = null;
+  if (isCustomSubject) {
+    const hint = text(subjectNameHint) || sid.slice(7).replace(/-/g, ' ').trim() || 'কাস্টম বিষয়';
+    subject = { id: sid, name: hint };
+  } else {
+    subject = subjectsForClass(classRecord.name).find(item => item.id === sid);
+  }
   if (!subject) throw new Error('এই শ্রেণির চালু বিষয় নির্বাচন করুন।');
   if (role === 'manager' && group && !listDocuments('students').some(item =>
     item.className === classRecord.name && item.status !== 'rejected' && groupKey(item.group) === groupKey(group))) {
     throw new Error('এই শ্রেণির জন্য roster-এ থাকা batch/group নির্বাচন করুন।');
   }
-  if (role === 'teacher' && !isTeacherAssignedSubject(account.username, classRecord.name, subject.name, group)) {
-    throw new Error('এই ক্লাস/ব্যাচ/বিষয় আপনার ম্যানেজার অ্যাসাইনমেন্টে নেই।');
+  if (role === 'teacher') {
+    const isCustom = String(subject.id || '').startsWith('custom-');
+    let allowed = false;
+    if (isCustom) {
+      try {
+        const classes = assignedClasses(account.username) || [];
+        if (Array.isArray(classes) && classes.includes(classRecord.name)) allowed = true;
+        else allowed = isTeacherAssigned(account.username, classRecord.name, group) || false;
+      } catch { allowed = false; }
+    } else {
+      allowed = isTeacherAssignedSubject(account.username, classRecord.name, subject.name, group);
+    }
+    if (!allowed) throw new Error('এই ক্লাস/ব্যাচ/বিষয় আপনার ম্যানেজার অ্যাসাইনমেন্টে নেই।');
   }
   return String(account.fullName || account.username || role).trim();
 }
@@ -421,7 +440,8 @@ export async function saveCourseRecord(patch = {}, { actor = '', role = '', expe
   const requestedClassId = text(patch.classId);
   const requestedSubjectId = text(patch.subjectId);
   const requestedGroup = text(patch.group).slice(0, 80);
-  const staffName = await requireCourseWriter(role, requestedClassId, requestedSubjectId, requestedGroup);
+  const requestedSubjectName = text(patch.subjectName);
+  const staffName = await requireCourseWriter(role, requestedClassId, requestedSubjectId, requestedGroup, requestedSubjectName);
   const save = () => {
     const store = loadCourseContent();
     const existingId = text(patch.id);
@@ -502,7 +522,7 @@ export async function setContentPublished(id, published, { role = '', actor = ''
     const wanted = text(id);
     const current = contentById(wanted, store.records);
     if (!current) return null;
-    const staffName = await requireCourseWriter(role, current.classId, current.subjectId, current.group);
+    const staffName = await requireCourseWriter(role, current.classId, current.subjectId, current.group, current.subjectName || '');
     if (role === 'teacher' && current.createdBy !== staffName) {
       throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content প্রকাশ বা পরিবর্তন করা যাবে না।'), { code: 'ACCESS_DENIED' });
     }
@@ -534,7 +554,7 @@ export async function archiveCourseRecord(id, { role = '', actor = '', restore =
     const wanted = text(id);
     const current = contentById(wanted, store.records);
     if (!current) return null;
-    const staffName = await requireCourseWriter(role, current.classId, current.subjectId, current.group);
+    const staffName = await requireCourseWriter(role, current.classId, current.subjectId, current.group, current.subjectName || '');
     if (role === 'teacher' && current.createdBy !== staffName) {
       throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content archive করা যাবে না।'), { code: 'ACCESS_DENIED' });
     }
@@ -554,6 +574,25 @@ export async function archiveCourseRecord(id, { role = '', actor = '', restore =
     };
     saveCourseContent(store.records.map(record => text(record.id) === wanted ? saved : record));
     return saved;
+  };
+  return navigator.locks ? navigator.locks.request(COURSE_CONTENT_KEY, save) : save();
+}
+
+/** Permanent hard delete: removes the record entirely (separate from archive). */
+export async function deleteCourseRecord(id, { role = '', actor = '' } = {}) {
+  const save = async () => {
+    const store = loadCourseContent();
+    const wanted = text(id);
+    const current = contentById(wanted, store.records);
+    if (!current) return null;
+    const staffName = await requireCourseWriter(role, current.classId, current.subjectId, current.group, current.subjectName || '');
+    if (role === 'teacher' && current.createdBy !== staffName) {
+      throw Object.assign(new Error('অন্য শিক্ষকের লেখা course content মুছতে পারবেন না।'), { code: 'ACCESS_DENIED' });
+    }
+    const filtered = store.records.filter(record => text(record.id) !== wanted);
+    if (filtered.length === store.records.length) return null;
+    saveCourseContent(filtered);
+    return { id: wanted, deleted: true, deletedBy: staffName || actor || role };
   };
   return navigator.locks ? navigator.locks.request(COURSE_CONTENT_KEY, save) : save();
 }

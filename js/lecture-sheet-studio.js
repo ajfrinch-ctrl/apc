@@ -17,6 +17,7 @@ import {
   saveLectureSheet,
   duplicateLectureSheet,
   setLectureSheetLifecycle,
+  deleteLectureSheet,
   restoreLectureSheetVersion,
   defaultStarterDocJson,
   docJsonToHtml,
@@ -506,6 +507,8 @@ export async function openLectureSheetStudio({
     status: existing ? (existing.active === false ? 'archived' : (existing.published ? 'published' : 'draft')) : 'draft',
     classId: initClassId,
     subjectId: initSubjectId,
+    subjectName: existing?.subjectName || initialMeta.subjectName || '',
+    customSubjectName: existing?.customSubjectName || initialMeta.customSubjectName || '',
     group: existing?.group ?? initialMeta.group ?? '',
     chapterId: existing?.chapterId ?? initialMeta.chapterId ?? '',
     chapterName: existing?.chapterName || existingChapRec?.title || initialMeta.chapterName || '',
@@ -1054,6 +1057,8 @@ export async function openLectureSheetStudio({
       id: state.id,
       classId: state.classId,
       subjectId: state.subjectId,
+      subjectName: state.subjectName || '',
+      customSubjectName: state.customSubjectName || '',
       group: state.group,
       chapterId: state.chapterId,
       chapterName: state.chapterName,
@@ -1251,6 +1256,9 @@ export async function openLectureSheetStudio({
               ${buildSubjectOpts(state.classId)}
             </select>
           </label>
+          ${!state.id ? `<label>নতুন বিষয় (ঐচ্ছিক)
+            <input name=\"customSubjectName\" data-ls-meta-custom maxlength=\"80\" placeholder=\"তালিকায় নেই? নতুন বিষয়ের নাম লিখুন\" value=\"${escapeHtml(state.customSubjectName || '')}\">
+          </label>` : ''}
           <label>ব্যাচ / বিভাগ
             <select name="group" data-ls-meta-group>${buildGroupOpts(state.classId, state.subjectId)}</select>
           </label>
@@ -1315,7 +1323,21 @@ export async function openLectureSheetStudio({
       state.subtitle = text(fd.get('subtitle'));
       if (!state.id) {
         state.classId = text(fd.get('classId')) || state.classId;
-        state.subjectId = text(fd.get('subjectId')) || state.subjectId;
+        const rawSubject = text(fd.get('subjectId'));
+        const customSubject = text(fd.get('customSubjectName'));
+        if (customSubject) {
+          state.customSubjectName = customSubject;
+          state.subjectName = customSubject;
+          const slug = customSubject.normalize('NFC').toLocaleLowerCase('bn').replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'custom';
+          state.subjectId = `custom-${slug}-${Date.now().toString(36).slice(-4)}`;
+        } else {
+          state.subjectId = rawSubject || state.subjectId;
+          state.customSubjectName = '';
+          // Resolve subjectName from scope for standard subject
+          const clsSubs = scope.subjectsByClass[state.classId] || [];
+          const matched = clsSubs.find(s => s.id === state.subjectId);
+          if (matched) state.subjectName = matched.name;
+        }
       }
       state.group = text(fd.get('group'));
       const newChap = text(fd.get('chapterName'));
@@ -1821,7 +1843,10 @@ export async function mountLectureSheetManager({
     status: 'all',
     search: '',
     createModalOpen: false,
-    historyRecordId: ''
+    historyRecordId: '',
+    expandedSheets: new Set(),
+    expandedGroups: new Set(),
+    pendingDeleteId: ''
   };
 
   let scope = null;
@@ -1848,6 +1873,65 @@ export async function mountLectureSheetManager({
     const classes = scope.classes || [];
     const subjects = uiState.classId ? (scope.subjectsByClass[uiState.classId] || []) : [];
     const historyTarget = uiState.historyRecordId ? contentById(uiState.historyRecordId) : null;
+
+    const groupMap = new Map();
+    sheets.forEach(s => {
+      const key = `${s.className || s.classId || 'অন্যান্য'}__${s.subjectName || s.subjectId || 'অন্যান্য'}`;
+      const label = `${s.className || 'অন্যান্য'} • ${s.subjectName || 'অন্যান্য'}`;
+      if (!groupMap.has(key)) groupMap.set(key, { key, label, items: [] });
+      groupMap.get(key).items.push(s);
+    });
+    const grouped = Array.from(groupMap.values()).sort((a,b) => a.label.localeCompare(b.label, 'bn'));
+    const renderSheetCard = sheet => {
+      const expanded = uiState.expandedSheets.has(sheet.id);
+      return `
+            <article class=\"ls-sheet-card${expanded ? ' is-expanded' : ''}\" data-ls-card=\"${escapeHtml(sheet.id)}\">
+              <div class=\"ls-sheet-card-top\" role=\"button\" tabindex=\"0\" data-ls-mgr-action=\"toggle-sheet\" data-id=\"${escapeHtml(sheet.id)}\" aria-expanded=\"${expanded ? 'true' : 'false'}\">
+                <div class=\"ls-sheet-card-summary\">
+                  <div class=\"ls-sheet-badges\">
+                    ${statusBadge(sheet.status)}
+                    <span class=\"ls-ver-pill\">v${bn(sheet.docVersion || 1)}</span>
+                    <span class=\"ls-orient-pill\">${sheet.pageSettings?.orientation === 'landscape' ? 'A4 Landscape' : 'A4 Portrait'}</span>
+                  </div>
+                  <h4>${escapeHtml(sheet.title)}</h4>
+                  ${sheet.subtitle ? `<p class=\"ls-sheet-sub\">${escapeHtml(sheet.subtitle)}</p>` : ''}
+                  <p class=\"ls-sheet-meta ls-sheet-meta--compact\">${escapeHtml([sheet.className, sheet.subjectName].filter(Boolean).join(' • '))}</p>
+                </div>
+                <span class=\"ls-sheet-chevron\" aria-hidden=\"true\">${expanded ? '▴' : '▾'}</span>
+              </div>
+              <div class=\"ls-sheet-detail\" ${expanded ? '' : 'hidden'}>
+                <p class=\"ls-sheet-meta\">${escapeHtml([sheet.className, sheet.group, sheet.subjectName, sheet.chapterName ? `অধ্যায়: ${sheet.chapterName}` : '', sheet.topic ? `টপিক: ${sheet.topic}` : ''].filter(Boolean).join(' • '))}</p>
+                <p class=\"ls-sheet-author\">কোড: ${escapeHtml(sheet.id)}${sheet.createdBy ? ` • ${escapeHtml(sheet.createdBy)}` : ''}</p>
+                <div class=\"ls-sheet-actions\">
+                  <button type=\"button\" class=\"ls-card-btn ls-card-btn-primary\" data-ls-mgr-action=\"edit\" data-id=\"${escapeHtml(sheet.id)}\">✍️ স্টুডিওতে খুলুন</button>
+                  <button type=\"button\" class=\"ls-card-btn\" data-ls-mgr-action=\"pdf\" data-id=\"${escapeHtml(sheet.id)}\">⬇ PDF</button>
+                  <button type=\"button\" class=\"ls-card-btn\" data-ls-mgr-action=\"duplicate\" data-id=\"${escapeHtml(sheet.id)}\">⧉ কপি তৈরি</button>
+                  ${sheet.status !== 'archived' ? `
+                    <button type=\"button\" class=\"ls-card-btn ${sheet.status === 'published' ? '' : 'ls-card-btn-accent'}\" data-ls-mgr-action=\"${sheet.status === 'published' ? 'unpublish' : 'publish'}\" data-id=\"${escapeHtml(sheet.id)}\">${sheet.status === 'published' ? 'আনপাবলিশ' : 'স্টুডেন্টে পাবলিশ'}</button>
+                    <button type=\"button\" class=\"ls-card-btn\" data-ls-mgr-action=\"archive\" data-id=\"${escapeHtml(sheet.id)}\">আর্কাইভ</button>
+                  ` : `
+                    <button type=\"button\" class=\"ls-card-btn\" data-ls-mgr-action=\"unarchive\" data-id=\"${escapeHtml(sheet.id)}\">পুনরুদ্ধার</button>
+                  `}
+                  <button type=\"button\" class=\"ls-card-btn ls-card-btn-danger\" data-ls-mgr-action=\"request-delete\" data-id=\"${escapeHtml(sheet.id)}\">🗑 মুছুন</button>
+                  ${Array.isArray(sheet.history) && sheet.history.length ? `<button type=\"button\" class=\"ls-card-btn\" data-ls-mgr-action=\"history\" data-id=\"${escapeHtml(sheet.id)}\">↺ সংস্করণ (${bn(sheet.history.length)})</button>` : ''}
+                </div>
+              </div>
+            </article>`;
+    };
+    const renderDeleteConfirm = delId => {
+      const target = sheets.find(s => s.id === delId);
+      const title = target ? target.title : delId;
+      return `<div class=\"ls-delete-confirm\" role=\"dialog\" aria-modal=\"true\" data-ls-delete-dialog>
+        <div class=\"ls-delete-card\">
+          <h4>স্থায়ীভাবে মুছবেন?</h4>
+          <p>“${escapeHtml(title)}” — এই লেকচার শিটটি স্থায়ীভাবে মুছে যাবে। Archive থেকে আলাদা, এটি ফিরিয়ে আনা যাবে না।</p>
+          <div class=\"ls-delete-actions\">
+            <button type=\"button\" class=\"ls-card-btn\" data-ls-mgr-action=\"cancel-delete\">বাতিল</button>
+            <button type=\"button\" class=\"ls-card-btn ls-card-btn-danger\" data-ls-mgr-action=\"confirm-delete\" data-id=\"${escapeHtml(delId)}\">হ্যাঁ, স্থায়ীভাবে মুছুন</button>
+          </div>
+        </div>
+      </div>`;
+    };
 
     root.innerHTML = `
       <div class="ls-manager-wrap" data-ls-manager="${escapeHtml(role)}">
@@ -1891,55 +1975,26 @@ export async function mountLectureSheetManager({
           </div>
         </div>
 
-        <div class="ls-sheet-grid" data-ls-sheet-list>
-          ${sheets.length ? sheets.map(sheet => `
-            <article class="ls-sheet-card" data-ls-card="${escapeHtml(sheet.id)}">
-              <div class="ls-sheet-card-top">
-                <div>
-                  <div class="ls-sheet-badges">
-                    ${statusBadge(sheet.status)}
-                    <span class="ls-ver-pill">v${bn(sheet.docVersion || 1)}</span>
-                    <span class="ls-orient-pill">${sheet.pageSettings?.orientation === 'landscape' ? 'A4 Landscape' : 'A4 Portrait'}</span>
-                  </div>
-                  <h4>${escapeHtml(sheet.title)}</h4>
-                  ${sheet.subtitle ? `<p class="ls-sheet-sub">${escapeHtml(sheet.subtitle)}</p>` : ''}
-                </div>
-              </div>
-              <p class="ls-sheet-meta">
-                ${escapeHtml([
-                  sheet.className,
-                  sheet.group,
-                  sheet.subjectName,
-                  sheet.chapterName ? `অধ্যায়: ${sheet.chapterName}` : '',
-                  sheet.topic ? `টপিক: ${sheet.topic}` : ''
-                ].filter(Boolean).join(' • '))}
-              </p>
-              <p class="ls-sheet-author">কোড: ${escapeHtml(sheet.id)}</p>
-              <div class="ls-sheet-actions">
-                <button type="button" class="ls-card-btn ls-card-btn-primary" data-ls-mgr-action="edit" data-id="${escapeHtml(sheet.id)}">✍️ স্টুডিওতে খুলুন</button>
-                <button type="button" class="ls-card-btn" data-ls-mgr-action="pdf" data-id="${escapeHtml(sheet.id)}">⬇ PDF</button>
-                <button type="button" class="ls-card-btn" data-ls-mgr-action="duplicate" data-id="${escapeHtml(sheet.id)}">⧉ কপি তৈরি</button>
-                ${sheet.status !== 'archived' ? `
-                  <button type="button" class="ls-card-btn ${sheet.status === 'published' ? '' : 'ls-card-btn-accent'}"
-                    data-ls-mgr-action="${sheet.status === 'published' ? 'unpublish' : 'publish'}" data-id="${escapeHtml(sheet.id)}">
-                    ${sheet.status === 'published' ? 'আনপাবলিশ' : 'স্টুডেন্টে পাবলিশ'}
-                  </button>
-                  <button type="button" class="ls-card-btn" data-ls-mgr-action="archive" data-id="${escapeHtml(sheet.id)}">আর্কাইভ</button>
-                ` : `
-                  <button type="button" class="ls-card-btn" data-ls-mgr-action="unarchive" data-id="${escapeHtml(sheet.id)}">পুনরুদ্ধার</button>
-                `}
-                ${Array.isArray(sheet.history) && sheet.history.length ? `
-                  <button type="button" class="ls-card-btn" data-ls-mgr-action="history" data-id="${escapeHtml(sheet.id)}">↺ সংস্করণ (${bn(sheet.history.length)})</button>
-                ` : ''}
-              </div>
-            </article>
-          `).join('') : `
+        ${uiState.pendingDeleteId ? renderDeleteConfirm(uiState.pendingDeleteId) : ''}
+        <div class="ls-sheet-list" data-ls-sheet-list>
+          ${!sheets.length ? `
             <div class="ls-empty-state">
               <span class="ls-empty-icon" aria-hidden="true">${iconMarkup('book')}</span>
               <strong>কোনো লেকচার শিট পাওয়া যায়নি</strong>
               <p>“+ নতুন লেকচার শিট তৈরি করুন” বাটনে ট্যাপ করে ফুল-স্ক্রিন A4 এডিটরে লেখা শুরু করুন।</p>
             </div>
-          `}
+          ` : grouped.map(g => `
+            <details class="ls-group" ${uiState.expandedGroups.has(g.key) ? 'open' : ''} data-ls-group="${escapeHtml(g.key)}">
+              <summary class="ls-group-summary" data-ls-group-toggle="${escapeHtml(g.key)}">
+                <span class="ls-group-title">${escapeHtml(g.label)}</span>
+                <span class="ls-group-count">${bn(g.items.length)}টি শিট</span>
+                <span class="ls-group-chevron" aria-hidden="true">${uiState.expandedGroups.has(g.key) ? '▴' : '▾'}</span>
+              </summary>
+              <div class="ls-group-body ls-sheet-grid">
+                ${g.items.map(renderSheetCard).join('')}
+              </div>
+            </details>
+          `).join('')}
         </div>
       </div>`;
   }
@@ -1965,9 +2020,14 @@ export async function mountLectureSheetManager({
             </select>
           </label>
           <label>বিষয়
-            <select name="lsSubjectId" data-ls-qc-subject required>
+            <select name="lsSubjectId" data-ls-qc-subject>
               ${subs.map(s => `<option value="${escapeHtml(s.id)}"${s.id === sId ? ' selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
+              ${subs.length ? '' : '<option value=\"\">বিষয় নেই — নিচে নতুন নাম লিখুন</option>'}
             </select>
+            <small class="form-note" style="margin-top:4px">তালিকায় নেই? নিচে নতুন নাম লিখুন।</small>
+          </label>
+          <label>নতুন বিষয় (ঐচ্ছিক)
+            <input name="lsCustomSubject" data-ls-qc-custom maxlength="80" placeholder="যেমন: কৃষি শিক্ষা / নতুন বিষয়">
           </label>
           <label>ব্যাচ / বিভাগ
             <select name="lsGroup" data-ls-qc-group>
@@ -2071,6 +2131,21 @@ export async function mountLectureSheetManager({
       if (!qcForm) return;
       ev.preventDefault();
       const fd = new FormData(qcForm);
+      const rawSid = text(fd.get('lsSubjectId'));
+      const customSub = text(fd.get('lsCustomSubject'));
+      let finalSid = rawSid;
+      let finalSubName = '';
+      let customName = '';
+      if (customSub) {
+        customName = customSub;
+        finalSubName = customSub;
+        const slug = customSub.normalize('NFC').toLocaleLowerCase('bn').replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'custom';
+        finalSid = `custom-${slug}-${Date.now().toString(36).slice(-4)}`;
+      }
+      if (!finalSid && !customName) {
+        toast('বিষয় নির্বাচন করুন বা নতুন বিষয়ের নাম লিখুন।', true);
+        return;
+      }
       uiState.createModalOpen = false;
       render();
       await openLectureSheetStudio({
@@ -2078,7 +2153,9 @@ export async function mountLectureSheetManager({
         toast,
         initialMeta: {
           classId: text(fd.get('lsClassId')),
-          subjectId: text(fd.get('lsSubjectId')),
+          subjectId: finalSid,
+          subjectName: finalSubName,
+          customSubjectName: customName,
           group: text(fd.get('lsGroup')),
           chapterName: text(fd.get('lsChapterName')),
           topic: text(fd.get('lsTopic')),
@@ -2096,10 +2173,52 @@ export async function mountLectureSheetManager({
         return;
       }
 
+      const groupToggle = ev.target.closest('[data-ls-group-toggle]');
+      if (groupToggle) {
+        ev.preventDefault();
+        const key = groupToggle.dataset.lsGroupToggle || groupToggle.closest('[data-ls-group]')?.dataset.lsGroup || '';
+        if (!key) return;
+        if (uiState.expandedGroups.has(key)) uiState.expandedGroups.delete(key);
+        else uiState.expandedGroups.add(key);
+        render();
+        return;
+      }
+
       const btn = ev.target.closest('[data-ls-mgr-action]');
       if (!btn) return;
       const act = btn.dataset.lsMgrAction;
       const docId = btn.dataset.id || '';
+
+      if (act === 'toggle-sheet') {
+        if (uiState.expandedSheets.has(docId)) uiState.expandedSheets.delete(docId);
+        else uiState.expandedSheets.add(docId);
+        render();
+        return;
+      }
+      if (act === 'request-delete') {
+        uiState.pendingDeleteId = docId;
+        render();
+        return;
+      }
+      if (act === 'cancel-delete') {
+        uiState.pendingDeleteId = '';
+        render();
+        return;
+      }
+      if (act === 'confirm-delete') {
+        try {
+          const target = sheets.find(s => s.id === docId) || contentById(docId);
+          if (!target) throw new Error('লেকচার শিটটি পাওয়া যায়নি।');
+          await deleteLectureSheet(docId, { role, actor: scope?.staff?.displayName || role });
+          uiState.pendingDeleteId = '';
+          uiState.expandedSheets.delete(docId);
+          toast('লেকচার শিট স্থায়ীভাবে মুছে ফেলা হয়েছে।');
+          await refresh();
+        } catch (err) {
+          toast(err?.message || 'মুছে ফেলা যায়নি।', true);
+        }
+        return;
+      }
 
       if (act === 'open-create') {
         uiState.createModalOpen = true;

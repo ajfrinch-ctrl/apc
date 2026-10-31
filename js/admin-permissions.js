@@ -243,7 +243,8 @@ export const VIEW_SEAT = Object.freeze({
  *  the signed-in role holds. No daily cash/fee entry tile. */
 /* Home keeps only work that is not already a bottom tab or a সিস্টেম/ডেটা hub card. */
 export const ADMIN_FEATURE_TILES = Object.freeze([
-  { view: 'students', label: 'নিবন্ধন অনুমোদন', sub: 'শিক্ষার্থীদের নতুন আবেদন যাচাই ও অনুমোদন করুন', icon: 'approval', capability: CAPABILITIES.STUDENTS_VIEW, order: 1 }
+  { view: 'students', label: 'নিবন্ধন অনুমোদন', sub: 'শিক্ষার্থীদের নতুন আবেদন যাচাই ও অনুমোদন করুন', icon: 'approval', capability: CAPABILITIES.STUDENTS_VIEW, order: 1 },
+  { view: 'content-lecture-sheets', label: 'লেকচার শিট স্টুডিও', sub: 'A4 এডিটরে নতুন লেকচার শিট তৈরি, PDF ও প্রকাশ করুন', icon: 'book', capability: CAPABILITIES.CONTENT_LECTURE_SHEETS, order: 2 }
 ]);
 
 export function capabilitiesForRole(role) {
