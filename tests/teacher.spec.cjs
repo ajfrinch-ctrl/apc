@@ -98,7 +98,8 @@ test('the Teacher home homework hero opens the reused create form directly', asy
   await enter(page);
   await expect(page.locator('#teacherClassFilter option').first()).toHaveText('সব নির্ধারিত শ্রেণি');
   // Home heroes are create doors: the reused assignment form pops over Home.
-  await page.locator('#teacherHome [data-new-activity=homework]').click();
+  await page.locator('#teacherHome [data-teacher-view=homework]').click();
+  await page.locator('#teacherRecords [data-records-action=create]').click();
   await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
   await expect(page.locator('#teacherModalTitle')).toContainText('নতুন');
   await expect(page.locator('#teacherModalTitle')).toContainText('কাজ');
@@ -355,7 +356,8 @@ test('concurrent teacher tabs preserve both saves and immediately refresh each o
   // Home heroes are create-first, so records open via the নম্বর এন্ট্রি chip
   // and the suggestion type tab.
   for (const p of [page, other]) {
-    await p.locator('#teacherHome .teacher-action-secondary [data-teacher-view=exam]').click();
+    await p.locator('.admin-bottom [data-teacher-view=online-exams]').click();
+    await p.locator('#teacherOnlineExams [data-teacher-view=exam]').click();
     await p.locator('.teacher-type-tabs [data-type-tab=suggestion]').click();
     await expect(p.locator('#teacherRecordList .teaching-card')).toHaveCount(2);
   }

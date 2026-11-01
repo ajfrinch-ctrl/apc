@@ -32,9 +32,11 @@ for (const width of [320, 390, 1024]) {
     await expect(page.locator('.admin-bottom [data-teacher-view="classes"]')).toHaveAttribute('aria-current', 'page');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator('.admin-bottom [data-teacher-view="home"]').click();
-    // Home heroes are create-first; the records screen opens via the নম্বর
-    // এন্ট্রি chip and the homework type tab (which lights the ক্লাস seat).
-    await page.locator('#teacherHome .teacher-action-secondary [data-teacher-view="exam"]').click();
+    // ২০২৬-১১-০১: নম্বর ও ফলাফল is a lane of the পরীক্ষা seat; its own route is
+    // #marks, and the homework type tab switches to the বাড়ির কাজ lane (which
+    // lights the ক্লাস seat).
+    await page.locator('.admin-bottom [data-teacher-view="online-exams"]').click();
+    await page.locator('#teacherOnlineExams [data-teacher-view="exam"]').click();
     await page.locator('.teacher-type-tabs [data-type-tab="homework"]').click();
     await expect(page.locator('#teacherRecords')).toBeVisible();
     await expect(page.locator('.admin-bottom [data-teacher-view="classes"]')).toHaveAttribute('aria-current', 'page');

@@ -26,7 +26,7 @@ const homeGrid = {
    keep a pay-back-to-home round trip, so the router shortcut test scopes to them. */
 const homeShortcuts = {
   manager: '.manager-view[data-view-panel="dashboard"] nav[aria-label="দ্রুত অ্যাক্সেস"] > button[data-manager-view]',
-  teacher: '#teacherHome [data-teacher-view="routine-view"], #teacherHome .teacher-action-secondary [data-teacher-view="courses"]'
+  teacher: '#teacherHome [data-teacher-view="routine-view"], #teacherHome [data-teacher-view="homework"]'
 };
 const navCount = { student: 5, admin: 6, manager: 6, teacher: 4, payment: 5 };
 const shell = { student: '#appShell', admin: '#adminShell', manager: '#managerShell', teacher: '#teacherShell', payment: '#payShell' };

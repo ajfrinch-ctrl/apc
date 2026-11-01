@@ -48,24 +48,32 @@ before(async () => {
 });
 after(() => ctx?.window.close());
 
-test('the home সাজেশন hero opens the suggestion composer, never the notice board', async () => {
-  /* ২০২৬-১০-২১: Home heroes are create-first — the সাজেশন hero opens the
-     suggestion composer over Home, while the separate notice board (a distinct
-     system) stays closed. */
-  ctx.click($('#teacherHome [data-new-activity="suggestion"]'));
+test('the academic সাজেশন door opens the full suggestion page, never the notice board', async () => {
+  /* মালিক-নির্দেশ ২০২৬-১১-০১: দরজা আগে সম্পূর্ণ পেজ খোলে (একাডেমিক হাব →
+     সাজেশন), তারপর সেই পেজের তৈরি-কার্ড কম্পোজার খোলে। নোটিশ বোর্ড আলাদা
+     সিস্টেম — সেটি বন্ধই থাকে। */
+  ctx.click($('#teacherHome .teacher-academic-hub'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, false, 'the suggestion composer opens over Home');
+  ctx.click($('#teacherAcademic [data-teacher-view="suggestion"]'));
+  await settle();
+  assert.equal($('#teacherRecords').hidden, false, 'the suggestion page opens first');
+  assert.equal($('#teacherModalBackdrop').hidden, true, 'no composer over the hub');
+  assert.equal(ctx.window.location.hash, '#suggestion');
+  ctx.click($('#teacherRecords [data-records-action="create"]'));
+  await settle();
+  assert.equal($('#teacherModalBackdrop').hidden, false, 'the page opens its own composer');
   assert.match(nfc($('#teacherModalTitle').textContent), /সাজেশন/, 'the composer is for a suggestion');
   assert.equal($('#teacherNotice').hidden, true, 'the notice board stays closed — these are two different things');
   ctx.click($('#teacherModalClose'));
   await settle();
   assert.equal($('#teacherModalBackdrop').hidden, true);
+  assert.equal($('#teacherRecords').hidden, false, 'cancelling keeps the teacher on the suggestion page');
 });
 
 test('the suggestion records screen names itself সাজেশন everywhere the teacher reads', async () => {
-  /* The records list keeps its own screen: Home heroes are create-first, so the
-     teacher enters records through the নম্বর এন্ট্রি chip and the সাজেশন tab. */
-  ctx.click($('#teacherHome .teacher-action-secondary [data-teacher-view="exam"]'));
+  /* The records list keeps its own screen; সাজেশন is one of its type tabs, so
+     the teacher can also reach it from the বাড়ির কাজ page. */
+  ctx.click($('#teacherHome [data-teacher-view="homework"]'));
   await settle();
   ctx.click($('.teacher-type-tabs [data-type-tab="suggestion"]'));
   await settle();

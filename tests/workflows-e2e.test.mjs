@@ -377,11 +377,11 @@ test('workflow 7 — a counter payment shows on the student ফি screen, which
 test('workflow 8 — a teacher notice reaches its own class only: board and notification feed', async () => {
   const base = await seedAcademics();
   const teacher = await openStaff('teacher.html', 'teacher', base);
-  /* The teacher writes it in the panel itself: the কাজ দিন hub → নোটিশ দিন
-     opens the self-contained notice editor modal directly over the hub (the
-     same unified create flow as বাড়ির কাজ/সাজেশন). The 2026 Home redesign is
-     create-first for academic work; the notice board screen keeps its own Home
-     chip ("নোটিশ বোর্ড"), whose "+ নোটিশ" button opens this same composer. */
+  /* The teacher writes it in the panel itself. মালিক-নির্দেশ ২০২৬-১১-০১:
+     দরজা আগে সম্পূর্ণ পেজ খোলে — একাডেমিক হাব → নোটিশ বোর্ড (সম্পূর্ণ স্ক্রিন,
+     তালিকা খোলা), তারপর বোর্ডের নিজস্ব "নতুন নোটিশ প্রকাশ করুন" কার্ড সেই
+     কম্পোজার খোলে। হাবের ওপর আর কোনো মডেল খোলে না; বাতিল করলে শিক্ষক বোর্ডেই
+     থাকেন। */
   await openStaffPanel(teacher, 'teacher', {
     provision: false,
     importPanel: () => import('../js/teacher.js'),
@@ -391,10 +391,15 @@ test('workflow 8 — a teacher notice reaches its own class only: board and noti
   teacher.click(teacher.$('#teacherHome .teacher-academic-hub'));
   await teacher.flush(6);
   assert.equal(teacher.$('#teacherAcademic').hidden, false, 'একাডেমিক is the hub seat');
-  teacher.click(teacher.$('#teacherAcademic [data-new-notice]'));
+  teacher.click(teacher.$('#teacherAcademic [data-teacher-view="notice"]'));
   await teacher.flush(8);
-  assert.equal(teacher.$('#teacherModalBackdrop').hidden, false, 'the hub opens the notice editor modal directly');
-  assert.equal(teacher.$('#teacherAcademic').hidden, false, 'the hub stays underneath the modal');
+  assert.equal(teacher.$('#teacherNotice').hidden, false, 'the hub door opens the full notice board screen');
+  assert.equal(teacher.$('#teacherModalBackdrop').hidden, true, 'a door never opens the composer by itself');
+  assert.equal(teacher.$('#teacherNotice').dataset.noticeOpen, '1', 'the published/draft list is open on arrival');
+  teacher.click(teacher.$('#teacherNewNotice'));
+  await teacher.flush(8);
+  assert.equal(teacher.$('#teacherModalBackdrop').hidden, false, 'the board opens its own notice composer');
+  assert.equal(teacher.$('#teacherNotice').hidden, false, 'the board stays underneath the modal');
   teacher.type(teacher.$('#notice-title'), 'আগামীকাল ক্লাস বন্ধ (ওয়ার্কফ্লো)');
   teacher.type(teacher.$('#notice-body'), 'শুক্রবার প্রতিষ্ঠান বন্ধ থাকবে।');
   teacher.$('#notice-className').value = CLASS;
