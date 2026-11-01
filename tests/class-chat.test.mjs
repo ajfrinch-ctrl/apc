@@ -15,12 +15,15 @@ import {
   getClassRoomView,
   sendClassMessage,
   toggleMessageReaction,
+  deleteClassMessage,
+  canDeleteClassMessage,
   mountClassChat,
   CLASS_CHAT_RELAY_TTL_DAYS,
   CLASS_CHAT_RELAY_TTL_MS,
   encryptChatPayload,
   decryptChatPayload,
   syncClassChatRelayCycle,
+  mergeCloudRelayIntoLocal,
   CLASS_CHAT_READ_KEY,
   markClassRoomRead,
   getUnreadClassChatSummary,
@@ -350,11 +353,20 @@ test('6. UI search, reply preview bar, class switcher & draft-preserving live sy
   });
   await new Promise(resolve => setTimeout(resolve, 30));
 
-  // Moderation was retired: no pin/delete/lock affordances for staff, and no
-  // pinned banner for students.
+  // Pin / room-lock stay retired, but message deletion is back (2026-11-01):
+  // staff may delete any bubble, and a student only ever gets the tool on
+  // their own messages.
   assert.equal(teacherMount.querySelector('[data-chat-action="pin"]'), null, 'no pin control for staff');
-  assert.equal(teacherMount.querySelector('[data-chat-action="delete"]'), null, 'no delete control for staff');
   assert.equal(studentMount.querySelector('[data-chat-pinned-banner]'), null, 'no pinned banner');
+  assert.ok(
+    teacherMount.querySelector(`[data-chat-action="delete"][data-msg-id="${firstMsg.id}"]`),
+    'an admin can delete a message sent by somebody else'
+  );
+  assert.equal(
+    studentMount.querySelector(`[data-chat-action="delete"][data-msg-id="${firstMsg.id}"]`),
+    null,
+    'a student gets no delete tool on a classmate\'s message'
+  );
 
   // Reply UI flow: clicking "উত্তর দিন" opens reply preview strip above composer
   studentMount.querySelector(`[data-chat-action="reply"][data-msg-id="${firstMsg.id}"]`).click();
@@ -1103,3 +1115,143 @@ test('13. Full-screen Class Chat mode: hides portal chrome, enforces >=44px back
 
 
 
+
+test('14. WhatsApp-style soft delete: the sender or any staff member may tombstone a message, a student may not delete somebody else’s, and replies/reactions stop targeting it', async () => {
+  const dom = resetStorage(ROSTER);
+  const mount = document.getElementById('studentMount');
+
+  const raisa = sendClassMessage({ className: 'দশম শ্রেণি', text: 'আমার প্রশ্নটা ভুল ছিল, সরি।', actor: studentRaisa });
+  const tanvir = sendClassMessage({ className: 'দশম শ্রেণি', text: 'আগামীকালের রুটিন কোথায় পাবো?', actor: studentTanvir });
+  const teacherNote = sendClassMessage({ className: 'দশম শ্রেণি', text: 'রুটিন নোটিশ বোর্ডে দেওয়া আছে।', actor: teacherActor });
+
+  /* ---- Permission matrix ---- */
+  assert.equal(canDeleteClassMessage(studentRaisa, raisa), true, 'a sender may delete their own message');
+  assert.equal(canDeleteClassMessage(studentRaisa, tanvir), false, 'a student may not delete a classmate’s message');
+  assert.equal(canDeleteClassMessage(studentTanvir, teacherNote), false, 'a student may not delete a staff message');
+  for (const staff of [teacherActor, managerActor, adminActor]) {
+    assert.equal(canDeleteClassMessage(staff, tanvir), true, `${staff.role} may delete any message`);
+  }
+
+  /* A classmate’s attempt is rejected with a FORBIDDEN code and mutates nothing. */
+  const beforeReject = readClassChatStore().messages.find(m => m.id === tanvir.id);
+  assert.throws(
+    () => deleteClassMessage({ className: 'দশম শ্রেণি', messageId: tanvir.id, actor: studentRaisa }),
+    err => err.code === 'FORBIDDEN',
+    'a student deleting somebody else’s message fails with FORBIDDEN'
+  );
+  const afterReject = readClassChatStore().messages.find(m => m.id === tanvir.id);
+  assert.equal(afterReject.deleted, false, 'the rejected attempt left the message intact');
+  assert.equal(afterReject.text, beforeReject.text, 'the rejected attempt did not blank the text');
+
+  /* A student from another class cannot even reach the room. */
+  assert.throws(
+    () => deleteClassMessage({ className: 'দশম শ্রেণি', messageId: tanvir.id, actor: studentNabilClass9 }),
+    err => err.code === 'CLASS_ACCESS_DENIED',
+    'a different-class student is stopped by the room guard'
+  );
+
+  /* ---- Sender soft delete ---- */
+  const tomb = deleteClassMessage({ className: 'দশম শ্রেণি', messageId: raisa.id, actor: studentRaisa });
+  assert.equal(tomb.deleted, true);
+  assert.equal(tomb.text, '', 'the text is wiped from the tombstone');
+  assert.equal(tomb.deletedById, studentRaisa.id);
+  assert.equal(tomb.deletedBy, 'রাইসা ইসলাম');
+  assert.ok(tomb.deletedAt, 'the delete timestamp is recorded');
+  assert.equal(readClassChatStore().messages.some(m => m.id === raisa.id), true, 'soft delete keeps the record (no purge)');
+  assert.deepEqual(tomb.reactions, {}, 'reactions are cleared');
+
+  /* ---- Staff moderation on a student message ---- */
+  const staffTomb = deleteClassMessage({ className: 'দশম শ্রেণি', messageId: tanvir.id, actor: teacherActor });
+  assert.equal(staffTomb.deleted, true);
+  assert.equal(staffTomb.deletedByRole, 'teacher', 'the moderator role is kept for the tombstone label');
+  assert.equal(staffTomb.text, '');
+  assert.equal(deleteClassMessage({ className: 'দশম শ্রেণি', messageId: tanvir.id, actor: adminActor }).deleted, true,
+    'a second delete is an idempotent no-op instead of an error');
+
+  /* ---- Guards keep working after deletion ---- */
+  assert.throws(
+    () => toggleMessageReaction({ className: 'দশম শ্রেণি', messageId: raisa.id, emoji: QUICK_REACTIONS[0], actor: studentTanvir }),
+    err => err.code === 'MESSAGE_DELETED',
+    'reactions cannot target a deleted message'
+  );
+  sendClassMessage({ className: 'দশম শ্রেণি', text: 'নতুন প্রশ্ন', actor: studentTanvir, replyToId: raisa.id });
+  const quoted = readClassChatStore().messages.filter(m => m.roomKey === roomKeyForClass('দশম শ্রেণি')).at(-1);
+  assert.equal(quoted.replyTo, null, 'a deleted message cannot be used as a reply target');
+
+  /* ---- Tombstone rendering + UI permission gating ---- */
+  const view = getClassRoomView('দশম শ্রেণি', { actor: studentTanvir });
+  const tombstone = view.messages.find(m => m.id === raisa.id);
+  assert.equal(tombstone.deleted, true);
+  assert.equal(view.filteredMessages.some(m => m.id === raisa.id), true, 'the feed still renders the tombstone in place');
+  const searched = getClassRoomView('দশম শ্রেণি', { actor: studentTanvir, search: 'ভুল' });
+  assert.equal(searched.filteredMessages.some(m => m.id === raisa.id), false, 'search never surfaces a deleted message');
+
+  const ownMsg = sendClassMessage({ className: 'দশম শ্রেণি', text: 'এটা মুছে ফেলবো', actor: studentTanvir });
+  const studentUI = mountClassChat(mount, { portal: 'student', getActor: () => studentTanvir });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  const tombRow = mount.querySelector(`[data-chat-msg-id="${raisa.id}"]`);
+  assert.ok(tombRow.classList.contains('is-deleted'), 'the tombstone reuses the existing is-deleted UI');
+  assert.match(tombRow.textContent, /বার্তাটি মুছে ফেলা হয়েছে/);
+  assert.equal(tombRow.textContent.includes('আমার প্রশ্নটা ভুল ছিল'), false, 'the deleted text is gone from the DOM');
+  assert.ok(
+    mount.querySelector(`[data-chat-action="delete"][data-msg-id="${ownMsg.id}"]`),
+    'the student gets the delete tool on their own message'
+  );
+  assert.equal(
+    mount.querySelector(`[data-chat-action="delete"][data-msg-id="${teacherNote.id}"]`),
+    null,
+    'the student has no delete tool on a staff message'
+  );
+
+  /* Clicking the tool asks first, and only the confirm performs the delete. */
+  mount.querySelector(`[data-chat-action="delete"][data-msg-id="${ownMsg.id}"]`).click();
+  const confirm = mount.querySelector('[data-chat-delete-confirm]');
+  assert.equal(confirm.hidden, false, 'a confirmation sheet appears before deleting');
+  assert.match(confirm.textContent, /এই বার্তাটি মুছবেন\?/);
+  assert.equal(mount.querySelector('[data-chat-delete-confirm]').hidden, false);
+  assert.equal(readClassChatStore().messages.find(m => m.id === ownMsg.id).deleted, false, 'nothing happens before confirming');
+  mount.querySelector('[data-chat-action="cancel-delete"]').click();
+  assert.equal(mount.querySelector('[data-chat-delete-confirm]').hidden, true, 'cancel closes the sheet');
+  assert.equal(readClassChatStore().messages.find(m => m.id === ownMsg.id).deleted, false, 'cancel deletes nothing');
+  mount.querySelector(`[data-chat-action="delete"][data-msg-id="${ownMsg.id}"]`).click();
+  mount.querySelector('[data-chat-action="confirm-delete"]').click();
+  assert.equal(readClassChatStore().messages.find(m => m.id === ownMsg.id).deleted, true, 'confirm tombstones the message');
+  assert.ok(mount.querySelector(`[data-chat-msg-id="${ownMsg.id}"]`).classList.contains('is-deleted'), 'the feed repaints as a tombstone');
+
+  /* Staff mount offers the tool on any bubble, students included. */
+  const staffMount = document.getElementById('teacherMount');
+  mountClassChat(staffMount, { portal: 'admin', initialClass: 'দশম শ্রেণি', getActor: () => adminActor });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.ok(
+    staffMount.querySelector(`[data-chat-action="delete"][data-msg-id="${teacherNote.id}"]`),
+    'an admin sees the delete tool on every message'
+  );
+
+  /* ---- The tombstone travels: a newer remote tombstone replaces a live copy,
+     an older one never resurrects or re-deletes anything. */
+  const roomKey = roomKeyForClass('দশম শ্রেণি');
+  const liveStore = readClassChatStore();
+  const liveMessage = liveStore.messages.find(m => !m.deleted && m.senderRole === 'student');
+  assert.ok(liveMessage, 'a live message exists for the cross-device check');
+  const newerTombstone = { ...liveMessage, text: '', deleted: true, deletedByRole: 'manager', deletedAt: new Date().toISOString(), updatedAt: Date.now() + 5000 };
+  const mergedNewer = await mergeCloudRelayIntoLocal(
+    { m1: { _syncKind: 'message', record: newerTombstone, updatedAt: newerTombstone.updatedAt } },
+    liveStore,
+    { relayedMessages: {}, relayedRooms: {} },
+    { allowedRoomKeys: new Set([roomKey]) }
+  );
+  assert.equal(mergedNewer.localChanged, true, 'the newer tombstone is adopted locally');
+  assert.equal(mergedNewer.nextStore.messages.find(m => m.id === liveMessage.id).deleted, true,
+    'a second device receives the delete');
+  const mergedOlder = await mergeCloudRelayIntoLocal(
+    { m1: { _syncKind: 'message', record: { ...liveMessage, updatedAt: Number(liveMessage.updatedAt) - 5000 }, updatedAt: Number(liveMessage.updatedAt) - 5000 } },
+    mergedNewer.nextStore,
+    { relayedMessages: {}, relayedRooms: {} },
+    { allowedRoomKeys: new Set([roomKey]) }
+  );
+  assert.equal(mergedOlder.nextStore.messages.find(m => m.id === liveMessage.id).deleted, true,
+    'an older relay copy cannot resurrect a deleted message');
+
+  studentUI.destroy();
+  dom.window.close();
+});

@@ -463,6 +463,55 @@ export function toggleMessageReaction({ className, messageId, emoji, actor: acto
   return updated;
 }
 
+/* ---------- Message deletion (WhatsApp-style soft delete) -------------------
+   Owner request 2026-11-01: a sender may remove their own message and staff
+   (admin / teacher / manager) may remove anyone's. A Student can never remove
+   somebody else's message. Deletion is a TOMBSTONE, never a purge: the record
+   stays with `deleted: true`, empty text, no reactions and the moderator's
+   identity, so replies/reactions can no longer target it and the feed keeps
+   showing "বার্তাটি মুছে ফেলা হয়েছে" in place of the original text. */
+const MODERATOR_ROLES = Object.freeze(['admin', 'teacher', 'manager']);
+
+export function canDeleteClassMessage(actorInput, message) {
+  try {
+    if (!message || message.deleted) return false;
+    const actor = normalizeChatActor(actorInput);
+    if (MODERATOR_ROLES.includes(actor.role)) return true;
+    return Boolean(message.senderId && actor.id && message.senderId === actor.id);
+  } catch {
+    return false;
+  }
+}
+
+export function deleteClassMessage({ className, messageId, actor: actorInput } = {}) {
+  const { actor, classId, roomKey } = assertRoomReadAccess(actorInput, className);
+  const cleanId = String(messageId || '').trim();
+  if (!cleanId) throw chatError('কোন বার্তা মুছবেন তা নির্বাচন করুন।', 'MESSAGE_NOT_FOUND');
+  const store = readClassChatStore();
+  const idx = store.messages.findIndex(m => m.roomKey === roomKey && m.id === cleanId);
+  if (idx < 0) throw chatError('বার্তাটি পাওয়া যায়নি।', 'MESSAGE_NOT_FOUND');
+  const current = store.messages[idx];
+  if (current.deleted) return current;                      // already a tombstone: idempotent
+  if (!canDeleteClassMessage(actor, current)) {
+    throw chatError('শুধু নিজের বার্তা মুছতে পারবেন; অন্য কারও বার্তা মুছতে স্টাফ অনুমতি লাগবে।', 'FORBIDDEN');
+  }
+  const deleted = normalizeMessage({
+    ...current,
+    text: '',
+    replyTo: null,
+    reactions: {},
+    deleted: true,
+    deletedBy: actor.name || '',
+    deletedById: actor.id || '',
+    deletedByRole: MODERATOR_ROLES.includes(actor.role) ? actor.role : 'student',
+    deletedAt: new Date().toISOString(),
+    updatedAt: Date.now()
+  });
+  store.messages[idx] = deleted;
+  writeClassChatStore(store, { action: 'delete', classId, roomKey, messageId: deleted.id });
+  return deleted;
+}
+
 function avatarInitial(name) {
   const clean = String(name || '').trim();
   if (!clean) return 'স';
@@ -603,9 +652,14 @@ export function renderMessageBubbleHtml(msg, actorInput, { groupedWithPrev = fal
     </button>`;
   }).filter(Boolean).join('');
 
-  /* Message pinning, deletion and every other moderation control were removed
-     with the "শ্রেণি চ্যাট ও মডারেশন" feature (owner request 2026-10-28): a
-     bubble now offers only reply + reactions, for every role. */
+  /* Pin / room-lock stay retired (owner request 2026-10-28). Message deletion
+     came back on 2026-11-01 as a soft delete: a sender may remove their own
+     message and staff may remove anyone's, so the tray grows a "মুছুন" tool
+     only for the roles allowed to use it. */
+  const canDelete = canDeleteClassMessage(actor, msg);
+  const deleteToolHtml = canDelete
+    ? `<button type="button" class="chat-msg-tool is-danger" data-chat-action="delete" data-msg-id="${escapeHtml(msg.id)}" aria-label="বার্তাটি মুছুন">মুছুন</button>`
+    : '';
   const showHeader = !isMine && !groupedWithPrev;
 
   return `<article class="chat-row ${isMine ? 'is-mine' : 'is-other'} ${groupClass}${isStaffSender ? ' is-staff' : ''}${activeReactionPills ? ' has-reactions' : ''}${isJustSent ? ' is-just-sent' : ''}" data-chat-msg-id="${escapeHtml(msg.id)}" data-sender-tone="${escapeHtml(tone)}">
@@ -628,6 +682,7 @@ export function renderMessageBubbleHtml(msg, actorInput, { groupedWithPrev = fal
           <div class="chat-reactions-bar" role="group" aria-label="প্রতিক্রিয়া">${reactionPickerBtns}</div>
           <div class="chat-msg-tools">
             <button type="button" class="chat-msg-tool" data-chat-action="reply" data-msg-id="${escapeHtml(msg.id)}">উত্তর দিন</button>
+            ${deleteToolHtml}
           </div>
         </div>
       </div>
@@ -669,6 +724,7 @@ export function mountClassChat(target, options = {}) {
     searchOpen: false,
     emojiOpen: false,
     openMenuMsgId: '',
+    pendingDeleteId: '',
     replyTo: null,
     error: '',
     highlightedId: '',
@@ -724,6 +780,18 @@ export function mountClassChat(target, options = {}) {
 
       <p class="class-chat-error" data-chat-error role="alert" hidden></p>
 
+      <div class="class-chat-confirm" data-chat-delete-confirm role="dialog" aria-labelledby="classChatDeleteTitle" hidden>
+        <div class="class-chat-confirm-card">
+          <h3 class="class-chat-confirm-title" id="classChatDeleteTitle">এই বার্তাটি মুছবেন?</h3>
+          <p class="class-chat-confirm-copy" data-chat-delete-preview></p>
+          <p class="class-chat-confirm-note">বার্তাটি সবার কাছ থেকে সরে যাবে — জায়গায় “বার্তাটি মুছে ফেলা হয়েছে” দেখাবে।</p>
+          <div class="class-chat-confirm-actions">
+            <button type="button" class="class-chat-confirm-cancel" data-chat-action="cancel-delete">বাতিল</button>
+            <button type="button" class="class-chat-confirm-ok" data-chat-action="confirm-delete">হ্যাঁ, মুছুন</button>
+          </div>
+        </div>
+      </div>
+
       <footer class="class-chat-composer-wrap" data-chat-composer-wrap>
         <div class="class-chat-search-results" data-chat-search-results role="region" aria-label="খোঁজার ফলাফল" hidden></div>
         <div class="class-chat-reply-bar" data-chat-reply-bar hidden></div>
@@ -762,6 +830,8 @@ export function mountClassChat(target, options = {}) {
   const inputEl = el('[data-chat-input]');
   const charCountEl = el('[data-chat-char-count]');
   const sendBtnEl = el('[data-chat-action="send"]');
+  const deleteConfirmEl = el('[data-chat-delete-confirm]');
+  const deletePreviewEl = el('[data-chat-delete-preview]');
 
   function syncHostHeroCollapse(collapsed) {
     if (!hostHeroEl) return;
@@ -785,6 +855,26 @@ export function mountClassChat(target, options = {}) {
   function syncEmojiDrawerUi() {
     if (emojiDrawerEl) emojiDrawerEl.hidden = !state.emojiOpen;
     emojiToggleBtn?.setAttribute('aria-expanded', state.emojiOpen ? 'true' : 'false');
+  }
+
+  function renderDeleteConfirm() {
+    if (!deleteConfirmEl) return;
+    const pendingId = state.pendingDeleteId;
+    if (!pendingId) {
+      deleteConfirmEl.hidden = true;
+      if (deletePreviewEl) deletePreviewEl.textContent = '';
+      return;
+    }
+    const row = feedEl
+      ? Array.from(feedEl.querySelectorAll('[data-chat-msg-id]')).find(node => node.dataset.chatMsgId === pendingId)
+      : null;
+    const snippet = String(row?.querySelector('.chat-bubble-text')?.textContent || '').replace(/\s+/g, ' ').slice(0, 90);
+    if (deletePreviewEl) {
+      deletePreviewEl.textContent = snippet ? `“${snippet}${snippet.length >= 90 ? '…' : ''}”` : '';
+      deletePreviewEl.hidden = !snippet;
+    }
+    deleteConfirmEl.hidden = false;
+    deleteConfirmEl.querySelector('[data-chat-action="confirm-delete"]')?.focus?.();
   }
 
   function syncOpenMenuRow() {
@@ -1129,8 +1219,10 @@ export function mountClassChat(target, options = {}) {
         state.selectedClass = nextClass;
         state.replyTo = null;
         state.openMenuMsgId = '';
+        state.pendingDeleteId = '';
         state.justSentId = '';
         showError('');
+        renderDeleteConfirm();
         paintLoaded(false);
       }
       return;
@@ -1204,6 +1296,54 @@ export function mountClassChat(target, options = {}) {
       syncOpenMenuRow();
       return;
     }
+    if (action === 'delete') {
+      const msgId = String(actionBtn.dataset.msgId || '');
+      if (!msgId || !state.actor) return;
+      // Authorisation is re-checked against the live store, not the old bubble.
+      const view = getClassRoomView(state.selectedClass, { actor: state.actor });
+      const target = view.messages.find(m => m.id === msgId);
+      if (!target || target.deleted) return;
+      if (!canDeleteClassMessage(state.actor, target)) {
+        showError('শুধু নিজের বার্তা মুছতে পারবেন; অন্য কারও বার্তা মুছতে স্টাফ অনুমতি লাগবে।');
+        return;
+      }
+      showError('');
+      state.pendingDeleteId = msgId;
+      state.openMenuMsgId = '';
+      syncOpenMenuRow();
+      renderDeleteConfirm();
+      return;
+    }
+    if (action === 'cancel-delete') {
+      state.pendingDeleteId = '';
+      renderDeleteConfirm();
+      return;
+    }
+    if (action === 'confirm-delete') {
+      const msgId = state.pendingDeleteId;
+      if (!msgId || !state.actor) {
+        state.pendingDeleteId = '';
+        renderDeleteConfirm();
+        return;
+      }
+      state.pendingDeleteId = '';
+      renderDeleteConfirm();
+      showError('');
+      try {
+        suppressOwnEvent = true;
+        try {
+          deleteClassMessage({ className: state.selectedClass, messageId: msgId, actor: state.actor });
+        } finally {
+          suppressOwnEvent = false;
+        }
+        if (state.replyTo?.id === msgId) state.replyTo = null;
+        paintLoaded(false);
+      } catch (err) {
+        showError(err?.message || 'বার্তাটি মোছা যায়নি।');
+        paintLoaded(false);
+      }
+      return;
+    }
     if (action === 'send') {
       void submitComposer();
       return;
@@ -1270,8 +1410,10 @@ export function mountClassChat(target, options = {}) {
     state.selectedClass = nextClass;
     state.replyTo = null;
     state.openMenuMsgId = '';
+    state.pendingDeleteId = '';
     state.justSentId = '';
     showError('');
+    renderDeleteConfirm();
     paintLoaded(false);
   });
 
@@ -1310,6 +1452,13 @@ export function mountClassChat(target, options = {}) {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
       void submitComposer();
+    }
+  });
+
+  root.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && state.pendingDeleteId) {
+      state.pendingDeleteId = '';
+      renderDeleteConfirm();
     }
   });
 
@@ -1356,11 +1505,15 @@ export function mountClassChat(target, options = {}) {
       state.selectedClass = normalizeClassId(className) || state.selectedClass;
       state.replyTo = null;
       state.openMenuMsgId = '';
+      state.pendingDeleteId = '';
       state.justSentId = '';
+      renderDeleteConfirm();
       paintLoaded(false);
     },
     destroy() {
       state.destroyed = true;
+      state.pendingDeleteId = '';
+      renderDeleteConfirm();
       syncHostHeroCollapse(false);
       hostShell?.style.removeProperty('--chat-viewport-h');
       window.removeEventListener('storage', onExternalUpdate);

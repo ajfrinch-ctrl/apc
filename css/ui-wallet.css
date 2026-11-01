@@ -7354,6 +7354,74 @@ body.student-reference #appMain:has(> #classChatView.active:not([hidden])),
   color: var(--color-danger);
 }
 
+/* WhatsApp-style soft delete: a small in-flow confirm sheet, not a modal
+   overlay, so the chat layout and the 360px composer stay untouched. */
+.chat-msg-tool.is-danger {
+  color: var(--color-danger);
+}
+.class-chat-confirm {
+  flex: 0 0 auto;
+  order: 0;
+  padding: 0 10px 6px;
+}
+.class-chat-confirm[hidden] { display: none !important; }
+.class-chat-confirm-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+.class-chat-confirm-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.class-chat-confirm-copy {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.class-chat-confirm-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+.class-chat-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+.class-chat-confirm-actions button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.class-chat-confirm-ok {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, var(--color-border));
+  background: var(--color-danger);
+  /* --color-surface is white in light and near-black in dark, so the label
+     keeps AA contrast on the light-pink danger tone of the dark palette. */
+  color: var(--color-surface);
+}
+.class-chat-confirm-cancel:hover,
+.class-chat-confirm-ok:hover {
+  filter: brightness(.97);
+}
+
+
 /* WhatsApp active reaction badge tucked under the bubble corner */
 .chat-active-reactions {
   position: relative;
