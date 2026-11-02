@@ -4,6 +4,7 @@ import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, ST
 import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
+import { syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
@@ -215,16 +216,7 @@ function renderView(view) {
   document.getElementById('managerShell')?.classList.toggle('is-chat-fullscreen', isChatFullscreen);
   document.getElementById('managerMain')?.classList.toggle('is-chat-view', isChatFullscreen);
   if (isChatFullscreen) mountManagerClassChat();
-  const seat = view === 'dashboard' ? 'dashboard'
-    : view === 'students' ? 'students'
-      : view === 'class-chat' ? 'more'
-      : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'lecture-sheets', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
-        : view === 'finance' ? 'finance' : 'more';
-  $$('.manager-bottom [data-panel-view]').forEach(button => {
-    const active = button.dataset.panelView === seat;
-    button.classList.toggle('active', active);
-    if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
-  });
+  syncStaffNavigation('manager', view);
   // Each return to Settings starts at its group menu, never a stale subsection.
   if (view === 'settings') resetSettingsHub('[data-settings-hub="manager"]');
   // Refresh reopens this page: the open view lives in the URL. It is remembered
