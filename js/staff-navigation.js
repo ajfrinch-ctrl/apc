@@ -44,3 +44,25 @@ export function syncStaffNavigation(role, route, root = typeof document !== 'und
   });
   return activeTab;
 }
+
+
+/**
+ * Bind the shared five-tab click engine. Role panels supply only their existing
+ * guarded route adapter; this handler owns the common tab event contract and
+ * captures the event before any legacy per-button listener can double-navigate.
+ */
+export function bindStaffNavigation({ role, root = typeof document !== 'undefined' ? document : null, onNavigate } = {}) {
+  const normalizedRole = String(role || '').toLowerCase();
+  if (!STAFF_NAV_ROUTES[normalizedRole] || !root?.addEventListener || typeof onNavigate !== 'function') return false;
+  const handler = event => {
+    const button = event.target?.closest?.('.staff-bottom-nav [data-staff-tab]');
+    if (!button || button.disabled) return;
+    const route = STAFF_NAV_ROUTES[normalizedRole][button.dataset.staffTab];
+    if (!route) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    onNavigate(route, button);
+  };
+  root.addEventListener('click', handler, true);
+  return true;
+}
