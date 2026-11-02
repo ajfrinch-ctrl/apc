@@ -14,7 +14,7 @@ import { readStaffAccount } from './staff-auth.js';
 import { initAppearance } from './appearance.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
-import { syncStaffNavigation } from './staff-navigation.js';
+import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
@@ -84,6 +84,7 @@ function showCounterView(view) {
   syncCounterHeading();
   return true;
 }
+bindStaffNavigation({ role: 'payment', onNavigate: route => showCounterView(route) });
 const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
 const status = tx => tx.status === 'pending' ? 'অনুমোদন বাকি' : tx.status === 'rejected' ? 'বাতিল' : 'অনুমোদিত';
 function toast(message, tone='info') {
