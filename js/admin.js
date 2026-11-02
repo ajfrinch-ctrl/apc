@@ -1,6 +1,4 @@
 import { dhakaKey } from './time.js';
-import { pickDailyAdvice, readAdviceCache } from './daily-advice.js';
-import { pickAdminOperationalAdvice, ADMIN_OPERATIONAL_ADVICE_SEEDS, pickAdminSectionAdvice } from './admin-operational-advice.js';
 import { initExamManager } from './exam-manager.js';
 import { studentRecordMarkup } from './student-record.js';
 import { initAdminAcademics } from './admin-academics.js';
@@ -276,7 +274,7 @@ function syncAdminHeroCards() {
     const key = welcomeBox.dataset.adminHeroAdvice || 'admin-dashboard';
     if (key === 'admin-dashboard') return;
     const p = welcomeBox.querySelector('p');
-    const line = pickAdminSectionAdvice(key);
+    const line = pickStaffSectionAdvice(key);
     if (p && line) p.textContent = line;
   });
 }
@@ -492,17 +490,7 @@ function renderDashboard() {
     todayDateEl.dateTime = dateKey;
   }
   const adviceNode = $('#adminHeroAdvice');
-  if (adviceNode) {
-    const cacheItems = readAdviceCache()?.items;
-    const hasCustomAdvice = Array.isArray(cacheItems) && cacheItems.length;
-    if (hasCustomAdvice) {
-      const picked = pickDailyAdvice(cacheItems, dateKey);
-      if (picked?.text) adviceNode.textContent = picked.text;
-    } else {
-      const picked = pickAdminOperationalAdvice(dateKey, ADMIN_OPERATIONAL_ADVICE_SEEDS);
-      if (picked?.text) adviceNode.textContent = picked.text;
-    }
-  }
+  if (adviceNode) adviceNode.textContent = pickStaffSectionAdvice('home', today);
   syncAdminHeroCards();
 }
 
