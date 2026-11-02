@@ -211,8 +211,7 @@ html[data-birthday] .pay-tile-icon { box-shadow: var(--birthday-ring); }
 }
 .nav-chip > .nav-dot[hidden] { display: none; }
 @media (max-width: 360px) {
-  /* Admin and Manager have six seats on a 320px phone. Reclaim the buttons'
-     side padding so the longest label fits without shrinking its type. */
+  /* Staff portals share five equal navigation seats on narrow phones. */
   .admin-shell:not(.teacher-shell):not(.pay-shell) .admin-bottom-item { padding-inline: 0; }
   .admin-shell:not(.teacher-shell):not(.pay-shell) .admin-bottom-item > .nav-label { font-size: 11px; }
 }
