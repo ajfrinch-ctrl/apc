@@ -36,7 +36,7 @@ import { escapeHtml } from './sanitize.js';
 import { matchesStudentQuery } from './student-search.js';
 import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT, DETAIL_VIEW_PARENTS, VIEW_CAPABILITIES } from './admin-permissions.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
-import { syncStaffNavigation } from './staff-navigation.js';
+import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
 import { rememberRoute, onRouteChange } from './panel-route.js';
 import { activateAdminDetail, placeRenderedDetails } from './admin-detail-views.js';
 import { openRegistrationReview, DECIDED_EVENT, listPendingRegistrations, pendingQueueMarkup, bindPendingQueueActions } from './registration-review.js';
@@ -429,6 +429,8 @@ function navigateBack(fallback) {
   navigate(fallback || DETAIL_VIEW_PARENTS[state.activeView] || access.defaultView(), null,
     { history: 'replace', clearBack: true });
 }
+
+bindStaffNavigation({ role: 'admin', onNavigate: (route, button) => navigate(route, button) });
 
 /* ---------- Dashboard ---------- */
 
