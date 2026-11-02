@@ -32,7 +32,7 @@ import { normalizeClassId, normalizeSectionId } from './class-key.js';
 import { listClasses } from './academics.js';
 import { noticeCategory, noticeCategoryInfo } from './notification-rules.js';
 import { mountReports, refreshReports } from './reports.js';
-import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { iconMarkup } from './icons.js';
 import { initOrgInfo } from './org-info.js';
 
@@ -176,7 +176,7 @@ function syncManagerPanelHead() {
   $$('[data-home-intro]').forEach(intro => { intro.dataset.heroMode = mode; });
   $$('[data-manager-hero-advice]').forEach(node => {
     const key = node.dataset.managerHeroAdvice || 'dashboard';
-    node.textContent = pickTeacherSectionAdvice(key);
+    node.textContent = pickStaffSectionAdvice(key);
   });
   const homeTitle = $('#managerHomeTitle');
   if (homeTitle) {
