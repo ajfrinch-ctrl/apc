@@ -18,10 +18,19 @@ export const STAFF_NAV_ROUTES = Object.freeze({
   payment: Object.freeze({ home: 'home', work: 'students', academic: 'reports', finance: 'payment', more: 'more' })
 });
 
+const ROUTE_ALIASES = Object.freeze({
+  admin: Object.freeze({ system: 'more', profile: 'more', settings: 'more', data: 'more', backup: 'more', audit: 'more', security: 'more', migration: 'more', roles: 'more', content: 'more', advice: 'more', phonebook: 'more' }),
+  teacher: Object.freeze({ 'class-chat': 'academic', exam: 'academic', 'online-exams': 'academic', notice: 'academic', courses: 'academic', 'lecture-sheets': 'academic', 'routine-view': 'academic', reports: 'finance', profile: 'more', settings: 'more', advice: 'more' }),
+  manager: Object.freeze({ 'class-chat': 'more', 'academic-records': 'academic', classes: 'academic', teachers: 'work', notices: 'academic', routine: 'academic', exams: 'academic', courses: 'academic', 'lecture-sheets': 'academic', results: 'academic', reports: 'more', phonebook: 'more', profile: 'more', settings: 'more', advice: 'more' }),
+  payment: Object.freeze({ profile: 'more', reports: 'academic' })
+});
+
 export function staffTabForRoute(role, route) {
-  const mapping = STAFF_NAV_ROUTES[String(role || '').toLowerCase()];
+  const normalizedRole = String(role || '').toLowerCase();
+  const mapping = STAFF_NAV_ROUTES[normalizedRole];
   if (!mapping) return '';
-  return Object.keys(mapping).find(key => mapping[key] === route) || '';
+  const exact = Object.keys(mapping).find(key => mapping[key] === route);
+  return exact || ROUTE_ALIASES[normalizedRole]?.[route] || '';
 }
 
 export function syncStaffNavigation(role, route, root = typeof document !== 'undefined' ? document : null) {
