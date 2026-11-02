@@ -16,6 +16,7 @@ import { courseRepository, courseProgress, watchCourses } from './course-data.js
 import { classByName } from './academics.js';
 import { NOTICE_CATEGORIES } from './notification-rules.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
+import { applyPanelCapabilities } from './panel-capabilities.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { initFixedShell } from './fixed-shell.js';
@@ -1100,6 +1101,10 @@ async function showTeacherShell() {
     if (TEACHER_VIEWS.includes(next) && next !== state.view) setView(next);
   });
   const loaded = await reload();
+  /* ধাপ C ও D (মালিক-নির্দেশ ২০২৬-১১-০২): এক permission gate + হোমের
+     রুল-ভিত্তিক দরজা। অনুমতি নেই এমন এন্ট্রি দেখা যায় না, চাপও দেওয়া যায় না;
+     হোম শুধু সেই দরজাগুলো দেখায় যেগুলোর রুট এই প্যানেল সত্যিই খুলতে পারে। */
+  applyPanelCapabilities({ role: 'teacher', homeRoot: $('#teacherHome'), routes: TEACHER_VIEWS });
   /* Settings → the shared five-group structure. The profile card, password row
      and theme switch keep their homes; the hub adds the notification group and
      what the Teacher page did not have (app install, session, data). */
@@ -1289,6 +1294,9 @@ document.addEventListener('click', event => {
     return;
   }
   if (nav) {
+    /* একটি নিষ্ক্রিয় (gate-blocked) এন্ট্রি কখনো navigate করে না — শুধু লুকানো
+       নয়, কাজও বন্ধ; তাই ডিভ-টুলস দিয়ে দেখিয়েও কিছু করা যায় না। */
+    if (nav.dataset.gateBlocked === '1' || nav.closest('[data-gate-blocked="1"]')) return;
     if (nav.closest('#teacherOnlineExams .teacher-home-intro') && state.examScreen) {
       state.examScreen = '';
       paintTeacherExam();

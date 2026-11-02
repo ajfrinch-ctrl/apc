@@ -13,6 +13,7 @@ import { PAYMENT_USER_ID, PAYMENT_SESSION_KEY, hasPaymentSession, clearPaymentSe
 import { readStaffAccount } from './staff-auth.js';
 import { initAppearance } from './appearance.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
+import { applyPanelCapabilities } from './panel-capabilities.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
@@ -218,6 +219,7 @@ document.addEventListener('click',event=>{
   }
   const seat=event.target.closest('[data-panel-view]');
   if(seat) {
+    if(seat.dataset.gateBlocked === '1' || seat.dataset.homeBlocked === '1') return;
     const targetSec = seat.dataset.panelView;
     showCounterView(targetSec);
     if (targetSec === 'students' && seat.closest('#payHomeCard, #payEntryPanel')) {
@@ -406,6 +408,8 @@ hasPaymentSession().then(async valid=>{
     const heroObs = new MutationObserver(() => syncCounterHeading());
     if (document.documentElement) heroObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
   } catch {}
+  /* ধাপ C ও D (মালিক-নির্দেশ ২০২৬-১১-০২): কাউন্টারের সব দরজা এক নিয়মে যাচাই। */
+  applyPanelCapabilities({ role: 'payment', homeRoot: $('#payCounterHome'), routes: COUNTER_VIEWS });
   configureForm(); showCounterView('home'); await refreshToday();
   window.dispatchEvent(new Event('apc-session-ready'));
 });

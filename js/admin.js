@@ -34,7 +34,8 @@ import { registerServiceWorker } from './service-worker.js';
 import { initFixedShell } from './fixed-shell.js';
 import { escapeHtml } from './sanitize.js';
 import { matchesStudentQuery } from './student-search.js';
-import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT, DETAIL_VIEW_PARENTS } from './admin-permissions.js';
+import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT, DETAIL_VIEW_PARENTS, VIEW_CAPABILITIES } from './admin-permissions.js';
+import { applyPanelCapabilities } from './panel-capabilities.js';
 import { rememberRoute, onRouteChange } from './panel-route.js';
 import { activateAdminDetail, placeRenderedDetails } from './admin-detail-views.js';
 import { openRegistrationReview, DECIDED_EVENT, listPendingRegistrations, pendingQueueMarkup, bindPendingQueueActions } from './registration-review.js';
@@ -168,6 +169,14 @@ async function enterPanel() {
   });
   paintAdminSettingsDoors();
   mountReports($('#adminReports'), { panel: 'admin' });
+  /* ধাপ C ও D (মালিক-নির্দেশ ২০২৬-১১-০২): Admin-এর নিজের `data-admin-cap`
+     গেট অপরিবর্তিত (এটা Admin-এর ভেতরের ভূমিকা-ব্যবস্থা), তার উপরে চার
+     প্যানেলের **একই** এন্ট্রি-গেট ও হোম-নিয়ম বসে — একই কোড, একই আচরণ। */
+  applyPanelCapabilities({
+    role: 'admin',
+    homeRoot: $('.admin-view[data-view-panel="dashboard"]'),
+    routes: Object.keys(VIEW_CAPABILITIES)
+  });
   // A deep link (admin.html#staff) opens only when
   // this role may see it; anything else falls back to the first permitted tab.
   const route = routeFromHash(window.location.hash);

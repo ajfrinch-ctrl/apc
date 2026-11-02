@@ -3,6 +3,7 @@ import { taka, addTaka } from './money.js';
 import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
 import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
+import { applyPanelCapabilities } from './panel-capabilities.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
@@ -1096,6 +1097,8 @@ document.addEventListener('click', event => {
   }
 });
 $$('[data-panel-view]').forEach(button => button.addEventListener('click', () => {
+  /* অনুমতিহীন (gate-blocked) দরজা লুকানো থাকে, আর দেখালেও কাজ করে না। */
+  if (button.dataset.gateBlocked === '1' || button.dataset.homeBlocked === '1') return;
   const view = button.dataset.panelView;
   if (view === 'exams') { managerExamScreen = ''; managerExamTileKey = ''; }
   if (!normalizeView(view)) return;
@@ -1440,6 +1443,12 @@ async function enterManager() {
   onRouteChange(name => { const next = normalizeView(name); if (next && (next.view !== activeView || name !== next.view)) renderView(name); });
   // Auth is now validated and the real panel is painted; only now uncover it.
   dismissManagerBoot();
+  /* ধাপ C ও D (মালিক-নির্দেশ ২০২৬-১১-০২): এক gate, এক হোম-নিয়ম। */
+  applyPanelCapabilities({
+    role: 'manager',
+    homeRoot: $('.manager-view[data-view-panel="dashboard"]'),
+    routes: MANAGER_VIEWS
+  });
   await loadOperationalData();
   /* One Settings structure for every role (§29). The hub fills নিরাপত্তা ও ডেটা
      and mounts the notification rows — the Manager's profile card, password row
