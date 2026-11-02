@@ -17,7 +17,7 @@ import { classByName } from './academics.js';
 import { NOTICE_CATEGORIES } from './notification-rules.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
-import { syncStaffNavigation } from './staff-navigation.js';
+import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { initFixedShell } from './fixed-shell.js';
@@ -620,6 +620,7 @@ function setView(view) {
   // The open page lives in the URL, so a refresh lands back on it.
   rememberRoute(routeFor(view));
 }
+bindStaffNavigation({ role: 'teacher', onNavigate: route => setView(route) });
 async function reload() {
   try {
     /* WHO is at the panel decides what is fetched: the active staff identity's
