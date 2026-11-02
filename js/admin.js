@@ -35,6 +35,7 @@ import { matchesStudentQuery } from './student-search.js';
 import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT, DETAIL_VIEW_PARENTS, VIEW_CAPABILITIES } from './admin-permissions.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
 import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
+import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { rememberRoute, onRouteChange } from './panel-route.js';
 import { activateAdminDetail, placeRenderedDetails } from './admin-detail-views.js';
 import { openRegistrationReview, DECIDED_EVENT, listPendingRegistrations, pendingQueueMarkup, bindPendingQueueActions } from './registration-review.js';
