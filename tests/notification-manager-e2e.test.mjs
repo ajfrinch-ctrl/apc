@@ -90,7 +90,7 @@ test('a paper from the teacher opens the Examination view', async () => {
 });
 
 test('the in-app card: a new entry appears on it, and tapping it opens the approval queue', async () => {
-  ctx.click(ctx.$('[data-manager-view="dashboard"]'));
+  ctx.click(ctx.$('[data-panel-view="dashboard"]'));
   const list = JSON.parse(ctx.window.localStorage.getItem(KEYS.transactions));
   list.unshift({ id: 'TX-10', receiptNo: 'R-10', studentId: 'S-2', studentName: 'করিম হাসান', className: 'নবম', feeType: 'মাসিক বেতন', month: 'অক্টোবর', amount: 1200, method: 'Cash', status: 'pending', reviewHistory: [], recordedAt: Date.now() });
   // Arrives the way the sync bridge delivers it (js/realtime-sync.js notifyRemote).

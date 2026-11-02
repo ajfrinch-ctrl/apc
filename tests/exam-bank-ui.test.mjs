@@ -38,7 +38,7 @@ before(async () => {
     shellId: 'teacherShell',
     ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব নির্ধারিত শ্রেণি')
   });
-  ctx.click($('[data-teacher-view="online-exams"]'));
+  ctx.click($('[data-panel-view="online-exams"]'));
   await ctx.waitFor(() => Boolean($('#teacherExamWorkspace [data-exam-action="new-mcq"]')));
 });
 after(() => ctx?.window.close());
@@ -88,7 +88,7 @@ test('the hub offers প্রশ্ন সংরক্ষণ করুন and t
 });
 
 test('the quick MCQ wizard filters assigned question-bank rows and adds selected MCQs to its paste template', async () => {
-  ctx.click($('[data-teacher-view="online-exams"]'));
+  ctx.click($('[data-panel-view="online-exams"]'));
   await ctx.waitFor(() => Boolean($('.teacher-cta')));
   ctx.click($('.teacher-cta'));
   await ctx.waitFor(() => Boolean($('#teacherExamWorkspace [data-quick-wizard]')));

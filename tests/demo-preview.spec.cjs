@@ -76,7 +76,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 844, height: 390 }
     await enterPortal(page, 'teacher');
     // ২০২৬-১১-০১: the home door opens the full records page; the page's own
     // create card opens the shared activity form on top of it.
-    await page.locator('#teacherHome [data-teacher-view=homework]').click();
+    await page.locator('#teacherHome [data-panel-view=homework]').click();
     await page.locator('#teacherRecords [data-records-action=create]').click();
     await expect(page.locator('#teacherActivityForm')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

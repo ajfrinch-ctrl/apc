@@ -23,7 +23,7 @@ for (const width of [320, 360, 375, 390, 412, 430]) {
       await expect(page.locator(`.admin-view.active[data-view-panel="${view}"]`)).toBeVisible();
       await expect(page.locator('.admin-view.active')).toHaveCount(1);
       const seat = ({ students: 'dashboard', roles: 'system', migration: 'system', academics: 'system', security: 'system', settings: 'system', data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', more: 'more' })[view] || view;
-      await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-admin-view', seat);
+      await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', seat);
       const result = await page.evaluate(() => {
         const bar = document.querySelector('.admin-bottom').getBoundingClientRect();
         const main = document.querySelector('#adminMain');
@@ -64,8 +64,8 @@ for (const width of [320, 360, 375, 390, 412, 430]) {
       return bad;
     });
     expect(iconFit).toEqual([]);
-    await page.locator('.admin-bottom [data-admin-view="staff"]').click();
-    await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-admin-view', 'staff');
+    await page.locator('.admin-bottom [data-panel-view="staff"]').click();
+    await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'staff');
     await page.evaluate(() => { location.hash = 'finance'; });
     await expect(page.locator('[data-view-panel="teaching"]')).toHaveCount(0);
     expect(errors).toEqual([]);

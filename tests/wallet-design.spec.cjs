@@ -25,8 +25,8 @@ const homeGrid = {
    round-trip screens. Only the pure screen doors (read-only routine, materials)
    keep a pay-back-to-home round trip, so the router shortcut test scopes to them. */
 const homeShortcuts = {
-  manager: '.manager-view[data-view-panel="dashboard"] nav[aria-label="দ্রুত অ্যাক্সেস"] > button[data-manager-view]',
-  teacher: '#teacherHome [data-teacher-view="routine-view"], #teacherHome [data-teacher-view="homework"]'
+  manager: '.manager-view[data-view-panel="dashboard"] nav[aria-label="দ্রুত অ্যাক্সেস"] > button[data-panel-view]',
+  teacher: '#teacherHome [data-panel-view="routine-view"], #teacherHome [data-panel-view="homework"]'
 };
 const navCount = { student: 5, admin: 6, manager: 6, teacher: 4, payment: 5 };
 const shell = { student: '#appShell', admin: '#adminShell', manager: '#managerShell', teacher: '#teacherShell', payment: '#payShell' };
@@ -99,7 +99,7 @@ for (const width of [320, 390, 1280]) for (const theme of ['light', 'dark']) for
 
 for (const role of ['manager', 'teacher']) test(`${role} service shortcuts and back controls use the original router`, async ({ page }) => {
   await prepare(page, { role, width: 320 });
-  const attribute = `data-${role}-view`;
+  const attribute = 'data-panel-view';
   const targetHome = role === 'manager' ? 'dashboard' : 'home';
   const shortcuts = page.locator(homeShortcuts[role]);
   const routes = await shortcuts.evaluateAll((buttons, attribute) => buttons.map(button => button.getAttribute(attribute)), attribute);
@@ -166,8 +166,8 @@ for (const scene of [{ width:320, theme:'dark' },{ width:390, theme:'light' }]) 
     await page.goto('/demo/offline-roles.html');await seed(page,'payment');
     await page.evaluate(async()=>{const {adminStudents}=await import('/js/admin-data.js');const {KEYS}=await import('/js/database.js');localStorage.setItem(KEYS.students,JSON.stringify(adminStudents));localStorage.setItem(KEYS.transactions,'[]');});
     await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
-    await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom [data-pay-section]')).toHaveCount(5);
-    await page.locator('.admin-bottom [data-pay-section="students"]').click();await expect(page.locator('#payStudentsPanel')).toBeVisible();
+    await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom [data-panel-view]')).toHaveCount(5);
+    await page.locator('.admin-bottom [data-panel-view="students"]').click();await expect(page.locator('#payStudentsPanel')).toBeVisible();
     await page.locator('#payStudentSearch').fill('AP-1024');await page.locator('#paySearchResults .fee-search-result').click();
     await expect(page.locator('#payProfileCollect')).toBeEnabled();await page.locator('#payProfileCollect').click();
     await expect(page.locator('#payCollectionForm')).toBeVisible();await expect(page.locator('#payFeeAmount')).toHaveValue('');await page.locator('#payFeeAmount').fill('800');await page.locator('#paySaveButton').click();
@@ -184,7 +184,7 @@ for (const scene of [{ width:320, theme:'dark' },{ width:390, theme:'light' }]) 
 
 test('horizontal filter strips stay contained and scroll to their last real control', async ({ page }) => {
   await prepare(page, { role: 'admin', width: 320 });
-  await page.locator('.admin-bottom [data-admin-view="staff"]').click();
+  await page.locator('.admin-bottom [data-panel-view="staff"]').click();
   const strips = page.locator('.admin-view.active .chip-row');
   expect(await strips.count()).toBeGreaterThan(0);
   for (let index = 0; index < await strips.count(); index++) {
@@ -214,7 +214,7 @@ for (const theme of ['light', 'dark']) test(`login, recovery and registration us
 
 test('admin create-staff sheet fits 320px and returns focus on Escape', async ({ page }) => {
   await prepare(page, { role: 'admin', width: 320 });
-  await page.locator('.admin-bottom [data-admin-view="staff"]').click();
+  await page.locator('.admin-bottom [data-panel-view="staff"]').click();
   await page.locator('#staffCreateButton').click();
   const dialog = page.locator('#staffModalBody');
   await expect(dialog).toBeVisible();

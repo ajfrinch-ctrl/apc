@@ -632,7 +632,7 @@ test('9. Topbar Chat Icon & Floating Chat Head stay synced, enforce RBAC unread 
     const doc = new JSDOM(readFileSync(new URL(`../${strippedFile}`, import.meta.url), 'utf8')).window.document;
     assert.equal(doc.querySelector('#classChatTopbarButton'), null, `${strippedFile} has no topbar chat button`);
     assert.equal(doc.querySelector('[data-class-chat-mount]'), null, `${strippedFile} has no chat mount`);
-    assert.equal(doc.querySelector('[data-admin-view="class-chat"],[data-manager-view="class-chat"]'), null, `${strippedFile} has no chat route`);
+    assert.equal(doc.querySelector('[data-panel-view="class-chat"],[data-panel-view="class-chat"]'), null, `${strippedFile} has no chat route`);
   }
 
   // Mount a realistic Student shell with Home + Class Chat views + Topbar Chat Icon + Floating Chat Head
@@ -1043,13 +1043,13 @@ test('13. Full-screen Class Chat mode: hides portal chrome, enforces >=44px back
       <main class="admin-main is-chat-view" id="adminMain">
         <section class="admin-view active" data-view-panel="class-chat">
           <div class="page-intro">
-            <button class="pay-back" type="button" data-admin-view="more" hidden>ফিরে যান</button>
+            <button class="pay-back" type="button" data-panel-view="more" hidden>ফিরে যান</button>
             <h1>শ্রেণি চ্যাট ও মডারেশন</h1>
           </div>
           <div id="fsAdminMount" data-class-chat-mount="admin"></div>
         </section>
       </main>
-      <nav class="admin-bottom"><button class="admin-bottom-item" data-admin-view="dashboard" type="button">ড্যাশবোর্ড</button></nav>
+      <nav class="admin-bottom"><button class="admin-bottom-item" data-panel-view="dashboard" type="button">ড্যাশবোর্ড</button></nav>
     </div>
   `;
 

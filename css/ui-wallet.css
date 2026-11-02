@@ -1,3 +1,4 @@
+
 /* Pay skin — the wallet-style layout of every Active Plus portal.
 
    What it is: a brand-coloured app bar that flows into a hero band, a floating
@@ -4921,11 +4922,11 @@ body.manager-reference .manager-view > .page-intro.manager-sub-hero {
   gap: 0 !important;
   width: 100% !important;
   aspect-ratio: 16 / 10 !important;
-  min-height: 212px !important;
+  min-height: var(--t-hero-min-h, 236px) !important;
   margin: 2px 0 16px !important;
   padding: 0 !important;
   overflow: hidden !important;
-  border-radius: 26px !important;
+  border-radius: var(--t-radius-hero, 26px) !important;
   border: 1px solid var(--portal-hero-day-border) !important;
   background-color: var(--portal-hero-day-bg) !important;
   background-image: none !important;
@@ -4969,7 +4970,7 @@ body.manager-reference .manager-view .teacher-hero-content {
   justify-content: space-between !important;
   gap: 14px !important;
   width: 100% !important;
-  min-height: 212px !important;
+  min-height: var(--t-hero-min-h, 236px) !important;
   padding: 16px 18px !important;
 }
 
@@ -5871,11 +5872,11 @@ body.payment-reference .pay-panel > .page-intro.payment-sub-hero {
   gap: 0 !important;
   width: 100% !important;
   aspect-ratio: 16 / 10 !important;
-  min-height: 212px !important;
+  min-height: var(--t-hero-min-h, 236px) !important;
   margin: 2px 0 16px !important;
   padding: 0 !important;
   overflow: hidden !important;
-  border-radius: 26px !important;
+  border-radius: var(--t-radius-hero, 26px) !important;
   border: 1px solid var(--portal-hero-day-border) !important;
   background-color: var(--portal-hero-day-bg) !important;
   background-image: none !important;
@@ -5925,7 +5926,7 @@ body.payment-reference .pay-panel .teacher-hero-content {
   justify-content: space-between !important;
   gap: 14px !important;
   width: 100% !important;
-  min-height: 212px !important;
+  min-height: var(--t-hero-min-h, 236px) !important;
   padding: 16px 18px !important;
   box-sizing: border-box !important;
 }
@@ -6174,7 +6175,7 @@ body.payment-reference #payCounterHome > .payment-home-intro,
 body.payment-reference #payEntryPanel > .page-intro,
 body.payment-reference #payMorePanel > .page-intro { order: 1; }
 
-body.payment-reference #payHomeCard [data-pay-section="students"] { order: 10; }
+body.payment-reference #payHomeCard [data-panel-view="students"] { order: 10; }
 body.payment-reference #payHomeCard [data-pay-toggle="today-list"] { order: 20; }
 body.payment-reference #payActivityCard { order: 21; }
 body.payment-reference #payClosingShortcut { order: 30; }

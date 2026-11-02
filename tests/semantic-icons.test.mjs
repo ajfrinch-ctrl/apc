@@ -39,8 +39,17 @@ test('every 3D icon image across all panels exists on disk and every action card
  }
 });
 test('icon refresh preserves control routes, IDs and action attributes from approved checkpoint',()=>{
- const attrs=['id','data-view','data-action','data-teacher-view','data-manager-view','data-admin-view','data-pay-section','data-close-modal'];
- const controls=d=>[...d.querySelectorAll('button,a,input')].map(n=>Object.fromEntries(attrs.filter(a=>n.hasAttribute(a)).map(a=>[a,n.getAttribute(a)]))).filter(control=>Object.keys(control).length);
+ const attrs=['id','data-view','data-action','data-panel-view','data-close-modal'];
+ /* ২০২৬-১১-০২: চার স্টাফ প্যানেলের রুট-অ্যাট্রিবিউট এখন এক — `data-panel-view`।
+    পুরোনো checkpoint-এ সেটি `data-teacher-view`/`data-manager-view`/
+    `data-admin-view`/`data-pay-section` নামে ছিল, তাই তুলনার সময় সেগুলোকে
+    alias হিসেবে একই কী-তে মাপা হয়। */
+ const LEGACY_ROUTES=['data-teacher-view','data-manager-view','data-admin-view','data-pay-section'];
+ const controls=d=>[...d.querySelectorAll('button,a,input')].map(n=>{
+  const out=Object.fromEntries(attrs.filter(a=>n.hasAttribute(a)).map(a=>[a,n.getAttribute(a)]));
+  for(const legacy of LEGACY_ROUTES) if(n.hasAttribute(legacy)) out['data-panel-view']=n.getAttribute(legacy);
+  return out;
+ }).filter(control=>Object.keys(control).length);
  const readCheckpoint=page=>{
   for(const ref of ['f2571fb','c7aa9b0','HEAD']){
    try{return execFileSync('git',['show',`${ref}:${page}.html`],{encoding:'utf8',stdio:['ignore','pipe','ignore']});}catch{/* try next */}
@@ -64,7 +73,7 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
   const old=new JSDOM(readCheckpoint(page)).window.document;
   /* The teacher's existing "পরীক্ষা নিন" hint now targets the explicit online-exams route;
      both routes resolve to the same panel, but notifications and task links use online-exams. */
-  if(page==='teacher') old.querySelector('.admin-bottom [data-teacher-view="exam"]')?.setAttribute('data-teacher-view','online-exams');
+  if(page==='teacher') old.querySelector('.admin-bottom [data-panel-view="exam"]')?.setAttribute('data-panel-view','online-exams');
   const now=controls(current);
   if(page==='manager'||page==='admin'){
    if(page==='manager'){
@@ -73,12 +82,14 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    }
    /* Owner request 2026-10-28: the "শ্রেণি চ্যাট ও মডারেশন" console is removed
       from both staff panels, so its shortcuts are the retired controls here. */
+   /* ২০২৬-১১-০২: পাসওয়ার্ডের আলাদা রো বিলুপ্ত — সেটিংসের অ্যাকাউন্ট গ্রুপে
+      ইনলাইন ফর্ম (`#managerPasswordForm`) সব প্যানেলে এক। */
    const retiredChat = control => control.id === 'classChatTopbarButton'
-    || control['data-admin-view'] === 'class-chat'
-    || control['data-manager-view'] === 'class-chat';
+    || control.id === 'managerChangePassword'
+    || control['data-panel-view'] === 'class-chat';
    const currentRoutes=new Set(now.filter(control=>control.id!=='managerFinanceApprovalLink').map(control=>JSON.stringify(control)));
    for(const control of controls(old).filter(c=>c.id!=='managerFinanceApprovalLink'&&!retiredChat(c)))assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
-   const adviceRoute=page==='manager'?'data-manager-view':'data-admin-view';
+   const adviceRoute=page==='manager'?'data-panel-view':'data-panel-view';
    assert.ok(now.some(control=>control[adviceRoute]==='advice'),'daily advice remains reachable from More');
   }else if(page==='teacher'){
    /* 2026-10-20 navigation restructure: the main navigation, every view, ID and
@@ -88,13 +99,28 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
       and its students nav seat entirely, so that single retired control is
       excluded from the preserved-set check; every other approved control must
       still exist (subset rule, the same one Manager/Admin use). */
-   const retired = control => control['data-teacher-view'] === 'students'
+   /* ২০২৬-১১-০২: পাসওয়ার্ড বদলের আলাদা রো/বাটন বিলুপ্ত — এখন সেটিংসের
+      অ্যাকাউন্ট গ্রুপে ইনলাইন ফর্ম (`#teacherPasswordForm`)। */
+   const retired = control => control['data-panel-view'] === 'students'
+    || control.id === 'teacherChangePassword'
     || (typeof control.id === 'string' && control.id.startsWith('teacherStudent'));
    const currentRoutes=new Set(now.map(control=>JSON.stringify(control)));
    for(const control of controls(old)){
     if(retired(control)) continue;
     assert.ok(currentRoutes.has(JSON.stringify(control)),`teacher keeps existing route/control ${JSON.stringify(control)}`);
    }
-  }else assert.deepEqual(now,controls(old),page);
+  }else {
+   /* ২০২৬-১১-০২: কাউন্টার এখন নিজের প্রোফাইল স্ক্রিন পেয়েছে (Admin/Teacher/
+      Manager-এর মতোই) — checkpoint-এর প্রতিটি কন্ট্রোল অপরিবর্তিত থাকতে হবে,
+      নতুনটি শুধু যোগ হতে পারে। */
+   /* The counter's own logout button now lives in the shared account group
+      (rendered by js/staff-account-forms.js), so the static page no longer
+      carries it — the same one-form rule as the other three panels. */
+   const retired = control => control.id === 'payMoreLogout';
+   const currentRoutes=new Set(now.map(control=>JSON.stringify(control)));
+   for(const control of controls(old).filter(before=>!retired(before))) assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
+   const added=now.filter(control=>!controls(old).some(before=>JSON.stringify(before)===JSON.stringify(control)));
+   assert.deepEqual(added,[{ 'data-panel-view': 'profile' }], 'the counter adds exactly one door — its own profile');
+  }
  }
 });

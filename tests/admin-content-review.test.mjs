@@ -29,11 +29,11 @@ const activeView = () => ctx.$('.admin-view.active')?.dataset.viewPanel;
 const contentOpen = () => activeView() === 'content';
 
 async function openDetail(view) {
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="more"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="more"]'));
   await ctx.waitFor(() => activeView() === 'more');
-  ctx.click(ctx.$('#adminMoreMenu [data-admin-view="content"]'));
+  ctx.click(ctx.$('#adminMoreMenu [data-panel-view="content"]'));
   await ctx.waitFor(contentOpen);
-  ctx.click(ctx.$(`.admin-view[data-view-panel="content"] [data-admin-view="${view}"]`));
+  ctx.click(ctx.$(`.admin-view[data-view-panel="content"] [data-panel-view="${view}"]`));
   await ctx.waitFor(() => activeView() === view);
 }
 
@@ -49,12 +49,12 @@ before(async () => {
   seedStaffSession(ctx.window, 'admin');
   await import('../js/admin.js');
   await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
-  await ctx.waitFor(() => ctx.$('#adminMoreMenu [data-admin-view="content"]')?.dataset.navWired === '1');
+  await ctx.waitFor(() => ctx.$('#adminMoreMenu [data-panel-view="content"]')?.dataset.navWired === '1');
 });
 after(() => ctx?.window.close());
 
 test('the content view lists notices and records with a live count', async () => {
-  assert.ok(ctx.$('#adminMoreMenu [data-admin-view="content"]'), 'More hub has the নোটিশ ও কনটেন্ট row');
+  assert.ok(ctx.$('#adminMoreMenu [data-panel-view="content"]'), 'More hub has the নোটিশ ও কনটেন্ট row');
   await openDetail('content-notices');
   assert.equal(ctx.$('.admin-view[data-view-panel="content"]').hidden, true, 'the content hub is replaced by the notice detail');
   await ctx.waitFor(() => ctx.$$('#adminNoticeReviewList .content-review-card').length === 1);

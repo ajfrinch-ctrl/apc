@@ -186,8 +186,8 @@ test('the migration console lives in the সিস্টেম hub, opens by has
   await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
 
   // The hub card is rendered for Admin and carries its capability.
-  await ctx.waitFor(() => Boolean(ctx.$('#adminSystemMenu [data-admin-view="migration"]')));
-  const card = ctx.$('#adminSystemMenu [data-admin-view="migration"]');
+  await ctx.waitFor(() => Boolean(ctx.$('#adminSystemMenu [data-panel-view="migration"]')));
+  const card = ctx.$('#adminSystemMenu [data-panel-view="migration"]');
   assert.ok(card, 'the migration card is missing from the system hub');
   assert.equal(card.dataset.adminCap, 'security.manage');
   assert.match(card.textContent, /মাইগ্রেশন/);
@@ -195,7 +195,7 @@ test('the migration console lives in the সিস্টেম hub, opens by has
   // The hash route opens the view and the সিস্টেম seat stays active.
   ctx.window.location.hash = '#migration';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="migration"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'system');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'system');
 
   // The console mounted inside the view with both tools (renderAll may lag a
   // beat behind the navigation, so wait for the mount itself).

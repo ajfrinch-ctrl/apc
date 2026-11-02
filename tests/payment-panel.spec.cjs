@@ -62,7 +62,7 @@ test('the counter changes its own password from Settings; only that password sig
   await enter(page);
 
   // Settings → অ্যাকাউন্ট carries the same one password row every staff panel has.
-  await page.locator('[data-pay-section="more"]').click();
+  await page.locator('[data-panel-view="more"]').click();
   await page.locator('#payMorePanel [data-settings-open="account"]').click();
   const row = page.locator('#payMorePanel [data-settings-row="password"]');
   await expect(row).toHaveCount(1);
@@ -116,13 +116,13 @@ test('the counter desk opens on হোম with the five counter tabs and nothing
   await seedRoster(page);
   await enter(page);
   // The counter's own five seats, one per step of its job.
-  const seats = page.locator('nav.admin-bottom [data-pay-section]');
+  const seats = page.locator('nav.admin-bottom [data-panel-view]');
   await expect(seats).toHaveText(['হোম', 'শিক্ষার্থী', 'পেমেন্ট', 'রিপোর্ট', 'আরও']);
-  await expect(page.locator('nav.admin-bottom [aria-current="page"]')).toHaveAttribute('data-pay-section', 'home');
+  await expect(page.locator('nav.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'home');
   await expect(page.locator('[data-pay-panel="home"]')).toBeVisible();
 
   // No other role's views live anywhere on this page.
-  await expect(page.locator('[data-admin-view], [data-manager-view], [data-teacher-view], [data-student-view]')).toHaveCount(0);
+  await expect(page.locator('[data-panel-view], [data-panel-view], [data-panel-view], [data-student-view]')).toHaveCount(0);
 
   // An empty day says so instead of inventing rows.
   await expect(page.locator('#payTodayList')).toContainText('আজ এখনও কোনো লেনদেন নেই।');
@@ -131,7 +131,7 @@ test('the counter desk opens on হোম with the five counter tabs and nothing
 test('search resolves name, ID, roll and exact phones but never class or guardian name', async ({ page }) => {
   const [student] = await seedRoster(page);
   await enter(page);
-  await page.locator('nav.admin-bottom [data-pay-section="students"]').click();
+  await page.locator('nav.admin-bottom [data-panel-view="students"]').click();
 
   for (const query of [student.name, student.id, student.uniqueRoll]) {
     await page.locator('#payStudentSearch').fill(String(query));
@@ -165,7 +165,7 @@ test('search resolves name, ID, roll and exact phones but never class or guardia
 test('verify → entry → receipt: a pending slip, a stored entry and a receipt PDF', async ({ page }) => {
   const [student] = await seedRoster(page);
   await enter(page);
-  await page.locator('nav.admin-bottom [data-pay-section="students"]').click();
+  await page.locator('nav.admin-bottom [data-panel-view="students"]').click();
   await page.locator('#payStudentSearch').fill(student.id);
   await page.locator('#paySearchResults .fee-search-result').first().click();
 

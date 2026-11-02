@@ -84,18 +84,18 @@ test('static named icons on all five portals use the new set before JS boot', ()
 });
 
 test('the unchanged renderer API replaces one icon, never a control or its routing', () => {
-  const window = new JSDOM('<button data-admin-view="staff"><span class="admin-feature-icon"></span><span>স্টাফ</span></button><button><span class="nav-chip"></span></button>').window;
+  const window = new JSDOM('<button data-panel-view="staff"><span class="admin-feature-icon"></span><span>স্টাফ</span></button><button><span class="nav-chip"></span></button>').window;
   const previous = globalThis.document;
   globalThis.document = window.document;
   try {
-    const button = document.querySelector('[data-admin-view]');
+    const button = document.querySelector('[data-panel-view]');
     let clicks = 0;
     button.addEventListener('click', () => clicks++);
     paintIcon(button.querySelector('span'), 'staff', 'admin-feature-icon-svg');
     paintIcon(button.querySelector('span'), 'staff', 'admin-feature-icon-svg');
     assert.equal(button.querySelectorAll('svg').length, 1);
     assert.equal(button.querySelector('svg').dataset.iconStyle, 'color');
-    assert.equal(button.dataset.adminView, 'staff');
+    assert.equal(button.dataset.panelView, 'staff');
     assert.match(button.textContent, /স্টাফ/);
     button.click();
     assert.equal(clicks, 1);

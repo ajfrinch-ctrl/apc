@@ -24,7 +24,7 @@ test('SDK network failure is caught with no standing sync notice on the login sc
 });
 test('report: 60 real rows paginate, download PDF, empty filter opens preview',async({page})=>{
  await enterPortal(page,'admin');await roster(page,60);await page.reload();
- await page.locator('.admin-bottom [data-admin-view=reports]').click();
+ await page.locator('.admin-bottom [data-panel-view=reports]').click();
  await page.locator('select[name=report]').selectOption('student.status');
  await page.locator('.rc-generate').click();await expect(page.locator('.rc-pdf-preview .rp-page').first()).toBeVisible();
  expect(await page.locator('.rp-page').count()).toBeGreaterThan(1);
@@ -36,7 +36,7 @@ test('report: 60 real rows paginate, download PDF, empty filter opens preview',a
 test('teacher: all 30 MCQ templates render, apply and copy without changing academic engine',async({page,context})=>{
  await context.grantPermissions(['clipboard-read','clipboard-write']);
  await page.addInitScript(()=>localStorage.setItem('activePlus.manager.teacherAssignments.v1',JSON.stringify([{id:'QA-AS',teacherUsername:'teacher.apc',teacherName:'QA Teacher',className:'দশম শ্রেণি',group:'',subject:'গণিত'}])));
- await enterPortal(page,'teacher');await page.locator('.admin-bottom [data-teacher-view=exam]').click();
+ await enterPortal(page,'teacher');await page.locator('.admin-bottom [data-panel-view=exam]').click();
  await page.locator('[data-exam-action=new-mcq]').click();
  await expect(page.locator('[data-template-index] option')).toHaveCount(30);
  for(let i=0;i<30;i++){await page.locator('[data-template-index]').selectOption(String(i));await page.locator('[data-exam-action=use-template]').click();await expect(page.locator('[name=template]')).not.toHaveValue('');}
@@ -52,7 +52,7 @@ test('offline update preserves sentinel, existing account and all protected asse
  await context.setOffline(true);await page.reload();await expect(page.locator('#adminShell')).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('qa-existing-data'))).toBe('must-survive');await context.setOffline(false);
 });
 test('staff modal: visible heading, keyboard focus containment and Escape close',async({page})=>{
- await enterPortal(page,'admin');await page.locator('.admin-bottom [data-admin-view=staff]').click();await page.locator('#staffCreateButton').click();
+ await enterPortal(page,'admin');await page.locator('.admin-bottom [data-panel-view=staff]').click();await page.locator('#staffCreateButton').click();
  const dialog=page.locator('[role=dialog]:visible');await expect(dialog).toHaveCount(1);await expect(dialog).toHaveAttribute('aria-modal','true');
  for(let i=0;i<35;i++)await page.keyboard.press('Tab');expect(await dialog.evaluate(e=>e.contains(document.activeElement))).toBe(true);
  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);

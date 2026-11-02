@@ -44,7 +44,7 @@ before(async () => {
     ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব নির্ধারিত শ্রেণি')
   });
   ctx.window.sessionStorage.setItem(STAFF_ACCOUNTS.manager.sessionKey, '1');
-  ctx.click($('[data-teacher-view="online-exams"]'));
+  ctx.click($('[data-panel-view="online-exams"]'));
   await ctx.waitFor(() => Boolean($('#teacherExamWorkspace [data-exam-action="new-mcq"]')));
 });
 after(() => ctx?.window.close());

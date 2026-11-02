@@ -54,7 +54,7 @@ test('the academic সাজেশন door opens the full suggestion page, never
      সিস্টেম — সেটি বন্ধই থাকে। */
   ctx.click($('#teacherHome .teacher-academic-hub'));
   await settle();
-  ctx.click($('#teacherAcademic [data-teacher-view="suggestion"]'));
+  ctx.click($('#teacherAcademic [data-panel-view="suggestion"]'));
   await settle();
   assert.equal($('#teacherRecords').hidden, false, 'the suggestion page opens first');
   assert.equal($('#teacherModalBackdrop').hidden, true, 'no composer over the hub');
@@ -73,7 +73,7 @@ test('the academic সাজেশন door opens the full suggestion page, never
 test('the suggestion records screen names itself সাজেশন everywhere the teacher reads', async () => {
   /* The records list keeps its own screen; সাজেশন is one of its type tabs, so
      the teacher can also reach it from the বাড়ির কাজ page. */
-  ctx.click($('#teacherHome [data-teacher-view="homework"]'));
+  ctx.click($('#teacherHome [data-panel-view="homework"]'));
   await settle();
   ctx.click($('.teacher-type-tabs [data-type-tab="suggestion"]'));
   await settle();
@@ -90,7 +90,7 @@ test('the suggestion records screen names itself সাজেশন everywhere t
 });
 
 test('the notice tile still opens the notice board on its own', async () => {
-  ctx.click($('[data-teacher-view="notice"]'));
+  ctx.click($('[data-panel-view="notice"]'));
   await settle();
   assert.equal($('#teacherNotice').hidden, false, 'the real notice board is its own screen');
   assert.equal($('#teacherRecords').hidden, true, 'and it is not the suggestion list wearing another name');

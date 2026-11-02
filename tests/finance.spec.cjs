@@ -51,7 +51,7 @@ for (const { width } of VIEWS) {
     await seedLedger(page);
     await suppressAutoAlertOnNextLoad(page);
     await page.reload();
-    await page.locator('.admin-bottom [data-manager-view=finance]').click();
+    await page.locator('.admin-bottom [data-panel-view=finance]').click();
 
     // Four KPIs over the one ledger: approved total, this month, dues, pending.
     await expect(page.locator('#mgrFinanceTotal')).toHaveText('৳৩,০০০');
@@ -102,7 +102,7 @@ test('Manager can approve a pending payment directly from the compact collection
   await seedLedger(page);
   await suppressAutoAlertOnNextLoad(page);
   await page.reload();
-  await page.locator('.admin-bottom [data-manager-view=finance]').click();
+  await page.locator('.admin-bottom [data-panel-view=finance]').click();
   await expect(page.locator('#mgrFinancePending')).toHaveText('১');
   const row = page.locator('#managerCollectionPendingList .manager-collection-row');
   await expect(row).toHaveCount(1);
@@ -120,7 +120,7 @@ test('Admin reads money through the Report Center: Generate → preview → PDF'
   await seedLedger(page);
   await suppressAutoAlertOnNextLoad(page);
   await page.reload();
-  await page.locator('.admin-bottom [data-admin-view=reports]').click();
+  await page.locator('.admin-bottom [data-panel-view=reports]').click();
   const select = page.locator('#adminReports select[name=report]');
   await expect(page.locator('#adminReports .rc-preview')).toHaveCount(0);
   await select.selectOption('fee.transactions');

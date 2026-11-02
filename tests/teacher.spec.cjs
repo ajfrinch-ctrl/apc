@@ -27,7 +27,7 @@ async function enter(page) {
   await expect(page.locator('#teacherShell')).toBeVisible();
 }
 async function goAcademic(page) {
-  await page.locator('.admin-bottom [data-teacher-view=home]').click();
+  await page.locator('.admin-bottom [data-panel-view=home]').click();
   await expect(page.locator('#teacherHome')).toBeVisible();
   // ২০২৬-১০-২১: একাডেমিক কার্যক্রম is its own Home feature card (out of ক্লাস).
   await page.locator('#teacherHome .teacher-academic-hub').click();
@@ -35,14 +35,14 @@ async function goAcademic(page) {
 }
 async function create(page, type, title, overrides = {}) {
   if (type === 'routine') {
-    await page.locator('.admin-bottom [data-teacher-view=classes]').click();
+    await page.locator('.admin-bottom [data-panel-view=classes]').click();
     await page.locator('#teacherClassList [data-teacher-open-class="দশম শ্রেণি"]').click();
     await page.locator('.teacher-type-tabs [data-type-tab=routine]').click();
     await page.locator('#teacherNewActivity').click();
   } else {
     await goAcademic(page);
     // The Academic hub actions are one-tap creators and open the form directly.
-    await page.locator(`#teacherAcademic [data-teacher-view=${type}]`).click();
+    await page.locator(`#teacherAcademic [data-panel-view=${type}]`).click();
   }
   await page.locator('#activity-title').fill(title);
   await page.locator('#activity-subject').fill('গণিত');
@@ -98,7 +98,7 @@ test('the Teacher home homework hero opens the reused create form directly', asy
   await enter(page);
   await expect(page.locator('#teacherClassFilter option').first()).toHaveText('সব নির্ধারিত শ্রেণি');
   // Home heroes are create doors: the reused assignment form pops over Home.
-  await page.locator('#teacherHome [data-teacher-view=homework]').click();
+  await page.locator('#teacherHome [data-panel-view=homework]').click();
   await page.locator('#teacherRecords [data-records-action=create]').click();
   await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
   await expect(page.locator('#teacherModalTitle')).toContainText('নতুন');
@@ -106,7 +106,7 @@ test('the Teacher home homework hero opens the reused create form directly', asy
   await expect(page.locator('#activity-title')).toBeVisible();
   await page.locator('#teacherModalClose').click();
   await expect(page.locator('#teacherModalBackdrop')).toBeHidden();
-  await page.locator('.admin-bottom [data-teacher-view=home]').click();
+  await page.locator('.admin-bottom [data-panel-view=home]').click();
   await expect(page.locator('#teacherHome')).toBeVisible();
 });
 
@@ -121,7 +121,7 @@ test('exam drafts must use Manager approval workflow; legacy marks are read-only
   await expect(page.locator('#teacherExamWorkspace [data-managed-exam]')).toContainText('খসড়া');
   await page.locator('#teacherExamWorkspace [data-exam-action=request]').click();
   await expect(page.locator('#teacherExamWorkspace [data-managed-exam]')).toContainText('অনুমোদনের অপেক্ষায়');
-  await page.locator('.admin-bottom [data-teacher-view=exam]').click();
+  await page.locator('.admin-bottom [data-panel-view=exam]').click();
   await expect(page.locator('#teacherNewActivity')).toBeHidden();
   const blocked = await page.evaluate(async () => {
     try {
@@ -147,7 +147,7 @@ test('homework student self-report is visible to teacher, review is visible to s
   await syncStorage(student, page, [KEY]);
   await page.reload();
   await expect(page.locator('#teacherShell')).toBeVisible();
-  await page.locator('.admin-bottom [data-teacher-view=classes]').click();
+  await page.locator('.admin-bottom [data-panel-view=classes]').click();
   await page.locator('#teacherClassList [data-teacher-open-class="দশম শ্রেণি"]').click();
   await page.locator('.teacher-type-tabs [data-type-tab=homework]').click();
   const activityId = await card.getAttribute('data-activity-id');
@@ -170,7 +170,7 @@ test('routine creation, attendance, schedule conflicts and student routine', asy
   const student = await studentPage(context, page); await student.locator('.bottom-nav [data-view=routine]').click();
   await expect(student.locator('#teacherRoutineList')).toContainText('অতিরিক্ত গণিত ক্লাস'); await expect(student.locator('#teacherRoutineList')).toContainText('উপস্থিত');
   await expect(student.locator('#teacherRoutineList')).toContainText('কক্ষ ২');
-  await page.locator('.admin-bottom [data-teacher-view=classes]').click();
+  await page.locator('.admin-bottom [data-panel-view=classes]').click();
   await page.locator('#teacherClassList [data-teacher-open-class="দশম শ্রেণি"]').click();
   await page.locator('.teacher-type-tabs [data-type-tab=routine]').click();
   await page.locator('#teacherNewActivity').click(); await page.locator('#activity-title').fill('সংঘর্ষ'); await page.locator('#activity-subject').fill('বাংলা');
@@ -193,7 +193,7 @@ test('suggestions, subject links, class/group scope, draft filter and escaped co
 });
 
 test('write failure keeps entered work and does not falsely save; corrupt storage fails closed', async ({ page }) => {
-  await enter(page); await goAcademic(page); await page.locator('#teacherAcademic [data-teacher-view=homework]').click();
+  await enter(page); await goAcademic(page); await page.locator('#teacherAcademic [data-panel-view=homework]').click();
   await page.locator('#activity-title').fill('হারাবে না'); await page.locator('#activity-subject').fill('গণিত');
   await page.evaluate(key => { const real = Storage.prototype.setItem; window.__restoreStorage = () => { Storage.prototype.setItem = real; delete window.__restoreStorage; }; Storage.prototype.setItem = function(k, v) { if (k === key) throw new DOMException('quota', 'QuotaExceededError'); return real.call(this, k, v); }; }, KEY);
   await page.locator('#teacherActivityForm [type=submit]').click(); await expect(page.locator('#teacherSaveError')).toContainText('সংরক্ষণ হয়নি');
@@ -276,7 +276,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
     expect(layout.ok, JSON.stringify(layout)).toBe(true);
     if (viewport.width <= 480) {
       await goAcademic(page);
-      await page.locator('#teacherAcademic [data-teacher-view=homework]').click();
+      await page.locator('#teacherAcademic [data-panel-view=homework]').click();
       await expect(page.locator('body')).toHaveClass(/admin-modal-open/);
       await page.locator('#activity-title').fill('মোবাইল পরীক্ষা'); await page.locator('#activity-subject').fill('গণিত');
       const submit = page.locator('#teacherActivityForm [type=submit]'); await submit.scrollIntoViewIfNeeded();
@@ -356,8 +356,8 @@ test('concurrent teacher tabs preserve both saves and immediately refresh each o
   // Home heroes are create-first, so records open via the নম্বর এন্ট্রি chip
   // and the suggestion type tab.
   for (const p of [page, other]) {
-    await p.locator('.admin-bottom [data-teacher-view=online-exams]').click();
-    await p.locator('#teacherOnlineExams [data-teacher-view=exam]').click();
+    await p.locator('.admin-bottom [data-panel-view=online-exams]').click();
+    await p.locator('#teacherOnlineExams [data-panel-view=exam]').click();
     await p.locator('.teacher-type-tabs [data-type-tab=suggestion]').click();
     await expect(p.locator('#teacherRecordList .teaching-card')).toHaveCount(2);
   }

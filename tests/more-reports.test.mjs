@@ -66,7 +66,14 @@ test('the narrowed counter keeps a private আরও seat and no student-profile
   for (const selector of ['#payDeskTools','#payQuickPicks','.fee-profile-details','.fee-balance-grid','.student-search-results-table']) assert.equal(ctx.$(selector), null, selector);
   /* আরও holds the counter's own session, not a menu of other roles' work. */
   assert.equal(ctx.$('#payMorePanel').hidden, true);
-  for (const id of ['payMoreUser','payMoreLogout']) assert.equal(ctx.$$('#'+id).length, 1, id);
+  /* ২০২৬-১১-০২: কাউন্টারের নিজের পরিচয় এখন আলাদা প্রোফাইল স্ক্রিনে; আরও-তে
+     থাকে শুধু সেটিংস হাব (অ্যাকাউন্ট গ্রুপে লগআউট)। */
+  /* The static page carries the profile card and an empty account group; the
+     one inline form (profile · password · logout) is rendered by
+     js/staff-account-forms.js, exactly as in Admin. */
+  assert.equal(ctx.$$('#payOwnProfileCard').length, 1, 'payOwnProfileCard');
+  assert.equal(ctx.$('#payMorePanel [data-settings-group="account"]').children.length, 0,
+    'the account group is filled by the shared form, never hand-copied per panel');
   assert.ok(ctx.$('#paymentReports'));
   assert.equal(ctx.$('#payReportsCard').hidden,true);
   assert.equal(ctx.$('#payProfileCard').hidden, true);

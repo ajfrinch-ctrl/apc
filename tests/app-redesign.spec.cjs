@@ -202,16 +202,16 @@ for (const role of ['admin','manager','teacher']) test(`${role} secondary screen
    : ['students','classes','routine-view','homework','online-exams','suggestion','reports','profile'];
  for(const view of views) {
   if(role==='teacher') {
-   await page.evaluate(view=>document.querySelector(`[data-teacher-view="${view}"]`).click(),view);
+   await page.evaluate(view=>document.querySelector(`[data-panel-view="${view}"]`).click(),view);
   } else if(role==='manager' && view==='cash-counter') {
    await page.evaluate(()=>{ location.hash='cash-counter'; });
   } else if(role==='manager' && view==='results') {
    await page.evaluate(()=>{
-    document.querySelector('[data-manager-view="academic"]').click();
+    document.querySelector('[data-panel-view="academic"]').click();
     document.querySelector('[data-academic-section="results"]').click();
    });
   } else if(role==='manager') {
-   await page.evaluate(view=>document.querySelector(`[data-manager-view="${view}"]`).click(),view);
+   await page.evaluate(view=>document.querySelector(`[data-panel-view="${view}"]`).click(),view);
   } else await page.evaluate(view=>location.hash=view,view);
   await page.waitForTimeout(75);
   const visible=role==='teacher'?page.locator('.teacher-view:visible'):page.locator(`.${role==='admin'?'admin':'manager'}-view.active`);
@@ -304,7 +304,7 @@ test('registration uses readable full-width fields on mobile',async({page},info)
 test('notice dialog and manager menu remain accessible on a narrow screen',async({page},info)=>{
  await page.setViewportSize({width:320,height:740});
  await enterPortal(page,'manager');
- await page.locator('.manager-bottom [data-manager-view="more"]').click();
+ await page.locator('.manager-bottom [data-panel-view="more"]').click();
  // "আরও" is a real page now: it must fit a 320px screen with no sideways
  // scroll, and a row opens its module in the same view.
  const menu=page.locator('#managerMoreHub');
@@ -313,7 +313,7 @@ test('notice dialog and manager menu remain accessible on a narrow screen',async
  expect(box.x).toBeGreaterThanOrEqual(0);
  expect(box.x+box.width).toBeLessThanOrEqual(320);
  expect(await menu.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
- await menu.locator('[data-manager-view="profile"]').click();
+ await menu.locator('[data-panel-view="profile"]').click();
  await expect(page.locator('[data-view-panel="profile"]')).toBeVisible();
  await page.locator('.notification-button').click();
  const dialog=page.locator('[role="dialog"]:visible');

@@ -349,7 +349,7 @@ function setView(view, { history = 'replace', clearBack = false } = {}) {
   syncAdminHeroCards();
   const seat = seatFor(target);
   $$('.admin-bottom-item').forEach(item => {
-    const active = item.dataset.adminView === seat;
+    const active = item.dataset.panelView === seat;
     item.classList.toggle('active', active);
     if (active) item.setAttribute('aria-current', 'page');
     else item.removeAttribute('aria-current');
@@ -452,7 +452,7 @@ function renderGradeAudit() {
 function renderDashboard() {
   // Institute card always reads the CURRENT record (address change bug fix).
   applyOrgInfo();
-  const studentFeatureTile = $('#adminFeatureGrid [data-admin-view="students"]');
+  const studentFeatureTile = $('#adminFeatureGrid [data-panel-view="students"]');
   if (studentFeatureTile) {
     const pendingCount = access.has(CAPABILITIES.STUDENTS_APPROVE) ? listPendingRegistrations().length : 0;
     let pill = studentFeatureTile.querySelector('.admin-feature-pending-pill');
@@ -1059,7 +1059,7 @@ function renderRoles() {
     const subText = `${ROLE_SUMMARY[role] || ''} (${countText})`;
     const iconName = ROLE_ICONS[role] || 'shield';
     return `
-      <button class="teacher-action-card${index === 0 ? ' is-accent' : ''}" type="button" data-admin-view="roles-${escapeHtml(role)}">
+      <button class="teacher-action-card${index === 0 ? ' is-accent' : ''}" type="button" data-panel-view="roles-${escapeHtml(role)}">
         <span class="teacher-action-body">
           <span class="teacher-action-title pay-tile-label" data-action-sub="${escapeHtml(subText)}">${escapeHtml(label)} রোল ও অনুমতি</span>
         </span>
@@ -1432,7 +1432,7 @@ async function renderSecurity() {
     ['শিক্ষার্থী আইডি বনাম স্টাফ আইডি', escapeHtml(STAFF_DIRECTORY_RULES.studentIdNote)]
   ];
   host.innerHTML = `
-    <button class="teacher-action-card is-accent" type="button" data-admin-view="security-owner">
+    <button class="teacher-action-card is-accent" type="button" data-panel-view="security-owner">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="সিস্টেম মালিক, সেশন মেয়াদ ও পাসওয়ার্ড নীতিমালা দেখুন">এডমিন পরিচয় ও সিস্টেম সুরক্ষা</span>
       </span>
@@ -1448,7 +1448,7 @@ async function renderSecurity() {
           <div class="security-row"><div><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div></div>`).join('')}
       </div>
     </article>
-    <button class="teacher-action-card" type="button" data-admin-view="security-password">
+    <button class="teacher-action-card" type="button" data-panel-view="security-password">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="সাময়িক পাসওয়ার্ডে থাকা স্টাফ অ্যাকাউন্ট (${bn(passwordDue.length)} জন) ও রিসেট নিয়ন্ত্রণ">পাসওয়ার্ড বদল বাকি তালিকা</span>
       </span>
@@ -1473,7 +1473,7 @@ async function renderSecurity() {
       : '<p class="admin-empty">সব অ্যাকাউন্টের পাসওয়ার্ড হালনাগাদ — বকেয়া কিছু নেই।</p>'}
       <p class="finance-hint">অ্যাডমিন রিসেট করলে নতুন পাসওয়ার্ড সাময়িক থাকে: সংশ্লিষ্ট স্টাফ প্রথম লগইনে তা বদলাতে বাধ্য থাকে। পাসওয়ার্ড কখনো দেখানো হয় না।</p>
     </article>
-    <button class="teacher-action-card" type="button" data-admin-view="security-protected">
+    <button class="teacher-action-card" type="button" data-panel-view="security-protected">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="মুছে ফেলা ও নিষ্ক্রিয় করা থেকে সুরক্ষিত সিস্টেম অ্যাকাউন্ট (${bn(protectedStaff.length)} টি)">সুরক্ষিত অ্যাকাউন্ট তালিকা</span>
       </span>
@@ -1494,19 +1494,19 @@ async function renderSecurity() {
           </div>`).join('') || '<p class="admin-empty">কোনো সুরক্ষিত অ্যাকাউন্ট পাওয়া যায়নি।</p>'}
       </div>
     </article>
-    <button class="teacher-action-card" type="button" data-admin-view="security-boundaries">
+    <button class="teacher-action-card" type="button" data-panel-view="security-boundaries">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="ক্যাশ কাউন্টার, ম্যানেজার ও শিক্ষকের নির্ধারিত কর্মপরিধি দেখুন">দৈনন্দিন কাজের রোল সীমা</span>
       </span>
       <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup('staff', 'apc-color-icon', { variant: 'color' })}</span>
     </button>
-    <button class="teacher-action-card" type="button" data-admin-view="device-fingerprint">
+    <button class="teacher-action-card" type="button" data-panel-view="device-fingerprint">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="এই ডিভাইসের এনক্রিপশন কী ফিঙ্গারপ্রিন্ট ফোনে অ্যাডমিনকে জানান, যাতে তা অনুমোদন করতে পারেন">আমার ডিভাইসের ফিঙ্গারপ্রিন্ট</span>
       </span>
       <span class="teacher-action-art pay-tile-icon" aria-hidden="true">${iconMarkup('fingerprint', 'apc-color-icon', { variant: 'color' })}</span>
     </button>
-    <button class="teacher-action-card" type="button" data-admin-view="security-devices">
+    <button class="teacher-action-card" type="button" data-panel-view="security-devices">
       <span class="teacher-action-body">
         <span class="teacher-action-title pay-tile-label" data-action-sub="অনুমোদনের অপেক্ষায় থাকা ডিভাইসের ফিঙ্গারপ্রিন্ট ফোনে যাচাই করে অনুমোদন বা অস্বীকার করুন">ডিভাইস অনুমোদন</span>
       </span>
@@ -1835,9 +1835,9 @@ $('#adminMain')?.addEventListener('click', event => {
   }
   // Role and Security cards are rebuilt as data changes, so delegate their
   // navigation instead of binding a second listener on every render.
-  const generatedView = event.target.closest('#rolesMatrix [data-admin-view], #securityPanels [data-admin-view]');
+  const generatedView = event.target.closest('#rolesMatrix [data-panel-view], #securityPanels [data-panel-view]');
   if (generatedView) {
-    navigate(generatedView.dataset.adminView, generatedView);
+    navigate(generatedView.dataset.panelView, generatedView);
     return;
   }
   const sectionToggle = event.target.closest('[data-admin-section-toggle]');
@@ -1898,14 +1898,14 @@ $('#adminMain')?.addEventListener('click', event => {
 /* Bottom-bar tabs and "More" menu rows are rebuilt by the permission model
    (js/admin-panel-ui.js) and call `navigate` themselves; the markup-driven
    shortcuts below are wired once. */
-$$('[data-admin-view]').forEach(button => {
+$$('[data-panel-view]').forEach(button => {
   if (button.classList.contains('admin-bottom-item')) return;
   if (button.classList.contains('admin-more-item')) return;
   if (button.classList.contains('admin-system-item')) return; // handled by admin-panel-ui.js renderHub
   // Exactly one handler per entry, no matter how often this wiring runs.
   if (button.dataset.navWired === '1') return;
   button.dataset.navWired = '1';
-  button.addEventListener('click', () => navigate(button.dataset.adminView, button));
+  button.addEventListener('click', () => navigate(button.dataset.panelView, button));
 });
 
 /* Hash edits and browser/system Back/Forward restore a permitted page without

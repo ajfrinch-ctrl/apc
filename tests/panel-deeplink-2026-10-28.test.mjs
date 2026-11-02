@@ -30,7 +30,7 @@ test('a shared link reopens the studio, Back returns to the hub, chat takes the 
   assert.equal(window.location.hash, '#lecture-sheets', 'the URL still names the page');
   assert.equal(ctx.$('#teacherLectureSheets').hidden, false, 'the studio page is open');
   assert.equal(ctx.$('#teacherHome').hidden, true, 'the home page stays closed');
-  assert.equal(ctx.$('[data-teacher-view="lecture-sheets"]').getAttribute('aria-current'), null,
+  assert.equal(ctx.$('[data-panel-view="lecture-sheets"]').getAttribute('aria-current'), null,
     'a sub-page does not pretend to be a bottom seat');
 
   /* 2. The page shows only its own work, with a real Back control. */
@@ -40,7 +40,7 @@ test('a shared link reopens the studio, Back returns to the hub, chat takes the 
   assert.ok(studio.querySelector('[data-ls-sheet-list]'), 'existing sheets are listed');
   const back = ctx.$('#teacherLectureSheets .pay-back');
   assert.equal(back.hidden, false, 'Back is visible on a sub-page');
-  assert.equal(back.getAttribute('data-teacher-view'), 'academic', 'Back names the hub it returns to');
+  assert.equal(back.getAttribute('data-panel-view'), 'academic', 'Back names the hub it returns to');
 
   /* 3. Back goes to that hub, and the URL follows. */
   ctx.click(back);
@@ -49,7 +49,7 @@ test('a shared link reopens the studio, Back returns to the hub, chat takes the 
   assert.equal(ctx.$('#teacherLectureSheets').hidden, true, 'the studio page closes');
 
   /* 4. The chat opens from the panel's own entry and takes the full screen. */
-  ctx.click(ctx.$('[data-teacher-view="class-chat"]'));
+  ctx.click(ctx.$('[data-panel-view="class-chat"]'));
   await ctx.waitFor(() => ctx.$('#teacherClassChat').hidden === false);
   assert.ok(ctx.$('#teacherShell').classList.contains('is-chat-fullscreen'),
     'the shell escapes the rail and the bottom bar for the conversation');

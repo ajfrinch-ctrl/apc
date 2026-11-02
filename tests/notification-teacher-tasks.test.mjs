@@ -30,7 +30,7 @@ before(async () => {
     ] }));
   });
   ctx.$('#teacherShell').hidden = false;      // a signed-in teacher
-  for (const button of ctx.$$('[data-teacher-view]')) button.addEventListener('click', () => clicks.push(button.dataset.teacherView));
+  for (const button of ctx.$$('[data-panel-view]')) button.addEventListener('click', () => clicks.push(button.dataset.panelView));
 });
 
 test('a paper waiting for the Manager says nothing to the teacher', () => {

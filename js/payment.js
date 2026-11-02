@@ -13,6 +13,8 @@ import { PAYMENT_USER_ID, PAYMENT_SESSION_KEY, hasPaymentSession, clearPaymentSe
 import { readStaffAccount } from './staff-auth.js';
 import { initAppearance } from './appearance.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
+import { mountStaffAccountGroup } from './staff-account-forms.js';
+import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
 import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
 import { initOrgInfo } from './org-info.js';
@@ -23,8 +25,9 @@ initOrgInfo();
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const state = { view:'home', matches:[], selected:null, today:[], ready:false, saving:false, receipt:null, queryVersion:0, afterReceipt:null };
-const COUNTER_VIEWS = Object.freeze(['home','students','payment','reports','more']);
-const COUNTER_VIEW_TITLES = Object.freeze({ home:'আজকের লেনদেন', students:'শিক্ষার্থী', payment:'পেমেন্ট এন্ট্রি', reports:'পেমেন্ট রিপোর্ট', more:'আরও' });
+/* প্রতিটি স্ক্রিন আলাদা (মালিক-নির্দেশ ২০২৬-১১-০২): প্রোফাইল আর সেটিংস এক জায়গা নয়। */
+const COUNTER_VIEWS = Object.freeze(['home','students','payment','reports','profile','more']);
+const COUNTER_VIEW_TITLES = Object.freeze({ home:'আজকের লেনদেন', students:'শিক্ষার্থী', payment:'পেমেন্ট এন্ট্রি', reports:'পেমেন্ট রিপোর্ট', profile:'আমার প্রোফাইল', more:'আরও' });
 const COUNTER_VIEW_ALIASES = Object.freeze({ today:'home', history:'reports' });
 const search = $('#payStudentSearch');
 const reports = mountCounterReports($('#paymentReports'));
@@ -72,8 +75,8 @@ function showCounterView(view) {
   });
   $('#payReportsCard').hidden=target!=='reports';
   $('#counterViewTitle').textContent=COUNTER_VIEW_TITLES[target];
-  document.querySelectorAll('.admin-bottom [data-pay-section]').forEach(seat=>{
-    const active=seat.dataset.paySection===target;
+  document.querySelectorAll('.admin-bottom [data-panel-view]').forEach(seat=>{
+    const active=seat.dataset.panelView===target;
     seat.classList.toggle('active',active);
     if(active)seat.setAttribute('aria-current','page');else seat.removeAttribute('aria-current');
   });
@@ -213,9 +216,9 @@ document.addEventListener('click',event=>{
     }
     return;
   }
-  const seat=event.target.closest('[data-pay-section]');
+  const seat=event.target.closest('[data-panel-view]');
   if(seat) {
-    const targetSec = seat.dataset.paySection;
+    const targetSec = seat.dataset.panelView;
     showCounterView(targetSec);
     if (targetSec === 'students' && seat.closest('#payHomeCard, #payEntryPanel')) {
       const stuPanel = $('#payStudentsPanel');
@@ -235,7 +238,7 @@ document.addEventListener('click',event=>{
     }
     return;
   }
-  if(event.target.closest('#payMoreLogout')) {exitCounter();return;}
+  if(event.target.closest('[data-settings-row="logout"]')) {exitCounter();return;}
   const student=event.target.closest('[data-pay-student]'); if(student) selectStudent(student.dataset.payStudent);
   if(event.target.closest('#payProfileCollect')) openForm();
   const trigger=event.target.closest('[data-pay-tx]');
@@ -355,8 +358,40 @@ hasPaymentSession().then(async valid=>{
   $('#payShell').hidden=false; watchOwnPanelSession('payment');
   syncCounterHeading();
   $('#payCurrentDate').textContent=new Intl.DateTimeFormat('bn-BD',{day:'numeric',month:'long',year:'numeric'}).format(new Date());
-  try {const account=await readStaffAccount('payment');$('#payMoreUser').textContent=account?.fullName || account?.username || PAYMENT_USER_ID;}
-  catch {$('#payMoreUser').textContent=PAYMENT_USER_ID;}
+  /* প্রোফাইল স্ক্রিন: শুধু পরিচয় কার্ড + নিজের তথ্য সম্পাদনা। সেটিংসের বাকি সব
+     (ফর্ম, পাসওয়ার্ড, লগআউট) হাবের অ্যাকাউন্ট গ্রুপে — Admin-এর হুবহু একই। */
+  const renderOwnProfile = account => {
+    const host = $('#payOwnProfileCard');
+    if (!host) return;
+    host.innerHTML = `<div class="manager-profile-list"><div><small>নাম</small><strong>${esc(account?.fullName || '—')}</strong></div>`
+      + `<div><small>ইউজারনেম</small><strong>${esc(account?.username || PAYMENT_USER_ID)}</strong></div>`
+      + `<div><small>মোবাইল</small><strong>${esc(account?.mobile || '—')}</strong></div>`
+      + `<div><small>ইমেইল</small><strong>${esc(account?.email || '—')}</strong></div>`
+      + `<div><small>ভূমিকা</small><strong>ক্যাশ কাউন্টার</strong></div>`
+      + `<div><small>সেশন</small><strong>ডিভাইস-বাউন্ড</strong></div></div>`
+      + `<div class="row-actions"><button class="admin-btn primary" type="button" data-profile-edit>নিজের তথ্য সম্পাদনা</button></div>`;
+  };
+  let paymentAccount = null;
+  try { paymentAccount = await readStaffAccount('payment'); } catch { paymentAccount = null; }
+  renderOwnProfile(paymentAccount || { username: PAYMENT_USER_ID });
+  mountProfileSelfEdit({
+    role: 'payment',
+    card: '#payOwnProfileCard',
+    current: () => paymentAccount,
+    render: async () => {
+      try { paymentAccount = (await readStaffAccount('payment')) || paymentAccount; } catch { /* keep it */ }
+      renderOwnProfile(paymentAccount);
+    },
+    toast: message => toast(message)
+  });
+  mountStaffAccountGroup({
+    hub: '#payMorePanel',
+    role: 'payment',
+    logoutId: 'payMoreLogout',
+    onLogout: () => exitCounter(),
+    current: () => paymentAccount,
+    toast: message => toast(message)
+  });
   mountSettingsHub({
     mount: '#payMorePanel',
     role: 'payment',

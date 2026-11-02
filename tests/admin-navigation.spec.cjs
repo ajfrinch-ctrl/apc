@@ -9,11 +9,11 @@ async function enter(page) {
   await expect(page.locator('#adminShell')).toBeVisible();
 }
 async function bottom(page, view) {
-  await page.locator(`.admin-bottom [data-admin-view="${view}"]`).click();
+  await page.locator(`.admin-bottom [data-panel-view="${view}"]`).click();
 }
 async function more(page, view) {
   await bottom(page, 'more');
-  await page.locator(`#adminMoreMenu .admin-more-item[data-admin-view="${view}"]`).click();
+  await page.locator(`#adminMoreMenu .admin-more-item[data-panel-view="${view}"]`).click();
 }
 function recordUnexpectedPageErrors(page, errors) {
   page.on('pageerror', error => {
@@ -108,7 +108,7 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await enter(page);
       const footer = page.locator('.admin-bottom');
       await expect(footer.locator('button')).toHaveCount(5);
-      expect(await footer.locator('button').evaluateAll(buttons => buttons.map(b => b.dataset.adminView))).toEqual(mobileViews);
+      expect(await footer.locator('button').evaluateAll(buttons => buttons.map(b => b.dataset.panelView))).toEqual(mobileViews);
       await expect(page.locator('#dashTitle')).toBeVisible();
       await expect(page.locator('#adminTodayDate')).toHaveText('২২ সেপ্টেম্বর ২০২৬');
       await expect(page.locator('#adminTodayDate')).toHaveAttribute('datetime', '2026-09-22');
@@ -140,7 +140,7 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
         await bottom(page, view);
         await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
         await expect(footer.locator('[aria-current=page]')).toHaveCount(1);
-        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', view);
+        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', view);
       }
       // Every footer tab shows exactly one icon, inside its chip (no emoji, no
       // empty chip, no second painted icon).
@@ -168,47 +168,47 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await expect(page.locator('.teacher-panel-link')).toHaveCount(0);
       for (const view of systemViews) {
         await bottom(page, 'system');
-        const button = page.locator(`#adminSystemMenu[data-admin-view="${view}"], #adminSystemMenu .admin-more-item[data-admin-view="${view}"]`);
+        const button = page.locator(`#adminSystemMenu[data-panel-view="${view}"], #adminSystemMenu .admin-more-item[data-panel-view="${view}"]`);
         await button.focus();
         await page.keyboard.press('Enter');
         const panel = page.locator(`.admin-view[data-view-panel="${view}"]`);
         await expect(panel).toBeVisible();
         await expect(panel.locator('h1')).toBeFocused();
-        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'system');
+        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       }
       // More maps Data, Content, Profile and Advice without a sixth bottom seat.
       await bottom(page, 'more');
       await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(4);
-      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.adminView))).toEqual(['data', 'content', 'profile', 'advice']);
-      await page.locator('#adminMoreMenu .admin-more-item[data-admin-view=data]').click();
+      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.panelView))).toEqual(['data', 'content', 'profile', 'advice']);
+      await page.locator('#adminMoreMenu .admin-more-item[data-panel-view=data]').click();
       await expect(page.locator('.admin-view[data-view-panel=data]')).toBeVisible();
-      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
+      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
       await expect(page.locator('#adminDataMenu .admin-more-item')).toHaveCount(1);
-      await page.locator('#adminDataMenu .admin-more-item[data-admin-view=backup]').click();
+      await page.locator('#adminDataMenu .admin-more-item[data-panel-view=backup]').click();
       await expect(page.locator('.admin-view[data-view-panel=backup]')).toBeVisible();
-      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
+      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
       // The header Back returns from Backup to its actual previous Data hub.
       await page.locator('.admin-view[data-view-panel="backup"] [data-admin-back]').click();
       await expect(page.locator('.admin-view[data-view-panel="data"]')).toBeVisible();
       await bottom(page, 'more');
-      await page.locator('#adminMoreMenu .admin-more-item[data-admin-view=data]').click();
+      await page.locator('#adminMoreMenu .admin-more-item[data-panel-view=data]').click();
       await expect(page.locator('.admin-view[data-view-panel=data]')).toBeVisible();
       await bottom(page, 'more');
       await expect(page.locator('.admin-view[data-view-panel=more]')).toBeVisible();
-      await page.locator('#adminMoreMenu .admin-more-item[data-admin-view=advice]').click();
+      await page.locator('#adminMoreMenu .admin-more-item[data-panel-view=advice]').click();
       await expect(page.locator('.admin-view[data-view-panel=advice]')).toBeVisible();
-      await page.locator('.admin-view[data-view-panel="advice"] [data-admin-view="advice-editor"]').click();
+      await page.locator('.admin-view[data-view-panel="advice"] [data-panel-view="advice-editor"]').click();
       await expect(page.locator('.admin-view[data-view-panel="advice-editor"]')).toBeVisible();
       await expect(page.locator('#adminDailyAdvice [data-advice-list]')).toBeVisible();
-      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
+      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
       await bottom(page, 'more');
       await expect(page.locator('.admin-view[data-view-panel=more]')).toBeVisible();
       await bottom(page, 'reports');
       await expect(page.locator('.admin-view[data-view-panel="reports"]')).toBeVisible();
       await expect(page.locator('#adminReports')).toBeVisible();
       await expect(page.locator('#feeStudentSearch, #feeCollectionForm')).toHaveCount(0);
-      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'reports');
+      await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'reports');
       await bottom(page, 'staff');
       await expect(page.locator('#staffList .staff-card').first()).toBeVisible();
       await bottom(page, 'dashboard');
@@ -407,11 +407,11 @@ test('the Admin student roster retains filters and exposes pending review action
   const alertClose = page.locator('#apcAlertBackdrop [data-apc-alert-close]').first();
   await alertClose.waitFor({ state: 'visible', timeout: 1500 }).catch(() => {});
   if (await alertClose.isVisible().catch(() => false)) await alertClose.click();
-  const studentShortcut = page.locator('#adminFeatureGrid .admin-feature-tile[data-admin-view="students"]');
+  const studentShortcut = page.locator('#adminFeatureGrid .admin-feature-tile[data-panel-view="students"]');
   await expect(studentShortcut).toBeVisible();
   await studentShortcut.click();
   await expect(page.locator('.admin-view[data-view-panel="students"]')).toBeVisible();
-  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', 'dashboard');
+  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'dashboard');
 
   const firstStudent = page.locator('#studentList .student-row').first();
   await expect(firstStudent).toBeVisible();
@@ -462,7 +462,7 @@ test('a hash route opens only what this role may open', async ({ page }) => {
   await expect(page.locator('.admin-view[data-view-panel=dashboard]')).toBeVisible();
   await page.evaluate(() => { window.location.hash = '#staff'; });
   await expect(page.locator('.admin-view[data-view-panel=staff]')).toBeVisible();
-  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', 'staff');
+  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'staff');
   // Unknown or foreign routes never move the panel.
   await page.evaluate(() => { window.location.hash = '#finance'; });
   await expect(page.locator('.admin-view[data-view-panel=staff]')).toBeVisible();
@@ -478,8 +478,8 @@ test('secondary controls remain functional after removing Home-only counters and
   recordUnexpectedPageErrors(page, errors);
   await enter(page);
   await bottom(page, 'system');
-  await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
-  await page.locator('.admin-view[data-view-panel="settings"] [data-admin-view="settings-classes"]').click();
+  await page.locator('#adminSystemMenu .admin-more-item[data-panel-view=settings]').click();
+  await page.locator('.admin-view[data-view-panel="settings"] [data-panel-view="settings-classes"]').click();
   const enabled = page.locator('#classList input:checked');
   const className = await enabled.first().getAttribute('data-class-name');
   const classRow = page.locator('#classList .class-row').filter({ hasText: className });
@@ -488,8 +488,8 @@ test('secondary controls remain functional after removing Home-only counters and
   await bottom(page, 'dashboard');
   await expect(page.locator('.admin-view[data-view-panel="dashboard"] .admin-home-summary')).toHaveCount(0);
   await bottom(page, 'system');
-  await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
-  await page.locator('.admin-view[data-view-panel="settings"] [data-admin-view="settings-classes"]').click();
+  await page.locator('#adminSystemMenu .admin-more-item[data-panel-view=settings]').click();
+  await page.locator('.admin-view[data-view-panel="settings"] [data-panel-view="settings-classes"]').click();
   await expect(page.locator(`#classList input[data-class-name="${className}"]`)).not.toBeChecked();
   // Notice publishing belongs to the Manager portal: creating a staff account
   // is the Admin-side equivalent and must stay fully functional.
@@ -507,9 +507,9 @@ test('secondary controls remain functional after removing Home-only counters and
   await expect(page.locator('#staffList')).toContainText('মোবাইল স্টাফ');
   await expect(page.locator('#staffList .staff-id-badge').first()).toContainText('STF-');
   await bottom(page, 'system');
-  await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
+  await page.locator('#adminSystemMenu .admin-more-item[data-panel-view=settings]').click();
   await expect(page.locator('#cfgMaintenanceMode')).toBeAttached();
-  await page.locator('.admin-view[data-view-panel="settings"] [data-admin-view="settings-branding"]').click();
+  await page.locator('.admin-view[data-view-panel="settings"] [data-panel-view="settings-branding"]').click();
   await page.locator('#btnSaveAppSettings').click();
   await expect(page.locator('.admin-toast')).toContainText('সংরক্ষিত');
   expect(errors).toEqual([]);
@@ -537,15 +537,15 @@ for (const width of [320, 390]) {
 
     // Leave Account for the system Security page, then return to Account.
     await bottom(page, 'system');
-    await page.locator('#adminSystemMenu .admin-more-item[data-admin-view="security"]').click();
+    await page.locator('#adminSystemMenu .admin-more-item[data-panel-view="security"]').click();
     await expect(page.locator('.admin-view[data-view-panel="security"]')).toBeVisible();
-    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'system');
+    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
     await more(page, 'profile');
     await expect(page.locator('.admin-view[data-view-panel="profile"]')).toBeVisible();
     await expect(groupNav).toBeVisible();
     await expect(groups).toHaveCount(5);
     await expect(page.locator('[data-settings-group]:not([hidden])')).toHaveCount(0);
-    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
+    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
 
     // Repeated account entry and the two group doors remain deterministic.
     await more(page, 'profile');
@@ -603,16 +603,16 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
   for (const view of mobileViews) {
     await bottom(page, view);
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
-    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', view);
+    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', view);
   }
   for (const view of systemViews) {
     await bottom(page, 'system');
-    await page.locator(`#adminSystemMenu .admin-more-item[data-admin-view="${view}"]`).click();
+    await page.locator(`#adminSystemMenu .admin-more-item[data-panel-view="${view}"]`).click();
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
-    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', 'system');
+    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
   }
   await more(page, 'data');
-  await page.locator('#adminDataMenu .admin-more-item[data-admin-view=backup]').click();
+  await page.locator('#adminDataMenu .admin-more-item[data-panel-view=backup]').click();
   await expect(page.locator('.admin-view[data-view-panel=backup]')).toBeVisible();
-  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-admin-view', 'more');
+  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
 });

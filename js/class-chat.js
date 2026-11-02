@@ -1246,7 +1246,7 @@ export function mountClassChat(target, options = {}) {
         return;
       }
       const fallbackNav = document.querySelector(
-        '.bottom-link[data-view="home"], .admin-bottom-item[data-admin-view="dashboard"], .admin-bottom-item[data-manager-view="dashboard"], .admin-bottom-item[data-teacher-view="home"]'
+        '.bottom-link[data-view="home"], .admin-bottom-item[data-panel-view="dashboard"], .admin-bottom-item[data-panel-view="dashboard"], .admin-bottom-item[data-panel-view="home"]'
       );
       fallbackNav?.click();
       return;

@@ -43,7 +43,7 @@ async function teacherWorkspace(page) {
   await enterPortal(page, 'teacher');
   /* One door per screen: the exam workspace opens from the academic hub, the
      same place the teacher's "+ পরীক্ষা" quick action points to. */
-  await page.locator('.admin-bottom [data-teacher-view=academic]').click();
+  await page.locator('.admin-bottom [data-panel-view=academic]').click();
   await page.locator('#teacherAcademic [data-academic-section=exams]').click();
   return page.locator('#teacherExamWorkspace');
 }
@@ -56,7 +56,7 @@ async function managerWorkspace(page) {
   await page.evaluate(({ key, className }) => localStorage.setItem(key, JSON.stringify([
     { id: 'AP-1024', name: 'রাইসা', className, group: '', mobile: '01700000000', guardianMobile: '01800000000', status: 'approved', monthlyFee: 1500 }
   ])), { key: ROSTER_KEY, className: CLASS });
-  await page.locator('.manager-bottom [data-manager-view=academic]').click();
+  await page.locator('.manager-bottom [data-panel-view=academic]').click();
   await page.locator('#managerAcademicMenu [data-academic-section=exams]').click();
   return page.locator('#managerExamWorkspace');
 }

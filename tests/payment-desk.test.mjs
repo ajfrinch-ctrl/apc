@@ -23,8 +23,8 @@ test('the counter opens on হোম from a genuine session, never a directory/d
  const {$,$$}=ctx;
  assert.equal($('#payShell').hidden,false);
  /* Five seats, one per step of the counter's own job. */
- assert.deepEqual($$('.admin-bottom [data-pay-section]').map(seat=>seat.dataset.paySection),['home','students','payment','reports','more']);
- assert.equal($('.admin-bottom [aria-current="page"]').dataset.paySection,'home');
+ assert.deepEqual($$('.admin-bottom [data-panel-view]').map(seat=>seat.dataset.panelView),['home','students','payment','reports','more']);
+ assert.equal($('.admin-bottom [aria-current="page"]').dataset.panelView,'home');
  assert.equal($('[data-pay-panel="home"]').hidden,false);
  for(const view of ['students','payment','reports','more']) assert.equal($(`[data-pay-panel="${view}"]`).hidden,true,view);
  assert.equal($('#payProfileCard').hidden,true);assert.equal($('#payCollectionForm').hidden,true);
@@ -42,9 +42,9 @@ test('the counter opens on হোম from a genuine session, never a directory/d
 test('each seat opens its own step and the counter can walk the whole job',async()=>{
  const {$,$$,click,waitFor}=ctx;
  for(const [seat,title] of [['students','শিক্ষার্থী'],['payment','পেমেন্ট এন্ট্রি'],['reports','পেমেন্ট রিপোর্ট'],['more','আরও'],['home','আজকের লেনদেন']]) {
-  click($(`.admin-bottom [data-pay-section="${seat}"]`));
+  click($(`.admin-bottom [data-panel-view="${seat}"]`));
   assert.equal($(`[data-pay-panel="${seat}"]`).hidden,false,seat);
-  assert.equal($(`.admin-bottom [aria-current="page"]`).dataset.paySection,seat);
+  assert.equal($(`.admin-bottom [aria-current="page"]`).dataset.panelView,seat);
   assert.equal($('#counterViewTitle').textContent,title);
  }
  /* হোম → আজকের ক্লোজিং preselects the day's own closing report. */
@@ -53,11 +53,13 @@ test('each seat opens its own step and the counter can walk the whole job',async
  assert.equal($('#paymentReports select[name="report"]').value,'cash.closing');
  assert.equal($('#paymentReports .counter-report-preview').textContent,'','no preview before Generate');
  /* আরও carries the session, not a student directory. */
- click($('.admin-bottom [data-pay-section="more"]'));
- assert.ok($('#payMoreUser').textContent.trim());
- assert.equal($$('#payMoreCard [data-pay-section]:not(#payEntrySearch)').length,0,'আরও is not a second menu');
+ click($('.admin-bottom [data-panel-view="more"]'));
+ await waitFor(()=>$('#payMorePanel [data-settings-group="account"] [data-settings-row="password"]'));
+ /* আরও = সেটিংস হাব + প্রোফাইলের এক দরজা; অন্য কোনো সিটের মেনু নয়। */
+ assert.equal($$('#payMorePanel [data-panel-view]').map(b=>b.dataset.panelView).join(','),'profile','আরও carries only its own profile door');
+ assert.ok($('#payMorePanel [data-settings-group="account"] [data-settings-row="password"]'),'the inline account form lives in Settings');
  assert.equal($('[data-pay-panel="more"] .fee-search-result'),null);
- click($('.admin-bottom [data-pay-section="home"]'));
+ click($('.admin-bottom [data-panel-view="home"]'));
  await waitFor(()=>$('#payTodayList .pay-activity-row'));
 });
 test('name, ID and unique roll search render only identity; phones/guardian/classes are not search keys',async()=>{
@@ -101,7 +103,7 @@ test('simple payment starts with an empty amount and one method select, never a 
  /* The entry panel takes the screen; the verify step keeps its own seat. */
  assert.equal($('[data-pay-panel="payment"]').hidden,false);
  assert.equal($('[data-pay-panel="students"]').hidden,true);
- assert.equal($('.admin-bottom [aria-current="page"]').dataset.paySection,'payment');
+ assert.equal($('.admin-bottom [aria-current="page"]').dataset.panelView,'payment');
  assert.equal($('#payEntryStudent').textContent,`${person.name} · শিক্ষার্থীর আইডি: ${person.id}`);
  assert.equal($('#payProfileCollect').hidden,true);
 });
@@ -134,7 +136,7 @@ test('today rows can reopen only their stored, sanitised receipt',async()=>{
  assert.equal(ctx.$('#payReceiptBackdrop').hidden,true);
  /* entry → receipt → daily collection. */
  assert.equal(ctx.$('[data-pay-panel="home"]').hidden,false);
- assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.paySection,'home');
+ assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView,'home');
  ctx.click(ctx.$('#payTodayList .pay-activity-row'));
  await ctx.waitFor(()=>!ctx.$('#payReceiptBackdrop').hidden);
  assert.match(ctx.$('#payReceiptSub').textContent,/C[0-9A-F]{8}-\d{6}/);
@@ -164,16 +166,16 @@ test('a rejected-entry notification opens that entry’s own slip, not a bare li
  assert.equal($('#payReceiptBackdrop').hidden,true);
  /* The mapping lives in the notification module, the seat in the counter page. */
  const source=read('js/notifications.js');
- assert.match(source,/payment: 'data-pay-section'/);
+ assert.match(source,/payment: 'data-panel-view'/);
  assert.match(source,/'payment-rejected': 'home'/);
- assert.equal($$('.admin-bottom [data-pay-section="home"]').length,1);
+ assert.equal($$('.admin-bottom [data-panel-view="home"]').length,1);
 });
 
 test('the counter Report Center previews only after Generate and says so when nothing matched',async()=>{
  const {$,click,waitFor}=ctx;
  /* Only the browser primitives jsdom lacks (canvas/font/image), never app logic. */
  stubPdfPrimitives(ctx.window);
- click($('.admin-bottom [data-pay-section="reports"]'));
+ click($('.admin-bottom [data-panel-view="reports"]'));
  const preview=$('#paymentReports .counter-report-preview');
  assert.equal(preview.textContent,'','no preview before Generate');
  /* A daily report for a day with no ledger rows: still Generate-then-preview,

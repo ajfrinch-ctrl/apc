@@ -100,13 +100,27 @@ test('Payment Counter keeps horizontal toggle action cards but no hero card (rem
   }
 });
 
-test('strict cross-panel isolation: no portal leaks another portal shell, route attribute, or body class', () => {
+test('strict cross-panel isolation: no portal leaks another portal shell, route name, or body class', () => {
+  /* মালিক-নির্দেশ ২০২৬-১১-০২: চার স্টাফ প্যানেল এখন একটাই universal route
+     অ্যাট্রিবিউট ব্যবহার করে (`data-panel-view`) — Student-এর নিজস্ব `data-view`
+     অপরিবর্তিত। তাই আইসোলেশন এখন শেল/বডি-ক্লাস এবং **রুট-নাম** স্তরে যাচাই হয়:
+     কোনো পোর্টাল অন্য পোর্টালের স্ক্রিন-নাম ধারণ করে না, আর নিজের শেল/বডি-ক্লাসও
+     কখনো মেশে না। */
   const portals = {
     student: { html: read('student.html'), bodyClass: 'student-reference', shell: 'appShell', ownAttr: 'data-view=' },
-    teacher: { html: read('teacher.html'), bodyClass: 'teacher-reference', shell: 'teacherShell', ownAttr: 'data-teacher-view=' },
-    manager: { html: read('manager.html'), bodyClass: 'manager-reference', shell: 'managerShell', ownAttr: 'data-manager-view=' },
-    admin:   { html: read('admin.html'),   bodyClass: 'admin-reference',   shell: 'adminShell',   ownAttr: 'data-admin-view=' },
-    payment: { html: read('payment.html'), bodyClass: 'payment-reference', shell: 'payShell', ownAttr: 'data-pay-section=' }
+    teacher: { html: read('teacher.html'), bodyClass: 'teacher-reference', shell: 'teacherShell', ownAttr: 'data-panel-view=' },
+    manager: { html: read('manager.html'), bodyClass: 'manager-reference', shell: 'managerShell', ownAttr: 'data-panel-view=' },
+    admin:   { html: read('admin.html'),   bodyClass: 'admin-reference',   shell: 'adminShell',   ownAttr: 'data-panel-view=' },
+    payment: { html: read('payment.html'), bodyClass: 'payment-reference', shell: 'payShell', ownAttr: 'data-panel-view=' }
+  };
+  const ownRoutes = html => new Set([...html.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]));
+  /* class-chat is shared by the three academic staff panels (Teacher/Manager/
+     Admin); the Cash Counter has no chat, no academic work and no org admin. */
+  const FOREIGN_ROUTES = {
+    teacher: ['staff', 'roles', 'roles-admin', 'backup', 'backup-export', 'audit', 'audit-log', 'system', 'migration', 'finance', 'teachers', 'students', 'payment', 'collect', 'receipt'],
+    manager: ['staff', 'roles', 'roles-admin', 'backup', 'backup-export', 'audit', 'audit-log', 'system', 'migration', 'homework', 'suggestion', 'payment', 'collect', 'receipt'],
+    admin: ['homework', 'suggestion', 'payment', 'collect', 'receipt', 'classes', 'exams', 'notices', 'routine-view'],
+    payment: ['homework', 'suggestion', 'class-chat', 'staff', 'roles', 'backup', 'audit', 'system', 'finance', 'teachers', 'lecture-sheets', 'courses', 'academic']
   };
   for (const [role, info] of Object.entries(portals)) {
     assert.ok(info.html.includes(info.bodyClass), `${role}.html carries ${info.bodyClass}`);
@@ -116,8 +130,21 @@ test('strict cross-panel isolation: no portal leaks another portal shell, route 
       if (otherRole === role) continue;
       assert.ok(!info.html.includes(otherInfo.bodyClass), `${role}.html never carries ${otherInfo.bodyClass}`);
       assert.ok(!info.html.includes(`id="${otherInfo.shell}"`), `${role}.html never carries #${otherInfo.shell}`);
-      assert.ok(!info.html.includes(otherInfo.ownAttr), `${role}.html never carries ${otherInfo.ownAttr}`);
+      if (otherInfo.ownAttr !== info.ownAttr) {
+        assert.ok(!info.html.includes(otherInfo.ownAttr), `${role}.html never carries ${otherInfo.ownAttr}`);
+      }
     }
+    /* One attribute name, but never another panel's route names: the union of
+       the four staff vocabulary sets is shared, the *values* are not. */
+    const routes = ownRoutes(info.html);
+    for (const foreign of FOREIGN_ROUTES[role] || []) {
+      assert.ok(!routes.has(foreign), `${role}.html never routes to the foreign screen "${foreign}"`);
+    }
+  }
+  /* The teacher panel keeps its own hooks; the admin capability gate never
+     leaks out of admin.html. */
+  for (const portal of ['teacher.html', 'manager.html', 'payment.html']) {
+    assert.ok(!read(portal).includes('data-admin-cap='), `${portal} carries no admin capability gate`);
   }
   const walletCss = read('css/ui-wallet.css');
   const teacherCss = read('css/teacher-panel.css');

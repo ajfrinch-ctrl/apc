@@ -561,9 +561,9 @@ export function mountClassChatHead(options = {}) {
     }
     const fallbackBtn = document.querySelector(
       portal === 'student' ? '[data-view="class-chat"]'
-        : portal === 'teacher' ? '[data-teacher-view="class-chat"]'
-          : portal === 'manager' ? '[data-manager-view="class-chat"]'
-            : '[data-admin-view="class-chat"]'
+        : portal === 'teacher' ? '[data-panel-view="class-chat"]'
+          : portal === 'manager' ? '[data-panel-view="class-chat"]'
+            : '[data-panel-view="class-chat"]'
     );
     fallbackBtn?.click();
   }

@@ -729,8 +729,8 @@ const commands = {
 
   async 'open-staff-students-view'({ role }) {
     const selector = role === 'admin'
-      ? '.admin-bottom-item[data-admin-view="students"]'
-      : '.admin-bottom-item[data-manager-view="students"]';
+      ? '.admin-bottom-item[data-panel-view="students"]'
+      : '.admin-bottom-item[data-panel-view="students"]';
     const btn = ctx.$(selector);
     if (btn) ctx.click(btn);
     await sleep(80);

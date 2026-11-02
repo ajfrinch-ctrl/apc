@@ -359,3 +359,20 @@ html[data-theme=dark]{
  --wa-avatar-4-bg:rgba(255,126,182,.18);
  --wa-avatar-5-bg:rgba(183,148,244,.18);
 }
+
+/* ── Universal staff shell tokens (owner 2026-11-02) ────────────────────────
+   চার স্টাফ প্যানেল (Admin · Teacher · Manager · Payment) একই শেল-রিদম ব্যবহার
+   করে: একই কার্ড/হিরো ব্যাসার্ধ, একই হিরো উচ্চতা, একই ইজিং। পেমেন্ট শেলের
+   মার্কআপ আলাদা থাকলেও (pay-* ক্লাস) মাপ এখন এই একটাই টোকেন-সেট থেকে আসে —
+   কোনো প্যানেলের জন্য আলাদা সংখ্যা লেখা হয় না। */
+:is(.teacher-reference, .manager-reference, .admin-reference, .payment-reference) {
+  --t-radius-tile: 20px;
+  --t-radius-card: 22px;
+  --t-radius-hero: 26px;
+  --t-radius-chip: 999px;
+  --t-ease: cubic-bezier(.33, .05, .28, 1);
+  --t-hero-min-h: 236px;
+}
+@media (max-width: 380px) {
+  :is(.teacher-reference, .manager-reference, .admin-reference, .payment-reference) { --t-hero-min-h: 220px; }
+}

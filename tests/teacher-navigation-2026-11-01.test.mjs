@@ -59,8 +59,8 @@ after(() => { try { ctx.window.close(); } catch { /* already gone */ } });
 
 test('হোম একটি পাঁচ-দরজার লঞ্চার: দুই হাব + তিন শর্টকাট, কোনো ফর্ম-প্রথম দরজা নেই', () => {
   const home = $('#teacherHome');
-  const doors = $$('#teacherHome [data-teacher-view]');
-  assert.deepEqual(doors.map(el => el.dataset.teacherView),
+  const doors = $$('#teacherHome [data-panel-view]');
+  assert.deepEqual(doors.map(el => el.dataset.panelView),
     ['academic', 'class-chat', 'homework', 'online-exams', 'routine-view'],
     'হোমের দরজা: একাডেমিক হাব · শ্রেণি চ্যাট · বাড়ির কাজ · পরীক্ষা · ক্লাস রুটিন');
   assert.equal($$('#teacherHome .teacher-action-card').length, 3, 'তিনটি ফুল-ওয়াইড শর্টকাট কার্ড');
@@ -68,13 +68,13 @@ test('হোম একটি পাঁচ-দরজার লঞ্চার: �
     'হোম থেকে সরাসরি কোনো ফর্ম/উইজার্ড খোলে না');
   assert.equal(home.querySelector('.teacher-action-secondary'), null, 'সেকেন্ডারি চিপ-সারি বাদ');
   for (const gone of ['courses', 'notice', 'exam']) {
-    assert.equal($$(`#teacherHome [data-teacher-view="${gone}"]`).length, 0,
+    assert.equal($$(`#teacherHome [data-panel-view="${gone}"]`).length, 0,
       `${gone} এখন হাব/সিটের ভেতরে, হোমের দ্বিতীয় দরজা নয়`);
   }
 });
 
 test('হোম → বাড়ির কাজ: `#homework` রুট, শুধু রেকর্ডস পেজ, তালিকা আগেই খোলা', async () => {
-  ctx.click($('#teacherHome [data-teacher-view="homework"]'));
+  ctx.click($('#teacherHome [data-panel-view="homework"]'));
   await settle();
   assert.equal(ctx.window.location.hash, '#homework', 'রুট URL-এ লেখা হয়');
   assert.deepEqual(visibleScreens(), ['teacherRecords'], 'একটাই স্ক্রিন দৃশ্যমান');
@@ -105,7 +105,7 @@ test('একাডেমিক হাব: দরজাগুলো সম্প�
   assert.equal($$('#teacherAcademic [data-new-activity], #teacherAcademic [data-new-notice]').length, 0,
     'হাবে ফর্ম-প্রথম দরজা নেই');
 
-  ctx.click($('#teacherAcademic [data-teacher-view="notice"]'));
+  ctx.click($('#teacherAcademic [data-panel-view="notice"]'));
   await settle();
   assert.equal(ctx.window.location.hash, '#notice');
   assert.deepEqual(visibleScreens(), ['teacherNotice']);
@@ -118,11 +118,11 @@ test('একাডেমিক হাব: দরজাগুলো সম্প�
   await settle();
   assert.deepEqual(visibleScreens(), ['teacherNotice'], 'বাতিলে বোর্ডেই থাকা');
 
-  ctx.click($('#teacherNotice [data-teacher-view="home"]'));
+  ctx.click($('#teacherNotice [data-panel-view="home"]'));
   await settle();
   ctx.click($('#teacherHome .teacher-academic-hub'));
   await settle();
-  ctx.click($('#teacherAcademic [data-teacher-view="suggestion"]'));
+  ctx.click($('#teacherAcademic [data-panel-view="suggestion"]'));
   await settle();
   assert.equal(ctx.window.location.hash, '#suggestion');
   assert.equal(nfc($('#teacherRecordsTitle').textContent.trim()), nfc('সাজেশন'), 'শিরোনাম খোলা টাইপের নাম নেয়');
@@ -130,24 +130,24 @@ test('একাডেমিক হাব: দরজাগুলো সম্প�
 });
 
 test('একই ফিচার দুই মেনু থেকে একই ভিউ ও একই hash-এ পৌঁছায়', async () => {
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
-  ctx.click($('#teacherHome [data-teacher-view="online-exams"]'));
+  ctx.click($('#teacherHome [data-panel-view="online-exams"]'));
   await settle();
   const fromHome = ctx.window.location.hash;
   assert.equal(fromHome, '#online-exams');
   assert.deepEqual(visibleScreens(), ['teacherOnlineExams']);
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
-  ctx.click($('.admin-bottom [data-teacher-view="online-exams"]'));
+  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
   await settle();
   assert.equal(ctx.window.location.hash, fromHome, 'হোম-কার্ড ও নিচের সিট একই hash দেয়');
 });
 
 test('নম্বর ও ফলাফল একটি আলাদা লেন ও আলাদা রুট (`#marks`), পুরোনো `#exam` alias', async () => {
-  ctx.click($('.admin-bottom [data-teacher-view="online-exams"]'));
+  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
   await settle();
-  ctx.click($('#teacherOnlineExams [data-teacher-view="exam"]'));
+  ctx.click($('#teacherOnlineExams [data-panel-view="exam"]'));
   await settle();
   assert.equal(ctx.window.location.hash, '#marks', 'নম্বর-লেনের নিজস্ব রুট');
   assert.equal(nfc($('#teacherRecordsTitle').textContent.trim()), nfc('নম্বর ও ফলাফল'),
@@ -166,8 +166,8 @@ test('রুটিন ও উপস্থিতি আলাদা পেজ ও
   assert.deepEqual(visibleScreens(), ['teacherRoutine'], 'রুটিন পেজ');
   assert.equal($('#teacherRoutine').dataset.routineOpen, '1', 'সময়সূচি-তালিকা আগেই খোলা');
   assert.equal(nfc($('#teacherRoutineTitle').textContent.trim()), nfc('ক্লাস রুটিন'));
-  assert.equal($$('#teacherRoutine [data-teacher-view="routine"]').length, 1, 'উপস্থিতির একটাই দরজা');
-  ctx.click($('#teacherRoutine [data-teacher-view="routine"]'));
+  assert.equal($$('#teacherRoutine [data-panel-view="routine"]').length, 1, 'উপস্থিতির একটাই দরজা');
+  ctx.click($('#teacherRoutine [data-panel-view="routine"]'));
   await settle();
   assert.equal(ctx.window.location.hash, '#attendance');
   assert.equal(nfc($('#teacherRecordsTitle').textContent.trim()), nfc('উপস্থিতি ক্লাস'));
@@ -212,7 +212,7 @@ test('মার্কআপ স্তরে ডুপ্লিকেট-দর�
     const next = html.indexOf('<section id="teacher', start + 10);
     return html.slice(start, next > 0 ? next : html.lastIndexOf('<nav class="admin-bottom"'));
   };
-  const doors = chunk => [...chunk.matchAll(/data-teacher-view="([a-z-]+)"/g)].map(match => match[1]).filter(v => v !== 'home');
+  const doors = chunk => [...chunk.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]).filter(v => v !== 'home');
   assert.deepEqual(doors(section('teacherHome')), ['academic', 'class-chat', 'homework', 'online-exams', 'routine-view']);
   assert.deepEqual(doors(section('teacherClasses')), ['homework', 'routine-view'], 'ক্লাস স্ক্রিনে একাডেমিক হাবের পুনরাবৃত্তি নেই');
   assert.deepEqual(doors(section('teacherAcademic')),

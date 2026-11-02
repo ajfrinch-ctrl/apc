@@ -59,7 +59,7 @@ for (const viewport of viewports) {
     const managerNav = await page.locator('.admin-bottom').boundingBox();
     expect(managerNav.width).toBe(shell.width);
     expect(managerNav.x).toBe(shell.x);
-    await page.locator('.admin-bottom [data-manager-view=finance]').click();
+    await page.locator('.admin-bottom [data-panel-view=finance]').click();
     await expect(page.locator('[data-view-panel=finance]')).toBeVisible();
     await expect(page.locator('#mgrFinanceTotal')).toBeVisible();
     for (const segment of ['collection','approval','due','history']) {
@@ -68,12 +68,12 @@ for (const viewport of viewports) {
       await noOverflow(page, '#managerShell');
     }
     // No academic or student-directory surface leaks into হিসাব.
-    await expect(page.locator('[data-admin-view], [data-teacher-view]')).toHaveCount(0);
+    await expect(page.locator('[data-panel-view], [data-panel-view]')).toHaveCount(0);
     await expect(page.locator('#managerStudentList')).toBeHidden();
 
     // Report Center: More → Reports → Generate → preview, then PDF. No preview first.
-    await page.locator('.admin-bottom [data-manager-view=more]').click();
-    await page.locator('#managerMoreHub [data-manager-view=reports]').click();
+    await page.locator('.admin-bottom [data-panel-view=more]').click();
+    await page.locator('#managerMoreHub [data-panel-view=reports]').click();
     await expect(page.locator('#managerReports select[name=report]')).toBeVisible();
     await expect(page.locator('#managerReports .rc-pdf-preview')).toHaveCount(0);
     await page.locator('#managerReports select[name=report]').selectOption('fee.transactions');
@@ -100,7 +100,7 @@ for (const viewport of viewports) {
     const adminShell = await page.locator('#adminShell').boundingBox();
     expect(adminShell.width).toBe(phoneWidth);
     expect(adminShell.x).toBe((viewport.width - phoneWidth) / 2);
-    await page.locator('.admin-bottom [data-admin-view=reports]').click();
+    await page.locator('.admin-bottom [data-panel-view=reports]').click();
     await expect(page.locator('#adminReports select[name=report]')).toBeVisible();
     await page.locator('#adminReports select[name=report]').selectOption('student.class-wise');
     await page.locator('#adminReports .rc-generate').click();

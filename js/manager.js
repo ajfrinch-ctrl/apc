@@ -3,6 +3,7 @@ import { taka, addTaka } from './money.js';
 import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
 import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
+import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
 import { decideRegistration, DECISION_MESSAGES, DECIDED_EVENT, formatPendingDate, openRegistrationReview } from './registration-review.js';
@@ -218,8 +219,8 @@ function renderView(view) {
       : view === 'class-chat' ? 'more'
       : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'lecture-sheets', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
         : view === 'finance' ? 'finance' : 'more';
-  $$('.manager-bottom [data-manager-view]').forEach(button => {
-    const active = button.dataset.managerView === seat;
+  $$('.manager-bottom [data-panel-view]').forEach(button => {
+    const active = button.dataset.panelView === seat;
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   });
@@ -1095,8 +1096,8 @@ document.addEventListener('click', event => {
     return;
   }
 });
-$$('[data-manager-view]').forEach(button => button.addEventListener('click', () => {
-  const view = button.dataset.managerView;
+$$('[data-panel-view]').forEach(button => button.addEventListener('click', () => {
+  const view = button.dataset.panelView;
   if (view === 'exams') { managerExamScreen = ''; managerExamTileKey = ''; }
   if (!normalizeView(view)) return;
   /* A shortcut may carry its own filter (dashboard → অনুমোদন opens শিক্ষার্থী
@@ -1400,7 +1401,6 @@ $('#managerRoutineForm').addEventListener('submit', async event => {
   if (!saveRoutine(routine)) return toast('রুটিন সংরক্ষণ হয়নি।', true);
   form.reset(); routineDay = routineDay; renderRoutine(); toast('রুটিন প্রকাশিত হয়েছে।');
 });
-$('#managerChangePassword').addEventListener('click', () => openStaffPasswordDialog({ role: 'manager', mode: 'change' }));
 /* One door per panel: no route of ours leaves manager.html for another panel. */
 installPanelGuard();
 void rememberPanelPage();
@@ -1445,6 +1445,15 @@ async function enterManager() {
   /* One Settings structure for every role (§29). The hub fills নিরাপত্তা ও ডেটা
      and mounts the notification rows — the Manager's profile card, password row
      and theme switch stay exactly where they were. */
+  /* অ্যাকাউন্ট গ্রুপ: Admin-এর হুবহু একই ইনলাইন ফর্ম (মালিক-নির্দেশ ২০২৬-১১-০২)। */
+  mountStaffAccountGroup({
+    hub: '[data-settings-hub="manager"]',
+    role: 'manager',
+    logoutId: 'managerAccountLogout',
+    onLogout: () => { clearStaffSession('manager'); window.dispatchEvent(new Event('apc-session-ended')); goToLoginPage(); },
+    current: () => managerAccount,
+    toast: message => toast(message)
+  });
   mountSettingsHub({
     mount: '[data-settings-hub="manager"]',
     role: 'manager',

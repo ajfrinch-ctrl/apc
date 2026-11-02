@@ -223,16 +223,16 @@ test('Admin UX: Home keeps only approval; staff, backup and reports remain reach
 
   // The sole Home work tile opens registration approval; the five duplicate
   // shortcuts are gone, not the workflows or their own navigation routes.
-  const regTile = ctx.$('#adminFeatureGrid [data-admin-view="students"]');
+  const regTile = ctx.$('#adminFeatureGrid [data-panel-view="students"]');
   assert.ok(regTile);
   assert.match(regTile.textContent, /নিবন্ধন অনুমোদন/);
   assert.match(regTile.querySelector('.admin-feature-pending-pill')?.textContent || '', /১ জন অপেক্ষমাণ/);
   assert.equal(ctx.$('#adminQuickShortcuts'), null);
   assert.equal(ctx.$('.admin-view[data-view-panel="dashboard"] .teacher-chat-hub'), null);
-  assert.ok(ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'));
+  assert.ok(ctx.$('.admin-view[data-view-panel="more"] [data-panel-view="phonebook"]'));
 
   // The Staff tab opens the directory immediately, with search clear + empty CTA.
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="staff"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="staff"]'));
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="staff"]').classList.contains('active'), true);
   assert.equal(ctx.$('[data-admin-section-panel="staff-directory"]').hidden, false, 'staff directory opens from its tab');
@@ -245,23 +245,23 @@ test('Admin UX: Home keeps only approval; staff, backup and reports remain reach
   assert.equal(ctx.$('#staffSearchClear').hidden, true);
 
   // Backup remains available from More → Data → Backup, not duplicated on Home.
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="more"]'));
   await ctx.flush();
-  ctx.click(ctx.$('#adminMoreMenu [data-admin-view="data"]'));
+  ctx.click(ctx.$('#adminMoreMenu [data-panel-view="data"]'));
   await ctx.flush();
-  ctx.click(ctx.$('#adminDataMenu [data-admin-view="backup"]'));
+  ctx.click(ctx.$('#adminDataMenu [data-panel-view="backup"]'));
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="backup"]').classList.contains('active'), true);
   assert.ok(ctx.$('#backupExportButton'));
 
   // Reports tab still opens its builder immediately.
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="reports"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="reports"]'));
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="reports"]').classList.contains('active'), true);
   assert.equal(ctx.$('[data-admin-section-panel="reports-builder"]').hidden, false, 'report builder opens from its tab');
 
   // One-tap Registration Approval tile opens Students view with directory & pending queue visible + student empty reset CTA
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="dashboard"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="dashboard"]'));
   await ctx.flush();
   ctx.click(regTile);
   await ctx.flush();

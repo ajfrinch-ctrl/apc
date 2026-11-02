@@ -60,7 +60,7 @@ before(async () => {
     shellId: 'teacherShell',
     ready: () => [...$('#teacherClassFilter').options].some(option => option.textContent === 'সব নির্ধারিত শ্রেণি')
   });
-  ctx.click($('[data-teacher-view="online-exams"]'));
+  ctx.click($('[data-panel-view="online-exams"]'));
   await ctx.waitFor(() => Boolean($('#teacherExamWorkspace [data-exam-action="new-mcq"]')));
 });
 

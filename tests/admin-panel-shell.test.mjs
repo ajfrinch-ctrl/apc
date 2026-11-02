@@ -102,28 +102,28 @@ test('hash routes resolve only to known views', () => {
 
 test('the bottom bar renders one icon + label per permitted tab', () => {
   const items = ctx.$$('.admin-bottom button');
-  assert.deepEqual(items.map(button => button.dataset.adminView), ['dashboard', 'staff', 'reports', 'system', 'more']);
+  assert.deepEqual(items.map(button => button.dataset.panelView), ['dashboard', 'staff', 'reports', 'system', 'more']);
   for (const button of items) {
     // Exactly one icon, drawn inside a fixed container: the chip.
     const chip = button.querySelector('.nav-chip');
     const icon = chip?.querySelector('svg.nav-icon');
     const label = button.querySelector('.nav-label');
-    assert.ok(chip, `${button.dataset.adminView} has no icon container`);
-    assert.ok(icon, `${button.dataset.adminView} has no generated icon`);
-    assert.equal(chip.children.length, 1, `${button.dataset.adminView} paints more than one icon`);
+    assert.ok(chip, `${button.dataset.panelView} has no icon container`);
+    assert.ok(icon, `${button.dataset.panelView} has no generated icon`);
+    assert.equal(chip.children.length, 1, `${button.dataset.panelView} paints more than one icon`);
     assert.equal(icon.getAttribute('aria-hidden'), 'true');
     // Icons render from the shared ai-3d artwork set (js/icon-set.js): the
     // inline <svg> carries an <image> pointing at a local file, so "not
     // empty" means the artwork is referenced and that file actually ships.
     const artwork = icon.querySelector('image');
-    assert.ok(artwork?.getAttribute('href'), `${button.dataset.adminView} icon is empty`);
+    assert.ok(artwork?.getAttribute('href'), `${button.dataset.panelView} icon is empty`);
     assert.ok(existsSync(new URL('../' + artwork.getAttribute('href'), import.meta.url)),
-      `${button.dataset.adminView} icon artwork is missing: ${artwork.getAttribute('href')}`);
-    assert.ok(label && label.textContent.trim().length > 1, `${button.dataset.adminView} has no label`);
+      `${button.dataset.panelView} icon artwork is missing: ${artwork.getAttribute('href')}`);
+    assert.ok(label && label.textContent.trim().length > 1, `${button.dataset.panelView} has no label`);
   }
   // The active tab is marked for both CSS and assistive tech.
   assert.equal(ctx.$$('.admin-bottom [aria-current="page"]').length, 1);
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'dashboard');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'dashboard');
   // Header: the same bar as every other panel — brand and slogan on the left,
   // the notification bell and sign-out on the right, and nothing else. The
   // date, the theme switch and every shortcut moved out of the topbar.
@@ -137,7 +137,7 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
   // Class Chat restored for true full-screen (all 4 portals edge-to-edge).
   const chatBtn = header.querySelector('#classChatTopbarButton');
   assert.ok(chatBtn, 'the chat button is present for full-screen chat');
-  assert.equal(chatBtn.getAttribute('data-admin-view'), 'class-chat', 'chat button routes to class-chat');
+  assert.equal(chatBtn.getAttribute('data-panel-view'), 'class-chat', 'chat button routes to class-chat');
   assert.ok(chatBtn.querySelector('svg[data-icon="chat"]'), 'chat button has chat icon');
   const bell = header.querySelector('#notificationButton');
   assert.ok(bell, 'the topbar has no notification button');
@@ -170,16 +170,16 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
 
 test('the dashboard grid is generated from the permission model', () => {
   const tiles = ctx.$$('#adminFeatureGrid .admin-feature-tile');
-  assert.deepEqual(tiles.map(tile => tile.dataset.adminView), [
+  assert.deepEqual(tiles.map(tile => tile.dataset.panelView), [
     'students'
   ]);
   for (const tile of tiles) {
     const wrap = tile.querySelector('.admin-feature-icon');
     const icon = wrap?.querySelector('svg');
-    assert.ok(icon, `${tile.dataset.adminView} tile has no icon`);
-    assert.equal(wrap.children.length, 1, `${tile.dataset.adminView} tile paints more than one icon`);
+    assert.ok(icon, `${tile.dataset.panelView} tile has no icon`);
+    assert.equal(wrap.children.length, 1, `${tile.dataset.panelView} tile paints more than one icon`);
     assert.ok(tile.querySelector('.admin-feature-label')?.textContent.trim().length > 1);
-    assert.ok(tile.dataset.adminCap, `${tile.dataset.adminView} tile carries no capability`);
+    assert.ok(tile.dataset.adminCap, `${tile.dataset.panelView} tile carries no capability`);
   }
   const home = ctx.$('.admin-view[data-view-panel="dashboard"]');
   for (const selector of ['#dashTitle', '#adminTodayDate', '#adminHeroAdvice']) {
@@ -226,7 +226,7 @@ test('nothing outside the Admin role survives in the DOM', () => {
   assert.equal(ctx.$('.reports-group-title'), null);
   // System sections are untouched.
   for (const view of ['dashboard', 'staff', 'reports', 'system', 'more', 'roles', 'students', 'data', 'backup', 'security', 'settings', 'profile', 'advice']) {
-    assert.equal(ctx.$$(`[data-admin-view="${view}"]`).length > 0, true, `${view} should still be reachable`);
+    assert.equal(ctx.$$(`[data-panel-view="${view}"]`).length > 0, true, `${view} should still be reachable`);
   }
 });
 
@@ -242,43 +242,43 @@ test('no exam publish/approval control lives in the Admin panel', () => {
 test('a hash route opens a permitted view and moves the active tab', async () => {
   ctx.window.location.hash = '#staff';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="staff"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'staff');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'staff');
 
   ctx.window.location.hash = '#settings';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="settings"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'system',
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'system',
     'a screen inside the সিস্টেম hub keeps its own seat lit');
 
   ctx.window.location.hash = '#backup';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="backup"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'more');
 
   ctx.window.location.hash = '#profile';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="profile"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'more');
 
   ctx.window.location.hash = '#advice';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="advice"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'more');
 
   ctx.window.location.hash = '#students';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'dashboard',
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'dashboard',
     'the registration review reached from হোম keeps হোম lit');
 
   // A route that belongs to another panel never moves the panel.
   ctx.window.location.hash = '#finance';
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'), true);
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'dashboard');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'dashboard');
   ctx.window.location.hash = '';
 });
 
 test('Account → Security → Account reopens the correct Admin content on every return', async () => {
   const hub = ctx.$('[data-settings-hub="admin"]');
-  const moreSeat = ctx.$('.admin-bottom [data-admin-view="more"]');
-  const accountRow = ctx.$('#adminMoreMenu [data-admin-view="profile"]');
-  const systemSeat = ctx.$('.admin-bottom [data-admin-view="system"]');
+  const moreSeat = ctx.$('.admin-bottom [data-panel-view="more"]');
+  const accountRow = ctx.$('#adminMoreMenu [data-panel-view="profile"]');
+  const systemSeat = ctx.$('.admin-bottom [data-panel-view="system"]');
   const openAccount = async () => { ctx.click(moreSeat); await ctx.flush(3); ctx.click(accountRow); await ctx.flush(4); };
   await ctx.waitFor(() => Boolean(hub.querySelector('[data-settings-groups]')));
   const groupNav = hub.querySelector('[data-settings-groups]');
@@ -303,7 +303,7 @@ test('Account → Security → Account reopens the correct Admin content on ever
   onlyVisibleGroup('security');
   ctx.click(systemSeat);
   await ctx.flush(4);
-  ctx.click(ctx.$('#adminSystemMenu .admin-more-item[data-admin-view="security"]'));
+  ctx.click(ctx.$('#adminSystemMenu .admin-more-item[data-panel-view="security"]'));
   await ctx.flush(4);
   assert.equal(ctx.$('.admin-view.active')?.dataset.viewPanel, 'security');
   assert.equal(ctx.$$('.admin-view.active').length, 1, 'Security is the only open Admin page');
@@ -312,7 +312,7 @@ test('Account → Security → Account reopens the correct Admin content on ever
   assert.equal(ctx.$$('.admin-view.active').length, 1, 'Account is the only open Admin page');
   assert.equal(groupNav.hidden, false, 'returning to Account restores its group menu');
   assert.ok(groups.every(section => section.hidden), 'no stale Security/Account section remains open');
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.adminView, 'more');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'more');
 
   // Repeat the same route click, then open both groups in sequence.
   await openAccount();
@@ -325,7 +325,7 @@ test('Account → Security → Account reopens the correct Admin content on ever
   await ctx.flush(2);
   onlyVisibleGroup('security');
 
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="dashboard"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="dashboard"]'));
   await ctx.flush(2);
 });
 
@@ -333,8 +333,8 @@ test('Class Chat is present with true full-screen contract', async () => {
   assert.ok(ctx.$('#classChatTopbarButton'), 'chat button in the top bar');
   assert.ok(ctx.$('#adminClassChatMount'), 'chat mount in the panel');
   assert.ok(ctx.$('.admin-view[data-view-panel="class-chat"]'), 'class-chat view exists');
-  assert.ok(ctx.$('[data-admin-view="class-chat"]'), 'navigation entry points at a chat view');
-  assert.equal(ctx.$$('[data-admin-view]').some(node => node.dataset.adminView === 'class-chat'), true);
+  assert.ok(ctx.$('[data-panel-view="class-chat"]'), 'navigation entry points at a chat view');
+  assert.equal(ctx.$$('[data-panel-view]').some(node => node.dataset.panelView === 'class-chat'), true);
   assert.equal(ctx.$('#adminMain').classList.contains('is-chat-view'), false, 'not fullscreen until navigated');
   ctx.window.location.hash = '#class-chat';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="class-chat"]').classList.contains('active'));

@@ -13,7 +13,7 @@ before(async () => {
   await import('../js/manager.js?direct-routine-145');
   await ctx.waitFor(() => !ctx.$('#managerShell').hidden);
   // Open straight from the home service, without visiting Classes first.
-  ctx.click(ctx.$('[data-view-panel="dashboard"] [data-manager-view="routine"]'));
+  ctx.click(ctx.$('[data-view-panel="dashboard"] [data-panel-view="routine"]'));
 });
 
 test('direct Routine entry supplies all existing allowed class choices', () => {

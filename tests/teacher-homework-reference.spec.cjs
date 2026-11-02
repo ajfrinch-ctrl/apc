@@ -13,7 +13,7 @@ for (const width of [320, 390, 1024]) {
        Homework uses the same standard modal/sheet as every other teacher
        dialog: scrim-backed card, app chrome stays visible behind it, and no
        fullscreen takeover or cloned bottom navigation. */
-    await page.locator('#teacherHome [data-teacher-view="homework"]').click();
+    await page.locator('#teacherHome [data-panel-view="homework"]').click();
     await expect(page.locator('#teacherRecords')).toBeVisible();
     await page.locator('#teacherRecords [data-records-action="create"]').click();
     await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
@@ -37,13 +37,13 @@ for (const width of [320, 390, 1024]) {
     expect(saved.status).toBe('published');
     expect(saved.subject).toBe('গণিত');
     expect(saved.resourceURL).toBe('https://github.com/ajfrinch-ctrl/apc');
-    await page.locator('.admin-bottom [data-teacher-view="home"]').click();
-    await page.locator('#teacherHome [data-teacher-view="homework"]').click();
+    await page.locator('.admin-bottom [data-panel-view="home"]').click();
+    await page.locator('#teacherHome [data-panel-view="homework"]').click();
     await page.locator('#teacherRecords [data-records-action="create"]').click();
     await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
     await page.locator('#teacherModalClose').click();
     await expect(page.locator('#teacherModalBackdrop')).toBeHidden();
-    await page.locator('.admin-bottom [data-teacher-view="classes"]').click();
+    await page.locator('.admin-bottom [data-panel-view="classes"]').click();
     await expect(page.locator('#teacherClasses')).toBeVisible();
   });
 }

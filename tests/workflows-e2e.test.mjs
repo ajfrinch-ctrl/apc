@@ -391,7 +391,7 @@ test('workflow 8 — a teacher notice reaches its own class only: board and noti
   teacher.click(teacher.$('#teacherHome .teacher-academic-hub'));
   await teacher.flush(6);
   assert.equal(teacher.$('#teacherAcademic').hidden, false, 'একাডেমিক is the hub seat');
-  teacher.click(teacher.$('#teacherAcademic [data-teacher-view="notice"]'));
+  teacher.click(teacher.$('#teacherAcademic [data-panel-view="notice"]'));
   await teacher.flush(8);
   assert.equal(teacher.$('#teacherNotice').hidden, false, 'the hub door opens the full notice board screen');
   assert.equal(teacher.$('#teacherModalBackdrop').hidden, true, 'a door never opens the composer by itself');
@@ -473,7 +473,7 @@ test('workflow 8b — a Manager-written notice carries its class scope and stays
     importPanel: () => import('../js/manager.js'),
     shellId: 'managerShell'
   });
-  manager.click(manager.$('.manager-bottom [data-manager-view="academic"]'));
+  manager.click(manager.$('.manager-bottom [data-panel-view="academic"]'));
   await manager.flush(6);
   assert.equal(manager.$('[data-view-panel="academic"]').hidden, false, 'একাডেমিক is the hub');
   manager.click(manager.$('#managerAcademicMenu [data-academic-section="notice"]'));

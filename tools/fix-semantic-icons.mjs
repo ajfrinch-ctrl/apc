@@ -13,7 +13,7 @@ for(const page of ['student','teacher','manager','admin','payment']){
  const result=source.replace(/<svg\b[^>]*data-icon="[^"]*"[^>]*>[\s\S]*?<\/svg>/g,original=>{
   const svg=nodes[i++],control=svg.closest('button,a,label');
   if(!control || svg!==control.querySelector('svg') || svg.closest('.pay-back,.more-chevron,.modal-close'))return original;
-  const text=control.textContent.trim(),route=['data-view','data-teacher-view','data-manager-view','data-admin-view','data-action'].map(a=>control.getAttribute(a)).find(Boolean);
+  const text=control.textContent.trim(),route=['data-view','data-panel-view','data-action'].map(a=>control.getAttribute(a)).find(Boolean);
   let name=routes[route];
   if(!name)name=labels.find(([label])=>text.startsWith(label))?.[1];
   if(!name)return original;

@@ -91,7 +91,7 @@ test('the class-chat is true edge-to-edge full-screen for all 4 portals', () => 
     const document = doc(panel);
     assert.ok(document.querySelector('#classChatTopbarButton'), `${panel}: chat topbar button present`);
     assert.ok(document.querySelector('[data-class-chat-mount]'), `${panel}: chat mount present`);
-    assert.ok(document.querySelector(`[data-${panel}-view="class-chat"]`) || document.querySelector(`#${panel === 'student' ? 'classChatView' : panel === 'teacher' ? 'teacherClassChat' : panel + 'ClassChat'}`), `${panel}: chat route present`);
+    assert.ok(document.querySelector(`[data-panel-view="class-chat"]`) || document.querySelector(`#${panel === 'student' ? 'classChatView' : panel === 'teacher' ? 'teacherClassChat' : panel + 'ClassChat'}`), `${panel}: chat route present`);
     assert.equal(document.querySelector('[data-class-chat-mount]')?.getAttribute('data-class-chat-mount'), panel === 'student' ? 'student' : panel, `${panel}: mount portal correct`);
   }
   const adminJs = read('js/admin.js');
@@ -278,9 +278,9 @@ test('every staff panel route is deep-linkable and Back returns to the parent pa
   /* Sub-pages show a real Back control; top-level pages rely on the bottom bar. */
   const teacherDoc = doc('teacher');
   const studioBack = teacherDoc.querySelector('#teacherLectureSheets .pay-back');
-  assert.equal(studioBack?.getAttribute('data-teacher-view'), 'academic', 'the studio returns to একাডেমিক');
+  assert.equal(studioBack?.getAttribute('data-panel-view'), 'academic', 'the studio returns to একাডেমিক');
   const managerDoc = doc('manager');
   const managerStudio = managerDoc.querySelector('[data-view-panel="lecture-sheets"]');
-  assert.equal(managerStudio?.querySelector('.pay-back')?.getAttribute('data-manager-view'), 'courses',
+  assert.equal(managerStudio?.querySelector('.pay-back')?.getAttribute('data-panel-view'), 'courses',
     'the manager studio returns to পাঠ্য উপকরণ');
 });

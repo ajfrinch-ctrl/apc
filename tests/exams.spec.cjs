@@ -15,7 +15,7 @@ async function teacher(page) {
   /* The exam workspace is one screen; the hub card is the documented door
      (ফলাফল seat keeps the marks records of the class tests). */
   /* The teacher bottom-nav পরীক্ষা item opens the existing online-exam hub directly. */
-  await page.locator('.admin-bottom [data-teacher-view=online-exams]').click();
+  await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
 }
 async function manager(context) {
   const page = await context.newPage(); await page.clock.setFixedTime(t0);
@@ -23,7 +23,7 @@ async function manager(context) {
   await enterPortal(page, 'manager');
   await page.clock.setFixedTime(t0);
   await page.evaluate(() => sessionStorage.removeItem('activePlus.lastSeenClock.v1'));
-  await page.locator('.manager-bottom [data-manager-view=academic]').click();
+  await page.locator('.manager-bottom [data-panel-view=academic]').click();
   await page.locator('#managerAcademicMenu [data-academic-section=exams]').click();
   await page.locator('#managerExamHub [data-manager-exam=upcoming]').click();
   await page.locator('#managerExamWorkspace').waitFor({ state: 'visible' });
@@ -54,7 +54,7 @@ async function publishUI(page) {
 }
 async function releaseResults(office, pupil) {
   await office.clock.setFixedTime(new Date(end.getTime() + 60_000));
-  await office.locator('.manager-bottom [data-manager-view=academic]').click();
+  await office.locator('.manager-bottom [data-panel-view=academic]').click();
   await office.locator('#managerAcademicMenu [data-academic-section=results]').click();
   await office.locator('[data-manager-action=publish-results]').click();
   await expect(office.locator('#managerResultList')).toContainText('ফলাফল প্রকাশিত');

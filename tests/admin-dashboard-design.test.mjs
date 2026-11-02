@@ -18,7 +18,7 @@ test('Admin Home retains welcome, weekday/date, daily advice and three staff-por
   assert.deepEqual([...home.querySelectorAll('.admin-portal-grid > a')].map(link => link.getAttribute('href')),
     ['manager.html', 'teacher.html', 'payment.html']);
   assert.equal(home.querySelector('.pay-section-label')?.textContent.trim(), 'দ্রুত অ্যাক্সেস');
-  assert.equal(document.querySelectorAll('.admin-bottom [data-admin-view]').length, 5, 'shared navigation is untouched');
+  assert.equal(document.querySelectorAll('.admin-bottom [data-panel-view]').length, 5, 'shared navigation is untouched');
 });
 
 test('Admin Home omits the picture, four counters, both reminders and five duplicate shortcuts', () => {
@@ -34,11 +34,11 @@ test('Admin Home omits the picture, four counters, both reminders and five dupli
     'backup export still exists in its dedicated screen');
   assert.ok(document.querySelector('.admin-view[data-view-panel="settings-maintenance"] #maintenanceState'),
     'maintenance status remains in System Settings');
-  assert.ok(document.querySelector('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'),
+  assert.ok(document.querySelector('.admin-view[data-view-panel="more"] [data-panel-view="phonebook"]'),
     'phonebook remains accessible from More');
   // Class Chat restored for true edge-to-edge full-screen (all 4 portals).
   assert.ok(document.querySelector('#classChatTopbarButton'), 'global chat shortcut present');
-  assert.ok(document.querySelector('[data-admin-view="class-chat"]'), 'chat route present');
+  assert.ok(document.querySelector('[data-panel-view="class-chat"]'), 'chat route present');
   assert.ok(document.querySelector('#adminClassChatMount'), 'chat mount present');
 });
 
