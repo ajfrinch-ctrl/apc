@@ -66,7 +66,11 @@
 
 - `tests/teacher-panel.test.mjs` — ১৮/১৮ (দুই স্ক্রিন, গ্রুপ-মেনু re-entry, ৫ কার্ড)
 - `tests/settings-structure.test.mjs` · `payment-desk` · `more-reports` · `app-architecture` · `admin-panel-design` · `semantic-icons` — সব সবুজ
-- পূর্ণ স্যুট: `1450+ pass`, ব্যর্থতাগুলো **প্রিস্টিন HEAD-এর সাথে `diff` করে** যাচাই করা হচ্ছে (নিচে হালনাগাদ)
+- পূর্ণ স্যুট (শাখা): **1492 টেস্ট — 1464 pass / 25 fail / 3 skipped**;
+  প্রিস্টিন `d13dec8` worktree-এ একই স্যুট: **1484 — 1456 / 25**।
+  ব্যর্থতার নামের সেট **হুবহু এক** (`comm` ⇒ নতুন ০, ঠিক হওয়া ০) — সবই আগের
+  ২৫টি ব্যর্থতা (manager 360px, ID reveal, wallet skin palette, boot/precache budget, sync)।
+- নতুন স্যুট: `tests/panel-capabilities-2026-11-02.test.mjs` — ৮/৮
 
 ---
 
