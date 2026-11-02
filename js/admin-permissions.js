@@ -230,9 +230,9 @@ export const ADMIN_MORE_NAV = Object.freeze([
 
 /** Which seat lights up for a view that lives inside a hub. */
 const MAIN_VIEW_SEAT = Object.freeze({
-  roles: 'system', security: 'system', settings: 'system', academics: 'system', migration: 'system',
+  roles: 'more', security: 'more', settings: 'more', system: 'more', academics: 'academics', migration: 'more',
   data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', content: 'more', phonebook: 'more',
-  students: 'dashboard', 'class-chat': 'more'
+  students: 'staff', 'class-chat': 'more'
 });
 export const VIEW_SEAT = Object.freeze({
   ...MAIN_VIEW_SEAT,
