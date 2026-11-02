@@ -5,7 +5,7 @@
  */
 export const STAFF_NAV_TABS = Object.freeze([
   Object.freeze({ key: 'home', label: 'হোম', icon: 'home' }),
-  Object.freeze({ key: 'work', label: 'কাজ', icon: 'work' }),
+  Object.freeze({ key: 'work', label: 'কাজ', icon: 'staff' }),
   Object.freeze({ key: 'academic', label: 'একাডেমিক', icon: 'book' }),
   Object.freeze({ key: 'finance', label: 'হিসাব', icon: 'wallet' }),
   Object.freeze({ key: 'more', label: 'আরও', icon: 'more' })
