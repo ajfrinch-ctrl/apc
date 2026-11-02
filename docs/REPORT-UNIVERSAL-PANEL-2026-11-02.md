@@ -1,6 +1,6 @@
 # Universal Staff Panel — রিপোর্ট (২০২৬-১১-০২)
 
-**শাখা:** `arena/fabc17fa-apc` · **ক্যাশ ভার্সন:** ৪৫৭ → **৪৫৮** · **স্ট্যাটাস:** A ও B সম্পূর্ণ, C ও D বাকি (§৫)
+**শাখা:** `arena/fabc17fa-apc` · **ক্যাশ ভার্সন:** ৪৫৭ → **৪৫৯** · **স্ট্যাটাস:** A · B · C · D — চারটিই সম্পূর্ণ
 
 ---
 
@@ -20,10 +20,12 @@
 ১০৫ ফাইল পরিবর্তিত · +১৩৫৫ / −১০০১
  নতুন: js/staff-account-forms.js (+২০৩), docs/UNIVERSAL-STAFF-PANEL-2026-11-02.md
  বড়: teacher.html · manager.html · payment.html · js/{teacher,manager,payment,settings-hub}.js
- CSS: css/foundation.css (টোকেন) · css/ui-wallet.css (হিরো tokenised) · css/teacher-panel.css (rebuild)
+ নতুন২: js/panel-capabilities.js (+১৮০), tests/panel-capabilities-2026-11-02.test.mjs (৮টি পরীক্ষা)
+ CSS: css/foundation.css (টোকেন) · css/ui-wallet.css (tokenised) · css/teacher-panel.css (rebuild)
 ```
 
 কমিট: `4d5185a` (মূল কাজ) · `cda0dc1` (মৃত CSS বাদ + rebuild) · `baca490` (Manager-এ এক পরিচয় কার্ড)
+· `d50cca1` (ধাপ C ও D — gate + entry contract) · `f3765eb` (শেল টোকেন সম্পূর্ণ) · `7198c8a` (যাচাইয়ের সংখ্যা)
 
 ---
 
