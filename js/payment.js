@@ -14,6 +14,7 @@ import { readStaffAccount } from './staff-auth.js';
 import { initAppearance } from './appearance.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
+import { syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
@@ -76,11 +77,7 @@ function showCounterView(view) {
   });
   $('#payReportsCard').hidden=target!=='reports';
   $('#counterViewTitle').textContent=COUNTER_VIEW_TITLES[target];
-  document.querySelectorAll('.admin-bottom [data-panel-view]').forEach(seat=>{
-    const active=seat.dataset.panelView===target;
-    seat.classList.toggle('active',active);
-    if(active)seat.setAttribute('aria-current','page');else seat.removeAttribute('aria-current');
-  });
+  syncStaffNavigation('payment', target);
   // The counter's More surface is its Settings hub; every return starts at the
   // group menu instead of retaining a previous subsection.
   if(target==='more') resetSettingsHub('#payMorePanel');
