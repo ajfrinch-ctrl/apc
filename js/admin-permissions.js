@@ -198,9 +198,9 @@ export const VIEW_CAPABILITIES = Object.freeze({
  *  Data, profile and advice remain available from the More hub. */
 export const ADMIN_BOTTOM_NAV = Object.freeze([
   { view: 'dashboard', label: 'হোম', icon: 'dashboard', capability: CAPABILITIES.DASHBOARD, order: 1 },
-  { view: 'staff', label: 'স্টাফ', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 2 },
-  { view: 'reports', label: 'রিপোর্ট', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 3 },
-  { view: 'system', label: 'সিস্টেম', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 },
+  { view: 'staff', label: 'কাজ', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 2 },
+  { view: 'academics', label: 'একাডেমিক', icon: 'book', capability: CAPABILITIES.SETTINGS_MANAGE, order: 3 },
+  { view: 'reports', label: 'হিসাব', icon: 'wallet', capability: CAPABILITIES.REPORTS_VIEW, order: 4 },
   { view: 'more', label: 'আরও', icon: 'more', capability: CAPABILITIES.PROFILE_VIEW, order: 5 }
 ]);
 
@@ -221,6 +221,7 @@ export const ADMIN_DATA_NAV = Object.freeze([
 
 /** More hub destinations keep their stable route names and original gates. */
 export const ADMIN_MORE_NAV = Object.freeze([
+  { view: 'system', label: 'সিস্টেম ও নিরাপত্তা', hint: 'রোল, সিকিউরিটি, অ্যাপ সেটিংস ও একাডেমিক কনফিগারেশন', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 0 },
   { view: 'data', label: 'ডেটা ও ব্যাকআপ', hint: 'রেকর্ড, স্টোরেজ, ব্যাকআপ ও অডিট', icon: 'data', capability: CAPABILITIES.DATA_MANAGE, order: 1 },
   { view: 'content', label: 'নোটিশ ও কনটেন্ট', hint: 'প্রকাশিত নোটিশ/কাজ দেখুন ও মুছুন', icon: 'bell', capability: CAPABILITIES.DATA_MANAGE, order: 1 },
   { view: 'profile', label: 'আমার অ্যাকাউন্ট', hint: 'পরিচয়, পাসওয়ার্ড ও পছন্দ', icon: 'profile', capability: CAPABILITIES.PROFILE_VIEW, order: 2 },
