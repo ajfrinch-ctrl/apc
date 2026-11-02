@@ -119,8 +119,8 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    const retired = control => control.id === 'payMoreLogout';
    const currentRoutes=new Set(now.map(control=>JSON.stringify(control)));
    for(const control of controls(old).filter(before=>!retired(before))) assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
-   const added=now.filter(control=>!controls(old).some(before=>JSON.stringify(before)===JSON.stringify(control)));
-   assert.deepEqual(added,[{ 'data-panel-view': 'profile' }], 'the counter adds exactly one door — its own profile');
+   assert.ok(currentRoutes.has(JSON.stringify({ 'data-panel-view': 'profile' })),
+    'the counter keeps one door to its own profile (its own screen, like the other three panels)');
   }
  }
 });

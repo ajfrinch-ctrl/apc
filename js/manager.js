@@ -837,7 +837,6 @@ function renderProfile() {
   const account = managerAccount || {};
   const markup = `<div class="manager-profile-list"><div><small>নাম</small><strong>${escapeHtml(account.fullName || 'Manager')}</strong></div><div><small>ইউজারনেম</small><strong>${escapeHtml(account.username || '—')}</strong></div><div><small>যোগাযোগ</small><strong>${escapeHtml(account.mobile || '—')}</strong></div><div><small>ইমেইল</small><strong>${escapeHtml(account.email || '—')}</strong></div><div><small>ভূমিকা</small><strong>ম্যানেজার — পরিচালনা নিয়ন্ত্রক</strong></div><div><small>অ্যাকাউন্টের অবস্থা</small><strong>${escapeHtml(({ active: 'সক্রিয়', suspended: 'স্থগিত', inactive: 'নিষ্ক্রিয়' }[account.status || account.accountStatus] || account.status || account.accountStatus || 'সক্রিয়'))}</strong></div></div><div class="row-actions"><button class="admin-btn ghost" type="button" data-profile-edit>নিজের তথ্য সম্পাদনা</button></div>`;
   if ($('#managerProfileCard')) $('#managerProfileCard').innerHTML = markup;
-  if ($('#managerOwnProfileCard')) $('#managerOwnProfileCard').innerHTML = markup;
   syncManagerPanelHead();
 }
 async function loadOperationalData() {
@@ -1466,7 +1465,8 @@ async function enterManager() {
   // পড়াশোনা পরিচালনা করুন: the same content library the Teacher writes into.
   await mountCourseEditor();
   await mountReports($('#managerReports'), { panel: 'manager' });
-  for (const cardSelector of ['#managerProfileCard', '#managerOwnProfileCard']) {
+  /* একটি পরিচয় কার্ড, একটি এডিট (মালিক-নির্দেশ ২০২৬-১১-০২)। */
+  for (const cardSelector of ['#managerProfileCard']) {
     mountProfileSelfEdit({
       role: 'manager',
       card: cardSelector,
