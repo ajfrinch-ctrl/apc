@@ -36,6 +36,7 @@ import { escapeHtml } from './sanitize.js';
 import { matchesStudentQuery } from './student-search.js';
 import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT, DETAIL_VIEW_PARENTS, VIEW_CAPABILITIES } from './admin-permissions.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
+import { syncStaffNavigation } from './staff-navigation.js';
 import { rememberRoute, onRouteChange } from './panel-route.js';
 import { activateAdminDetail, placeRenderedDetails } from './admin-detail-views.js';
 import { openRegistrationReview, DECIDED_EVENT, listPendingRegistrations, pendingQueueMarkup, bindPendingQueueActions } from './registration-review.js';
@@ -356,13 +357,7 @@ function setView(view, { history = 'replace', clearBack = false } = {}) {
   openDefaultPrimarySection(target);
   if (target === 'phonebook') mountAdminPhonebook();
   syncAdminHeroCards();
-  const seat = seatFor(target);
-  $$('.admin-bottom-item').forEach(item => {
-    const active = item.dataset.panelView === seat;
-    item.classList.toggle('active', active);
-    if (active) item.setAttribute('aria-current', 'page');
-    else item.removeAttribute('aria-current');
-  });
+  syncStaffNavigation('admin', target);
   $('#adminMain').scrollTo({ top: 0, behavior: 'instant' });
   // User navigation pushes an entry like Student; startup replaces, and a
   // browser history traversal keeps the entry it is restoring.
