@@ -196,3 +196,8 @@ html[data-theme="dark"][data-staff-panel="payment"] {
 @media (max-width: 380px) {
   .staff-bottom-nav > .admin-bottom-item { padding-inline: 0; font-size: 10.5px; }
 }
+
+.staff-bottom-nav > .admin-bottom-item:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
