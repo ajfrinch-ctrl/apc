@@ -18,7 +18,7 @@ import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js'
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
-import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { initOrgInfo } from './org-info.js';
 export { PAYMENT_USER_ID };
 
@@ -57,7 +57,7 @@ function syncCounterHeading() {
   $$('[data-pay-hero-advice]').forEach(box => {
     const key = box.dataset.payHeroAdvice || 'finance';
     const p = box.querySelector('.teacher-hero-advice');
-    const line = pickTeacherSectionAdvice(key);
+    const line = pickStaffSectionAdvice(key);
     if (p && line) p.textContent = line;
   });
 }
