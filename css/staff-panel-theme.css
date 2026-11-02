@@ -201,3 +201,85 @@ html[data-theme="dark"][data-staff-panel="payment"] {
   cursor: not-allowed;
   opacity: .48;
 }
+
+
+/* Shared home hero component: identical geometry and type across all four
+   portals; the role token set above supplies the only palette difference. */
+.staff-home-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  min-height: 224px;
+  margin: 2px 0 16px;
+  padding: 16px 18px;
+  overflow: hidden;
+  border: 1px solid var(--pay-hero-line);
+  border-radius: 24px;
+  background: var(--pay-hero-gradient) !important;
+  color: var(--pay-on-hero);
+  box-shadow: var(--pay-shadow);
+}
+.staff-home-hero::after { display: none !important; }
+.staff-home-hero .teacher-hero-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  min-height: 188px;
+  padding: 0;
+}
+.staff-home-hero .teacher-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+.staff-home-hero .teacher-hero-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  margin-top: auto;
+}
+.staff-home-hero h1,
+.staff-home-hero .teacher-hero-welcome h1 {
+  max-width: 100%;
+  margin: 0;
+  color: var(--pay-on-hero);
+  font-size: clamp(22px, 5.4vw, 26px);
+  font-weight: 800;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+.staff-home-hero .teacher-hero-advice {
+  max-width: 38ch;
+  margin: 0;
+  color: var(--pay-on-hero-soft);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.staff-home-hero .teacher-hero-date-pill,
+.staff-home-hero .admin-date-pill {
+  max-width: 100%;
+  padding: 5px 11px;
+  border: 1px solid var(--pay-hero-line);
+  border-radius: 999px;
+  background: var(--pay-hero-chip);
+  color: var(--pay-on-hero);
+  font-size: 11.5px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.app-topbar-icon:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
