@@ -650,12 +650,28 @@
         <div id="teacherClassChatMount" data-class-chat-mount="teacher"></div>
       </section>
     </main>
-    <nav class="admin-bottom" aria-label="শিক্ষক নেভিগেশন">
-  <button class="admin-bottom-item active" aria-current="page" type="button" data-panel-view="home"><span class="nav-chip"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="home" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/home.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">হোম</span></button>
-  <button class="admin-bottom-item" type="button" data-panel-view="classes"><span class="nav-chip"><i class="nav-dot" id="navDot-routine" hidden></i><i class="nav-dot" id="navDot-academic" hidden></i><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="book" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/book.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">ক্লাস</span></button>
-  <button class="admin-bottom-item" type="button" data-panel-view="online-exams"><span class="nav-chip"><i class="nav-dot" id="navDot-exam" hidden></i><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="result" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/result.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">পরীক্ষা</span></button>
-  <button class="admin-bottom-item" type="button" data-panel-view="more"><span class="nav-chip"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="more" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/more.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><span class="nav-label">আরও</span></button>
-</nav>
+    <nav class="admin-bottom staff-bottom-nav" aria-label="স্টাফ নেভিগেশন">
+      <button class="admin-bottom-item active" type="button" data-staff-tab="home" data-panel-view="home" aria-current="page">
+        <span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="home" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/home.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+        <span class="nav-label">হোম</span>
+      </button>
+      <button class="admin-bottom-item" type="button" data-staff-tab="work" data-panel-view="classes">
+        <span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="staff" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/staff.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+        <span class="nav-label">কাজ</span>
+      </button>
+      <button class="admin-bottom-item" type="button" data-staff-tab="academic" data-panel-view="academic">
+        <span class="nav-chip"><i class="nav-dot" id="navDot-routine" hidden></i><i class="nav-dot" id="navDot-academic" hidden></i><i class="nav-dot" id="navDot-exam" hidden></i><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="book" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/book.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+        <span class="nav-label">একাডেমিক</span>
+      </button>
+      <button class="admin-bottom-item" type="button" data-staff-tab="finance" data-panel-view="reports">
+        <span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="wallet" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/wallet.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+        <span class="nav-label">হিসাব</span>
+      </button>
+      <button class="admin-bottom-item" type="button" data-staff-tab="more" data-panel-view="more">
+        <span class="nav-chip"><svg class="nav-icon apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="more" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/more.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+        <span class="nav-label">আরও</span>
+      </button>
+    </nav>
   </div>
   <div class="admin-modal-backdrop" id="teacherModalBackdrop" hidden>
     <section class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="teacherModalTitle"><header class="admin-modal-header"><div><h2 id="teacherModalTitle"></h2></div><button class="admin-modal-close" id="teacherModalClose" type="button" aria-label="বন্ধ করুন">×</button></header><div class="admin-modal-body" id="teacherModalBody"></div></section>
