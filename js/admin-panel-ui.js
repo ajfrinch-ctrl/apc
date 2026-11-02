@@ -18,6 +18,7 @@
 
 import { ADMIN_BOTTOM_NAV, ADMIN_SYSTEM_NAV, ADMIN_DATA_NAV, ADMIN_MORE_NAV, ADMIN_FEATURE_TILES, enforceCapabilities } from './admin-permissions.js';
 import { iconElement, paintIcon } from './icons.js';
+import { staffTabForRoute } from './staff-navigation.js';
 
 /* The bottom bar and the "More" menu use the same icon language, so a section
    looks identical wherever it appears. */
@@ -45,6 +46,7 @@ function renderBottomBar(bar, entries, onNavigate) {
     button.type = 'button';
     button.className = 'admin-bottom-item';
     button.dataset.panelView = entry.view;
+    button.dataset.staffTab = staffTabForRoute('admin', entry.view);
     if (entry.capability) button.dataset.adminCap = entry.capability;
 
     // Fixed container: the icon can never grow past it, so it can never
