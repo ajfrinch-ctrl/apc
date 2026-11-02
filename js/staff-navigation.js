@@ -13,16 +13,16 @@ export const STAFF_NAV_TABS = Object.freeze([
 
 export const STAFF_NAV_ROUTES = Object.freeze({
   admin: Object.freeze({ home: 'dashboard', work: 'staff', academic: 'academics', finance: 'reports', more: 'more' }),
-  teacher: Object.freeze({ home: 'home', work: 'classes', academic: 'academic', finance: 'reports', more: 'more' }),
+  teacher: Object.freeze({ home: 'home', work: 'classes', academic: 'academic', finance: null, more: 'more' }),
   manager: Object.freeze({ home: 'dashboard', work: 'students', academic: 'academic', finance: 'finance', more: 'more' }),
-  payment: Object.freeze({ home: 'home', work: 'students', academic: 'reports', finance: 'payment', more: 'more' })
+  payment: Object.freeze({ home: 'home', work: 'students', academic: null, finance: 'payment', more: 'more' })
 });
 
 const ROUTE_ALIASES = Object.freeze({
   admin: Object.freeze({ system: 'more', profile: 'more', settings: 'more', data: 'more', backup: 'more', audit: 'more', security: 'more', migration: 'more', roles: 'more', content: 'more', advice: 'more', phonebook: 'more' }),
-  teacher: Object.freeze({ 'class-chat': 'academic', exam: 'academic', 'online-exams': 'academic', notice: 'academic', courses: 'academic', 'lecture-sheets': 'academic', 'routine-view': 'academic', reports: 'finance', marks: 'academic', attendance: 'academic', profile: 'more', settings: 'more', advice: 'more' }),
+  teacher: Object.freeze({ 'class-chat': 'academic', exam: 'academic', 'online-exams': 'academic', notice: 'academic', courses: 'academic', 'lecture-sheets': 'academic', 'routine-view': 'academic', reports: 'academic', marks: 'academic', attendance: 'academic', profile: 'more', settings: 'more', advice: 'more' }),
   manager: Object.freeze({ 'class-chat': 'more', 'academic-records': 'academic', classes: 'academic', teachers: 'work', notices: 'academic', routine: 'academic', exams: 'academic', courses: 'academic', 'lecture-sheets': 'academic', results: 'academic', reports: 'more', phonebook: 'more', profile: 'more', settings: 'more', advice: 'more' }),
-  payment: Object.freeze({ profile: 'more', reports: 'academic' })
+  payment: Object.freeze({ profile: 'more', reports: 'finance' })
 });
 
 export function staffTabForRoute(role, route) {
