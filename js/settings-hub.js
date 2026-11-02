@@ -50,9 +50,10 @@ export const SETTINGS_ROWS = Object.freeze({
    "already there" when the page carries either the row marker or one of these, so
    no panel ever shows the same setting twice. */
 const EXISTING = Object.freeze({
-  profile: ['#managerProfileCard', '#teacherProfileCard', '#adminProfileCard', '[data-action="edit-profile"]'],
-  password: ['#managerChangePassword', '#teacherChangePassword', '#adminPasswordForm'],
-  logout: ['#adminAccountLogout', '#payMoreLogout', '[data-action="logout"]'],
+  profile: ['#adminProfileForm', '#teacherProfileForm', '#managerProfileForm', '#paymentProfileForm',
+    '#managerProfileCard', '#teacherProfileCard', '#adminProfileCard', '[data-action="edit-profile"]'],
+  password: ['#adminPasswordForm', '#teacherPasswordForm', '#managerPasswordForm', '#paymentPasswordForm'],
+  logout: ['#adminAccountLogout', '#payMoreLogout', '#teacherAccountLogout', '#managerAccountLogout', '[data-action="logout"]'],
   install: ['[data-action="install"]', '[data-install]', '#installButton'],
   theme: ['#darkModeToggle', '[data-theme-toggle]', '[data-settings-toggle="theme"]'],
   device: ['#trustedDeviceToggle'],

@@ -38,7 +38,7 @@ test('Desktop Full-Screen Word-Style Lecture Sheet Studio: Bangla যুক্�
   // Navigate through the Content hub into the routed Lecture Sheet Studio.
   await page.evaluate(() => { window.location.hash = '#content'; });
   await expect(page.locator('.admin-view[data-view-panel="content"]')).toBeVisible();
-  await page.locator('.admin-view[data-view-panel="content"] [data-admin-view="content-lecture-sheets"]').click();
+  await page.locator('.admin-view[data-view-panel="content"] [data-panel-view="content-lecture-sheets"]').click();
   await expect(page).toHaveURL(/#content-lecture-sheets$/);
   await expect(page.locator('#adminLectureSheetsMount [data-ls-mgr-action="open-create"]')).toBeVisible();
 

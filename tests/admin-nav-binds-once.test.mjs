@@ -24,13 +24,13 @@ test('rebuilding the shell never duplicates hub or tile handlers', async () => {
   initAdminPanelShell({ access, onNavigate });
   initAdminPanelShell({ access, onNavigate });
 
-  const hubItem = ctx.$('#adminSystemMenu [data-admin-view="security"]');
+  const hubItem = ctx.$('#adminSystemMenu [data-panel-view="security"]');
   assert.ok(hubItem, 'the hub row survives the rebuild');
   ctx.click(hubItem);
   await ctx.flush();
   assert.deepEqual(calls, ['security'], 'one click, one navigation');
 
-  const tile = ctx.$('#adminFeatureGrid [data-admin-view="students"]');
+  const tile = ctx.$('#adminFeatureGrid [data-panel-view="students"]');
   if (tile) {
     calls.length = 0;
     ctx.click(tile);
@@ -40,7 +40,7 @@ test('rebuilding the shell never duplicates hub or tile handlers', async () => {
 
   // Bottom bar buttons are rebuilt (replaceChildren) — also single-fire.
   calls.length = 0;
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="staff"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="staff"]'));
   await ctx.flush();
   assert.deepEqual(calls, ['staff']);
 });

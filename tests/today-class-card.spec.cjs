@@ -56,7 +56,7 @@ test('a real Manager-published class replaces the no-classes card for the matchi
   await page.clock.setFixedTime(new Date('2026-10-01T10:00:00Z'));
   await enterPortal(page,'manager');
   await expect(page.locator('#managerShell')).toBeVisible();
-  await page.locator('[data-view-panel="dashboard"] [data-manager-view="routine"]').click();
+  await page.locator('[data-view-panel="dashboard"] [data-panel-view="routine"]').click();
   await page.locator('#managerRoutineDays [data-routine-day="thu"]').click();
   const form = page.locator('#managerRoutineForm');
   await form.locator('[name="className"]').selectOption('দশম শ্রেণি');

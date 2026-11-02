@@ -44,7 +44,7 @@ function renderBottomBar(bar, entries, onNavigate) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'admin-bottom-item';
-    button.dataset.adminView = entry.view;
+    button.dataset.panelView = entry.view;
     if (entry.capability) button.dataset.adminCap = entry.capability;
 
     // Fixed container: the icon can never grow past it, so it can never
@@ -81,7 +81,7 @@ function renderHub(root, menuSelector, panelView, catalogue, access, onNavigate)
   if (!menu) return [];
   const items = [];
   menu.querySelectorAll('.admin-more-item').forEach(item => {
-    const entry = catalogue.find(candidate => candidate.view === item.dataset.adminView);
+    const entry = catalogue.find(candidate => candidate.view === item.dataset.panelView);
     if (!entry) { item.remove(); return; }
     if (entry.capability && !access.has(entry.capability)) { item.remove(); return; }
     item.classList.add('teacher-action-card');
@@ -123,7 +123,7 @@ function renderFeatureGrid(container, entries, onNavigate) {
     const tile = document.createElement('button');
     tile.type = 'button';
     tile.className = 'pay-tile admin-feature-tile teacher-action-card is-accent';
-    tile.dataset.adminView = entry.view;
+    tile.dataset.panelView = entry.view;
     if (entry.capability) tile.dataset.adminCap = entry.capability;
     if (entry.action) tile.dataset.adminAction = entry.action;
     if (entry.scope) tile.dataset.studentScope = entry.scope;

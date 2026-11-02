@@ -99,20 +99,22 @@ test('every teacher view opens on a compact page head — no hero card, no artwo
   assert.match(sceneRule, /position:absolute/, 'the scene fills the card behind the text');
 });
 
-test('ক্লাস uses the same compact head and three full-width action cards with primary data hidden', () => {
+test('ক্লাস uses the same compact head and two class-scoped action cards with primary data hidden', () => {
   const view = page.querySelector('#teacherClasses');
   assert.ok(view.querySelector('.home-dashboard-intro.teacher-home-intro.panel-compact-head'), 'ক্লাস starts with the compact head');
   assert.equal(view.querySelector('.teacher-hero-scene'), null, 'ক্লাস carries no hero banner');
   assert.equal(view.querySelector('#teacherClassesTitle')?.textContent.trim(), 'ক্লাস ও পাঠদান');
   const cards = [...view.querySelectorAll('.teacher-classes-actions .teacher-action-card')];
-  assert.equal(cards.length, 3, 'three Home-style action cards');
+  /* ২০২৬-১১-০১: একাডেমিক হাবের দরজা হোমের কার্ডেই আছে — ক্লাস স্ক্রিনে তার
+     পুনরাবৃত্তি নেই, শুধু ক্লাস-কেন্দ্রিক দুই দরজা। */
+  assert.equal(cards.length, 2, 'two class-scoped action cards');
   assert.match(cards[0].textContent, /আমার ক্লাস ও বিষয়/);
   assert.match(cards[0].textContent, /ট্যাপ করে এই ক্লাসের কাজে যান/);
-  assert.equal(cards[0].getAttribute('data-teacher-view'), 'homework');
+  assert.equal(cards[0].getAttribute('data-panel-view'), 'homework');
   assert.match(cards[1].textContent, /রুটিন ও সময়সূচি/);
-  assert.equal(cards[1].getAttribute('data-teacher-view'), 'routine-view');
-  assert.match(cards[2].textContent, /একাডেমিক কার্যক্রম/);
-  assert.equal(cards[2].getAttribute('data-teacher-view'), 'academic');
+  assert.equal(cards[1].getAttribute('data-panel-view'), 'routine-view');
+  assert.equal(cards.some(card => card.getAttribute('data-panel-view') === 'academic'), false,
+    'the academic hub is not duplicated on ক্লাস');
   const panel = view.querySelector('#teacherClassPanel');
   assert.ok(panel, 'class panel exists');
   assert.equal(panel.hidden, true, 'primary class list data stays hidden');
@@ -133,12 +135,16 @@ test('ক্লাস uses the same compact head and three full-width action car
 
   const hub = page.querySelector('#teacherHome .teacher-academic-hub');
   assert.ok(hub, 'Home carries the academic feature card');
-  assert.equal(hub.getAttribute('data-teacher-view'), 'academic', 'the card opens the academic hub screen');
+  assert.equal(hub.getAttribute('data-panel-view'), 'academic', 'the card opens the academic hub screen');
   assert.match(hub.textContent, /একাডেমিক কার্যক্রম/);
   assert.match(hub.getAttribute('aria-label'), /[ঀ-৿]/, 'the card carries a Bengali aria-label');
   assert.equal(hub.tagName, 'BUTTON', 'the card is a real button');
-  assert.ok(page.querySelector('#teacherHome .teacher-home-actions .teacher-action-card[data-new-activity="homework"]'),
-    'Home keeps its create-first cards beside the new hub');
+  /* ২০২৬-১১-০১: হোমের দরজাগুলো এখন শুধু নেভিগেশন — ফর্ম খোলে গন্তব্য পেজের
+     নিজস্ব তৈরি-কার্ড থেকে, হোমের ওপর মডেল হিসেবে নয়। */
+  assert.ok(page.querySelector('#teacherHome .teacher-home-actions .teacher-action-card[data-panel-view="homework"]'),
+    'Home keeps a full-page বাড়ির কাজ door beside the hub');
+  assert.equal(page.querySelector('#teacherHome [data-new-activity]'), null,
+    'Home opens no create form of its own');
   assert.equal(page.querySelector('#teacherAcademicTitle').textContent.trim(), 'একাডেমিক কার্যক্রম',
     'the academic screen names itself after the feature');
 
@@ -171,8 +177,9 @@ test('the retired teacher hero artwork is no longer referenced by any panel', ()
 
 test('every teacher view starts with the compact head: heading, advice line, no artwork', () => {
   const views = [...page.querySelectorAll('.teacher-view')];
-  /* 13 since the lecture-sheet studio page arrived (owner decision 2026-10-28). */
-  assert.equal(views.length, 13, 'all 13 teacher views are audited');
+  /* 14 since 2026-11-02: the lecture-sheet studio (2026-10-28) plus the separate
+     Settings screen (profile and settings are two surfaces, owner order). */
+  assert.equal(views.length, 14, 'all 14 teacher views are audited');
   for (const view of views) {
     const hero = view.querySelector(':scope > .home-dashboard-intro.teacher-home-intro');
     assert.ok(hero, `${view.id} starts with a page head`);

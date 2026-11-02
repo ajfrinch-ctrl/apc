@@ -506,3 +506,49 @@ test('Full-Screen Studio & Staff Manager Hub mount in JSDOM, execute rich format
   assert.equal(mountEl.querySelectorAll('[data-ls-card]').length, 1, 'Manager list shows the newly created lecture sheet');
   mountEl.remove();
 });
+
+test('the subject is typed by hand — no dropdown — and a known name still maps to its catalogue subject', async () => {
+  /* Owner request (2026-11-01): the subject dropdown is removed from the
+     Lecture Sheet manager and the editor's info panel; the author types the
+     subject name. A typed name that matches the catalogue keeps the real
+     subject id (so sheets keep grouping correctly), anything else becomes a
+     custom subject. */
+  wipeStorage();
+  await provisionStaff('admin');
+  seedStaffSession(window, 'admin');
+
+  const { mountLectureSheetManager, resolveTypedSubject } = await import('../js/lecture-sheet-studio.js');
+  const subs = subjectsForClass('দশম শ্রেণি');
+  const known = subs[0];
+
+  const byName = resolveTypedSubject(` ${known.name} `, subs);
+  assert.equal(byName.id, known.id, 'a typed catalogue name reuses the real subject id');
+  assert.equal(byName.customName, '', 'a known subject is not duplicated as custom');
+
+  const fresh = resolveTypedSubject('কৃষি শিক্ষা', subs);
+  assert.match(fresh.id, /^custom-/, 'an unknown typed name becomes a custom subject');
+  assert.equal(fresh.name, 'কৃষি শিক্ষা');
+  assert.equal(fresh.customName, 'কৃষি শিক্ষা');
+
+  assert.deepEqual(resolveTypedSubject('   ', subs), { id: '', name: '', customName: '' }, 'blank input resolves to nothing');
+
+  const mountEl = document.createElement('div');
+  document.body.appendChild(mountEl);
+  const mgr = await mountLectureSheetManager({ mount: mountEl, role: 'admin' });
+  await new Promise(r => setTimeout(r, 60));
+
+  assert.ok(mountEl.querySelector('[data-ls-filter="subjectText"]'), 'the list filter types the subject too');
+  assert.equal(mountEl.querySelector('[data-ls-filter="subjectId"]'), null, 'the list filter has no subject dropdown');
+
+  mountEl.querySelector('[data-ls-mgr-action="open-create"]').click();
+  await new Promise(r => setTimeout(r, 30));
+  const form = mountEl.querySelector('[data-ls-quick-create-form]');
+  assert.ok(form.querySelector('[data-ls-qc-subject-name]'), 'the quick-create form types the subject');
+  assert.equal(form.querySelector('select[name="lsSubjectId"]'), null, 'no subject dropdown in quick create');
+  assert.equal(form.querySelector('[name="lsCustomSubject"]'), null, 'the separate custom-subject field is merged away');
+  assert.ok(form.querySelector('#lsQcSubjects option'), 'existing subjects are offered as type-ahead suggestions');
+  assert.ok(form.querySelector('[data-ls-qc-subject-name]').value.length > 0, 'the field starts from the current subject');
+
+  await mgr.refresh();
+  mountEl.remove();
+});

@@ -99,7 +99,7 @@ test('student, manager and teacher have real, named service shortcuts', () => {
       assert.equal(tile.getAttribute('type'), 'button');
       assert.ok(tile.querySelector('.pay-tile-icon svg[aria-hidden="true"]'), name + ' blank icon');
       assert.ok(tile.querySelector('.pay-tile-label').textContent.trim());
-      const route = tile.dataset.view || tile.dataset.managerView || tile.dataset.teacherView;
+      const route = tile.dataset.view || tile.dataset.panelView || tile.dataset.panelView;
       if (route) assert.ok(views.includes(route), name + ' dead route ' + route);
       else assert.ok(['homework', 'notices', 'fees'].includes(tile.dataset.action));
     }
@@ -121,7 +121,7 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
     assert.ok(['home', 'profile', 'my-profile', 'courses', 'exams', 'routine', 'classes'].includes(parent), 'back ' + parent);
   }
   for (const [name, attribute, target, min] of [
-    ['manager', 'data-manager-view', 'dashboard', 14], ['teacher', 'data-teacher-view', 'home', 10]
+    ['manager', 'data-panel-view', 'dashboard', 14], ['teacher', 'data-panel-view', 'home', 10]
   ]) {
     const document = doc(name);
     const backs = [...document.querySelectorAll('.pay-back')];
@@ -143,7 +143,7 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
   const adminDocument = doc('admin');
   const adminBacks = [...adminDocument.querySelectorAll('.pay-back')];
   const mainBacks = adminBacks.filter(button => !button.closest('[data-parent-view]'))
-    .map(button => button.getAttribute('data-admin-back') || button.getAttribute('data-admin-view'));
+    .map(button => button.getAttribute('data-admin-back') || button.getAttribute('data-panel-view'));
   assert.deepEqual(mainBacks, Array(16).fill('dashboard'), 'hub toggle panels removed — main screens return home');
   const detailBacks = adminBacks.filter(button => button.closest('[data-parent-view]'));
   assert.equal(detailBacks.length, 35, 'each routed detail has its own Back');
@@ -224,12 +224,14 @@ test('notification settings live inside a hidden view, never floating outside th
   assert.equal(doc('payment').getElementById('notificationSettings'), null, 'counter has no staff settings mount');
 });
 
-test('counter keeps only its five job surfaces, not wallet dashboard extras', () => {
+test('counter keeps only its job surfaces, not wallet dashboard extras', () => {
   const document = doc('payment');
-  const seats = [...document.querySelectorAll('.admin-bottom [data-pay-section]')].map(seat => seat.dataset.paySection);
+  const seats = [...document.querySelectorAll('.admin-bottom [data-panel-view]')].map(seat => seat.dataset.panelView);
   assert.deepEqual(seats, ['home', 'students', 'payment', 'reports', 'more'], 'one seat per step of the counter job');
+  /* ২০২৬-১১-০২: پنج job seat অপরিবর্তিত; কাউন্টারের নিজের প্রোফাইল এখন আলাদা
+     স্ক্রিন (পঞ্চম সিটের নিচে নয়) — চার স্টাফ প্যানেলের একই প্রোফাইল নিয়ম। */
   assert.deepEqual([...document.querySelectorAll('[data-pay-panel]')].map(panel => panel.dataset.payPanel),
-    ['home', 'students', 'payment', 'reports', 'more'], 'every seat owns exactly one panel');
+    ['home', 'students', 'payment', 'reports', 'profile', 'more'], 'every seat owns exactly one panel');
   assert.equal(document.querySelectorAll('[data-academic-section]').length, 0, 'no academic management at the counter');
   for (const selector of ['#payStickyBar','#payKeypad','#payDeskTools','#payQuickPicks','#payTodayAmount','#payMonthAmount','#payDueStudents']) assert.equal(document.querySelector(selector),null,selector);
   for (const id of ['paySearchCard','payProfileCard','payActivityCard','payCollectionForm','payStudentSearch']) assert.equal(document.querySelectorAll('#'+id).length,1,id);

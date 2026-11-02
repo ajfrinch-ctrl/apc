@@ -31,7 +31,7 @@ before(async () => {
     { id: 'OLD1', studentName: 'পুরোনো', studentId: 's1', feeType: 'মাসিক বেতন', month: 'সেপ্টেম্বর', amount: 1000, status: 'pending', recordedAt: Date.now() - 86400000 }
   ]));
   ctx.$('#managerShell').hidden = false;      // a signed-in Manager
-  for (const button of ctx.$$('[data-manager-view]')) button.addEventListener('click', () => clicks.push(button.dataset.managerView));
+  for (const button of ctx.$$('[data-panel-view]')) button.addEventListener('click', () => clicks.push(button.dataset.panelView));
   controller = (await import('../js/notifications.js')).initNotifications();
   await ctx.flush();
 });
@@ -88,7 +88,7 @@ test('a tray tap while the panel is still starting waits for it, and is not over
   assert.deepEqual(clicks, [], 'nothing happens behind the lock');
   // The panel unlocks and shows its own first view in the same task.
   ctx.$('#managerShell').hidden = false;
-  ctx.$('[data-manager-view="dashboard"]').click();
+  ctx.$('[data-panel-view="dashboard"]').click();
   assert.equal(await opened, true);
   assert.deepEqual(clicks, ['dashboard', 'finance'], 'the notification’s view wins');
 });

@@ -91,7 +91,7 @@ test('the class-chat is true edge-to-edge full-screen for all 4 portals', () => 
     const document = doc(panel);
     assert.ok(document.querySelector('#classChatTopbarButton'), `${panel}: chat topbar button present`);
     assert.ok(document.querySelector('[data-class-chat-mount]'), `${panel}: chat mount present`);
-    assert.ok(document.querySelector(`[data-${panel}-view="class-chat"]`) || document.querySelector(`#${panel === 'student' ? 'classChatView' : panel === 'teacher' ? 'teacherClassChat' : panel + 'ClassChat'}`), `${panel}: chat route present`);
+    assert.ok(document.querySelector(`[data-panel-view="class-chat"]`) || document.querySelector(`#${panel === 'student' ? 'classChatView' : panel === 'teacher' ? 'teacherClassChat' : panel + 'ClassChat'}`), `${panel}: chat route present`);
     assert.equal(document.querySelector('[data-class-chat-mount]')?.getAttribute('data-class-chat-mount'), panel === 'student' ? 'student' : panel, `${panel}: mount portal correct`);
   }
   const adminJs = read('js/admin.js');
@@ -107,15 +107,26 @@ test('the class-chat is true edge-to-edge full-screen for all 4 portals', () => 
   assert.match(css, /#adminClassChatMount/, 'admin mount styled');
 });
 
-test('moderation primitives are deleted from the chat data layer', () => {
+test('pin and room-lock stay deleted; deletion is back as a tombstone, not a purge', () => {
   const chat = read('js/class-chat.js');
-  for (const symbol of ['pinClassMessage', 'unpinClassMessage', 'deleteClassMessage', 'setClassRoomLock', 'assertStaffModerationAccess', 'STUDENT_LOCKED_NOTICE']) {
+  /* Owner decision 2026-10-28 removed pin + room lock, and 2026-11-01 brought
+     back message deletion only — as a soft delete with an explicit permission
+     check. Pinning and locking stay gone. */
+  for (const symbol of ['pinClassMessage', 'unpinClassMessage', 'setClassRoomLock', 'assertStaffModerationAccess', 'STUDENT_LOCKED_NOTICE']) {
     assert.doesNotMatch(chat, new RegExp(`export function ${symbol}\\b|export const ${symbol}\\b`), `${symbol} is gone`);
   }
-  assert.doesNotMatch(chat, /data-chat-action="(?:pin|unpin|delete|toggle-lock|unlock-banner)"/, 'no moderation controls in the UI');
+  assert.doesNotMatch(chat, /data-chat-action="(?:pin|unpin|toggle-lock|unlock-banner)"/, 'no pin/lock controls in the UI');
   assert.doesNotMatch(chat, /data-chat-pinned-banner|data-chat-room-lock-banner|data-chat-locked-notice/, 'no lock/pin chrome');
   const relay = read('js/class-chat-relay.js');
   assert.doesNotMatch(relay, /hasPin|pinnedMessageId/, 'the relay keeps no pinned records');
+
+  /* The restored delete is a soft delete: tombstoned, permission-guarded,
+     never removed from the store. */
+  assert.match(chat, /export function deleteClassMessage\(/, 'deleteClassMessage is exported again');
+  assert.match(chat, /export function canDeleteClassMessage\(/, 'the UI and the API share one permission helper');
+  assert.match(chat, /'FORBIDDEN'/, 'an unauthorised delete fails with FORBIDDEN');
+  assert.match(chat, /deleted: true/, 'deletion writes a tombstone flag');
+  assert.doesNotMatch(chat, /store\.messages\s*=\s*store\.messages\.filter/, 'a delete never purges the record');
 });
 
 test('the remaining chat pages still work for the roles that use them', () => {
@@ -267,9 +278,9 @@ test('every staff panel route is deep-linkable and Back returns to the parent pa
   /* Sub-pages show a real Back control; top-level pages rely on the bottom bar. */
   const teacherDoc = doc('teacher');
   const studioBack = teacherDoc.querySelector('#teacherLectureSheets .pay-back');
-  assert.equal(studioBack?.getAttribute('data-teacher-view'), 'academic', 'the studio returns to একাডেমিক');
+  assert.equal(studioBack?.getAttribute('data-panel-view'), 'academic', 'the studio returns to একাডেমিক');
   const managerDoc = doc('manager');
   const managerStudio = managerDoc.querySelector('[data-view-panel="lecture-sheets"]');
-  assert.equal(managerStudio?.querySelector('.pay-back')?.getAttribute('data-manager-view'), 'courses',
+  assert.equal(managerStudio?.querySelector('.pay-back')?.getAttribute('data-panel-view'), 'courses',
     'the manager studio returns to পাঠ্য উপকরণ');
 });

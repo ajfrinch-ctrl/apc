@@ -85,7 +85,7 @@ for (const viewport of viewports) {
     await enterPortal(page, 'admin');
     const selectors = { header: '#adminShell > .app-topbar', footer: '#adminShell > .admin-bottom' };
     const main = '#adminMain';
-    const tab = page.locator('.admin-bottom [data-admin-view="reports"]');
+    const tab = page.locator('.admin-bottom [data-panel-view="reports"]');
     await tab.click();
     await expect(page.locator('.admin-view[data-view-panel="reports"]')).toBeVisible();
     await expect(tab).toHaveAttribute('aria-current', 'page');
@@ -100,7 +100,7 @@ for (const viewport of viewports) {
     await enterPortal(page, 'manager');
     const selectors = { header: '#managerShell > .app-topbar', footer: '#managerShell > .admin-bottom' };
     const main = '#managerMain';
-    const tab = page.locator('.manager-bottom [data-manager-view="finance"]');
+    const tab = page.locator('.manager-bottom [data-panel-view="finance"]');
     await tab.click();
     await expect(tab).toHaveAttribute('aria-current', 'page');
     await expect.poll(() => tab.evaluate(button => getComputedStyle(button).backgroundColor))
@@ -116,7 +116,7 @@ for (const viewport of viewports) {
     await enterPortal(page, 'teacher');
     const selectors = { header: '#teacherShell > .app-topbar', footer: '#teacherShell > .admin-bottom' };
     const main = '#teacherMain';
-    const tab = page.locator('.admin-bottom [data-teacher-view="classes"]');
+    const tab = page.locator('.admin-bottom [data-panel-view="classes"]');
     await tab.click();
     await expect(tab).toHaveAttribute('aria-current', 'page');
     await assertPinnedAfterScroll(page, selectors, main, 'main');
@@ -130,7 +130,7 @@ for (const viewport of viewports) {
     await enterPortal(page, 'payment');
     const selectors = { header: '#payShell > .app-topbar', footer: '#payShell > .admin-bottom' };
     const main = '#paymentMain';
-    const tab = page.locator('.admin-bottom [data-pay-section="payment"]');
+    const tab = page.locator('.admin-bottom [data-panel-view="payment"]');
     await tab.click();
     await expect(tab).toHaveAttribute('aria-current', 'page');
     await assertPinnedAfterScroll(page, selectors, main, 'document');
@@ -154,8 +154,8 @@ test('Manager keeps its phone shell and five-item bottom navigation on a wide de
     ['dashboard', 'হোম'], ['students', 'শিক্ষার্থী'], ['academic', 'একাডেমিক'],
     ['finance', 'হিসাব'], ['more', 'আরও']
   ];
-  const actual = await nav.locator('button[data-manager-view]').evaluateAll(buttons =>
-    buttons.map(button => [button.dataset.managerView, button.querySelector('.nav-label')?.textContent.trim()]));
+  const actual = await nav.locator('button[data-panel-view]').evaluateAll(buttons =>
+    buttons.map(button => [button.dataset.panelView, button.querySelector('.nav-label')?.textContent.trim()]));
   expect(actual).toEqual(expected);
 
   const initial = await page.evaluate(() => {
@@ -193,7 +193,7 @@ test('Manager keeps its phone shell and five-item bottom navigation on a wide de
 
   const initialHistoryLength = await page.evaluate(() => history.length);
   for (const [view] of expected) {
-    const tab = nav.locator(`[data-manager-view="${view}"]`);
+    const tab = nav.locator(`[data-panel-view="${view}"]`);
     await tab.click();
     await expect(page.locator(`.manager-view[data-view-panel="${view}"]`)).toBeVisible();
     await expect(page.locator('.manager-view.active')).toHaveCount(1);
@@ -209,21 +209,21 @@ test('Manager keeps its phone shell and five-item bottom navigation on a wide de
     await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
     if (view === 'more') {
       for (const destination of ['profile', 'settings', 'reports', 'advice']) {
-        await expect(page.locator(`#managerMoreHub [data-manager-view="${destination}"]`)).toBeVisible();
+        await expect(page.locator(`#managerMoreHub [data-panel-view="${destination}"]`)).toBeVisible();
       }
       for (const destination of ['reports', 'advice']) {
-        const row = page.locator(`#managerMoreHub [data-manager-view="${destination}"]`);
+        const row = page.locator(`#managerMoreHub [data-panel-view="${destination}"]`);
         await row.click();
         await expect(page.locator(`.manager-view[data-view-panel="${destination}"]`)).toBeVisible();
-        await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
+        await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
         await expect.poll(() => page.evaluate(() => location.hash)).toBe(`#${destination}`);
-        await page.locator(`.manager-view[data-view-panel="${destination}"] [data-manager-view="more"]`).click();
+        await page.locator(`.manager-view[data-view-panel="${destination}"] [data-panel-view="more"]`).click();
         await expect(page.locator('.manager-view[data-view-panel="more"]')).toBeVisible();
         await row.click(); // Repeat from the hub: exactly one route/panel remains active.
         await expect(page.locator('.manager-view.active')).toHaveCount(1);
         await expect(page.locator(`.manager-view[data-view-panel="${destination}"]`)).toBeVisible();
-        await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
-        await page.locator(`.manager-view[data-view-panel="${destination}"] [data-manager-view="more"]`).click();
+        await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
+        await page.locator(`.manager-view[data-view-panel="${destination}"] [data-panel-view="more"]`).click();
         await expect(page.locator('.manager-view[data-view-panel="more"]')).toBeVisible();
       }
     }
@@ -231,15 +231,15 @@ test('Manager keeps its phone shell and five-item bottom navigation on a wide de
   expect(await page.evaluate(() => history.length)).toBe(initialHistoryLength);
 
   // More → Reports refreshes back into the same route and highlights More.
-  await nav.locator('[data-manager-view="more"]').click();
-  await page.locator('#managerMoreHub [data-manager-view="reports"]').click();
+  await nav.locator('[data-panel-view="more"]').click();
+  await page.locator('#managerMoreHub [data-panel-view="reports"]').click();
   await expect(page.locator('.manager-view.active')).toHaveAttribute('data-view-panel', 'reports');
-  await expect(page.locator('.manager-view[data-view-panel="reports"] [data-manager-view="more"]')).toBeVisible();
-  await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
+  await expect(page.locator('.manager-view[data-view-panel="reports"] [data-panel-view="more"]')).toBeVisible();
+  await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
   await page.reload();
   await expect(shell).toBeVisible();
   await expect(page.locator('.manager-view.active')).toHaveAttribute('data-view-panel', 'reports');
-  await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
+  await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
   await expect.poll(() => page.evaluate(() => history.length)).toBe(initialHistoryLength);
 
   await addScrollSentinel(page, '#managerMain');

@@ -20,12 +20,12 @@ test('Admin export uses a private passphrase and remains compatible with offline
   await provisionStaff('admin'); seedStaffSession(ctx.window, 'admin');
   await import('../js/admin.js');
   await ctx.waitFor(() => ctx.$('#adminShell')?.hidden === false);
-  await ctx.waitFor(() => ctx.$('#adminMoreMenu [data-admin-view="data"]')?.dataset.navWired === '1');
+  await ctx.waitFor(() => ctx.$('#adminMoreMenu [data-panel-view="data"]')?.dataset.navWired === '1');
   const active = () => ctx.$('.admin-view.active')?.dataset.viewPanel;
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="more"]'));
-  ctx.click(ctx.$('#adminMoreMenu [data-admin-view="data"]'));
-  ctx.click(ctx.$('#adminDataMenu [data-admin-view="backup"]'));
-  ctx.click(ctx.$('[data-view-panel="backup"] [data-admin-view="backup-export"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="more"]'));
+  ctx.click(ctx.$('#adminMoreMenu [data-panel-view="data"]'));
+  ctx.click(ctx.$('#adminDataMenu [data-panel-view="backup"]'));
+  ctx.click(ctx.$('[data-view-panel="backup"] [data-panel-view="backup-export"]'));
   await ctx.waitFor(() => active() === 'backup-export');
   const rosterBeforeExport = ctx.window.localStorage.getItem(KEYS.students);
   const paymentsBeforeExport = ctx.window.localStorage.getItem(KEYS.transactions);
@@ -91,7 +91,7 @@ test('Admin export uses a private passphrase and remains compatible with offline
   // Verify 1-click restore from its separate detail decrypts and restores localStorage.
   ctx.click(ctx.$('[data-view-panel="backup-export"] [data-admin-back]'));
   await ctx.waitFor(() => active() === 'backup');
-  ctx.click(ctx.$('[data-view-panel="backup"] [data-admin-view="backup-restore"]'));
+  ctx.click(ctx.$('[data-view-panel="backup"] [data-panel-view="backup-restore"]'));
   await ctx.waitFor(() => active() === 'backup-restore');
   ctx.window.localStorage.setItem(KEYS.students, '[]');
   ctx.window.localStorage.setItem(KEYS.transactions, '[]');

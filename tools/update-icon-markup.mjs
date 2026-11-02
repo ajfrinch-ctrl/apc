@@ -34,7 +34,7 @@ for (const page of pages) {
     // than the former aliases that gave several services the same person/book.
     if (large || nav) {
       for (const role of ['student','admin','manager','teacher','payment']) {
-        const attr = role === 'student' ? 'data-view' : role === 'payment' ? 'data-pay-section' : `data-${role}-view`;
+        const attr = role === 'student' ? 'data-view' : 'data-panel-view';
         const route = control?.getAttribute(attr);
         if (route && routeIcons[role][route]) name = routeIcons[role][route];
       }

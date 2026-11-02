@@ -13,7 +13,7 @@ async function enter(page, role = 'admin') {
   await enterPortal(page, role);
   await expect(page.locator(SHELL[role])).toBeVisible();
 }
-const bottom = (page, role, view) => page.locator(`.admin-bottom [data-${role}-view=${view}]`).click();
+const bottom = (page, role, view) => page.locator(`.admin-bottom [data-panel-view=${view}]`).click();
 
 test('manager dashboard summarises the coaching, money included', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-09-22T12:00:00Z'));
@@ -96,9 +96,9 @@ test('staff management: create, edit, deactivate, reset password and delete', as
   await page.keyboard.press('Escape');
   // সিস্টেম → সেটিংস still saves the branding form from here.
   await bottom(page, 'admin', 'system');
-  await page.locator('#adminSystemMenu .admin-more-item[data-admin-view=settings]').click();
+  await page.locator('#adminSystemMenu .admin-more-item[data-panel-view=settings]').click();
   await expect(page.locator('#cfgMaintenanceMode')).toBeAttached();
-  await page.locator('.admin-view[data-view-panel="settings"] [data-admin-view="settings-branding"]').click();
+  await page.locator('.admin-view[data-view-panel="settings"] [data-panel-view="settings-branding"]').click();
   await page.locator('#btnSaveAppSettings').click();
   await expect(page.locator('.admin-toast')).toContainText('সংরক্ষিত');
 });
@@ -106,8 +106,8 @@ test('staff management: create, edit, deactivate, reset password and delete', as
 test('student lifecycle belongs to the Manager; the Admin panel has no directory', async ({ page }) => {
   // The Admin console owns no student records: no list, no editor, no reset.
   await enter(page);
-  await expect(page.locator('#studentList, #studentSearch, [data-admin-view=students], [data-action=reset-pin]')).toHaveCount(0);
-  await expect(page.locator('#adminSystemMenu [data-admin-view=students]')).toHaveCount(0);
+  await expect(page.locator('#studentList, #studentSearch, [data-panel-view=students], [data-action=reset-pin]')).toHaveCount(0);
+  await expect(page.locator('#adminSystemMenu [data-panel-view=students]')).toHaveCount(0);
 
   // The Manager runs the whole life cycle from one screen.
   await page.goto('/manager.html');

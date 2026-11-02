@@ -16,6 +16,8 @@ import { courseRepository, courseProgress, watchCourses } from './course-data.js
 import { classByName } from './academics.js';
 import { NOTICE_CATEGORIES } from './notification-rules.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
+import { applyPanelCapabilities } from './panel-capabilities.js';
+import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { initFixedShell } from './fixed-shell.js';
 import { registerServiceWorker } from './service-worker.js';
@@ -207,6 +209,15 @@ function renderRecords() {
   }
   if ($('#teacherRecordsActionTitle') && ACTIVITY_TYPES[state.view]) {
     $('#teacherRecordsActionTitle').textContent = `নতুন ${ACTIVITY_TYPES[state.view].label} যোগ করুন`;
+  }
+  /* The create card follows the open lane: its label (visible text + screen
+     reader) names the same work, and on the marks lane it steps aside — marks
+     are recorded in the পরীক্ষা workspace, which the hint beside the list
+     links to. One lane, one primary action. */
+  const createCard = $('#teacherRecords [data-records-action="create"]');
+  if (createCard && ACTIVITY_TYPES[state.view]) {
+    createCard.setAttribute('aria-label', `নতুন ${ACTIVITY_TYPES[state.view].label} যোগ করুন`);
+    createCard.hidden = state.view === 'exam';
   }
   $('#teacherOnlineExamHint').hidden = state.view !== 'exam';
   const query = $('#teacherRecordSearch').value.trim().toLocaleLowerCase();
@@ -406,7 +417,7 @@ function renderTeacherProfile() {
   const account = state.teacher || {};
   const teacherId = String(account.staffId && account.kind !== 'system' ? account.staffId : currentTeacherId());
   host.innerHTML = `<div class="manager-profile-list"><div><small>নাম</small><strong>${esc(account.fullName || '—')}</strong></div><div><small>শিক্ষক আইডি</small><strong id="teacherProfileId">${esc(teacherId)}</strong></div><div><small>ইউজারনেম</small><strong>${esc(account.username || '—')}</strong></div><div><small>যোগাযোগ</small><strong>${esc(account.mobile || '—')}</strong></div><div><small>ভূমিকা</small><strong>শিক্ষক — একাডেমিক</strong></div><div><small>নির্ধারিত শ্রেণি/ব্যাচ</small><strong>${bn(state.assignments.length)}</strong></div></div>`;
-  host.insertAdjacentHTML('beforeend', '<div class="row-actions"><button class="admin-btn primary" type="button" data-profile-edit>নিজের তথ্য সম্পাদনা</button><button class="admin-btn ghost" type="button" data-more-action="password">পাসওয়ার্ড পরিবর্তন</button></div>');
+  host.insertAdjacentHTML('beforeend', '<div class="row-actions"><button class="admin-btn primary" type="button" data-profile-edit>নিজের তথ্য সম্পাদনা</button></div>');
 }
 
 function renderCourseChapters() {
@@ -488,7 +499,16 @@ function showAddChapterModal(course) {
 
 function render() { renderHome(); renderRecords(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports(); renderTeacherProfile(); renderAcademic(); renderNotices(); renderCourseChapters(); }
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'online-exams', 'courses', 'lecture-sheets', 'classes', 'class-chat', 'routine-view', 'reports', 'profile', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
+const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'online-exams', 'courses', 'lecture-sheets', 'classes', 'class-chat', 'routine-view', 'reports', 'profile', 'settings', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
+/* মালিক-নির্দেশ ২০২৬-১১-০১: প্রতিটি ফিচারের একটাই রুট-নাম। রেকর্ডস-পরিবারের
+   দুটি টাইপ আগে exam / routine নামে URL-এ বসত — যা পরীক্ষা-ওয়ার্কস্পেস
+   (online-exams) ও রুটিন স্ক্রিন (routine-view) দুটোর সাথেই মিশে যেত। এখন
+   URL-এ marks / attendance লেখা হয়, আর পুরোনো #exam / #routine লিংক alias
+   হিসেবে হুবহু আগের স্ক্রিনেই খোলে (ভাঙা ডিপ-লিংক নেই)। */
+const ROUTE_OF_VIEW = Object.freeze({ exam: 'marks', routine: 'attendance' });
+const VIEW_OF_ROUTE = Object.freeze({ marks: 'exam', attendance: 'routine' });
+const routeFor = view => ROUTE_OF_VIEW[view] || view;
+const viewForRoute = name => VIEW_OF_ROUTE[name] || name;
 let teacherChatFlight = null;
 function mountTeacherClassChat() {
   const mount = $('#teacherClassChatMount');
@@ -522,6 +542,42 @@ function mountTeacherLectureSheets() {
     .catch(err => console.warn('[Active Plus] teacher lecture studio failed:', err?.message));
 }
 
+/* The active pane of every two/three-mode screen. The mode cards stay as plain
+   tabs: the first one is already open when the screen arrives, so a card never
+   has to be tapped first, and tapping the active card no longer closes the
+   whole pane (the empty-screen bug of the old toggle cards). */
+function openScreenPanes() {
+  const records = $('#teacherRecords'); if (records) records.dataset.recordsOpen = '1';
+  const notice = $('#teacherNotice'); if (notice) notice.dataset.noticeOpen = '1';
+  const routine = $('#teacherRoutine'); if (routine) routine.dataset.routineOpen = '1';
+  // The two multi-mode screens keep the mode the teacher last chose.
+  const reports = $('#teacherAcademicReports');
+  if (reports && !reports.dataset.reportsOpen) reports.dataset.reportsOpen = 'generator';
+  const courses = $('#teacherCourses');
+  if (courses && !courses.dataset.coursesOpen) courses.dataset.coursesOpen = 'materials';
+  markScreenModes();
+}
+/* Mode cards inside রিপোর্ট / উপকরণ behave like tabs: the one whose pane is
+   showing is the pressed one. */
+function markScreenModes() {
+  /* ['screen', 'pane dataset key', card attribute, the actions that are panes]
+     — "new" is a plain action (it opens the editor + the new-item form), so it
+     never carries a pressed state. */
+  const pairs = [['teacherAcademicReports', 'reportsOpen', 'data-reports-action', ['generator', 'summary']],
+    ['teacherCourses', 'coursesOpen', 'data-courses-action', ['chapters', 'materials']]];
+  for (const [screenId, key, attr, modes] of pairs) {
+    const screen = document.getElementById(screenId);
+    if (!screen) continue;
+    const active = screen.dataset[key];
+    screen.querySelectorAll(`[${attr}]`).forEach(card => {
+      const mode = card.getAttribute(attr);
+      if (!modes.includes(mode)) return;
+      const on = mode === active;
+      card.setAttribute('aria-pressed', on ? 'true' : 'false');
+      card.classList.toggle('is-active', on);
+    });
+  }
+}
 function setView(view) {
   if (!TEACHER_VIEWS.includes(view)) return;
   /* The nine routine pages are one screen now; their routes stay as aliases
@@ -535,17 +591,16 @@ function setView(view) {
     state.recordLimit = 15;
   }
   state.view = view;
-  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', 'lecture-sheets': 'teacherLectureSheets', classes: 'teacherClasses', 'class-chat': 'teacherClassChat', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile' }[view];
+  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', 'lecture-sheets': 'teacherLectureSheets', classes: 'teacherClasses', 'class-chat': 'teacherClassChat', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile', settings: 'teacherSettings' }[view];
   $$('.teacher-view').forEach(el => { el.hidden = el.id !== panel; });
   const isChatFullscreen = view === 'class-chat';
   $('#teacherShell')?.classList.toggle('is-chat-fullscreen', isChatFullscreen);
   $('#teacherMain')?.classList.toggle('is-chat-view', isChatFullscreen);
   if (isChatFullscreen) mountTeacherClassChat();
-  delete $('#teacherRecords')?.dataset.recordsOpen;
-  delete $('#teacherNotice')?.dataset.noticeOpen;
-  delete $('#teacherRoutine')?.dataset.routineOpen;
-  delete $('#teacherAcademicReports')?.dataset.reportsOpen;
-  delete $('#teacherCourses')?.dataset.coursesOpen;
+  /* মালিক-নির্দেশ ২০২৬-১১-০১: প্রতিটি মেনু-আইটেম = একটি সম্পূর্ণ পেজ। তাই
+     স্ক্রিনে ঢুকলেই তার মূল কনটেন্ট (তালিকা/এডিটর) খোলা থাকে — আগের মতো
+     আলাদা "তালিকা দেখুন" টগল-কার্ডে চাপ দিতে হয় না। */
+  openScreenPanes();
   if (panel === 'teacherClasses') syncClassTabs('list');
   $$('.teacher-type-tabs [data-type-tab]').forEach(el => {
     const active = el.dataset.typeTab === view;
@@ -558,25 +613,20 @@ function setView(view) {
   const bottomView = view === 'home' ? 'home'
     : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'lecture-sheets', 'notice', 'routine', 'routine-view', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'classes'
         : ['exam', 'online-exams'].includes(view) ? 'online-exams' : 'more';
-  $$('.admin-bottom [data-teacher-view]').forEach(el => {
-    const active = el.dataset.teacherView === bottomView;
+  $$('.admin-bottom [data-panel-view]').forEach(el => {
+    const active = el.dataset.panelView === bottomView;
     el.classList.toggle('active', active);
     if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
-  // Returning to the Teacher's Settings screen always opens the group menu.
   if (view === 'lecture-sheets') mountTeacherLectureSheets();
-  if (view === 'profile') {
-    resetSettingsHub('[data-settings-hub="teacher"]');
-    $$('#teacherSettingsTabs [data-settings-tab]').forEach(btn => {
-      const active = btn.dataset.settingsTab === 'all';
-      btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-  }
+  /* মালিক-নির্দেশ ২০২৬-১১-০২: প্রোফাইল আর সেটিংস দুটি আলাদা স্ক্রিন। সেটিংসে
+     ঢুকলেই শুধু গ্রুপ-মেনু — পুরোনো `সব বিভাগ` চিপ-সারি আর নেই, তাই এক ক্লিকে
+     একটাই সারফেস খোলে। */
+  if (view === 'settings') resetSettingsHub('[data-settings-hub="teacher"]');
   paintTeacherExam();
   $('#teacherMain').scrollTo({ top: 0, behavior: 'instant' }); render();
   // The open page lives in the URL, so a refresh lands back on it.
-  rememberRoute(view);
+  rememberRoute(routeFor(view));
 }
 async function reload() {
   try {
@@ -1044,23 +1094,35 @@ async function showTeacherShell() {
   }
   $('#teacherShell').hidden = false;
   // A refresh (or a shared link) reopens the page that was open.
-  const wanted = routeName();
+  const wanted = viewForRoute(routeName());
   setView(TEACHER_VIEWS.includes(wanted) ? wanted : 'home');
-  onRouteChange(name => { if (TEACHER_VIEWS.includes(name) && name !== state.view) setView(name); });
+  onRouteChange(name => {
+    const next = viewForRoute(name);
+    if (TEACHER_VIEWS.includes(next) && next !== state.view) setView(next);
+  });
   const loaded = await reload();
+  /* ধাপ C ও D (মালিক-নির্দেশ ২০২৬-১১-০২): এক permission gate + হোমের
+     রুল-ভিত্তিক দরজা। অনুমতি নেই এমন এন্ট্রি দেখা যায় না, চাপও দেওয়া যায় না;
+     হোম শুধু সেই দরজাগুলো দেখায় যেগুলোর রুট এই প্যানেল সত্যিই খুলতে পারে। */
+  applyPanelCapabilities({ role: 'teacher', homeRoot: $('#teacherHome'), routes: TEACHER_VIEWS });
   /* Settings → the shared five-group structure. The profile card, password row
      and theme switch keep their homes; the hub adds the notification group and
      what the Teacher page did not have (app install, session, data). */
+  /* অ্যাকাউন্ট গ্রুপ আগে ভরা হয়, তারপর হাব — যাতে হাব একই সেটিংয়ের দ্বিতীয়
+     কন্ট্রোল না বানায়। ফর্মটি Admin-এর হুবহু একই (js/staff-account-forms.js)। */
+  mountStaffAccountGroup({
+    hub: '#teacherSettingsHub',
+    role: 'teacher',
+    logoutId: 'teacherAccountLogout',
+    onLogout: () => { clearStaffSession('teacher'); window.dispatchEvent(new Event('apc-session-ended')); goToLoginPage(); },
+    current: () => state.teacher,
+    toast
+  });
   mountSettingsHub({
     mount: '#teacherSettingsHub',
     role: 'teacher',
     actions: {
-      profile: () => {
-        const profileSection = $('#teacherProfile');
-        if (profileSection) profileSection.dataset.profileMode = 'profile';
-        if ($('#teacherProfileTitle')) $('#teacherProfileTitle').textContent = 'আমার প্রোফাইল';
-        $('#teacherProfileCard [data-profile-edit]')?.click();
-      },
+      profile: () => setView('profile'),
       logout: () => { clearStaffSession('teacher'); window.dispatchEvent(new Event('apc-session-ended')); goToLoginPage(); }
     },
     session: { value: 'ডিভাইস-বাউন্ড সেশন', hint: 'লগইন এই ডিভাইসেই বাঁধা' }
@@ -1094,7 +1156,6 @@ async function mountCourseEditor() {
     await editor.ready;
   } catch (error) { console.warn('[Active Plus] course editor unavailable:', error?.name || 'unknown'); }
 }
-$('#teacherChangePassword')?.addEventListener('click', () => openStaffPasswordDialog({ role: 'teacher', mode: 'change' }));
 $('#teacherExit').addEventListener('click', () => {
   clearStaffSession('teacher');
   window.dispatchEvent(new Event('apc-session-ended'));
@@ -1117,7 +1178,6 @@ $('#teacherNewActivity').addEventListener('click', () => showEditor(state.view))
 $('.teacher-type-tabs')?.addEventListener('click', event => {
   const tab = event.target.closest('[data-type-tab]'); if (!tab) return;
   state.recordLimit = 15; setView(tab.dataset.typeTab);
-  if ($('#teacherRecords')) $('#teacherRecords').dataset.recordsOpen = '1';
 });
 $('#teacherRecordMore').addEventListener('click', () => { state.recordLimit += 15; renderRecords(); });
 /* আমার ক্লাস: every নির্ধারিত শ্রেণি opens its own work. The list is one row per
@@ -1137,12 +1197,11 @@ $('#teacherClassList')?.addEventListener('click', event => {
   /* The records screen, narrowed to this class: its type tabs are the teacher's
      existing হোমওয়ার্ক / সাজেশন / উপজাতি / পরীক্ষা workflow. */
   setView('homework');
-  if ($('#teacherRecords')) $('#teacherRecords').dataset.recordsOpen = '1';
 });
 document.addEventListener('click', event => {
   if (state.busy) return;
   const classTab = event.target.closest('.teacher-class-tabs [role="tab"]');
-  if (classTab && classTab.hasAttribute('data-teacher-view')) syncClassTabs('routine');
+  if (classTab && classTab.hasAttribute('data-panel-view')) syncClassTabs('routine');
   const examTile = event.target.closest('[data-teacher-exam]');
   if (examTile) {
     const key = examTile.dataset.teacherExam || '';
@@ -1160,49 +1219,20 @@ document.addEventListener('click', event => {
     }
     return;
   }
+  /* The list panes are always open now, so there is no "list" toggle left —
+     only the create card, which opens the editor on this very screen. */
   const recordsAction = event.target.closest('[data-records-action]');
   if (recordsAction) {
-    if (recordsAction.dataset.recordsAction === 'create') {
-      $('#teacherNewActivity')?.click();
-    } else if (recordsAction.dataset.recordsAction === 'list') {
-      const rec = $('#teacherRecords');
-      if (rec) {
-        if (rec.dataset.recordsOpen === '1') delete rec.dataset.recordsOpen;
-        else rec.dataset.recordsOpen = '1';
-      }
-    }
+    if (recordsAction.dataset.recordsAction === 'create') $('#teacherNewActivity')?.click();
     return;
   }
-  const noticeOpenBtn = event.target.closest('[data-notice-action]');
-  if (noticeOpenBtn && noticeOpenBtn.dataset.noticeAction === 'list') {
-    const sec = $('#teacherNotice');
-    if (sec) {
-      if (sec.dataset.noticeOpen === '1') delete sec.dataset.noticeOpen;
-      else sec.dataset.noticeOpen = '1';
-    }
-    return;
-  }
-  const routineAction = event.target.closest('[data-routine-action]');
-  if (routineAction && routineAction.dataset.routineAction === 'list') {
-    const sec = $('#teacherRoutine');
-    if (sec) {
-      if (sec.dataset.routineOpen === '1') delete sec.dataset.routineOpen;
-      else sec.dataset.routineOpen = '1';
-    }
-    return;
-  }
-  if (event.target.closest('.teacher-routine-tabs [data-routine-tab]')) {
-    const sec = $('#teacherRoutine');
-    if (sec) sec.dataset.routineOpen = '1';
-  }
+  /* রিপোর্ট / উপকরণ mode cards are tabs: a tap selects a pane, it never closes
+     the one that is already open (an empty screen with no way back). */
   const reportsAction = event.target.closest('[data-reports-action]');
   if (reportsAction) {
     const sec = $('#teacherAcademicReports');
     const mode = reportsAction.dataset.reportsAction;
-    if (sec && mode) {
-      if (sec.dataset.reportsOpen === mode) delete sec.dataset.reportsOpen;
-      else sec.dataset.reportsOpen = mode;
-    }
+    if (sec && mode) { sec.dataset.reportsOpen = mode; markScreenModes(); }
     return;
   }
   const coursesAction = event.target.closest('[data-courses-action]');
@@ -1211,42 +1241,12 @@ document.addEventListener('click', event => {
     const mode = coursesAction.dataset.coursesAction;
     if (mode === 'new') {
       if (sec) sec.dataset.coursesOpen = 'materials';
+      markScreenModes();
       $('#teacherCourseEditor [data-ce-new]')?.click();
     } else if (sec && mode) {
-      if (sec.dataset.coursesOpen === mode) delete sec.dataset.coursesOpen;
-      else sec.dataset.coursesOpen = mode;
+      sec.dataset.coursesOpen = mode;
+      markScreenModes();
     }
-    return;
-  }
-  const settingsOpen = event.target.closest('[data-settings-open]');
-  if (settingsOpen) {
-    const targetKey = settingsOpen.dataset.settingsOpen || '';
-    const targetSection = $(`#teacherSettingsHub [data-settings-group="${targetKey}"]`);
-    const isNowOpen = Boolean(targetSection && !targetSection.hidden);
-    const openKey = isNowOpen ? targetKey : 'all';
-    const profileSection = $('#teacherProfile');
-    if (profileSection) profileSection.dataset.settingsTab = openKey;
-    $$('#teacherSettingsTabs [data-settings-tab]').forEach(btn => {
-      const active = btn.dataset.settingsTab === openKey;
-      btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-    return;
-  }
-  const settingsTab = event.target.closest('#teacherSettingsTabs [data-settings-tab]');
-  if (settingsTab) {
-    const tabKey = settingsTab.dataset.settingsTab || 'all';
-    const profileSection = $('#teacherProfile');
-    if (profileSection) profileSection.dataset.settingsTab = tabKey;
-    const hub = $('#teacherSettingsHub');
-    if (typeof hub?.__apcShowSettingsGroup === 'function') {
-      hub.__apcShowSettingsGroup(tabKey === 'all' ? '' : tabKey);
-    }
-    $$('#teacherSettingsTabs [data-settings-tab]').forEach(btn => {
-      const active = btn.dataset.settingsTab === tabKey;
-      btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
     return;
   }
   const moreAction = event.target.closest('[data-more-action]');
@@ -1257,20 +1257,7 @@ document.addEventListener('click', event => {
       return;
     }
     if (kind === 'settings') {
-      setView('profile');
-      const profileSection = $('#teacherProfile');
-      if (profileSection) {
-        profileSection.dataset.profileMode = 'settings';
-        profileSection.dataset.settingsTab = 'all';
-      }
-      $$('#teacherSettingsTabs [data-settings-tab]').forEach(btn => {
-        const active = btn.dataset.settingsTab === 'all';
-        btn.classList.toggle('is-active', active);
-        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-      });
-      if ($('#teacherProfileTitle')) $('#teacherProfileTitle').textContent = 'সেটিংস ও নোটিফিকেশন';
-      const adviceEl = $('#teacherProfile [data-teacher-hero-advice]');
-      if (adviceEl) adviceEl.textContent = pickTeacherSectionAdvice('settings');
+      setView('settings');
       return;
     }
     if (kind === 'theme') {
@@ -1289,43 +1276,37 @@ document.addEventListener('click', event => {
       return;
     }
   }
-  const nav = event.target.closest('[data-teacher-view]');
-  /* Creation doors ("কাজ দিন" hub-এর "দিন" বাটন) গন্তব্য স্ক্রিনে নেভিগেট না
-     করে বর্তমান স্ক্রিনের উপরেই ফর্ম খোলে — ফর্ম বন্ধ করলে শিক্ষক যে হাব থেকে
-     খুলেছেন সেখানেই ফেরেন, রেকর্ডস স্ক্রিনে ছিটকে যান না। নেভিগেশন-দরজা
-     (শুধু data-teacher-view) আগের মতোই স্ক্রিন বদলায়। */
+  const nav = event.target.closest('[data-panel-view]');
+  /* মালিক-নির্দেশ ২০২৬-১১-০১: তৈরি-কর্ম কখনো শুধু-মডেল নয় — আগে গন্তব্য
+     স্ক্রিনে যাওয়া (setView + #hash), তারপর সেই স্ক্রিনের ওপর ফর্ম খোলা।
+     ফর্ম বাতিল করলে শিক্ষক সম্পূর্ণ পেজেই থাকেন, কোনো ফাঁকা হাব-স্ক্রিনে
+     ফেরেন না। */
   const create = event.target.closest('[data-new-activity]');
-  if (create) { showEditor(create.dataset.newActivity); return; }
-  if (event.target.closest('[data-new-notice]')) { showNoticeEditor(); return; }
+  if (create) {
+    if (create.dataset.panelView) setView(create.dataset.panelView);
+    showEditor(create.dataset.newActivity);
+    return;
+  }
+  const newNotice = event.target.closest('[data-new-notice]');
+  if (newNotice) {
+    if (newNotice.dataset.panelView) setView(newNotice.dataset.panelView);
+    showNoticeEditor();
+    return;
+  }
   if (nav) {
+    /* একটি নিষ্ক্রিয় (gate-blocked) এন্ট্রি কখনো navigate করে না — শুধু লুকানো
+       নয়, কাজও বন্ধ; তাই ডিভ-টুলস দিয়ে দেখিয়েও কিছু করা যায় না। */
+    if (nav.dataset.gateBlocked === '1' || nav.closest('[data-gate-blocked="1"]')) return;
     if (nav.closest('#teacherOnlineExams .teacher-home-intro') && state.examScreen) {
       state.examScreen = '';
       paintTeacherExam();
       return;
     }
-    if (nav.dataset.teacherView === 'exam' || nav.dataset.teacherView === 'online-exams') { state.examScreen = ''; state.examTileKey = ''; }
-    setView(nav.dataset.teacherView);
-    if (nav.dataset.teacherView === 'profile') {
-      const profileSection = $('#teacherProfile');
-      const isSettings = nav.dataset.moreOpen === 'settings';
-      if (profileSection) {
-        profileSection.dataset.profileMode = isSettings ? 'settings' : 'profile';
-        if (isSettings) profileSection.dataset.settingsTab = 'all';
-      }
-      if (isSettings) {
-        $$('#teacherSettingsTabs [data-settings-tab]').forEach(btn => {
-          const active = btn.dataset.settingsTab === 'all';
-          btn.classList.toggle('is-active', active);
-          btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-        });
-      }
-      if ($('#teacherProfileTitle')) {
-        $('#teacherProfileTitle').textContent = isSettings ? 'সেটিংস ও নোটিফিকেশন' : 'আমার প্রোফাইল';
-      }
+    if (nav.dataset.panelView === 'exam' || nav.dataset.panelView === 'online-exams') { state.examScreen = ''; state.examTileKey = ''; }
+    setView(nav.dataset.panelView);
+    if (nav.dataset.panelView === 'profile') {
       const adviceEl = $('#teacherProfile [data-teacher-hero-advice]');
-      if (adviceEl) {
-        adviceEl.textContent = pickTeacherSectionAdvice(isSettings ? 'settings' : 'profile');
-      }
+      if (adviceEl) adviceEl.textContent = pickTeacherSectionAdvice('profile');
     }
   }
   const courseChBtn = event.target.closest('[data-course-ch-action]');

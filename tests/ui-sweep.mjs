@@ -173,8 +173,8 @@ async function sweep(viewName) {
 }
 
 const NAV = {
-  'admin.html': 'data-admin-view', 'manager.html': 'data-manager-view',
-  'teacher.html': 'data-teacher-view', 'index.html': 'data-view'
+  'admin.html': 'data-panel-view', 'manager.html': 'data-panel-view',
+  'teacher.html': 'data-panel-view', 'index.html': 'data-view'
 }[page];
 
 const report = [];

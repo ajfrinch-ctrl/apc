@@ -3,6 +3,8 @@ import { taka, addTaka } from './money.js';
 import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, STAFF_SESSION_RULES } from './staff-auth.js';
 import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
+import { applyPanelCapabilities } from './panel-capabilities.js';
+import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
 import { decideRegistration, DECISION_MESSAGES, DECIDED_EVENT, formatPendingDate, openRegistrationReview } from './registration-review.js';
@@ -218,8 +220,8 @@ function renderView(view) {
       : view === 'class-chat' ? 'more'
       : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'lecture-sheets', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
         : view === 'finance' ? 'finance' : 'more';
-  $$('.manager-bottom [data-manager-view]').forEach(button => {
-    const active = button.dataset.managerView === seat;
+  $$('.manager-bottom [data-panel-view]').forEach(button => {
+    const active = button.dataset.panelView === seat;
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   });
@@ -836,7 +838,6 @@ function renderProfile() {
   const account = managerAccount || {};
   const markup = `<div class="manager-profile-list"><div><small>নাম</small><strong>${escapeHtml(account.fullName || 'Manager')}</strong></div><div><small>ইউজারনেম</small><strong>${escapeHtml(account.username || '—')}</strong></div><div><small>যোগাযোগ</small><strong>${escapeHtml(account.mobile || '—')}</strong></div><div><small>ইমেইল</small><strong>${escapeHtml(account.email || '—')}</strong></div><div><small>ভূমিকা</small><strong>ম্যানেজার — পরিচালনা নিয়ন্ত্রক</strong></div><div><small>অ্যাকাউন্টের অবস্থা</small><strong>${escapeHtml(({ active: 'সক্রিয়', suspended: 'স্থগিত', inactive: 'নিষ্ক্রিয়' }[account.status || account.accountStatus] || account.status || account.accountStatus || 'সক্রিয়'))}</strong></div></div><div class="row-actions"><button class="admin-btn ghost" type="button" data-profile-edit>নিজের তথ্য সম্পাদনা</button></div>`;
   if ($('#managerProfileCard')) $('#managerProfileCard').innerHTML = markup;
-  if ($('#managerOwnProfileCard')) $('#managerOwnProfileCard').innerHTML = markup;
   syncManagerPanelHead();
 }
 async function loadOperationalData() {
@@ -1095,8 +1096,10 @@ document.addEventListener('click', event => {
     return;
   }
 });
-$$('[data-manager-view]').forEach(button => button.addEventListener('click', () => {
-  const view = button.dataset.managerView;
+$$('[data-panel-view]').forEach(button => button.addEventListener('click', () => {
+  /* অনুমতিহীন (gate-blocked) দরজা লুকানো থাকে, আর দেখালেও কাজ করে না। */
+  if (button.dataset.gateBlocked === '1' || button.dataset.homeBlocked === '1') return;
+  const view = button.dataset.panelView;
   if (view === 'exams') { managerExamScreen = ''; managerExamTileKey = ''; }
   if (!normalizeView(view)) return;
   /* A shortcut may carry its own filter (dashboard → অনুমোদন opens শিক্ষার্থী
@@ -1400,7 +1403,6 @@ $('#managerRoutineForm').addEventListener('submit', async event => {
   if (!saveRoutine(routine)) return toast('রুটিন সংরক্ষণ হয়নি।', true);
   form.reset(); routineDay = routineDay; renderRoutine(); toast('রুটিন প্রকাশিত হয়েছে।');
 });
-$('#managerChangePassword').addEventListener('click', () => openStaffPasswordDialog({ role: 'manager', mode: 'change' }));
 /* One door per panel: no route of ours leaves manager.html for another panel. */
 installPanelGuard();
 void rememberPanelPage();
@@ -1441,10 +1443,25 @@ async function enterManager() {
   onRouteChange(name => { const next = normalizeView(name); if (next && (next.view !== activeView || name !== next.view)) renderView(name); });
   // Auth is now validated and the real panel is painted; only now uncover it.
   dismissManagerBoot();
+  /* ধাপ C ও D (মালিক-নির্দেশ ২০২৬-১১-০২): এক gate, এক হোম-নিয়ম। */
+  applyPanelCapabilities({
+    role: 'manager',
+    homeRoot: $('.manager-view[data-view-panel="dashboard"]'),
+    routes: MANAGER_VIEWS
+  });
   await loadOperationalData();
   /* One Settings structure for every role (§29). The hub fills নিরাপত্তা ও ডেটা
      and mounts the notification rows — the Manager's profile card, password row
      and theme switch stay exactly where they were. */
+  /* অ্যাকাউন্ট গ্রুপ: Admin-এর হুবহু একই ইনলাইন ফর্ম (মালিক-নির্দেশ ২০২৬-১১-০২)। */
+  mountStaffAccountGroup({
+    hub: '[data-settings-hub="manager"]',
+    role: 'manager',
+    logoutId: 'managerAccountLogout',
+    onLogout: () => { clearStaffSession('manager'); window.dispatchEvent(new Event('apc-session-ended')); goToLoginPage(); },
+    current: () => managerAccount,
+    toast: message => toast(message)
+  });
   mountSettingsHub({
     mount: '[data-settings-hub="manager"]',
     role: 'manager',
@@ -1457,7 +1474,8 @@ async function enterManager() {
   // পড়াশোনা পরিচালনা করুন: the same content library the Teacher writes into.
   await mountCourseEditor();
   await mountReports($('#managerReports'), { panel: 'manager' });
-  for (const cardSelector of ['#managerProfileCard', '#managerOwnProfileCard']) {
+  /* একটি পরিচয় কার্ড, একটি এডিট (মালিক-নির্দেশ ২০২৬-১১-০২)। */
+  for (const cardSelector of ['#managerProfileCard']) {
     mountProfileSelfEdit({
       role: 'manager',
       card: cardSelector,

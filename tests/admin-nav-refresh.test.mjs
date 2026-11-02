@@ -21,7 +21,7 @@ const DEMO_OFF = { 'activePlus.demo.autofill.v1': 'off' };
 let ctx;
 
 const activePanel = () => ctx.$('.admin-view.active')?.dataset.viewPanel;
-const activeSeat = () => ctx.$('.admin-bottom-item.active')?.dataset.adminView;
+const activeSeat = () => ctx.$('.admin-bottom-item.active')?.dataset.panelView;
 
 before(async () => {
   ctx = await loadPage('admin.html', { seed: DEMO_OFF });
@@ -36,7 +36,7 @@ after(() => ctx?.window.close());
 test('revisiting a tab reloads its data — never a stale snapshot', async () => {
   assert.equal(activePanel(), 'dashboard');
   // Open Staff Management once: the seeded directory paints.
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="staff"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="staff"]'));
   await ctx.waitFor(() => activePanel() === 'staff');
   await ctx.waitFor(() => ctx.$$('#staffList .staff-card').length >= 4);
   const before = ctx.$$('#staffList .staff-card').length;
@@ -48,9 +48,9 @@ test('revisiting a tab reloads its data — never a stale snapshot', async () =>
   assert.equal(created.ok, true, created.error);
 
   // Home → Staff again: the activation must show the new record.
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="dashboard"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="dashboard"]'));
   await ctx.waitFor(() => activePanel() === 'dashboard');
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="staff"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="staff"]'));
   await ctx.waitFor(() => ctx.$$('#staffList .staff-card').length > before);
   assert.ok(ctx.$(`[data-staff-card="${created.staff.staffId}"]`), 'the fresh record is on screen');
 });
@@ -75,29 +75,29 @@ test('the URL hash and the open section never disagree', async () => {
 });
 
 test('clicking the same tab repeatedly builds no duplicate content and no stuck state', async () => {
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="staff"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="staff"]'));
   await ctx.waitFor(() => activePanel() === 'staff');
   await ctx.waitFor(() => ctx.$$('#staffList .staff-card').length >= 4);
   const count = ctx.$$('#staffList .staff-card').length;
 
   for (let i = 0; i < 3; i += 1) {
-    ctx.click(ctx.$('.admin-bottom-item[data-admin-view="staff"]'));
+    ctx.click(ctx.$('.admin-bottom-item[data-panel-view="staff"]'));
     await ctx.flush();
   }
   await ctx.waitFor(() => ctx.$$('#staffList .staff-card').length >= 4);
   assert.equal(ctx.$$('#staffList .staff-card').length, count, 'same rows, no duplicated render');
 
   // Hub → sub-screen → Home → hub again: each activation repaints cleanly.
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="system"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="system"]'));
   await ctx.waitFor(() => activePanel() === 'system');
-  ctx.click(ctx.$('#adminSystemMenu [data-admin-view="security"]'));
+  ctx.click(ctx.$('#adminSystemMenu [data-panel-view="security"]'));
   await ctx.waitFor(() => activePanel() === 'security');
   assert.equal(activeSeat(), 'system', 'the hub seat stays lit inside its sub-screen');
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="dashboard"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="dashboard"]'));
   await ctx.waitFor(() => activePanel() === 'dashboard');
-  ctx.click(ctx.$('.admin-bottom-item[data-admin-view="system"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="system"]'));
   await ctx.waitFor(() => activePanel() === 'system');
-  ctx.click(ctx.$('#adminSystemMenu [data-admin-view="security"]'));
+  ctx.click(ctx.$('#adminSystemMenu [data-panel-view="security"]'));
   await ctx.waitFor(() => activePanel() === 'security');
   assert.equal(activePanel(), 'security', 'the sub-screen opens again, not a frozen earlier state');
 });

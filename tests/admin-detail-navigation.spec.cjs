@@ -42,18 +42,18 @@ async function start(page) {
   await page.route(/https:\/\/[^/]*(?:supabase\.co|firebasedatabase\.app|firebaseio\.com|googleapis\.com)\//, route => route.abort());
   await page.routeWebSocket(/wss:\/\/[^/]*(?:supabase\.co|firebasedatabase\.app|firebaseio\.com)\//, socket => socket.close());
   await enterPortal(page, 'admin');
-  await expect(page.locator('#adminMoreMenu [data-admin-view="data"]')).toHaveAttribute('data-nav-wired', '1');
+  await expect(page.locator('#adminMoreMenu [data-panel-view="data"]')).toHaveAttribute('data-nav-wired', '1');
   await expect(panel(page, 'dashboard')).toBeVisible();
 }
 
 async function openHub(page, parent, seat) {
-  await page.locator(`.admin-bottom [data-admin-view="${seat}"]`).click();
+  await page.locator(`.admin-bottom [data-panel-view="${seat}"]`).click();
   if (seat === 'system') {
-    await page.locator(`#adminSystemMenu [data-admin-view="${parent}"]`).click();
+    await page.locator(`#adminSystemMenu [data-panel-view="${parent}"]`).click();
   } else {
     const moreTarget = parent === 'backup' || parent === 'audit' ? 'data' : parent;
-    await page.locator(`#adminMoreMenu [data-admin-view="${moreTarget}"]`).click();
-    if (parent === 'backup' || parent === 'audit') await panel(page, 'data').locator(`[data-admin-view="${parent}"]`).click();
+    await page.locator(`#adminMoreMenu [data-panel-view="${moreTarget}"]`).click();
+    if (parent === 'backup' || parent === 'audit') await panel(page, 'data').locator(`[data-panel-view="${parent}"]`).click();
   }
   await expect(panel(page, parent)).toBeVisible();
 }
@@ -61,7 +61,7 @@ async function openHub(page, parent, seat) {
 async function openChild(page, parent, view) {
   const launcher = parent === 'profile'
     ? panel(page, parent).locator(`[data-settings-open="${view.slice('profile-'.length)}"]`)
-    : panel(page, parent).locator(`[data-admin-view="${view}"]`);
+    : panel(page, parent).locator(`[data-panel-view="${view}"]`);
   await expect(launcher).toBeVisible();
   const box = await launcher.boundingBox();
   expect(box.width, `${view} launcher width`).toBeGreaterThanOrEqual(44);
@@ -151,7 +151,7 @@ for (const width of [360, 390, 1280]) {
       for (const view of children) {
         await openChild(page, parent, view);
         await expect(page).toHaveURL(new RegExp(`#${view}$`));
-        await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-admin-view', seat);
+        await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', seat);
         await expect(panel(page, view).locator(feature[view])).toBeVisible();
         await checkDetailLayout(page, view, width);
         if (['data-danger', 'profile-account', 'migration-teacher'].includes(view)) {

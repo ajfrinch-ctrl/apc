@@ -51,7 +51,7 @@ function normalised(bar) {
   clone.querySelectorAll('#classChatTopbarButton').forEach(node => node.remove());
   return clone.outerHTML
     .replace(/<strong class="app-brand-name">[\s\S]*?<\/strong>/, '')
-    .replace(/\s(?:id|title|data-action|data-view|data-teacher-view|data-manager-view|data-admin-view|data-admin-cap)="[^"]*"/g, '');
+    .replace(/\s(?:id|title|data-action|data-view|data-panel-view|data-panel-view|data-panel-view|data-admin-cap)="[^"]*"/g, '');
 }
 
 test('the login page keeps its brand-only card (no topbar, no bell, no sign-out)', () => {

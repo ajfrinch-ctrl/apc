@@ -78,8 +78,8 @@ test('only Admin and Manager roles can mount the editor; existing page routes re
   const manager = await makePage('manager.html', '[data-advice-admin]', 'manager');
   assert.ok(manager.root.querySelector('[data-advice-list]'));
   assert.deepEqual(manager.calls.seeds, ['manager']);
-  assert.deepEqual([...admin.ctx.$$('.admin-bottom-item')].map(item => item.dataset.adminView), ['dashboard', 'staff', 'reports', 'system', 'more']);
-  assert.deepEqual([...manager.ctx.$$('.admin-bottom-item')].map(item => item.dataset.managerView), ['dashboard', 'students', 'academic', 'finance', 'more']);
+  assert.deepEqual([...admin.ctx.$$('.admin-bottom-item')].map(item => item.dataset.panelView), ['dashboard', 'staff', 'reports', 'system', 'more']);
+  assert.deepEqual([...manager.ctx.$$('.admin-bottom-item')].map(item => item.dataset.panelView), ['dashboard', 'students', 'academic', 'finance', 'more']);
   admin.editor.stop(); manager.editor.stop();
 });
 

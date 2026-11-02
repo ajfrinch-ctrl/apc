@@ -181,7 +181,7 @@ test('the real counter saves a pending payment and downloads its simple statemen
   await expect(page.locator('#payShell')).toBeVisible();
   await readyOfflineShell(page, context);
   await expect(page.locator('#payShell')).toBeVisible();
-  await page.locator('.admin-bottom [data-pay-section="students"]').click();
+  await page.locator('.admin-bottom [data-panel-view="students"]').click();
   await expect(page.locator('#payStudentsPanel')).toBeVisible();
   await page.locator('#payStudentSearch').fill('AP-1024');
   await page.locator('#paySearchResults .fee-search-result').click();

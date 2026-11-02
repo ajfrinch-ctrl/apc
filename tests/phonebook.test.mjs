@@ -131,8 +131,8 @@ test('Admin Panel Phonebook (#phonebook) mounts Yellow Pages class groups, staff
 
   assert.equal(ctx.$('.admin-view[data-view-panel="dashboard"] .phonebook-hub-card'), null,
     'Home does not duplicate the Phonebook shortcut');
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
-  const hubCard = ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]');
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="more"]'));
+  const hubCard = ctx.$('.admin-view[data-view-panel="more"] [data-panel-view="phonebook"]');
   assert.ok(hubCard, 'Yellow Pages Phonebook remains available from More');
   ctx.click(hubCard);
 
@@ -209,7 +209,7 @@ test('Manager Panel Phonebook (#phonebook) opens from Home and More and filters 
   await import('../js/manager.js');
   await ctx.waitFor(() => ctx.$('#managerShell').hidden === false);
 
-  ctx.click(ctx.$('.manager-view[data-view-panel="dashboard"] [data-manager-view="phonebook"]'));
+  ctx.click(ctx.$('.manager-view[data-view-panel="dashboard"] [data-panel-view="phonebook"]'));
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'phonebook');
   await ctx.waitFor(() => ctx.$$('#managerPhonebookMount [data-yp-student-card]').length === 2);
 
@@ -254,8 +254,8 @@ test('names are always readable; numbers and the ID wait for one click', async (
      own document, and a cached module would paint into that one. */
   await import('../js/admin.js?yp-names-2026-10-31');
   await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
-  ctx.click(ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="more"]'));
+  ctx.click(ctx.$('.admin-view[data-view-panel="more"] [data-panel-view="phonebook"]'));
   await ctx.waitFor(() => ctx.$$('#adminPhonebookMount [data-yp-student-card]').length === 2);
 
   const mount = ctx.$('#adminPhonebookMount');
@@ -331,8 +331,8 @@ test('the number reveal is memory-only: nothing lands in storage', async () => {
   seedStaffSession(ctx.window, 'admin');
   await import('../js/admin.js?yp-reload-2026-10-31');
   await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
-  ctx.click(ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="more"]'));
+  ctx.click(ctx.$('.admin-view[data-view-panel="more"] [data-panel-view="phonebook"]'));
   await ctx.waitFor(() => ctx.$$('#adminPhonebookMount [data-yp-student-card]').length === 1);
 
   assert.match(ctx.$('#adminPhonebookMount .yp-person-name').textContent, /ফাহিম রেজা/, 'the name needs no reveal');
@@ -352,8 +352,8 @@ test('the number reveal is memory-only: nothing lands in storage', async () => {
   seedStaffSession(fresh.window, 'admin');
   await import('../js/admin.js?yp-reload-check-2026-10-31');
   await fresh.waitFor(() => fresh.$('#adminShell').hidden === false);
-  fresh.click(fresh.$('.admin-bottom [data-admin-view="more"]'));
-  fresh.click(fresh.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'));
+  fresh.click(fresh.$('.admin-bottom [data-panel-view="more"]'));
+  fresh.click(fresh.$('.admin-view[data-view-panel="more"] [data-panel-view="phonebook"]'));
   await fresh.waitFor(() => fresh.$$('#adminPhonebookMount [data-yp-student-card]').length === 1);
   assert.equal(fresh.$('#adminPhonebookMount .yp-person-name').textContent, 'ফাহিম রেজা', 'names survive a reload');
   assert.match(fresh.$('#adminPhonebookMount .yp-phone-number').textContent, /••••/, 'the number does not');
@@ -373,8 +373,8 @@ test('search narrows on the stored record and still asks before showing a number
   seedStaffSession(ctx.window, 'admin');
   await import('../js/admin.js?yp-search-2026-10-31');
   await ctx.waitFor(() => ctx.$('#adminShell').hidden === false);
-  ctx.click(ctx.$('.admin-bottom [data-admin-view="more"]'));
-  ctx.click(ctx.$('.admin-view[data-view-panel="more"] [data-admin-view="phonebook"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="more"]'));
+  ctx.click(ctx.$('.admin-view[data-view-panel="more"] [data-panel-view="phonebook"]'));
   await ctx.waitFor(() => ctx.$$('#adminPhonebookMount [data-yp-student-card]').length === 2);
 
   const mount = ctx.$('#adminPhonebookMount');

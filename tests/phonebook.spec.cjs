@@ -89,7 +89,7 @@ for (const viewport of [{ width: 360, height: 800 }, { width: 390, height: 844 }
       await page.keyboard.press('Escape');
       await expect(adminAlert).toBeHidden();
     }
-    await page.locator('.phonebook-hub-card[data-admin-view="phonebook"]').click();
+    await page.locator('.phonebook-hub-card[data-panel-view="phonebook"]').click();
     await expect(page.locator('.admin-view[data-view-panel="phonebook"]')).toBeVisible();
     await expect(page.locator('#adminPhonebookMount [data-yp-student-card]')).toHaveCount(2);
 
@@ -123,7 +123,7 @@ for (const viewport of [{ width: 360, height: 800 }, { width: 390, height: 844 }
       await page.keyboard.press('Escape');
       await expect(mgrAlert).toBeHidden();
     }
-    await page.locator('.manager-view[data-view-panel="dashboard"] [data-manager-view="phonebook"]').click();
+    await page.locator('.manager-view[data-view-panel="dashboard"] [data-panel-view="phonebook"]').click();
     await expect(page.locator('.manager-view[data-view-panel="phonebook"]')).toBeVisible();
     await expect(page.locator('#managerPhonebookMount [data-yp-student-card]')).toHaveCount(2);
 

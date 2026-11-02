@@ -86,9 +86,9 @@ const NOTICE_BOARD_KINDS = new Set(['notice', 'broadcast']);
 const generalNotificationItems = items => items;
 const generalNotificationRecords = records => records;
 const NAV_ATTRIBUTE = Object.freeze({
-  student: 'data-view', manager: 'data-manager-view', teacher: 'data-teacher-view', admin: 'data-admin-view',
+  student: 'data-view', manager: 'data-panel-view', teacher: 'data-panel-view', admin: 'data-panel-view',
   /* The counter has its own five seats, so its notifications land on them. */
-  payment: 'data-pay-section'
+  payment: 'data-panel-view'
 });
 const MAX_TIMER_MS = 60 * 60 * 1000;
 /* The part of each panel that appears only once its login is verified. A panel

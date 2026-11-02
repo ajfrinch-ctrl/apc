@@ -28,10 +28,10 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 const doc = file => new JSDOM(read(file), { url: 'http://localhost/' });
 
 const PANELS = [
-  { file: 'teacher.html', attr: 'data-teacher-view', studio: '#teacherLectureSheetsMount', chat: true },
-  { file: 'manager.html', attr: 'data-manager-view', studio: '#managerLectureSheetsMount', chat: true },
-  { file: 'payment.html', attr: 'data-pay-section', studio: null, chat: false },
-  { file: 'admin.html', attr: 'data-admin-view', studio: '#adminLectureSheetsMount', chat: true }
+  { file: 'teacher.html', attr: 'data-panel-view', studio: '#teacherLectureSheetsMount', chat: true },
+  { file: 'manager.html', attr: 'data-panel-view', studio: '#managerLectureSheetsMount', chat: true },
+  { file: 'payment.html', attr: 'data-panel-view', studio: null, chat: false },
+  { file: 'admin.html', attr: 'data-panel-view', studio: '#adminLectureSheetsMount', chat: true }
 ];
 
 test('all four staff panels share one navigation contract', () => {
@@ -89,7 +89,7 @@ test('the chat is full screen for all 4 portals with no max-width leak', () => {
 
   for (const panel of ['teacher', 'manager', 'admin']) {
     const { window } = doc(`${panel}.html`);
-    assert.ok(window.document.querySelector(`[data-${panel}-view="class-chat"]`), `${panel} links its chat page`);
+    assert.ok(window.document.querySelector(`[data-panel-view="class-chat"]`), `${panel} links its chat page`);
     assert.ok(window.document.querySelector(panel === 'teacher' ? '#teacherClassChat' : panel === 'manager' ? '#managerClassChat' : '#adminClassChat'), `${panel} chat page exists`);
     assert.ok(window.document.querySelector('[data-class-chat-mount]'), `${panel} has chat mount`);
     assert.ok(window.document.querySelector('#classChatTopbarButton'), `${panel} has chat topbar button`);
@@ -97,7 +97,7 @@ test('the chat is full screen for all 4 portals with no max-width leak', () => {
     window.close();
   }
   const paymentWindow = doc('payment.html').window;
-  assert.equal(paymentWindow.document.querySelector('[data-class-chat-mount], #classChatTopbarButton, [data-pay-section="class-chat"]'), null, 'payment has no chat page or shortcut');
+  assert.equal(paymentWindow.document.querySelector('[data-class-chat-mount], #classChatTopbarButton, [data-panel-view="class-chat"]'), null, 'payment has no chat page or shortcut');
   assert.doesNotMatch(read('js/payment.js'), /mountClassChat|ClassChatMount/, 'payment.js mounts no chat');
   paymentWindow.close();
   /* Student, Teacher, Manager and Admin keep theirs, all go full screen. */

@@ -64,8 +64,8 @@ for (const scene of SCENES) {
   test(`minimal counter omits More/report/directory screens (${scene.width}px ${scene.theme})`,async({page})=>{
     await prepare(page,'payment',scene);
     await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
-    for(const selector of ['#payDeskTools','#payKeypad','#payStickyBar','[data-admin-view]','[data-teacher-view]','[data-manager-view]']) await expect(page.locator(selector)).toHaveCount(0);
-    await expect(page.locator('nav.admin-bottom [data-pay-section]')).toHaveCount(5);
+    for(const selector of ['#payDeskTools','#payKeypad','#payStickyBar','[data-panel-view]','[data-panel-view]','[data-panel-view]']) await expect(page.locator(selector)).toHaveCount(0);
+    await expect(page.locator('nav.admin-bottom [data-panel-view]')).toHaveCount(5);
     await expect(page.locator('#payProfileCard')).toBeHidden();
     await expect(page.locator('#payReportsCard')).toBeHidden();
     await expect(page.locator('#paymentReports')).toHaveCount(1);
@@ -78,7 +78,7 @@ for (const scene of SCENES) {
 for (const role of ['admin','manager','teacher']) for (const scene of SCENES.slice(0,2)) {
   test(`${role} keeps the authorised reports on their own screen (${scene.width}px ${scene.theme})`, async ({ page }) => {
     await prepare(page, role, scene);
-    const attribute = `data-${role}-view`;
+    const attribute = 'data-panel-view';
     const reports = `#${role}Reports`;
     await expect(page.locator(reports)).toBeHidden();
     if (role === 'teacher') {
@@ -127,7 +127,7 @@ test('counter cancelling a simple draft removes its brief identity without writi
   await prepare(page,'payment',SCENES[0]);
   await page.evaluate(async()=>{const {adminStudents}=await import('/js/admin-data.js');const {KEYS}=await import('/js/database.js');localStorage.setItem(KEYS.students,JSON.stringify(adminStudents));localStorage.setItem(KEYS.transactions,'[]');});
   await page.reload();await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
-  await page.locator('.admin-bottom [data-pay-section="students"]').click();
+  await page.locator('.admin-bottom [data-panel-view="students"]').click();
   await page.locator('#payStudentSearch').fill('AP-1024');await page.locator('#paySearchResults .fee-search-result').click();await page.locator('#payProfileCollect').click();await page.locator('#payFeeAmount').fill('975');
   const before=await page.evaluate(()=>localStorage.getItem('activePlus.admin.transactions.v1'));
   await page.locator('#payCancelButton').click();await expect(page.locator('#payProfileCard')).toBeHidden();
@@ -191,7 +191,7 @@ test.describe('arranged menus remain offline', () => {
       await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
       await expect(page.locator('#paymentReports')).toHaveCount(1);
       await expect(page.locator('#payReportsCard')).toBeHidden();
-      await expect(page.locator('#payDeskTools, [data-admin-view], [data-teacher-view]')).toHaveCount(0);
+      await expect(page.locator('#payDeskTools, [data-panel-view], [data-panel-view]')).toHaveCount(0);
       await expect(page.locator('#payProfileCard')).toBeHidden();
       await expect(page.locator('#payTodayList')).toBeVisible();
     }

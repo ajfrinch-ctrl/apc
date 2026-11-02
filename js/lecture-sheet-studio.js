@@ -48,6 +48,23 @@ export function loadStudioSdk() {
 
 const text = value => (typeof value === 'string' ? value.trim() : '');
 
+/* Subject typing (owner request 2026-11-01): the subject is TYPED, not picked
+   from a dropdown. A typed name that matches an existing subject reuses that
+   subject's id, so sheets keep grouping under the real subject; anything else
+   becomes a custom subject with a stable slug id. */
+const subjectKey = value => text(String(value ?? '')).normalize('NFC').replace(/\s+/g, ' ').toLocaleLowerCase('bn');
+const subjectNameSuggestions = subjects => (subjects || [])
+  .map(s => text(s?.name)).filter(Boolean)
+  .map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
+export const resolveTypedSubject = (typed, subjects) => {
+  const name = text(String(typed ?? '').normalize('NFC').replace(/\s+/g, ' '));
+  if (!name) return { id: '', name: '', customName: '' };
+  const matched = (subjects || []).find(s => subjectKey(s?.name) === subjectKey(name));
+  if (matched?.id) return { id: matched.id, name: text(matched.name) || name, customName: '' };
+  const slug = name.toLocaleLowerCase('bn').replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'custom';
+  return { id: `custom-${slug}-${Date.now().toString(36).slice(-4)}`, name, customName: name };
+};
+
 const EQUATION_PRESETS = Object.freeze([
   { label: 'দ্বিঘাত সূত্র', latex: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}' },
   { label: 'পিথাগোরাস', latex: 'a^2 + b^2 = c^2' },
@@ -507,7 +524,7 @@ export async function openLectureSheetStudio({
     status: existing ? (existing.active === false ? 'archived' : (existing.published ? 'published' : 'draft')) : 'draft',
     classId: initClassId,
     subjectId: initSubjectId,
-    subjectName: existing?.subjectName || initialMeta.subjectName || '',
+    subjectName: existing?.subjectName || initialMeta.subjectName || availSubjects.find(s => s.id === initSubjectId)?.name || '',
     customSubjectName: existing?.customSubjectName || initialMeta.customSubjectName || '',
     group: existing?.group ?? initialMeta.group ?? '',
     chapterId: existing?.chapterId ?? initialMeta.chapterId ?? '',
@@ -569,6 +586,9 @@ export async function openLectureSheetStudio({
     const cls = currentClassObj();
     return cls ? subjectsForClass(cls.name).find(s => s.id === state.subjectId) : null;
   };
+  /* Typed subjects have no catalogue record, so the written name in `state` is
+     the source of truth for every header/label/preview that shows the subject. */
+  const currentSubjectName = () => text(state.subjectName) || currentSubjectObj()?.name || '';
 
   overlay.innerHTML = `
     <div class="ls-studio-shell">
@@ -805,10 +825,9 @@ export async function openLectureSheetStudio({
 
   function updateMetaSummary() {
     const cls = currentClassObj();
-    const sub = currentSubjectObj();
     const parts = [
       cls?.name || 'শ্রেণি',
-      sub?.name || 'বিষয়',
+      currentSubjectName() || 'বিষয়',
       state.chapterName || 'অধ্যায় ছাড়া',
       state.topic ? `টপিক: ${state.topic}` : ''
     ].filter(Boolean);
@@ -848,7 +867,6 @@ export async function openLectureSheetStudio({
     const dim = A4_DIMENSIONS[state.pageSettings.orientation] || A4_DIMENSIONS.portrait;
     const margin = MARGIN_PRESETS[state.pageSettings.margins] || MARGIN_PRESETS.normal;
     const cls = currentClassObj();
-    const sub = currentSubjectObj();
 
     if (state.mobileComfortReflow && window.innerWidth < 820) {
       sheet.classList.add('is-mobile-reflow');
@@ -884,7 +902,7 @@ export async function openLectureSheetStudio({
         const pills = [
           cls?.name,
           state.group,
-          sub?.name ? `বিষয়: ${sub.name}` : '',
+          currentSubjectName() ? `বিষয়: ${currentSubjectName()}` : '',
           state.chapterName ? `অধ্যায়: ${state.chapterName}` : '',
           state.topic ? `টপিক: ${state.topic}` : ''
         ].filter(Boolean);
@@ -964,7 +982,7 @@ export async function openLectureSheetStudio({
       showPageNumbers: state.pageSettings.showPageNumbers,
       zoomScale: state.mobileComfortReflow && window.innerWidth < 820 ? 1 : computeEffectiveZoom(),
       headerLabel: state.pageSettings.headerText || state.title || BRAND_NAME,
-      subjectLabel: [currentSubjectObj()?.name, currentClassObj()?.name].filter(Boolean).join(' • '),
+      subjectLabel: [currentSubjectName(), currentClassObj()?.name].filter(Boolean).join(' • '),
       footerLabel: state.pageSettings.footerText || BRAND_NAME
     }),
     onPageCountChange: count => {
@@ -1158,11 +1176,10 @@ export async function openLectureSheetStudio({
 
     try {
       const cls = currentClassObj();
-      const sub = currentSubjectObj();
       const draft = {
         ...currentDraftPayload(),
         className: cls?.name || '',
-        subjectName: sub?.name || ''
+        subjectName: currentSubjectName()
       };
       const layout = await paginateLectureDocument(draft, { preloadImages: true });
       state.totalPages = layout.totalPages;
@@ -1219,8 +1236,7 @@ export async function openLectureSheetStudio({
 
   function openMetadataModal() {
     const host = q('[data-ls-submodal]');
-    const buildSubjectOpts = cId => (scope.subjectsByClass[cId] || [])
-      .map(s => `<option value="${escapeHtml(s.id)}"${s.id === state.subjectId ? ' selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+    const buildSubjectNameSuggestions = cId => subjectNameSuggestions(scope.subjectsByClass[cId]);
     const buildGroupOpts = (cId, sId) => (scope.groupsByClassSubject[`${cId}::${sId}`] || [{ value: '', label: 'সব ব্যাচ / পুরো শ্রেণি' }])
       .map(g => `<option value="${escapeHtml(g.value)}"${g.value === state.group ? ' selected' : ''}>${escapeHtml(g.label)}</option>`).join('');
     const buildChapterSuggestions = (cId, sId) => {
@@ -1252,13 +1268,13 @@ export async function openLectureSheetStudio({
             </select>
           </label>
           <label>বিষয়
-            <select name="subjectId" data-ls-meta-subject ${state.id ? 'disabled title="সংরক্ষিত শিটের বিষয় স্থির থাকে — বদলাতে কপি তৈরি করুন"' : ''}>
-              ${buildSubjectOpts(state.classId)}
-            </select>
+            <input name="subjectNameText" data-ls-meta-subject list="lsMetaSubjects" maxlength="80"
+              autocomplete="off" spellcheck="false"
+              ${state.id ? 'disabled title="সংরক্ষিত শিটের বিষয় স্থির থাকে — বদলাতে কপি তৈরি করুন"' : ''}
+              placeholder="বিষয়ের নাম লিখুন — যেমন: গণিত / আইসিটি"
+              value="${escapeHtml(currentSubjectName())}">
+            <datalist id="lsMetaSubjects">${buildSubjectNameSuggestions(state.classId)}</datalist>
           </label>
-          ${!state.id ? `<label>নতুন বিষয় (ঐচ্ছিক)
-            <input name=\"customSubjectName\" data-ls-meta-custom maxlength=\"80\" placeholder=\"তালিকায় নেই? নতুন বিষয়ের নাম লিখুন\" value=\"${escapeHtml(state.customSubjectName || '')}\">
-          </label>` : ''}
           <label>ব্যাচ / বিভাগ
             <select name="group" data-ls-meta-group>${buildGroupOpts(state.classId, state.subjectId)}</select>
           </label>
@@ -1299,22 +1315,31 @@ export async function openLectureSheetStudio({
       </form>`;
 
     const clsSelect = host.querySelector('[data-ls-meta-class]');
-    const subSelect = host.querySelector('[data-ls-meta-subject]');
+    const subInput = host.querySelector('[data-ls-meta-subject]');   // typed, not a select
+    const subList = host.querySelector('#lsMetaSubjects');
     const grpSelect = host.querySelector('[data-ls-meta-group]');
     const datalist = host.querySelector('#lsChapterDatalist');
+
+    /* The meta panel also types the subject: match the typed name against the
+       class catalogue so groups/chapters keep following the real subject. */
+    const syncMetaSubject = cId => {
+      const subs = scope.subjectsByClass[cId] || [];
+      const matched = resolveTypedSubject(text(subInput?.value), subs);
+      const sId = matched.customName ? '' : matched.id;
+      grpSelect.innerHTML = buildGroupOpts(cId, sId);
+      datalist.innerHTML = buildChapterSuggestions(cId, sId);
+    };
 
     clsSelect?.addEventListener('change', () => {
       const nextC = clsSelect.value;
       const subs = scope.subjectsByClass[nextC] || [];
-      subSelect.innerHTML = subs.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('');
-      const nextS = subs[0]?.id || '';
-      grpSelect.innerHTML = buildGroupOpts(nextC, nextS);
-      datalist.innerHTML = buildChapterSuggestions(nextC, nextS);
+      if (subList) subList.innerHTML = subjectNameSuggestions(subs);
+      const typed = text(subInput?.value);
+      const known = subs.some(s => subjectKey(s.name) === subjectKey(typed));
+      if (subInput && !known) subInput.value = subs[0]?.name || '';
+      syncMetaSubject(nextC);
     });
-    subSelect?.addEventListener('change', () => {
-      grpSelect.innerHTML = buildGroupOpts(clsSelect.value, subSelect.value);
-      datalist.innerHTML = buildChapterSuggestions(clsSelect.value, subSelect.value);
-    });
+    subInput?.addEventListener('input', () => syncMetaSubject(clsSelect.value));
 
     host.querySelector('[data-ls-meta-form]')?.addEventListener('submit', ev => {
       ev.preventDefault();
@@ -1323,20 +1348,12 @@ export async function openLectureSheetStudio({
       state.subtitle = text(fd.get('subtitle'));
       if (!state.id) {
         state.classId = text(fd.get('classId')) || state.classId;
-        const rawSubject = text(fd.get('subjectId'));
-        const customSubject = text(fd.get('customSubjectName'));
-        if (customSubject) {
-          state.customSubjectName = customSubject;
-          state.subjectName = customSubject;
-          const slug = customSubject.normalize('NFC').toLocaleLowerCase('bn').replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'custom';
-          state.subjectId = `custom-${slug}-${Date.now().toString(36).slice(-4)}`;
-        } else {
-          state.subjectId = rawSubject || state.subjectId;
-          state.customSubjectName = '';
-          // Resolve subjectName from scope for standard subject
-          const clsSubs = scope.subjectsByClass[state.classId] || [];
-          const matched = clsSubs.find(s => s.id === state.subjectId);
-          if (matched) state.subjectName = matched.name;
+        const typedSubject = text(fd.get('subjectNameText'));
+        const resolvedSubject = resolveTypedSubject(typedSubject, scope.subjectsByClass[state.classId] || []);
+        if (resolvedSubject.id) {
+          state.subjectId = resolvedSubject.id;
+          state.subjectName = resolvedSubject.name;
+          state.customSubjectName = resolvedSubject.customName;
         }
       }
       state.group = text(fd.get('group'));
@@ -1711,11 +1728,10 @@ export async function openLectureSheetStudio({
       actionEl.textContent = '⏳ PDF তৈরি হচ্ছে…';
       try {
         const cls = currentClassObj();
-        const sub = currentSubjectObj();
         const exportRecord = {
           ...currentDraftPayload(),
           className: cls?.name || '',
-          subjectName: sub?.name || ''
+          subjectName: currentSubjectName()
         };
         const res = await downloadLectureSheetPDF(exportRecord, {
           onProgress({ currentPage, totalPages }) {
@@ -1734,11 +1750,10 @@ export async function openLectureSheetStudio({
     if (action === 'print') {
       if (state.dirty) await performSave({ manual: false, recordHistory: false });
       const cls = currentClassObj();
-      const sub = currentSubjectObj();
       await printLectureSheet({
         ...currentDraftPayload(),
         className: cls?.name || '',
-        subjectName: sub?.name || ''
+        subjectName: currentSubjectName()
       }, { renderMath: sdk.renderLatexMathML });
       return;
     }
@@ -1839,11 +1854,11 @@ export async function mountLectureSheetManager({
 
   const uiState = {
     classId: '',
-    subjectId: '',
     status: 'all',
     search: '',
     createModalOpen: false,
     historyRecordId: '',
+    subjectText: '',
     expandedSheets: new Set(),
     expandedGroups: new Set(),
     pendingDeleteId: ''
@@ -1851,15 +1866,27 @@ export async function mountLectureSheetManager({
 
   let scope = null;
   let sheets = [];
+  let rawSheets = [];
+
+  /* Subject is TYPED, not chosen from a dropdown (owner request 2026-11-01).
+     The list still follows the class scope from the API; the typed subject
+     narrows it on the client so custom subjects work too. */
+  function applySubjectFilter() {
+    const q = subjectKey(uiState.subjectText);
+    sheets = q
+      ? rawSheets.filter(s => [s.subjectName, s.subject, s.subjectId]
+          .some(value => subjectKey(value).includes(q)))
+      : rawSheets;
+  }
 
   async function loadData() {
     scope = await resolveLectureScope(role);
-    sheets = await listLectureSheets({
+    rawSheets = await listLectureSheets({
       classId: uiState.classId,
-      subjectId: uiState.subjectId,
       status: uiState.status,
       search: uiState.search
     }, { role });
+    applySubjectFilter();
   }
 
   function statusBadge(status) {
@@ -1955,10 +1982,11 @@ export async function mountLectureSheetManager({
               <option value="">সব শ্রেণি</option>
               ${classes.map(c => `<option value="${escapeHtml(c.id)}"${c.id === uiState.classId ? ' selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
             </select>
-            <select class="ls-filter-select" data-ls-filter="subjectId" aria-label="বিষয় ফিল্টার"${uiState.classId ? '' : ' disabled'}>
-              <option value="">সব বিষয়</option>
-              ${subjects.map(s => `<option value="${escapeHtml(s.id)}"${s.id === uiState.subjectId ? ' selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
-            </select>
+            <input type="search" class="ls-filter-select ls-filter-search" data-ls-filter="subjectText"
+              list="lsFilterSubjects" autocomplete="off" spellcheck="false"
+              aria-label="বিষয় লিখে ফিল্টার করুন"${uiState.classId ? '' : ' disabled'}
+              placeholder="বিষয় লিখুন…" value="${escapeHtml(uiState.subjectText)}">
+            <datalist id="lsFilterSubjects">${subjectNameSuggestions(subjects)}</datalist>
             <input type="search" class="ls-filter-search" data-ls-filter="search"
               placeholder="শিরোনাম, অধ্যায়, টপিক বা শব্দ খুঁজুন…" value="${escapeHtml(uiState.search)}" aria-label="লেকচার শিট খুঁজুন">
           </div>
@@ -2020,14 +2048,12 @@ export async function mountLectureSheetManager({
             </select>
           </label>
           <label>বিষয়
-            <select name="lsSubjectId" data-ls-qc-subject>
-              ${subs.map(s => `<option value="${escapeHtml(s.id)}"${s.id === sId ? ' selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
-              ${subs.length ? '' : '<option value=\"\">বিষয় নেই — নিচে নতুন নাম লিখুন</option>'}
-            </select>
-            <small class="form-note" style="margin-top:4px">তালিকায় নেই? নিচে নতুন নাম লিখুন।</small>
-          </label>
-          <label>নতুন বিষয় (ঐচ্ছিক)
-            <input name="lsCustomSubject" data-ls-qc-custom maxlength="80" placeholder="যেমন: কৃষি শিক্ষা / নতুন বিষয়">
+            <input name="lsSubjectName" data-ls-qc-subject-name list="lsQcSubjects" maxlength="80"
+              autocomplete="off" spellcheck="false" aria-required="true"
+              placeholder="বিষয়ের নাম লিখুন — যেমন: গণিত / আইসিটি"
+              value="${escapeHtml(subs.find(s => s.id === sId)?.name || '')}">
+            <datalist id="lsQcSubjects">${subjectNameSuggestions(subs)}</datalist>
+            <small class="form-note" style="margin-top:4px">ড্রপডাউন নেই — নাম টাইপ করুন। আগের বিষয় হলে নাম লেখার সঙ্গে সঙ্গে সাজেশন আসবে; নতুন নাম লিখলে সেটিও নতুন বিষয় হিসেবে তৈরি হবে।</small>
           </label>
           <label>ব্যাচ / বিভাগ
             <select name="lsGroup" data-ls-qc-group>
@@ -2089,28 +2115,75 @@ export async function mountLectureSheetManager({
       const target = ev.target;
       if (target.matches('[data-ls-filter="classId"]')) {
         uiState.classId = target.value;
-        uiState.subjectId = '';
-        void refresh();
-        return;
-      }
-      if (target.matches('[data-ls-filter="subjectId"]')) {
-        uiState.subjectId = target.value;
+        uiState.subjectText = '';
         void refresh();
         return;
       }
       if (target.matches('[data-ls-qc-class]') && scope) {
         const cId = target.value;
         const subs = scope.subjectsByClass[cId] || [];
-        const subEl = root.querySelector('[data-ls-qc-subject]');
+        const nameEl = root.querySelector('[data-ls-qc-subject-name]');
+        const listEl = root.querySelector('#lsQcSubjects');
         const grpEl = root.querySelector('[data-ls-qc-group]');
-        if (subEl) subEl.innerHTML = subs.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('');
-        const sId = subs[0]?.id || '';
-        const grps = scope.groupsByClassSubject[`${cId}::${sId}`] || [{ value: '', label: 'সব ব্যাচ / পুরো শ্রেণি' }];
-        if (grpEl) grpEl.innerHTML = grps.map(g => `<option value="${escapeHtml(g.value)}">${escapeHtml(g.label)}</option>`).join('');
+        const paintGroups = sId => {
+          const grps = scope.groupsByClassSubject[`${cId}::${sId}`] || [{ value: '', label: 'সব ব্যাচ / পুরো শ্রেণি' }];
+          if (grpEl) grpEl.innerHTML = grps.map(g => `<option value="${escapeHtml(g.value)}">${escapeHtml(g.label)}</option>`).join('');
+        };
+        // Typed subject: only the suggestion list changes with the class. The
+        // typed name is kept when it exists in the new class, else it resets.
+        if (listEl) listEl.innerHTML = subjectNameSuggestions(subs);
+        const typedName = text(nameEl?.value);
+        const matched = typedName ? subs.find(s => subjectKey(s.name) === subjectKey(typedName)) : null;
+        if (matched) {
+          paintGroups(matched.id);
+          return;
+        }
+        if (nameEl) nameEl.value = subs[0]?.name || '';
+        paintGroups(subs[0]?.id || '');
       }
     });
 
     root.addEventListener('input', ev => {
+      if (ev.target.matches('[data-ls-qc-subject-name]')) {
+        // Typing the subject re-scopes the batch and chapter suggestions live.
+        const form = ev.target.closest('[data-ls-quick-create-form]');
+        const cId = text(form?.querySelector('[data-ls-qc-class]')?.value);
+        const subs = scope?.subjectsByClass?.[cId] || [];
+        const matched = resolveTypedSubject(ev.target.value, subs);
+        const sId = matched.customName ? '' : matched.id;
+        const grpEl = form?.querySelector('[data-ls-qc-group]');
+        if (grpEl && matched.id) {
+          const grps = scope?.groupsByClassSubject?.[`${cId}::${sId}`] || [{ value: '', label: 'সব ব্যাচ / পুরো শ্রেণি' }];
+          const keep = text(grpEl.value);
+          grpEl.innerHTML = grps.map(g => `<option value="${escapeHtml(g.value)}">${escapeHtml(g.label)}</option>`).join('');
+          if (grps.some(g => g.value === keep)) grpEl.value = keep;
+        }
+        const chapEl = form?.querySelector('#lsQcChapters');
+        if (chapEl) {
+          const info = scope?.chaptersByClassSubject?.[`${cId}::${sId}`] || { contentChapters: [], academicChapters: [] };
+          const names = [...new Set([
+            ...(info.contentChapters || []).map(c => c.title),
+            ...(info.academicChapters || []).map(c => c.name)
+          ].filter(Boolean))];
+          chapEl.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+        }
+        return;
+      }
+      if (ev.target.matches('[data-ls-filter="subjectText"]')) {
+        // Typed subject filter: narrows the already-loaded list, no reload.
+        uiState.subjectText = ev.target.value;
+        applySubjectFilter();
+        clearTimeout(root._lsSubjectTimer);
+        root._lsSubjectTimer = setTimeout(() => {
+          render();
+          const box = root.querySelector('[data-ls-filter="subjectText"]');
+          if (box && document.activeElement !== box) {
+            box.focus();
+            box.setSelectionRange(box.value.length, box.value.length);
+          }
+        }, 220);
+        return;
+      }
       if (ev.target.matches('[data-ls-filter="search"]')) {
         uiState.search = ev.target.value;
         clearTimeout(root._lsSearchTimer);
@@ -2131,28 +2204,24 @@ export async function mountLectureSheetManager({
       if (!qcForm) return;
       ev.preventDefault();
       const fd = new FormData(qcForm);
-      const rawSid = text(fd.get('lsSubjectId'));
-      const customSub = text(fd.get('lsCustomSubject'));
-      let finalSid = rawSid;
-      let finalSubName = '';
-      let customName = '';
-      if (customSub) {
-        customName = customSub;
-        finalSubName = customSub;
-        const slug = customSub.normalize('NFC').toLocaleLowerCase('bn').replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'custom';
-        finalSid = `custom-${slug}-${Date.now().toString(36).slice(-4)}`;
-      }
-      if (!finalSid && !customName) {
-        toast('বিষয় নির্বাচন করুন বা নতুন বিষয়ের নাম লিখুন।', true);
+      const classId = text(fd.get('lsClassId'));
+      const typedSubject = text(fd.get('lsSubjectName'));
+      const resolved = resolveTypedSubject(typedSubject, scope?.subjectsByClass?.[classId] || []);
+      if (!resolved.id) {
+        toast('বিষয়ের নাম লিখুন। (যেমন: গণিত)', true);
+        qcForm.querySelector('[data-ls-qc-subject-name]')?.focus?.();
         return;
       }
+      const finalSid = resolved.id;
+      const finalSubName = resolved.name;
+      const customName = resolved.customName;
       uiState.createModalOpen = false;
       render();
       await openLectureSheetStudio({
         role,
         toast,
         initialMeta: {
-          classId: text(fd.get('lsClassId')),
+          classId,
           subjectId: finalSid,
           subjectName: finalSubName,
           customSubjectName: customName,

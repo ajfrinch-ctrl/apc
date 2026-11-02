@@ -26,7 +26,7 @@ const path = require('path');
       if (role === 'student') await enterStudentApp(page);
       else await enterPortal(page, role);
       await page.evaluate(() => document.fonts.ready);
-      const more = role === 'student' ? '.bottom-nav [data-view="profile"]' : '.admin-bottom [data-pay-section="settings"]';
+      const more = role === 'student' ? '.bottom-nav [data-view="profile"]' : '.admin-bottom [data-panel-view="settings"]';
       await page.locator(more).click();
       const prefix = role === 'payment' ? 'counter' : role;
       await page.screenshot({ path: path.join(output, `${prefix}-more-${theme}.png`) });

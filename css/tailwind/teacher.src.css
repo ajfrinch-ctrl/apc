@@ -445,7 +445,9 @@
 
   /* 04.6 Home quick actions: one column of full-width cards ─────────────────── */
   .teacher-reference .teacher-home-actions {
-    @apply my-1 mb-4 flex flex-col gap-3;
+    /* One gap token for every staff panel's action stack (owner 2026-11-02). */
+    @apply my-1 mb-4 flex flex-col;
+    gap: var(--t-gap-card, 0.75rem);
   }
   .teacher-reference .teacher-action-card {
     --tone: var(--tone-mint);
@@ -2133,16 +2135,9 @@ html:not([data-theme="dark"]) .teacher-reference #teacherMain {
   height: 42px !important;
 }
 
-/* Profile vs Settings separation in #teacherProfile */
-.teacher-reference #teacherSettingsTabs {
-  display: none !important;
-}
-.teacher-reference #teacherProfile[data-profile-mode="profile"] #teacherSettingsHub {
-  display: none !important;
-}
-.teacher-reference #teacherProfile[data-profile-mode="settings"] #teacherProfileCard {
-  display: none !important;
-}
+/* Profile and Settings are two screens (owner 2026-11-02): #teacherProfile holds
+   the identity card only and #teacherSettings holds the hub, so no
+   profile-mode / tab-bar overrides are needed any more. */
 .teacher-reference #teacherSettingsHub [data-settings-groups],
 .teacher-reference #teacherSettingsHub [data-settings-groups][hidden] {
   display: contents !important;
@@ -2212,7 +2207,7 @@ html:not([data-theme="dark"]) .teacher-reference #teacherMain {
 .teacher-reference #teacherExamHub [data-teacher-exam="upcoming"] { order: 30; }
 .teacher-reference #teacherExamHub [data-teacher-exam="archive"] { order: 40; }
 .teacher-reference #teacherExamHub [data-teacher-exam="bank"] { order: 50; }
-.teacher-reference #teacherExamHub [data-teacher-view="exam"] { order: 60; }
+.teacher-reference #teacherExamHub [data-panel-view="exam"] { order: 60; }
 .teacher-reference #teacherOnlineExams[data-exam-tile-open="new-mcq"] #teacherExamWorkspace { order: 11; }
 .teacher-reference #teacherOnlineExams[data-exam-tile-open="home"] #teacherExamWorkspace { order: 21; }
 .teacher-reference #teacherOnlineExams[data-exam-tile-open="upcoming"] #teacherExamWorkspace { order: 31; }

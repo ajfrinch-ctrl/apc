@@ -52,7 +52,7 @@ test('Manager assigns work to an Admin-created teacher by Login User ID', async 
   assert.equal(username, 'notun.teacher.apc');
 
   /* The form now offers every active teacher — not just teacher.apc. */
-  ctx.click(ctx.$('[data-manager-view="teachers"]'));
+  ctx.click(ctx.$('[data-panel-view="teachers"]'));
   const form = ctx.$('#managerTeacherAssignmentForm');
   await ctx.waitFor(() => form.elements.teacherUsername.options.length >= 2);
   const offered = [...form.elements.teacherUsername.options].map(option => option.value.toLowerCase());

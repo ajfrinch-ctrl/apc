@@ -27,7 +27,7 @@ async function privateFieldsAbsent(page) {
 async function openPayment(page,query=person.id) {
  /* The counter's five seats are home/students/payment/reports/more: the
     identity-only search sits in the শিক্ষার্থী seat, not on the home screen. */
- await page.locator('.admin-bottom [data-pay-section=students]').click();
+ await page.locator('.admin-bottom [data-panel-view=students]').click();
  await expect(page.locator('#payStudentsPanel')).toBeVisible();
  await page.locator('#payStudentSearch').fill(query);
  await page.locator('#paySearchResults .fee-search-result').click();
@@ -46,7 +46,7 @@ for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:12
   await expect(page.locator('#paymentReports')).toHaveCount(1);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   for(const query of ['নমুনা রাইসা','s261001001','২৬১০০১০০১']) {
-   await page.locator('.admin-bottom [data-pay-section=students]').click();
+   await page.locator('.admin-bottom [data-panel-view=students]').click();
    await page.locator('#payStudentSearch').fill(query);
    await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(1);
    await expect(page.locator('#paySearchResults')).toContainText(person.id);await privateFieldsAbsent(page);

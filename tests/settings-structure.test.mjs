@@ -122,7 +122,7 @@ test('Cash Counter More re-entry clears stale Settings groups on repeated naviga
   const nav = hub.querySelector('[data-settings-groups]');
   const groups = [...hub.querySelectorAll('[data-settings-group]')];
 
-  ctx.click(ctx.$('.admin-bottom [data-pay-section="more"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="more"]'));
   await ctx.flush(2);
   ctx.click(hub.querySelector('[data-settings-open="security"]'));
   await ctx.flush(2);
@@ -131,23 +131,23 @@ test('Cash Counter More re-entry clears stale Settings groups on repeated naviga
   assert.equal(hub.querySelector('[data-settings-group="security"]').hidden, false);
 
   // Re-tapping More while it is already selected must return to the menu.
-  ctx.click(ctx.$('.admin-bottom [data-pay-section="more"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="more"]'));
   await ctx.flush(2);
   assert.equal(nav.hidden, false);
   assert.ok(groups.every(group => group.hidden));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.paySection, 'more');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'more');
 
   ctx.click(hub.querySelector('[data-settings-open="account"]'));
   await ctx.flush(2);
   assert.equal(hub.querySelector('[data-settings-group="account"]').hidden, false);
-  ctx.click(ctx.$('.admin-bottom [data-pay-section="home"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="home"]'));
   await ctx.flush(2);
-  ctx.click(ctx.$('.admin-bottom [data-pay-section="more"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="more"]'));
   await ctx.flush(2);
   assert.equal(nav.hidden, false, 'returning from Home restores the More group menu');
   assert.ok(groups.every(group => group.hidden), 'the previous Account content does not leak into More');
   assert.equal(ctx.$$('.pay-panel:not([hidden])').length, 1, 'exactly one Counter page is visible');
-  ctx.click(ctx.$('.admin-bottom [data-pay-section="home"]'));
+  ctx.click(ctx.$('.admin-bottom [data-panel-view="home"]'));
 });
 
 test('the theme row the hub adds switches the stored theme', async () => {
@@ -172,14 +172,17 @@ test('the counter can change its own password from Settings', async () => {
   const before = await readStaffAccount('payment');
   assert.ok(before?.password, 'the provisioned counter account has a password hash');
 
-  ctx.click(ctx.$('[data-settings-hub="payment"] [data-settings-row="password"]'));
-  await ctx.waitFor(() => ctx.$('.staff-pw-backdrop'), 20000);
-  assert.equal(ctx.$('.staff-pw-backdrop').dataset.staffPw, 'payment', 'the dialog serves the counter role');
-
-  ctx.type(ctx.$('#staffPwNew'), 'Apc-Counter-2026');
-  ctx.type(ctx.$('#staffPwConfirm'), 'Apc-Counter-2026');
-  ctx.submit(ctx.$('.staff-pw-form'));
-  await ctx.waitFor(() => !ctx.$('.staff-pw-backdrop'), 30000);
+  /* ২০২৬-১১-০২: সবার একই ইনলাইন পাসওয়ার্ড ফর্ম — ডায়ালগ নয়। */
+  const form = ctx.$('[data-settings-hub="payment"] #paymentPasswordForm');
+  assert.ok(form, 'the counter changes its own password in the same inline form as Admin');
+  ctx.$('#paymentCurrentPassword').value = 'Counter-2026';
+  ctx.$('#paymentNewPassword').value = 'Apc-Counter-2026';
+  ctx.$('#paymentConfirmPassword').value = 'Apc-Counter-2026';
+  ctx.submit(form);
+  await ctx.waitFor(async () => {
+    const now = await readStaffAccount('payment');
+    return Boolean(now?.password && now.password !== before.password);
+  }, 30000);
 
   const after = await readStaffAccount('payment');
   assert.ok(after?.password && after.password !== before.password, 'the stored hash changed');

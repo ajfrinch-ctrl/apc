@@ -88,53 +88,67 @@ test('the welcome hero shows the teacher name from the staff profile, never the 
   assert.equal($('.teacher-welcome-note'), null, 'the daily-work note text is gone with its card');
 });
 
-test('home is welcome + four full-width action cards and secondary chips, with no work feed', () => {
-  /* মালিক-আদেশ ২০২৬-১০-২১: পুরোনো ৩×২ টাইল গ্রিড সরে চারটি ফুল-ওয়াইড হিরো
-     কার্ড + তিনটি সেকেন্ডারি চিপ এসেছে। কার্ডগুলো সরাসরি কাজ খোলে। */
+test('home is welcome + a five-door launcher: two hubs, three shortcuts, no work feed', () => {
+  /* মালিক-নির্দেশ ২০২৬-১১-০১: হোম ডুপ্লিকেট-মুক্ত লঞ্চার — একাডেমিক হাব ও
+     শ্রেণি চ্যাট (দুটি ফিচার-কার্ড) + তিনটি শর্টকাট (বাড়ির কাজ / পরীক্ষা /
+     ক্লাস রুটিন)। পুরোনো নয়টি দরজা, তৈরি-প্রথম সাজেশন কার্ড আর তিনটি
+     সেকেন্ডারি চিপ (উপকরণ/নোটিশ/নম্বর এন্ট্রি) সবই একাডেমিক হাব ও নিচের
+     নেভিগেশনে সরানো হয়েছে — কোনো ফিচার বাদ যায়নি, শুধু দ্বিতীয় দরজা যায়। */
   const cards = $$('#teacherHome .teacher-action-card');
-  assert.equal(cards.length, 4, 'চারটি ফুল-ওয়াইড হিরো কার্ড');
+  assert.equal(cards.length, 3, 'তিনটি ফুল-ওয়াইড শর্টকাট কার্ড');
+  assert.equal($$('#teacherHome .teacher-academic-hub, #teacherHome .panel-hub-card').length, 2, 'দুটি হাব কার্ড');
   assert.ok($('#teacherHome .teacher-home-actions'), 'the action list container exists');
   assert.equal($$('#teacherHome .teacher-home-tile').length, 0, 'পুরোনো ৩×২ টাইল গ্রিড নেই');
-  /* বাধ্যতামূলক ক্রম ও সরাসরি-অ্যাকশন অ্যাট্রিবিউট। */
-  assert.deepEqual(cards.map(c => c.dataset.newActivity || c.dataset.teacherExam || c.dataset.teacherView),
-    ['homework', 'suggestion', 'new-mcq', 'routine-view'],
-    'ক্রম: হোমওয়ার্ক → সাজেশন → দ্রুত MCQ → ক্লাস রুটিন');
-  const mcq = $('#teacherHome [data-teacher-exam="new-mcq"]');
-  assert.ok(mcq && mcq.classList.contains('is-accent'), 'MCQ কার্ড সবুজ হাইলাইটে');
+  assert.deepEqual(cards.map(c => c.dataset.newActivity || c.dataset.teacherExam || c.dataset.panelView),
+    ['homework', 'online-exams', 'routine-view'],
+    'ক্রম: বাড়ির কাজ → পরীক্ষা → ক্লাস রুটিন');
+  const exam = $('#teacherHome [data-panel-view="online-exams"]');
+  assert.ok(exam && exam.classList.contains('is-accent'), 'পরীক্ষা কার্ড সবুজ হাইলাইটে');
   /* রুটিন কার্ড শুধু-পঠন; উপস্থিতি-মার্কিং দরজা হোমে নেই। */
-  assert.ok($('#teacherHome [data-teacher-view="routine-view"]'), 'শুধু-পঠন রুটিন দরজা হোমে আছে');
-  assert.equal($$('#teacherHome [data-teacher-view="routine"]').length, 0, 'উপস্থিতি-মার্কিং দরজা হোমে নেই');
+  assert.ok($('#teacherHome [data-panel-view="routine-view"]'), 'শুধু-পঠন রুটিন দরজা হোমে আছে');
+  assert.equal($$('#teacherHome [data-panel-view="routine"]').length, 0, 'উপস্থিতি-মার্কিং দরজা হোমে নেই');
   assert.equal($$('#teacherHome [data-open-routine-session]').length, 0);
   /* প্রতিটি কার্ডে দৃশ্যমান থ্রিডি আইকন ও বাংলা লেবেল। */
   for (const card of cards) {
     assert.ok(card.querySelector('svg image[href^="assets/icons/ai-3d/"]'), 'কার্ডে থ্রিডি আইকন');
     assert.ok(/[ঀ-৿]/.test(card.getAttribute('aria-label')), 'বাংলা aria-label');
   }
-  /* সেকেন্ডারি চিপ: উপকরণ, নোটিশ বোর্ড, নম্বর এন্ট্রি। */
-  const chips = $$('#teacherHome .teacher-action-secondary button');
-  assert.equal(chips.length, 3);
-  assert.ok($('#teacherHome .teacher-action-secondary [data-teacher-view="courses"]'));
-  assert.ok($('#teacherHome .teacher-action-secondary [data-teacher-view="notice"]'), 'নোটিশ বোর্ড স্ক্রিন-দরজা');
-  assert.ok($('#teacherHome .teacher-action-secondary [data-teacher-view="exam"]'));
+  /* হোম থেকে কোনো ফর্ম-প্রথম দরজা নেই: সাজেশন/উপকরণ/নোটিশ সব হাবে। */
+  assert.equal($$('#teacherHome [data-new-activity]').length, 0, 'হোমে মডেল-প্রথম তৈরি-কার্ড নেই');
+  assert.equal($$('#teacherHome [data-teacher-exam]').length, 0, 'হোমে দ্বিতীয় পরীক্ষা-শর্টকাট নেই');
+  assert.equal($$('#teacherHome .teacher-action-secondary').length, 0, 'সেকেন্ডারি চিপ-সারি বাদ');
+  assert.equal($$('#teacherHome [data-panel-view="courses"]').length, 0, 'উপকরণ এখন একাডেমিক হাবে');
+  assert.equal($$('#teacherHome [data-panel-view="notice"]').length, 0, 'নোটিশও একাডেমিক হাবে');
+  assert.equal($$('#teacherHome [data-panel-view="exam"]').length, 0, 'নম্বর এন্ট্রি পরীক্ষা সিটের ভেতরে');
   assert.ok($('#teacherTodayClasses'), 'আজকের ক্লাস section');
   assert.equal($('#teacherRecent'), null, 'হোম ক্লিন — কোনো সাম্প্রতিক-কাজ ফিড নেই');
 });
 
-test('the home homework hero opens the create form directly; the records list keeps its own screen', async () => {
-  /* ২০২৬-১০-২১: হোম হিরো create-first — ট্যাপেই পুনঃব্যবহৃত অ্যাসাইনমেন্ট ফর্ম
-     ওভারলে খোলে, লিস্ট স্ক্রিনে নেভিগেট করে না। রেকর্ডস লিস্ট তার নিজস্ব
-     স্ক্রিনে (নম্বর এন্ট্রি চিপ → টাইপ-ট্যাব) অক্ষত থাকে। */
-  const card = $('#teacherHome [data-new-activity="homework"]');
-  assert.ok(card, 'হোমে হোমওয়ার্ক হিরো কার্ড');
+test('the home homework door opens the full records page; the form opens on that page', async () => {
+  /* মালিক-নির্দেশ ২০২৬-১১-০১: প্রতিটি মেনু-আইটেম এখন সম্পূর্ণ পেজ। হোম →
+     বাড়ির কাজ মানে `#homework` রুট, শুধু রেকর্ডস স্ক্রিন দৃশ্যমান, তালিকা
+     নিজে থেকেই খোলা — কোনো "তালিকা দেখুন" টগল নেই। ফর্ম খোলে ওই পেজের
+     নিজস্ব তৈরি-কার্ড থেকে, হোমের ওপর মডেল হিসেবে নয়। */
+  const card = $('#teacherHome [data-panel-view="homework"]');
+  assert.ok(card, 'হোমে বাড়ির কাজ কার্ড');
   ctx.click(card);
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, false, 'হিরো ট্যাপে সরাসরি ফর্ম খোলে');
+  assert.equal($('#teacherModalBackdrop').hidden, true, 'দরজা ট্যাপে আগে পেজ, মডেল নয়');
+  assert.equal($('#teacherRecords').hidden, false, 'রেকর্ডস স্ক্রিন দৃশ্যমান');
+  assert.equal(ctx.window.location.hash, '#homework', 'রুট URL-এ লেখা হয়');
+  assert.equal($('#teacherRecords').dataset.recordsOpen, '1', 'তালিকা নিজে থেকেই খোলা');
+  assert.equal(nfc($('#teacherRecordsTitle').textContent.trim()), nfc('বাড়ির কাজ'));
+  assert.notEqual($('#teacherRecordList').innerHTML, '', 'তালিকা একই পেজে রেন্ডার হয়');
+  ctx.click($('#teacherRecords [data-records-action="create"]'));
+  await settle();
+  assert.equal($('#teacherModalBackdrop').hidden, false, 'গন্তব্য স্ক্রিনের তৈরি-কার্ড ফর্ম খোলে');
   assert.equal(nfc($('#teacherModalTitle').textContent), nfc('নতুন বাড়ির কাজ'));
   assert.ok($('#activity-title'), 'the normal assignment form is reused');
   ctx.click($('#teacherModalClose'));
   await settle();
   assert.equal($('#teacherModalBackdrop').hidden, true);
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  assert.equal($('#teacherRecords').hidden, false, 'বাতিল করলে শিক্ষক ওই পেজেই থাকেন');
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
   assert.equal($('#teacherHome').hidden, false, 'Home navigation returns to the launcher');
 });
@@ -163,7 +177,7 @@ test('the clean home has no work feed, while every activity stays reachable on i
   ctx.click($('[data-type-tab="routine"]'));
   await settle();
   assert.ok(recordCard('অতিরিক্ত ক্লাস'), 'উপস্থিতি ক্লাস রেকর্ডস ট্যাবে অক্ষত থাকে');
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
   assert.equal($('#teacherHome').hidden, false);
 });
@@ -178,7 +192,7 @@ test('future-dated work is not pending, and the records card shows its progress'
   assert.ok(record, 'the future-dated work is reachable on the homework records tab');
   assert.equal(record.querySelector('.teaching-progress-line').textContent, 'অগ্রগতি ০/২ জন');
   assert.equal(record.querySelector('.teaching-progress-line').classList.contains('idle'), true, 'a future deadline is idle, not flagged pending');
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
 });
 
@@ -208,7 +222,7 @@ test('the উপস্থিতি ক্লাস tab opens the marking sheet a
   const marked = $$('#teacherRecordList .teaching-card').find(c => c.querySelector('h3')?.textContent === 'গতকালের ক্লাস');
   assert.equal(marked.querySelector('.teaching-progress-line.pending'), null, 'the record card drops its pending line');
   assert.match(marked.querySelector('.teaching-progress-line').textContent, /২\/২ জন • সব নথিভুক্ত/);
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
   assert.equal($('#teacherRecent'), null, 'নথিভুক্তির পরেও হোমে কোনো কাজ-ফিড ফেরে না');
 });
@@ -269,7 +283,7 @@ test('the student roster surface is fully removed while student data keeps feedi
   assert.equal($('#teacherStudentSearch'), null);
   assert.equal($('#teacherStudentClass'), null);
   assert.equal($('#teacherStudentList'), null);
-  assert.equal($$('.admin-bottom [data-teacher-view="students"]').length, 0, 'no students nav seat');
+  assert.equal($$('.admin-bottom [data-panel-view="students"]').length, 0, 'no students nav seat');
   assert.equal($$('[data-student-detail], [data-guardian-student]').length, 0, 'list-only actions are gone');
   assert.equal($$('.admin-bottom-item').length, 4, 'four bottom seats remain');
 });
@@ -277,7 +291,7 @@ test('the student roster surface is fully removed while student data keeps feedi
 test('attendance marking from the উপস্থিতি ক্লাস tab clears its pending line when all present is saved', async () => {
   await teachingRepository.saveActivity({ type: 'routine', title: 'আজকের গণিত ক্লাস', subject: 'গণিত', className: 'দশম শ্রেণি', date: todayISO(), time: '09:00', duration: 60, status: 'published', details: 'অনুশীলনী' });
   await settle();
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
   assert.equal($('#teacherRecent'), null, 'হোমপেজে কখনো কাজ-ফিড থাকবে না — উপস্থিতি রুটিন ট্যাবেই');
   ctx.click($('[data-type-tab="routine"]'));
@@ -341,11 +355,13 @@ test('Teacher Settings re-entry clears a previously open group and keeps one act
   await ctx.waitFor(() => Boolean(hub.querySelector('[data-settings-groups]')));
   const nav = hub.querySelector('[data-settings-groups]');
   const groups = [...hub.querySelectorAll('[data-settings-group]')];
+  /* ২০২৬-১১-০২: সেটিংস আলাদা স্ক্রিন — প্রোফাইল কার্ড আর সেটিংস গ্রুপ এক
+     স্ক্রিনে মেশে না, তাই re-entry যাচাই হয় সেটিংস স্ক্রিন দিয়েই। */
   const openProfile = async () => {
-    ctx.click($('.admin-bottom [data-teacher-view="more"]'));
+    ctx.click($('.admin-bottom [data-panel-view="more"]'));
     await ctx.waitFor(() => $('#teacherMore').hidden === false);
-    ctx.click($('#teacherMore [data-teacher-view="profile"]'));
-    await ctx.waitFor(() => $('#teacherProfile').hidden === false);
+    ctx.click($('#teacherMore [data-panel-view="settings"]'));
+    await ctx.waitFor(() => $('#teacherSettings').hidden === false);
   };
 
   await openProfile();
@@ -354,33 +370,33 @@ test('Teacher Settings re-entry clears a previously open group and keeps one act
   assert.equal(hub.querySelector('[data-settings-group="security"]').hidden, false);
   assert.equal(nav.hidden, true);
 
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await ctx.waitFor(() => $('#teacherHome').hidden === false);
   await openProfile();
   assert.equal($$('.teacher-view:not([hidden])').length, 1, 'exactly one Teacher screen is visible');
   assert.equal(nav.hidden, false, 're-entering Settings restores the group menu');
   assert.ok(groups.every(group => group.hidden), 'no stale Security group remains visible');
-  assert.equal($('.admin-bottom [aria-current="page"]').dataset.teacherView, 'more');
+  assert.equal($('.admin-bottom [aria-current="page"]').dataset.panelView, 'more');
 
   ctx.click(hub.querySelector('[data-settings-open="account"]'));
   await ctx.flush(2);
   assert.equal(hub.querySelector('[data-settings-group="account"]').hidden, false);
   assert.equal(hub.querySelector('[data-settings-group="security"]').hidden, true);
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await ctx.waitFor(() => $('#teacherHome').hidden === false);
   await openProfile();
   assert.equal(nav.hidden, false, 'a repeated Account → Settings return is idempotent');
   assert.ok(groups.every(group => group.hidden));
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
 });
 
 test('the grid doors open their own screens and the routine lives on one screen', async () => {
   /* ২০২৬-১০-২০: routine/attendance no longer has a home tile — its only door
      is the ক্লাস hub submenu (read-only routine with attendance sessions). */
-  ctx.click($('.admin-bottom [data-teacher-view="classes"]'));
+  ctx.click($('.admin-bottom [data-panel-view="classes"]'));
   await settle();
   assert.equal($('#teacherClasses').hidden, false);
-  ctx.click($('#teacherClasses .teacher-submenu [data-teacher-view="routine-view"]'));
+  ctx.click($('#teacherClasses .teacher-submenu [data-panel-view="routine-view"]'));
   await settle();
   assert.equal($('#teacherRoutine').hidden, false, 'উপস্থিতি door opens the routine screen');
   const tabs = $$('.teacher-routine-tabs [data-routine-tab]');
@@ -390,33 +406,47 @@ test('the grid doors open their own screens and the routine lives on one screen'
   await settle();
   assert.equal($('.teacher-routine-tabs [data-routine-tab="exam"]').getAttribute('aria-selected'), 'true');
   assert.equal($('.teacher-routine-tabs [data-routine-tab="today"]').getAttribute('aria-selected'), 'false');
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
-  /* ২০২৬-১০-২১: হোম হিরো create-first। রেকর্ডস লিস্ট তার নিজস্ব স্ক্রিনে —
-     নম্বর এন্ট্রি চিপ রেকর্ডস খোলে, টাইপ-ট্যাবে হোমওয়ার্ক লিস্টে যাওয়া যায়। */
-  ctx.click($('#teacherHome .teacher-action-secondary [data-teacher-view="exam"]'));
+  /* ২০২৬-১১-০১: নম্বর এন্ট্রি হোম-চিপ নয় — পরীক্ষা সিটের ভেতরে, যেখানে
+     পরীক্ষার সব লেন থাকে; সেখান থেকে রেকর্ডসের টাইপ-ট্যাব সব কার্যক্রম দেখায়। */
+  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
   await settle();
-  assert.equal($('#teacherRecords').hidden, false, 'নম্বর এন্ট্রি চিপ রেকর্ডস স্ক্রিন খোলে');
+  assert.equal($('#teacherOnlineExams').hidden, false, 'পরীক্ষা সিট');
+  ctx.click($('#teacherOnlineExams [data-panel-view="exam"]'));
+  await settle();
+  assert.equal($('#teacherRecords').hidden, false, 'নম্বর ও ফলাফল লেন রেকর্ডস স্ক্রিন খোলে');
+  assert.equal(ctx.window.location.hash, '#marks', 'নম্বর লেনের নিজস্ব রুট');
   ctx.click($('.teacher-type-tabs [data-type-tab="homework"]'));
   await settle();
   assert.equal($('[data-type-tab="homework"]').getAttribute('aria-selected'), 'true', 'হোমওয়ার্ক লিস্ট টাইপ-ট্যাবে খোলে');
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
   /* উপকরণ lives under the একাডেমিক কার্যক্রম hub, which is its own feature card
      on Home (out of the ক্লাস screen by owner order 2026-10-21). */
   ctx.click($('#teacherHome .teacher-academic-hub'));
   await settle();
   assert.equal($('#teacherAcademic').hidden, false, 'the Home hub card opens the academic screen');
-  ctx.click($('#teacherAcademic [data-teacher-view="courses"]'));
+  ctx.click($('#teacherAcademic [data-panel-view="courses"]'));
   await settle();
   assert.equal($('#teacherCourses').hidden, false, 'উপকরণ door opens its own screen');
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
   assert.equal($('#teacherHome').hidden, false, 'bottom nav brings the teacher back home');
-  /* The suggestion hero opens the suggestion create form directly. */
-  ctx.click($('#teacherHome [data-new-activity="suggestion"]'));
+  /* সাজেশন: একাডেমিক হাবের দরজা → সম্পূর্ণ পেজ, তারপর পেজের তৈরি-কার্ড। */
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, false, 'সাজেশন হিরো সরাসরি ফর্ম খোলে');
+  ctx.click($('#teacherHome .teacher-academic-hub'));
+  await settle();
+  ctx.click($('#teacherAcademic [data-panel-view="suggestion"]'));
+  await settle();
+  assert.equal($('#teacherRecords').hidden, false, 'সাজেশন দরজা সম্পূর্ণ রেকর্ডস পেজ খোলে');
+  assert.equal(ctx.window.location.hash, '#suggestion');
+  assert.equal($('#teacherModalBackdrop').hidden, true, 'দরজা ট্যাপে মডেল খোলে না');
+  assert.equal(nfc($('#teacherRecordsTitle').textContent.trim()), nfc('সাজেশন'), 'শিরোনাম খোলা টাইপের নাম নেয়');
+  ctx.click($('#teacherRecords [data-records-action="create"]'));
+  await settle();
+  assert.equal($('#teacherModalBackdrop').hidden, false, 'সাজেশনের নিজস্ব পেজ ফর্ম খোলে');
   assert.match($('#teacherModalTitle').textContent, /সাজেশন/);
   ctx.click($('#teacherModalClose'));
   await settle();
@@ -471,14 +501,16 @@ test('the exam seat lands on one CTA and four doors, not a nine-tile shelf', asy
 });
 
 test('unified Bengali labels, local date display, and single-badge class nav dot', async () => {
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
-  const hwHero = $('#teacherHome [data-new-activity="homework"]');
+  const hwHero = $('#teacherHome [data-panel-view="homework"]');
   assert.doesNotMatch(hwHero.textContent, /হোমওয়ার্ক|হোমওয়ার্ক/u, 'homework card uses বাড়ির কাজ');
   assert.match(hwHero.textContent, /বাড়ির কাজ/u);
 
-  // Open homework modal and verify date input has Bengali date attribute & lang="bn-BD"
+  // Open the homework page, then its create card, and verify the date field
   ctx.click(hwHero);
+  await settle();
+  ctx.click($('#teacherRecords [data-records-action="create"]'));
   await settle();
   const dateInput = $('#teacherActivityForm input[type="date"]');
   assert.ok(dateInput, 'date input exists in homework form');
@@ -495,7 +527,7 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
     'ক্লাস nav seat never displays two badges simultaneously');
 
   // Verify পরীক্ষা note uses ম্যানেজার and question bank placeholder is in Bengali
-  ctx.click($('.admin-bottom [data-teacher-view="online-exams"]'));
+  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
   await settle();
   assert.doesNotMatch($('#teacherOnlineExams > .teacher-local-note').textContent, /\bManager\b/);
   assert.match($('#teacherOnlineExams > .teacher-local-note').textContent, /ম্যানেজার/);
@@ -522,33 +554,36 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
     if (backBtn) assert.equal(backBtn.hidden, !subPage, `${viewEl.id} top back button visibility`);
   }
 
-  ctx.click($('.admin-bottom [data-teacher-view="more"]'));
+  ctx.click($('.admin-bottom [data-panel-view="more"]'));
   await settle();
   assert.equal($('#teacherMore').hidden, false);
   ctx.click($('#teacherMore [data-more-open="profile"]'));
   await settle();
+  /* ২০২৬-১১-০২: প্রোফাইল = শুধু পরিচয় কার্ড (+ এডিট)। পাসওয়ার্ড ও সেটিংসের বাকি
+     অংশ আলাদা সেটিংস স্ক্রিনে; এক স্ক্রিনে দুই কাজ নেই। */
   assert.equal($('#teacherProfile').hidden, false);
-  assert.equal($('#teacherProfile').dataset.profileMode, 'profile');
+  assert.equal($('#teacherSettings').hidden, true, 'প্রোফাইল স্ক্রিনে সেটিংস গ্রুপ নেই');
   assert.equal(nfc($('#teacherProfileTitle').textContent), nfc('আমার প্রোফাইল'));
   assert.ok($('#teacherProfileCard [data-profile-edit]'), 'আমার প্রোফাইল shows edit profile button');
-  assert.ok($('#teacherProfileCard [data-more-action="password"]'), 'আমার প্রোফাইল shows password change button');
+  assert.equal($('#teacherProfileCard [data-more-action="password"]'), null,
+    'পাসওয়ার্ডের একটাই ঠিকানা — সেটিংসের অ্যাকাউন্ট গ্রুপ');
 
-  ctx.click($('.admin-bottom [data-teacher-view="more"]'));
+  ctx.click($('.admin-bottom [data-panel-view="more"]'));
   await settle();
-  ctx.click($('#teacherMore [data-more-action="settings"]'));
+  ctx.click($('#teacherMore [data-panel-view="settings"]'));
   await settle();
-  assert.equal($('#teacherProfile').hidden, false);
-  assert.equal($('#teacherProfile').dataset.profileMode, 'settings');
-  assert.equal($('#teacherProfile').dataset.settingsTab, 'all');
-  assert.equal(nfc($('#teacherProfileTitle').textContent), nfc('সেটিংস ও নোটিফিকেশন'));
+  assert.equal($('#teacherSettings').hidden, false, 'সেটিংস ও নোটিফিকেশন is its own screen');
+  assert.equal($('#teacherProfile').hidden, true, 'profile and settings are two screens');
+  assert.equal(nfc($('#teacherSettingsTitle').textContent), nfc('সেটিংস'));
+  assert.equal($('#teacherSettings').dataset.settingsTab, undefined, 'no `all` tab exists any more');
 
-  // Audit Notification Settings & Settings Action Cards inside সেটিংস ও নোটিফিকেশন
+  // Audit Notification Settings & Settings Action Cards inside সেটিংস
   const settingsNav = $('#teacherSettingsHub [data-settings-groups]');
   assert.ok(settingsNav && !settingsNav.hidden, 'settings action card menu is visible by default');
   assert.equal($$('#teacherSettingsHub [data-settings-groups] .teacher-action-card').length, 5, 'settings menu uses 5 full-width .teacher-action-card cards');
   assert.ok($$('#teacherSettingsHub [data-settings-groups] .teacher-action-card').every(c => !c.classList.contains('pay-tile')), 'settings action cards never carry .pay-tile column layout');
   assert.ok($$('#teacherSettingsHub [data-settings-group]').every(g => g.hidden), 'all settings groups are hidden by default like ক্লাস and পরীক্ষা');
-  assert.equal($('#teacherSettingsTabs').hidden, true, 'duplicate bottom chip bar is hidden');
+  assert.equal($('#teacherSettingsTabs'), null, 'the `সব বিভাগ` chip row is gone (one click = one surface)');
 
   const notifMount = $('#notificationSettings');
   assert.ok(notifMount, 'notification settings mount exists');
@@ -574,16 +609,17 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
 
   // Audit remaining views for full-width .teacher-action-card cards & hidden primary data by default
   assert.equal($$('#teacherOnlineExams .teacher-action-card').length, 6, 'পরীক্ষা uses 6 full-width action cards');
-  /* 8 since the dedicated lecture-sheet studio page got its own door
-     (owner decision 2026-10-28). */
-  assert.equal($$('#teacherAcademic .teacher-action-card').length, 8, 'একাডেমিক uses 8 full-width action cards (includes লেকচার শিট স্টুডিও)');
-  assert.equal($$('#teacherRecords .teacher-action-card').length, 2, 'রেকর্ডস uses 2 full-width action cards');
-  assert.equal($$('#teacherNotice .teacher-action-card').length, 2, 'নোটিশ uses 2 full-width action cards');
-  assert.equal($$('#teacherRoutine .teacher-action-card').length, 2, 'রুটিন uses 2 full-width action cards');
+  /* 7: the dedicated lecture-sheet studio page keeps its own door (owner
+     decision 2026-10-28), while the duplicate "নতুন লেকচার শিট" card was
+     folded into the উপকরণ screen on 2026-11-01 (one entry per feature). */
+  assert.equal($$('#teacherAcademic .teacher-action-card').length, 7, 'একাডেমিক uses 7 full-width action cards (includes লেকচার শিট স্টুডিও)');
+  assert.equal($$('#teacherRecords .teacher-action-card').length, 1, 'রেকর্ডস has one create card — the list is always open');
+  assert.equal($$('#teacherNotice .teacher-action-card').length, 1, 'নোটিশ has one create card — the list is always open');
+  assert.equal($$('#teacherRoutine .teacher-action-card').length, 1, 'রুটিন has one attendance door — the timetable is always open');
   assert.equal($$('#teacherAcademicReports .teacher-action-card').length, 2, 'রিপোর্ট uses 2 full-width action cards');
   assert.equal($$('#teacherCourses .teacher-action-card').length, 3, 'উপকরণ uses 3 full-width action cards');
 
-  ctx.click($('.admin-bottom [data-teacher-view="home"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
 });
 

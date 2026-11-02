@@ -35,7 +35,7 @@ test('a payment goes in from the student search and lands in today\'s collection
   await openDesk(page);
 
   // শিক্ষার্থী → guarded search by name.
-  await page.locator('nav.admin-bottom [data-pay-section="students"]').click();
+  await page.locator('nav.admin-bottom [data-panel-view="students"]').click();
   await expect(page.locator('[data-pay-panel="students"]')).toBeVisible();
   await page.locator('#payStudentSearch').fill(student.name);
   const result = page.locator('#paySearchResults .fee-search-result').first();
@@ -92,7 +92,7 @@ test('the desk invents nothing: an empty amount, a one-letter query and a hidden
   await openDesk(page);
 
   // One letter is not a query.
-  await page.locator('nav.admin-bottom [data-pay-section="students"]').click();
+  await page.locator('nav.admin-bottom [data-panel-view="students"]').click();
   await page.locator('#payStudentSearch').fill('র');
   await expect(page.locator('#paySearchStatus')).toHaveText('নাম, ID, রোল বা মোবাইল লিখুন।');
   await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(0);

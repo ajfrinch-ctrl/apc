@@ -48,7 +48,7 @@ test('Manager boots on the operational dashboard with only its allow-listed sect
   assert.deepEqual(ctx.jsdomErrors, []);
   const views = ctx.$$('.manager-view').map(view => view.dataset.viewPanel);
   assert.deepEqual(views, ['dashboard', 'students', 'academic', 'academic-records', 'classes', 'teachers', 'finance', 'notices', 'routine', 'routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other', 'exams', 'courses', 'lecture-sheets', 'results', 'reports', 'profile', 'settings', 'advice', 'phonebook', 'more']);
-  const routes = ctx.$$('[data-manager-view]').map(button => button.dataset.managerView);
+  const routes = ctx.$$('[data-panel-view]').map(button => button.dataset.panelView);
   for (const forbidden of ['staff', 'roles', 'permissions', 'security', 'backup', 'restore', 'admin']) assert.equal(routes.includes(forbidden), false);
   assert.equal(ctx.$('#managerMain a[href*="admin"]'), null);
   assert.equal(ctx.$('#mgrActiveStudents').textContent, '১');
@@ -56,7 +56,7 @@ test('Manager boots on the operational dashboard with only its allow-listed sect
 });
 
 test('Manager student cards start compact, show pending entries once and disclose one card at a time', async () => {
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="students"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="students"]'));
   await ctx.waitFor(() => ctx.$('.manager-view[data-view-panel="students"]')?.classList.contains('active'));
   await ctx.waitFor(() => ctx.$$('#managerStudentQueue [data-manager-student]').length === 1
     && ctx.$$('#managerStudentList [data-manager-student]').length === 1);
@@ -114,7 +114,7 @@ test('Manager student cards start compact, show pending entries once and disclos
 test('Manager student approval updates only the pending registration through the Manager flow', async () => {
   /* অনুমোদন has no separate seat any more: the pending queue lives inside
      শিক্ষার্থী, and the old name still opens that screen with the filter set. */
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="students"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="students"]'));
   ctx.click(ctx.$('.manager-view[data-view-panel="students"] [data-student-scope="pending"]'));
   await ctx.flush();
   assert.equal(ctx.$$('#managerStudentQueue [data-manager-action="approve-student"]').length, 1);
@@ -139,8 +139,8 @@ test('Manager navigation refuses unknown or admin-only route identifiers', () =>
 });
 
 test('Manager alone assigns Teacher class/batch scope through the Teachers workflow', async () => {
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="academic"]'));
-  ctx.click(ctx.$('#managerAcademicTeachers[data-manager-view="teachers"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="academic"]'));
+  ctx.click(ctx.$('#managerAcademicTeachers[data-panel-view="teachers"]'));
   await ctx.waitFor(() => ctx.$('#managerTeacherAssignmentForm [name=className]')?.options.length > 1);
   const form = ctx.$('#managerTeacherAssignmentForm');
   // The subject picker is a checkbox list fed by Admin's Academic setup: it only
@@ -176,7 +176,7 @@ test('the running Manager panel shows no offline-workspace notice', () => {
 test('the Manager student search finds a student by Student ID, including Bangla digits', async () => {
   const box = ctx.$('#managerStudentSearch');
   const rows = () => ctx.$$('#managerStudentList [data-manager-student]');
-  ctx.click(ctx.$('[data-manager-view="students"]'));
+  ctx.click(ctx.$('[data-panel-view="students"]'));
   await ctx.waitFor(() => ctx.$('.manager-view[data-view-panel="students"]').classList.contains('active'));
   /* The status filter stays where the user left it (the previous test left it on
      the pending queue), so search starts from "সব". */
@@ -206,7 +206,7 @@ test('the Manager student search finds a student by Student ID, including Bangla
    refresh lands back on it (the URL keeps the page). */
 test('the আরও page lists every module as a real page, not a floating drawer', async () => {
   assert.equal(ctx.$('#managerMoreDrawer'), null, 'the old drawer is gone');
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'more');
 
   const page = ctx.$('.manager-view[data-view-panel="more"]');
@@ -214,25 +214,25 @@ test('the আরও page lists every module as a real page, not a floating drawe
   assert.equal(ctx.$('#managerMoreTitle').textContent.trim(), 'আরও');
   assert.equal(ctx.window.location.hash, '#more', 'the open page lives in the URL');
 
-  const footer = ctx.$$('.manager-bottom [data-manager-view]');
-  assert.deepEqual(footer.map(button => button.dataset.managerView), ['dashboard', 'students', 'academic', 'finance', 'more']);
-  assert.equal(ctx.$('.manager-bottom [data-manager-view="reports"]'), null, 'reports lives in More, not a sixth tab');
+  const footer = ctx.$$('.manager-bottom [data-panel-view]');
+  assert.deepEqual(footer.map(button => button.dataset.panelView), ['dashboard', 'students', 'academic', 'finance', 'more']);
+  assert.equal(ctx.$('.manager-bottom [data-panel-view="reports"]'), null, 'reports lives in More, not a sixth tab');
   const rows = ctx.$$('#managerMoreHub .pay-tile');
-  assert.deepEqual(rows.map(row => row.dataset.managerView), ['profile', 'settings', 'reports', 'advice']);
-  assert.equal(rows.some(row => row.dataset.managerView === 'classes'), false, 'ক্লাস পরিচালনা is not in আরও');
+  assert.deepEqual(rows.map(row => row.dataset.panelView), ['profile', 'settings', 'reports', 'advice']);
+  assert.equal(rows.some(row => row.dataset.panelView === 'classes'), false, 'ক্লাস পরিচালনা is not in আরও');
   for (const row of rows) {
     assert.ok(row.querySelector('.pay-tile-icon svg'), 'every tile keeps its icon');
     assert.ok(row.querySelector('.pay-tile-label').textContent.trim(), 'every tile has a title');
   }
   for (const view of ['reports', 'advice']) {
-    const row = rows.find(item => item.dataset.managerView === view);
+    const row = rows.find(item => item.dataset.panelView === view);
     ctx.click(row);
     await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === view);
     assert.equal(ctx.$('.manager-view.active').hidden, false, `${view} is the one visible page`);
     assert.equal(ctx.$$('.manager-view.active').length, 1, 'repeat navigation never activates two pages');
-    assert.equal(ctx.$('.manager-bottom [aria-current="page"]').dataset.managerView, 'more', `${view} keeps More selected`);
+    assert.equal(ctx.$('.manager-bottom [aria-current="page"]').dataset.panelView, 'more', `${view} keeps More selected`);
     assert.equal(ctx.window.location.hash, `#${view}`);
-    ctx.click(ctx.$(`.manager-view[data-view-panel="${view}"] [data-manager-view="more"]`));
+    ctx.click(ctx.$(`.manager-view[data-view-panel="${view}"] [data-panel-view="more"]`));
     await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'more');
   }
   ctx.click(rows[0]);
@@ -241,16 +241,16 @@ test('the আরও page lists every module as a real page, not a floating drawe
 });
 
 test('every আরও row opens its own page without an error', async () => {
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
   await ctx.flush();
   for (const row of ctx.$$('#managerMoreHub .pay-tile')) {
     if (row.classList.contains('is-logout')) continue;
-    const view = row.dataset.managerView;
+    const view = row.dataset.panelView;
     ctx.click(row);
     await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === view);
     assert.equal(ctx.$('.manager-view.active').hidden, false, `${view} is visible`);
     assert.equal(ctx.window.location.hash, `#${view}`, `${view} is remembered in the URL`);
-    if (view !== 'more') { ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]')); await ctx.flush(); }
+    if (view !== 'more') { ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]')); await ctx.flush(); }
   }
   assert.deepEqual(ctx.jsdomErrors, [], 'no page raised an error while opening');
 });
@@ -260,9 +260,9 @@ test('Manager Settings re-entry clears a previously open group and keeps one act
   await ctx.waitFor(() => Boolean(hub.querySelector('[data-settings-groups]')));
   const nav = hub.querySelector('[data-settings-groups]');
   const groups = [...hub.querySelectorAll('[data-settings-group]')];
-  const settings = () => ctx.$('#managerMoreHub [data-manager-view="settings"]');
+  const settings = () => ctx.$('#managerMoreHub [data-panel-view="settings"]');
 
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
   await ctx.flush(2);
   ctx.click(settings());
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'settings');
@@ -272,12 +272,12 @@ test('Manager Settings re-entry clears a previously open group and keeps one act
   assert.equal(nav.hidden, true);
 
   // Leave Settings and re-enter: stale Security content must not remain.
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="dashboard"]'));
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="dashboard"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
   ctx.click(settings());
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'settings');
   assert.equal(ctx.$$('.manager-view.active').length, 1);
-  assert.equal(ctx.$('.manager-bottom [aria-current="page"]').dataset.managerView, 'more');
+  assert.equal(ctx.$('.manager-bottom [aria-current="page"]').dataset.panelView, 'more');
   assert.equal(nav.hidden, false, 're-entering Settings shows the group menu');
   assert.ok(groups.every(group => group.hidden), 'no stale Manager subsection stays visible');
 
@@ -285,13 +285,13 @@ test('Manager Settings re-entry clears a previously open group and keeps one act
   ctx.click(hub.querySelector('[data-settings-open="account"]'));
   await ctx.flush(2);
   assert.equal(hub.querySelector('[data-settings-group="account"]').hidden, false);
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="dashboard"]'));
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="more"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="dashboard"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
   ctx.click(settings());
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'settings');
   assert.equal(nav.hidden, false);
   assert.ok(groups.every(group => group.hidden));
-  ctx.click(ctx.$('.manager-bottom [data-manager-view="dashboard"]'));
+  ctx.click(ctx.$('.manager-bottom [data-panel-view="dashboard"]'));
 });
 
 test('Manager Settings is the shared five-group hub, with no duplicated control', () => {

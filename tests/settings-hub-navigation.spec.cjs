@@ -21,20 +21,20 @@ test('Manager Settings returns to its group menu after switching pages at 320px'
   const settings = page.locator('.manager-view[data-view-panel="settings"]');
   const hub = page.locator('[data-settings-hub="manager"]');
   const nav = hub.locator('[data-settings-groups]');
-  await page.locator('.manager-bottom [data-manager-view="more"]').click();
-  await page.locator('#managerMoreHub [data-manager-view="settings"]').click();
+  await page.locator('.manager-bottom [data-panel-view="more"]').click();
+  await page.locator('#managerMoreHub [data-panel-view="settings"]').click();
   await expect(settings).toBeVisible();
   await hub.locator('[data-settings-open="security"]').click();
   await expect(hub.locator('[data-settings-group="security"]')).toBeVisible();
 
-  await page.locator('.manager-bottom [data-manager-view="dashboard"]').click();
-  await page.locator('.manager-bottom [data-manager-view="more"]').click();
-  await page.locator('#managerMoreHub [data-manager-view="settings"]').click();
+  await page.locator('.manager-bottom [data-panel-view="dashboard"]').click();
+  await page.locator('.manager-bottom [data-panel-view="more"]').click();
+  await page.locator('#managerMoreHub [data-panel-view="settings"]').click();
   await expect(settings).toBeVisible();
   await expect(nav).toBeVisible();
   await expect(hub.locator('[data-settings-group]:not([hidden])')).toHaveCount(0);
   await expect(page.locator('.manager-view.active')).toHaveCount(1);
-  await expect(page.locator('.manager-bottom [aria-current="page"]')).toHaveAttribute('data-manager-view', 'more');
+  await expect(page.locator('.manager-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -45,23 +45,24 @@ test('Teacher Settings returns to its group menu after switching pages at 320px'
   recordUnexpectedPageErrors(page, errors);
   await enterPortal(page, 'teacher');
 
-  const profile = page.locator('#teacherProfile');
+  /* ২০২৬-১১-০২: সেটিংস আলাদা স্ক্রিন (প্রোফাইল আর সেটিংস এক জায়গা নয়)। */
+  const profile = page.locator('#teacherSettings');
   const hub = page.locator('[data-settings-hub="teacher"]');
   const nav = hub.locator('[data-settings-groups]');
-  await page.locator('.admin-bottom [data-teacher-view="more"]').click();
-  await page.locator('#teacherMore [data-more-action="settings"]').click();
+  await page.locator('.admin-bottom [data-panel-view="more"]').click();
+  await page.locator('#teacherMore [data-panel-view="settings"]').click();
   await expect(profile).toBeVisible();
   await hub.locator('[data-settings-open="security"]').click();
   await expect(hub.locator('[data-settings-group="security"]')).toBeVisible();
 
-  await page.locator('.admin-bottom [data-teacher-view="home"]').click();
-  await page.locator('.admin-bottom [data-teacher-view="more"]').click();
-  await page.locator('#teacherMore [data-more-action="settings"]').click();
+  await page.locator('.admin-bottom [data-panel-view="home"]').click();
+  await page.locator('.admin-bottom [data-panel-view="more"]').click();
+  await page.locator('#teacherMore [data-panel-view="settings"]').click();
   await expect(profile).toBeVisible();
   await expect(nav).toBeVisible();
   await expect(hub.locator('[data-settings-group]:not([hidden])')).toHaveCount(0);
   await expect(page.locator('.teacher-view:not([hidden])')).toHaveCount(1);
-  await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-teacher-view', 'more');
+  await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -74,23 +75,23 @@ test('Cash Counter More resets its Settings group on a repeated tap at 320px', a
 
   const more = page.locator('#payMorePanel');
   const nav = more.locator('[data-settings-groups]');
-  await page.locator('.admin-bottom [data-pay-section="more"]').click();
+  await page.locator('.admin-bottom [data-panel-view="more"]').click();
   await more.locator('[data-settings-open="security"]').click();
   await expect(more.locator('[data-settings-group="security"]')).toBeVisible();
 
   // Unlike the staff URL routers, the counter uses five in-page sections; tapping
   // its current More seat again must still return from Security to the menu.
-  await page.locator('.admin-bottom [data-pay-section="more"]').click();
+  await page.locator('.admin-bottom [data-panel-view="more"]').click();
   await expect(nav).toBeVisible();
   await expect(more.locator('[data-settings-group]:not([hidden])')).toHaveCount(0);
   await more.locator('[data-settings-open="account"]').click();
   await expect(more.locator('[data-settings-group="account"]')).toBeVisible();
-  await page.locator('.admin-bottom [data-pay-section="home"]').click();
-  await page.locator('.admin-bottom [data-pay-section="more"]').click();
+  await page.locator('.admin-bottom [data-panel-view="home"]').click();
+  await page.locator('.admin-bottom [data-panel-view="more"]').click();
   await expect(nav).toBeVisible();
   await expect(more.locator('[data-settings-group]:not([hidden])')).toHaveCount(0);
   await expect(page.locator('[data-pay-panel]:not([hidden])')).toHaveCount(1);
-  await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-pay-section', 'more');
+  await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });

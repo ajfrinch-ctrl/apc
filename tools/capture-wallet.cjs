@@ -298,9 +298,9 @@ async function go(page, portal, view) {
   } else if (portal === 'admin') {
     await page.evaluate(v => { location.hash = v === 'dashboard' ? 'dashboard' : v; }, view);
   } else if (portal === 'manager') {
-    await page.evaluate(v => document.querySelector(`[data-manager-view="${v}"]`)?.click(), view);
+    await page.evaluate(v => document.querySelector(`[data-panel-view="${v}"]`)?.click(), view);
   } else if (portal === 'teacher') {
-    await page.evaluate(v => document.querySelector(`[data-teacher-view="${v}"]`)?.click(), view);
+    await page.evaluate(v => document.querySelector(`[data-panel-view="${v}"]`)?.click(), view);
   }
   await page.waitForTimeout(450);
 }

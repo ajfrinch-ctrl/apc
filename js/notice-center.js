@@ -755,11 +755,11 @@ export function mountNoticeCenter(api) {
     if (event.target?.closest?.('[data-apc-notice-settings]')) {
       event.preventDefault();
       show(false);
-      // Try to open Settings via known selectors (student: data-view="settings", admin: data-admin-view="settings")
-      const settingsBtn = document.querySelector('[data-view="settings"], [data-admin-view="settings"], [data-manager-view="more"], #notificationSettings, [data-view-panel="settings"]');
+      // Try to open Settings via known selectors (student: data-view="settings", admin: data-panel-view="settings")
+      const settingsBtn = document.querySelector('[data-view="settings"], [data-panel-view="settings"], [data-panel-view="more"], #notificationSettings, [data-view-panel="settings"]');
       if (settingsBtn) {
         // If it's a panel section, scroll into view; if button, click it
-        if (settingsBtn.tagName === 'BUTTON' || settingsBtn.hasAttribute('data-view') || settingsBtn.hasAttribute('data-admin-view')) settingsBtn.click();
+        if (settingsBtn.tagName === 'BUTTON' || settingsBtn.hasAttribute('data-view') || settingsBtn.hasAttribute('data-panel-view')) settingsBtn.click();
         else settingsBtn.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
         // Fallback: dispatch event to let settings handle

@@ -54,7 +54,7 @@ test('manager password reset persists only after confirmation and keeps original
   // never the Admin panel's.
   await demo(page); await page.evaluate(key=>{const a=JSON.parse(localStorage.getItem(key));a.pin='789789';localStorage.setItem(key,JSON.stringify(a));},KEY);
   await enterPortal(page, 'manager');
-  await page.locator('.admin-bottom [data-manager-view=students]').click();
+  await page.locator('.admin-bottom [data-panel-view=students]').click();
   await page.locator('[data-manager-action=reset-password][data-id="AP-1024"]').click();
   await expect(page.locator('#managerModalBody .pin-box')).toHaveText('১২৩১২৩');
   expect((await saved(page)).pin).toBe('789789');
