@@ -352,7 +352,9 @@ html[data-theme="dark"] .dashboard-exam-card .dashboard-primary-action { backgro
 :is(.view, .admin-view, .manager-view, .teacher-view, .finance-panel) > .page-intro:first-child p:not(.eyebrow) { display: none; }
 :is(.view, .admin-view, .manager-view, .teacher-view, .finance-panel) > .page-intro:first-child > div, .page-intro-copy { flex: 1; min-width: 0; }
 .pay-back {
-  display: grid; place-items: center; flex: none; width: 40px; height: 40px; min-height: 40px; min-width: 40px;
+  display: grid; place-items: center; flex: none;
+  width: var(--t-back-size, 40px); height: var(--t-back-size, 40px);
+  min-height: var(--t-back-size, 40px); min-width: var(--t-back-size, 40px);
   padding: 0; border-radius: 50%; color: var(--color-primary);
   background: var(--color-surface-muted); border: 1px solid var(--color-border);
 }
@@ -4895,10 +4897,11 @@ body.manager-reference #managerMoreHub > .pay-tile .pay-tile-icon svg,
   box-shadow: var(--portal-card-shadow);
 }
 
+/* One card radius for every staff panel (owner 2026-11-02 shell tokens). */
 .admin-view .admin-card,
 .manager-view .admin-card,
 .pay-panel .admin-card {
-  border-radius: 20px;
+  border-radius: var(--t-radius-tile, 20px);
   border: 1px solid var(--portal-border);
   background: var(--portal-surface);
   box-shadow: var(--portal-card-shadow);

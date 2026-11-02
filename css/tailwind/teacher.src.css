@@ -445,7 +445,9 @@
 
   /* 04.6 Home quick actions: one column of full-width cards ─────────────────── */
   .teacher-reference .teacher-home-actions {
-    @apply my-1 mb-4 flex flex-col gap-3;
+    /* One gap token for every staff panel's action stack (owner 2026-11-02). */
+    @apply my-1 mb-4 flex flex-col;
+    gap: var(--t-gap-card, 0.75rem);
   }
   .teacher-reference .teacher-action-card {
     --tone: var(--tone-mint);
