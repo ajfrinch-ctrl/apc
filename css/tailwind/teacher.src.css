@@ -2133,16 +2133,9 @@ html:not([data-theme="dark"]) .teacher-reference #teacherMain {
   height: 42px !important;
 }
 
-/* Profile vs Settings separation in #teacherProfile */
-.teacher-reference #teacherSettingsTabs {
-  display: none !important;
-}
-.teacher-reference #teacherProfile[data-profile-mode="profile"] #teacherSettingsHub {
-  display: none !important;
-}
-.teacher-reference #teacherProfile[data-profile-mode="settings"] #teacherProfileCard {
-  display: none !important;
-}
+/* Profile and Settings are two screens (owner 2026-11-02): #teacherProfile holds
+   the identity card only and #teacherSettings holds the hub, so no
+   profile-mode / tab-bar overrides are needed any more. */
 .teacher-reference #teacherSettingsHub [data-settings-groups],
 .teacher-reference #teacherSettingsHub [data-settings-groups][hidden] {
   display: contents !important;
