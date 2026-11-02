@@ -17,6 +17,7 @@ import { classByName } from './academics.js';
 import { NOTICE_CATEGORIES } from './notification-rules.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
+import { syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { initFixedShell } from './fixed-shell.js';
@@ -608,16 +609,7 @@ function setView(view) {
     el.setAttribute('aria-selected', String(active));
     if (el.matches('.pay-tile')) el.setAttribute('aria-pressed', String(active));
   });
-  /* The bottom bar keeps its four seats: the academic/class screens light up
-     the ক্লাস seat, the class-test results the পরীক্ষা seat. */
-  const bottomView = view === 'home' ? 'home'
-    : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'lecture-sheets', 'notice', 'routine', 'routine-view', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'classes'
-        : ['exam', 'online-exams'].includes(view) ? 'online-exams' : 'more';
-  $$('.admin-bottom [data-panel-view]').forEach(el => {
-    const active = el.dataset.panelView === bottomView;
-    el.classList.toggle('active', active);
-    if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
-  });
+  syncStaffNavigation('teacher', routeFor(view));
   if (view === 'lecture-sheets') mountTeacherLectureSheets();
   /* মালিক-নির্দেশ ২০২৬-১১-০২: প্রোফাইল আর সেটিংস দুটি আলাদা স্ক্রিন। সেটিংসে
      ঢুকলেই শুধু গ্রুপ-মেনু — পুরোনো `সব বিভাগ` চিপ-সারি আর নেই, তাই এক ক্লিকে
