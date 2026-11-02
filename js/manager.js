@@ -4,7 +4,7 @@ import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, ST
 import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
-import { syncStaffNavigation } from './staff-navigation.js';
+import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
@@ -243,6 +243,7 @@ function renderView(view) {
   $('#managerMain')?.scrollTo({ top: 0, behavior: 'smooth' });
   return true;
 }
+bindStaffNavigation({ role: 'manager', onNavigate: route => renderView(route) });
 function compactRow(text, meta = '') { return `<div class="manager-compact-row"><strong>${escapeHtml(text)}</strong>${meta ? `<br><small>${escapeHtml(meta)}</small>` : ''}</div>`; }
 function attendanceSummary() {
   const today = todayISO();
