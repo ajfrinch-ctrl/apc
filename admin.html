@@ -69,16 +69,21 @@
       <!-- Focused Admin Home: welcome, registration review and staff-portal doors.
            Reports, staff, backup, chat and phonebook stay in their own views. -->
       <section class="admin-view active" data-view-panel="dashboard" aria-labelledby="dashTitle">
-        <header class="admin-page-header">
-          <div>
-            <div class="admin-home-date" aria-hidden="false">
-              <span class="admin-weekday-label" id="adminTodayWeekday"></span><time class="admin-date-pill" id="adminTodayDate"></time>
+        <div class="home-dashboard-intro admin-home-intro teacher-home-intro panel-compact-head" data-home-intro data-hero-mode="day">
+          <div class="teacher-hero-content">
+            <div class="teacher-hero-top">
+              <span class="teacher-hero-top-right">
+                <span class="teacher-hero-date-pill" id="adminTodayWeekday"></span>
+                <time class="teacher-hero-date-pill" id="adminTodayDate" data-admin-hero-date></time>
+              </span>
             </div>
-            <div id="adminWelcome" hidden role="status" aria-live="polite"></div>
-            <h1 id="dashTitle">স্বাগতম, এডমিন</h1>
-            <p class="admin-view-sub" id="adminHeroAdvice">প্রতিদিন স্টাফ ও সিস্টেম লগ একবার যাচাই করুন এবং নিয়মিত ডেটা ব্যাকআপ সংরক্ষণ করুন।</p>
+            <div class="teacher-hero-welcome">
+              <div id="adminWelcome" hidden role="status" aria-live="polite"></div>
+              <h1 id="dashTitle">স্বাগতম, এডমিন</h1>
+              <p class="teacher-hero-advice" id="adminHeroAdvice">প্রতিদিন স্টাফ ও সিস্টেম লগ একবার যাচাই করুন এবং নিয়মিত ডেটা ব্যাকআপ সংরক্ষণ করুন।</p>
+            </div>
           </div>
-        </header>
+        </div>
 
         <!-- Overview is the hero above. Quick actions + dues + institute stay on Home; no fold/expand. -->
         <p class="pay-section-label">দ্রুত অ্যাক্সেস</p>
