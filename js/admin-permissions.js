@@ -197,7 +197,7 @@ export const VIEW_CAPABILITIES = Object.freeze({
 /** Five shared seats: হোম · স্টাফ · রিপোর্ট · সিস্টেম · আরও.
  *  Data, profile and advice remain available from the More hub. */
 export const ADMIN_BOTTOM_NAV = Object.freeze([
-  { view: 'dashboard', label: 'হোম', icon: 'dashboard', capability: CAPABILITIES.DASHBOARD, order: 1 },
+  { view: 'dashboard', label: 'হোম', icon: 'home', capability: CAPABILITIES.DASHBOARD, order: 1 },
   { view: 'staff', label: 'কাজ', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 2 },
   { view: 'academics', label: 'একাডেমিক', icon: 'book', capability: CAPABILITIES.SETTINGS_MANAGE, order: 3 },
   { view: 'reports', label: 'হিসাব', icon: 'wallet', capability: CAPABILITIES.REPORTS_VIEW, order: 4 },
