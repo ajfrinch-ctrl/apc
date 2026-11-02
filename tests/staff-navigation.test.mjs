@@ -16,6 +16,10 @@ test('role tabs resolve to existing role-specific routes', () => {
   assert.equal(staffTabForRoute('teacher', 'academic'), 'academic');
   assert.equal(staffTabForRoute('manager', 'finance'), 'finance');
   assert.equal(staffTabForRoute('payment', 'payment'), 'finance');
+  assert.equal(staffTabForRoute('teacher', 'reports'), 'academic');
+  assert.equal(staffTabForRoute('payment', 'reports'), 'finance');
+  assert.equal(STAFF_NAV_ROUTES.teacher.finance, null);
+  assert.equal(STAFF_NAV_ROUTES.payment.academic, null);
   assert.equal(staffTabForRoute('admin', 'system'), 'more');
   assert.equal(staffTabForRoute('teacher', 'marks'), 'academic');
   assert.equal(staffTabForRoute('manager', 'class-chat'), 'more');
