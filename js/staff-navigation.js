@@ -19,7 +19,22 @@ export const STAFF_NAV_ROUTES = Object.freeze({
 });
 
 const ROUTE_ALIASES = Object.freeze({
-  admin: Object.freeze({ system: 'more', students: 'work', 'class-chat': 'more', profile: 'more', settings: 'more', data: 'more', backup: 'more', audit: 'more', security: 'more', migration: 'more', roles: 'more', content: 'more', advice: 'more', phonebook: 'more' }),
+  admin: Object.freeze({
+    system: 'more', students: 'work', 'class-chat': 'more', profile: 'more', settings: 'more',
+    data: 'more', 'data-stats': 'more', 'data-danger': 'more', backup: 'more',
+    'backup-export': 'more', 'backup-restore': 'more', audit: 'more', 'audit-log': 'more',
+    'audit-exam': 'more', security: 'more', 'security-owner': 'more', 'security-password': 'more',
+    'security-protected': 'more', 'security-boundaries': 'more', 'security-devices': 'more',
+    'device-fingerprint': 'more', migration: 'more', 'migration-teacher': 'more',
+    'migration-student': 'more', roles: 'more', 'roles-admin': 'more', 'roles-manager': 'more',
+    'roles-teacher': 'more', 'roles-payment': 'more', 'roles-student': 'more', content: 'more',
+    'content-lecture-sheets': 'more', 'content-notices': 'more', 'content-records': 'more',
+    advice: 'more', 'advice-editor': 'more', phonebook: 'more',
+    'settings-branding': 'more', 'settings-classes': 'more', 'settings-broadcast': 'more',
+    'settings-maintenance': 'more', 'profile-account': 'more', 'profile-notification': 'more',
+    'profile-app': 'more', 'profile-security': 'more', 'profile-data': 'more',
+    'academics-add': 'academic', 'academics-subjects': 'academic', 'academics-mapping': 'academic'
+  }),
   teacher: Object.freeze({ 'class-chat': 'academic', exam: 'academic', homework: 'academic', suggestion: 'academic', routine: 'academic', 'online-exams': 'academic', notice: 'academic', courses: 'academic', 'lecture-sheets': 'academic', 'routine-view': 'academic', reports: 'academic', marks: 'academic', attendance: 'academic', 'routine-today': 'academic', 'routine-tomorrow': 'academic', 'routine-weekly': 'academic', 'routine-class': 'academic', 'routine-exam': 'academic', 'routine-changed': 'academic', 'routine-holiday': 'academic', 'routine-important': 'academic', 'routine-other': 'academic', profile: 'more', settings: 'more', advice: 'more' }),
   manager: Object.freeze({ 'class-chat': 'more', 'academic-records': 'academic', classes: 'academic', teachers: 'work', notices: 'academic', routine: 'academic', 'routine-today': 'academic', 'routine-tomorrow': 'academic', 'routine-weekly': 'academic', 'routine-class': 'academic', 'routine-exam': 'academic', 'routine-changed': 'academic', 'routine-holiday': 'academic', 'routine-important': 'academic', 'routine-other': 'academic', exams: 'academic', courses: 'academic', 'lecture-sheets': 'academic', results: 'academic', reports: 'more', phonebook: 'more', profile: 'more', settings: 'more', advice: 'more' }),
   payment: Object.freeze({ profile: 'more', reports: 'finance' })
