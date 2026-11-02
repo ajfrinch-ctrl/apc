@@ -243,7 +243,17 @@ function renderView(view) {
   $('#managerMain')?.scrollTo({ top: 0, behavior: 'smooth' });
   return true;
 }
-bindStaffNavigation({ role: 'manager', onNavigate: route => renderView(route) });
+bindStaffNavigation({ role: 'manager', onNavigate: route => {
+  if (route === 'students') {
+    const studentsPanel = $('.manager-view[data-view-panel="students"]');
+    if (studentsPanel) delete studentsPanel.dataset.studentsOpen;
+  }
+  if (route === 'finance') {
+    const financePanel = $('.manager-view[data-view-panel="finance"]');
+    if (financePanel) delete financePanel.dataset.financeOpen;
+  }
+  renderView(route);
+} });
 function compactRow(text, meta = '') { return `<div class="manager-compact-row"><strong>${escapeHtml(text)}</strong>${meta ? `<br><small>${escapeHtml(meta)}</small>` : ''}</div>`; }
 function attendanceSummary() {
   const today = todayISO();
