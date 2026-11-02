@@ -283,3 +283,24 @@ html[data-theme="dark"][data-staff-panel="payment"] {
   cursor: not-allowed;
   opacity: .45;
 }
+
+
+/* The legacy Teacher reference skin had a wider, taller nav override. Bring it
+   back onto the same five-seat footprint as Admin, Manager and Payment. */
+.teacher-reference .teacher-shell > .staff-bottom-nav {
+  left: 50% !important;
+  right: auto !important;
+  width: min(100vw, 430px) !important;
+  max-width: 430px !important;
+  min-height: calc(66px + var(--safe-bottom)) !important;
+  padding: 6px 6px calc(6px + var(--safe-bottom)) !important;
+  transform: translateX(-50%) !important;
+}
+.teacher-reference .teacher-shell > .staff-bottom-nav > .admin-bottom-item {
+  flex: 1 1 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  min-height: 54px !important;
+  padding: 4px 2px 2px !important;
+  font-size: 11.5px !important;
+}
