@@ -64,10 +64,10 @@ test('scoring and answer release live in Cloud Functions after the exam ends', (
   assert.ok(functionsSrc.includes("require('./exam-scoring.js')"));
 });
 
-test('client exam transitions are closed; Manager publishes via server transaction', () => {
+test('client exam transitions are closed; Admin and Manager publish via server transaction', () => {
   assert.match(matchBlock('exams/{examId}'), /allow create, update, delete: if false/);
   const review = functionBody('managerReviewExam');
-  assert.match(review, /requireCaller\(request, 'manager'\)/);
+  assert.match(review, /requireCaller\(request, \['admin', 'manager'\]\)/);
   assert.match(review, /exam.data\(\).status !== 'pending'/);
   assert.match(review, /FieldValue.serverTimestamp\(\)/);
 });
@@ -109,7 +109,7 @@ test('student review is server-only and updates profile plus claims', () => {
   const core = readFileSync(resolve(root, 'functions/staged-student-core.cjs'), 'utf8');
   assert.match(review, /enforceAppCheck: true/);
   assert.match(review, /reviewStagedStudent\(\{/);
-  assert.match(core, /caller.token\?\.role !== 'manager'/);
+  assert.match(core, /!\['admin', 'manager'\]\.includes\(caller\.token\?\.role\)/);
   assert.match(core, /tx.update\(studentRef/);
   assert.match(core, /tx.update\(userRef/);
   assert.match(core, /auth.setCustomUserClaims\(uid/);
