@@ -539,7 +539,7 @@ export function paymentRejectedItems(transactions, viewer) {
 }
 
 export function examReviewItems(examDb, viewer) {
-  if (viewer?.kind !== 'staff' || text(viewer.role) !== 'manager' || !isObject(examDb)) return [];
+  if (viewer?.kind !== 'staff' || !['admin', 'manager'].includes(text(viewer.role)) || !isObject(examDb)) return [];
   return (Array.isArray(examDb.exams) ? examDb.exams : [])
     .filter(exam => isObject(exam) && text(exam.id) && exam.status === 'pending')
     .map(exam => ({
@@ -548,7 +548,7 @@ export function examReviewItems(examDb, viewer) {
       source: 'exams', sourceId: text(exam.id), kind: 'exam-review', actionable: true,
       title: 'পরীক্ষা অনুমোদনের অপেক্ষায়',
       body: `${examName(exam)} · ${text(exam.className) || ''}${text(exam.teacherName) ? ` · ${text(exam.teacherName)}` : ''}${Number(exam.startAt) ? ` · শুরু ${bnWhen(exam.startAt)}` : ''}`,
-      at: Number(exam.submittedAt) || Number(exam.updatedAt) || 0, target: 'exams', audience: 'ম্যানেজার'
+      at: Number(exam.submittedAt) || Number(exam.updatedAt) || 0, target: viewer.role === 'admin' ? 'audit-exam' : 'exams', audience: 'Admin/Manager'
     }));
 }
 
