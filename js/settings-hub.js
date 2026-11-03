@@ -341,11 +341,14 @@ function paintGroupHub(root) {
     const open = event.target.closest('[data-settings-open]');
     if (open) {
       const targetKey = open.dataset.settingsOpen || '';
+      const activeSection = [...root.querySelectorAll('[data-settings-group]')]
+        .find(section => !section.hidden);
+      const nextKey = activeSection?.dataset.settingsGroup === targetKey ? '' : targetKey;
       if (root.__apcNavigateSettingsGroup) {
-        root.__apcNavigateSettingsGroup(targetKey);
+        root.__apcNavigateSettingsGroup(nextKey);
         return;
       }
-      showGroup(targetKey);
+      showGroup(nextKey);
       return;
     }
     if (event.target.closest('[data-settings-hub-back]')) {
