@@ -1,7 +1,7 @@
 /* Date-wise examination workflow (school request, 2026-10-02):
    questions live in per-date records with their own status, the archive
-   filters by date/range/class/subject/name/status, and only the Manager moves
-   a paper through Draft → Review → Approved → Published → Completed → Archived.
+   filters by date/range/class/subject/name/status, and Admin/Manager move a
+   paper through Draft → Review → Approved → Published → Completed → Archived.
    This file drives the real repository (js/exam-data.js) with a fake clock and
    storage; the two UI files drive teacher.html and manager.html. */
 import test from 'node:test';
