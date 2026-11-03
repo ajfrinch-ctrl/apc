@@ -562,7 +562,7 @@ export function staffExamItems(examDb, viewer) {
     if (exam.status === 'published' && Number(exam.publishedAt)) {
       items.push({
         key: `exam-published:${text(exam.id)}:${Number(exam.publishedAt)}`,
-        source: 'exams', sourceId: text(exam.id), kind: 'exam-published', actionable: true,
+        source: 'exams', sourceId: text(exam.id), kind: 'exam-published', actionable: true, action: 'open', actionLabel: 'পরীক্ষা দেখুন',
         title: 'পরীক্ষা প্রকাশিত হয়েছে',
         body: `${examName(exam)}${Number(exam.startAt) ? ` · শুরু ${bnWhen(exam.startAt)}` : ''}`,
         at: Number(exam.publishedAt), target, audience
@@ -571,7 +571,7 @@ export function staffExamItems(examDb, viewer) {
     if (exam.resultsPublished === true && Number(exam.resultsPublishedAt)) {
       items.push({
         key: `result-published:${text(exam.id)}:${Number(exam.resultsPublishedAt)}`,
-        source: 'exams', sourceId: text(exam.id), kind: 'result-published', actionable: true,
+        source: 'exams', sourceId: text(exam.id), kind: 'result-published', actionable: true, action: 'open', actionLabel: 'ফলাফল দেখুন',
         title: 'পরীক্ষার ফলাফল প্রকাশিত হয়েছে',
         body: examName(exam),
         at: Number(exam.resultsPublishedAt), target, audience
