@@ -651,3 +651,11 @@ test('Admin home presents the six owner-priority shortcuts in the required order
     'রিপোর্ট কেন্দ্র', 'অর্থ সারাংশ', 'পরীক্ষা ব্যবস্থাপনা'
   ]);
 });
+
+
+test('Admin notification shortcut opens the shared notification inbox', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enter(page);
+  await page.locator('#adminFeatureGrid .admin-feature-tile').nth(1).click();
+  await expect(page.locator('.apc-fb-panel[role="dialog"]')).toBeVisible();
+});
