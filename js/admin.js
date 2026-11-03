@@ -588,7 +588,7 @@ function renderStudents() {
         const isPending = student.status === 'pending';
         return `
           <article class="student-row student-row-redesigned${revealed ? ' is-revealed' : ''}${isPending ? ' is-pending' : ''}" data-student-row="${escapeHtml(rowKey)}"${revealed ? ' data-student-revealed="1"' : ''}>
-            <div class="student-row-main" role="button" tabindex="0" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}" aria-expanded="${revealed ? 'true' : 'false'}">
+            <div class="student-row-main">
               <span class="student-avatar" aria-hidden="true">${escapeHtml(initialsOf(name))}</span>
               <div class="student-copy">
                 <div class="student-title-line">
@@ -597,24 +597,20 @@ function renderStudents() {
                 </div>
                 <div class="student-meta-line">
                   <span class="student-short-hint">${isPending ? 'অপেক্ষমাণ — বিস্তারিত দেখুন' : (student.className ? escapeHtml(student.className) : 'বিস্তারিত দেখুন')}</span>
+                  <span class="audit-id-badge" dir="ltr">ID: ${revealed ? escapeHtml(rowKey) : PRIVACY_MASK}</span>
                 </div>
               </div>
-              <span class="student-row-chevron" aria-hidden="true">${revealed ? '▴' : '▾'}</span>
+              <button class="mini-btn student-id-reveal" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}" aria-expanded="${revealed ? 'true' : 'false'}">${revealed ? 'আইডি লুকান' : 'আইডি দেখুন'}</button>
             </div>
             <div class="student-row-detail" ${revealed ? '' : 'hidden'}>
               <div class="student-meta-line">
-                <span class="audit-id-badge">ID: ${escapeHtml(rowKey)}</span>
                 ${student.className ? `<span class="badge">${escapeHtml(student.className)}</span>` : ''}
-                ${student.mobile ? `<span class="audit-id-badge" dir="ltr">${escapeHtml(student.mobile)}</span>` : ''}
               </div>
               <div class="student-actions">
                 <button class="mini-btn" type="button" data-action="view" data-id="${escapeHtml(rowKey)}">প্রোফাইল</button>
                 <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(rowKey)}">সম্পাদনা</button>
                 <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(rowKey)}">পাসওয়ার্ড রিসেট</button>
-                ${student.status === 'pending' && access.has(CAPABILITIES.STUDENTS_APPROVE)
-                  ? `<button class="mini-btn approve primary" type="button" data-action="review-registration" data-id="${escapeHtml(rowKey)}">রিভিউ ও অনুমোদন</button>`
-                  : ''}
-                <button class="mini-btn" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}" aria-expanded="${revealed ? 'true' : 'false'}">${revealed ? 'সংক্ষিপ্ত করুন' : 'আইডি দেখুন'}</button>
+                ${student.status === 'pending' && access.has(CAPABILITIES.STUDENTS_APPROVE) ? `<button class="mini-btn approve primary" type="button" data-action="review-registration" data-id="${escapeHtml(rowKey)}">রিভিউ ও অনুমোদন</button>` : ''}
               </div>
             </div>
           </article>`;
