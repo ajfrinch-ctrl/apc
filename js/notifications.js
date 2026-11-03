@@ -68,7 +68,7 @@ const WATCHED_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'stud
 /* Which records each person's notifications are built from. */
 const NEEDS = Object.freeze({
   student: { students: true, transactions: true, exams: true, teaching: true },
-  admin: { students: true },
+  admin: { students: true, exams: true },
   manager: { students: true, transactions: true, exams: true },
   teacher: { exams: true, students: true },
   payment: { transactions: true }
