@@ -451,7 +451,7 @@ async function restoreEntrySession() {
     state.student = { ...state.student, ...(state.account.student || {}) };
     saveStudent(state.student);
     if (sequence !== sessionRestoreSequence) return;
-    enterApp();
+    await enterApp();
   } else if (ON_APP_PAGE) {
     // No session: the panel page never renders for a signed-out visitor.
     window.location.replace('index.html');
