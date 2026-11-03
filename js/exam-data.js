@@ -674,7 +674,7 @@ function teacherOwns(exam, actor) {
   if (actor?.role !== 'teacher' || !isOwnTeacherRecord(exam?.teacherId, expectedId) || !isTeacherAssigned(teachingScopeUsername(), exam.className, exam.group || '') || !isTeacherAllowedSubject(teachingScopeUsername(), exam.className, exam.subject, exam.group || '')) fail('শুধু দায়িত্বপ্রাপ্ত শিক্ষক এবং ম্যানেজার-নির্ধারিত ক্লাস এই কাজ করতে পারবেন।');
 }
 function requireReviewer(actor) {
-  if (!['admin', 'manager'].includes(actor?.role)) fail('শুধু Admin বা Manager পরীক্ষা পর্যালোচনা ও অনুমোদন করতে পারবেন।');
+  if (!['admin', 'manager'].includes(actor?.role)) fail('শুধু অ্যাডমিন বা ম্যানেজার পরীক্ষা পর্যালোচনা ও অনুমোদন করতে পারবেন।');
 }
 async function requireRoleSession(role) {
   const label = role === 'teacher' ? 'Teacher' : role === 'admin' ? 'Admin' : 'Manager';
