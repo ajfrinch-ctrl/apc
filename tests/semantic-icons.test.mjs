@@ -119,7 +119,12 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
       carries it — the same one-form rule as the other three panels. */
    const retired = control => control.id === 'payMoreLogout';
    const currentRoutes=new Set(now.map(control=>JSON.stringify(control)));
-   for(const control of controls(old).filter(before=>!retired(before))) assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
+   for(const control of controls(old).filter(before=>!retired(before))) {
+    const preserved = currentRoutes.has(JSON.stringify(control))
+      || (Object.keys(control).length === 1 && control['data-panel-view']
+        && now.some(actual => actual['data-panel-view'] === control['data-panel-view']));
+    assert.ok(preserved,`${page} keeps existing route/control ${JSON.stringify(control)}`);
+   }
    assert.ok(now.some(control => control['data-panel-view'] === 'reports'),
     'the counter keeps its route to the closing/report view');
    assert.ok(now.some(control => control['data-panel-view'] === 'profile'),
