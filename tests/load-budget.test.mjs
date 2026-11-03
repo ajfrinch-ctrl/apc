@@ -30,3 +30,9 @@ test('the signed-in feature surface stays out of the boot graph', () => {
     assert.ok(!files.has(module), `${module} leaked back into the eager boot graph`);
   }
 });
+
+test('the login shell uses the lightweight birthday helper, not the notification engine', () => {
+  const { files } = eagerClosure();
+  assert.ok(files.has('js/birthday.js'), 'birthday display keeps its small date helper');
+  assert.ok(!files.has('js/notification-rules.js'), 'notification rules stay out of the student first-paint graph');
+});
