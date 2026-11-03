@@ -70,7 +70,7 @@ test('the staff list opens with one permanent Staff ID per system role', async (
 test('staff cards start collapsed and disclose details for one selected person at a time', async () => {
   assert.equal(ctx.$$('#staffList .staff-card-details[hidden]').length, 4);
   assert.equal(ctx.$$('#staffList .staff-details-toggle[aria-expanded="false"]').length, 4);
-  assert.equal(ctx.$('#staffList .staff-card-mobile-summary').length, 0, 'collapsed summaries do not expose mobile numbers');
+  assert.equal(ctx.$$('#staffList .staff-card-mobile-summary').length, 0, 'collapsed summaries do not expose mobile numbers');
   for (const card of ctx.$$('#staffList .staff-card')) assert.match(card.querySelector('.staff-card-details').textContent, /মোবাইল নেই|01\d{9}/, 'mobile remains in the explicit details view');
   const owner = staffCard('STF-0001');
   assert.equal(owner.querySelector('.staff-card-actions').closest('.staff-card-details'), owner.querySelector('.staff-card-details'));
