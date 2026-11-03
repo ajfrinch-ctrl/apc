@@ -147,8 +147,8 @@ function renderFeatureGrid(container, entries, onNavigate) {
          the fee report before navigation so ReportCenter retains it on refresh. */
       if (entry.action === 'finance-summary') {
         const reportSelect = document.querySelector('#adminReports select[name="report"]');
-        if (reportSelect && [...reportSelect.options].some(option => option.value === 'fee')) {
-          reportSelect.value = 'fee';
+        if (reportSelect && [...reportSelect.options].some(option => option.value === 'fee.monthly')) {
+          reportSelect.value = 'fee.monthly';
           reportSelect.dispatchEvent(new Event('change', { bubbles: true }));
         }
       }
