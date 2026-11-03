@@ -138,3 +138,41 @@ test('each panel wires the one gate at boot — no panel boots without it', () =
     assert.ok(source.includes(needle), `${file} names its own role`);
   }
 });
+
+
+test('re-allowing a capability restores the original disabled, hidden and accessibility state', () => {
+  const document = new JSDOM(`
+    <button id="pre-disabled" data-cap="${CAPABILITIES.CONTENT_LECTURE_SHEETS}" disabled aria-hidden="false" tabindex="-1">disabled before gate</button>
+    <button id="pre-hidden" data-cap="${CAPABILITIES.CONTENT_LECTURE_SHEETS}" hidden>hidden before gate</button>
+  `).window.document;
+  const disabled = document.querySelector('#pre-disabled');
+  const hidden = document.querySelector('#pre-hidden');
+
+  applyCapabilityGate({ root: document, role: 'payment' });
+  assert.equal(disabled.hidden, true);
+  assert.equal(disabled.disabled, true);
+  assert.equal(disabled.getAttribute('aria-hidden'), 'true');
+  assert.equal(disabled.getAttribute('tabindex'), '-1');
+  assert.equal(hidden.hidden, true);
+
+  applyCapabilityGate({ root: document, role: 'teacher' });
+  assert.equal(disabled.hidden, false);
+  assert.equal(disabled.disabled, true, 'a control disabled before the gate stays disabled');
+  assert.equal(disabled.getAttribute('aria-hidden'), 'false', 'an existing accessibility state is restored');
+  assert.equal(disabled.getAttribute('tabindex'), '-1', 'an existing tabindex is restored');
+  assert.equal(hidden.hidden, true, 'an element hidden before the gate stays hidden');
+});
+
+test('home route rules restore an element’s original hidden state instead of exposing it', () => {
+  const document = new JSDOM('<section id="home"><button id="door" data-panel-view="private" hidden aria-hidden="false">private</button></section>').window.document;
+  const home = document.querySelector('#home');
+  const door = document.querySelector('#door');
+
+  applyHomeDoorRules({ root: home, role: 'teacher', routes: [] });
+  assert.equal(door.hidden, true);
+  assert.equal(door.getAttribute('aria-hidden'), 'true');
+
+  applyHomeDoorRules({ root: home, role: 'teacher', routes: ['private'] });
+  assert.equal(door.hidden, true, 'a route becoming permitted must not reveal content that was initially hidden');
+  assert.equal(door.getAttribute('aria-hidden'), 'false');
+});
