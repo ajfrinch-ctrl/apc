@@ -84,6 +84,12 @@ before(async () => {
 after(() => ctx?.window.close());
 
 test('the login screen repaints as time passes — sun, season line and all', async () => {
+  // Keep this clock-only test deterministic: a live Open-Meteo response must
+  // not replace the historical date's expected clear sky.
+  const originalFetch = globalThis.fetch;
+  ctx.window.sessionStorage.removeItem('activePlus.authWeather.v3');
+  globalThis.fetch = async () => { throw new Error('weather intentionally unavailable in clock test'); };
+  try {
   await paintAuthSky(new Date('2026-01-10T12:00:00'));
   const screen = ctx.$('#authScreen');
   assert.equal(screen.dataset.sky, 'clear-day');
@@ -103,6 +109,9 @@ test('the login screen repaints as time passes — sun, season line and all', as
   const nightY = screen.style.getPropertyValue('--orb-y');
   assert.notEqual(noonX, nightX, 'the sun/moon has travelled');
   assert.notEqual(noonY, nightY);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('cached weather of the day overrides the clock sky on repaint', async () => {
