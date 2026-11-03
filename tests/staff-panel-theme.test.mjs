@@ -69,3 +69,15 @@ test('role-specific Home summaries share the same outer surface and KPI geometry
   assert.match(theme, /\.staff-home-summary-surface\s*\{[^}]*border-radius:\s*22px/s);
   assert.match(theme, /\.staff-home-kpi\s*\{[^}]*min-height:\s*88px/s);
 });
+
+
+test('all four staff roles inherit one shared Active Plus palette', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const theme = await readFile(new URL('../css/staff-panel-theme.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(theme, /html\\[data-staff-panel=["'](?:teacher|manager|admin|payment)["']\\]\\s*\\{[^}]*--(?:color-primary|color-bg|color-border|pay-hero-gradient):/s,
+    'role markers must not override shared palette tokens');
+  assert.doesNotMatch(theme, /html\\[data-theme=["']dark["']\\]\\[data-staff-panel=/,
+    'dark mode also inherits one shared palette rather than four role palettes');
+  assert.match(theme, /html\\[data-staff-panel\\] \\.staff-home-action-grid/,
+    'shared shell rules apply to all four staff roles');
+});
