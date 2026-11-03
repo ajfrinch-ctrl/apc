@@ -365,3 +365,17 @@ export async function refreshReports(root) {
   if (!instance) return mountReports(root,{});
   return instance.start({soft:true});
 }
+
+/** Select a report without coupling callers to the report form's render timing. */
+export function selectReport(root, id) {
+  const instance = instances.get(root);
+  if (!instance) return false;
+  const key = String(id || '');
+  instance.lastReportId = key;
+  const select = instance.form?.querySelector('select[name="report"]');
+  if (select && [...select.options].some(option => option.value === key)) {
+    select.value = key;
+    instance.selectReport(key);
+  }
+  return true;
+}
