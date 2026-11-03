@@ -2,14 +2,10 @@
    that already exists in this repository.
 
    Sources of truth (never modified by this file):
-     • firestore.rules      — Admin owns reports, settings, notices, routine,
-                              transactions and exam records; a Manager may
-                              approve/reject a student (and, by owner
-                              decision 2026-09-30, the Admin too — see
-                              js/registration-review.js) and is the only role
-                              that may publish/reject a pending exam.
-     • functions/index.js   — "Manager is the only role allowed to publish or
-                              reject pending exam records."
+     • firestore.rules      — Admin owns system controls; Admin and Manager may
+                              approve/reject students and review/publish exams.
+     • functions/index.js   — server-side exam transitions accept Admin and
+                              Manager; Teacher remains submit-only.
      • manager.html         — the separate approval portal (students + exams).
      • teacher.html / payment.html — their own panels, each with its own role.
 
