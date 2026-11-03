@@ -234,8 +234,7 @@ test('Admin Academic workspace exposes exam approval and publication controls', 
   assert.ok(ctx.$('#adminExamWorkspace'), 'Admin has an exam-management workspace');
   const workspace = ctx.$('#adminExamWorkspace');
   assert.ok(createAccess('admin').allowsView('audit-exam'), 'Admin can open the exam-management workspace');
-  assert.ok(workspace.querySelector('[data-admin-cap="exams.publish"]') || workspace.querySelector('[data-exam-management]') || workspace.children.length >= 0,
-    'the Admin exam workspace mount remains available for its lazy-loaded controls');
+  assert.equal(workspace.isConnected, true, 'the Admin exam workspace remains mounted');
   assert.equal(createAccess('admin').has(CAPABILITIES.EXAMS_PUBLISH), true);
   assert.equal(createAccess('admin').has(CAPABILITIES.FINANCE_COLLECT), false, 'Admin sees finance summaries, not cash collection');
 });
