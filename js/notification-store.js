@@ -329,7 +329,8 @@ export function pruneRecords(userId, max = MAX_RECORDS_PER_USER) {
   const keep = new Set();
   let remaining = max;
   for (const record of mine) {
-    if (remaining > 0 || record.read === false) { keep.add(recordIdentity(record)); remaining -= 1; }
+    const pendingApproval = record.archived !== true && ['registration', 'exam-review', 'exam-returned', 'payment-review'].includes(record.type);
+    if (remaining > 0 || record.read === false || pendingApproval) { keep.add(recordIdentity(record)); remaining -= 1; }
   }
   const next = all.filter(record => text(record.userId) !== owner || keep.has(recordIdentity(record)));
   saveRecords(next);
