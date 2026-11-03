@@ -49,7 +49,7 @@ test('once the first cloud load is done, the next notice is announced', async ()
   await ctx.flush();
   assert.equal(shown.length, 0, 'arming itself announces nothing');
 
-  const fresh = { id: 'D', title: 'নতুন ঘোষণা', body: 'আগামীকাল ছুটি', audience: 'সকল শিক্ষার্থী', status: 'published', createdAt: '2026-09-29T09:00:00.000Z' };
+  const fresh = { id: 'D', title: 'নতুন ঘোষণা', body: 'আগামীকাল ছুটি', audience: 'সকল শিক্ষার্থী', status: 'published', createdAt: new Date(Date.now() - 60_000).toISOString() };
   const store = ctx.window.localStorage;
   store.setItem(KEYS.notices, JSON.stringify([fresh, ...notices]));
   ctx.window.dispatchEvent(new ctx.window.StorageEvent('storage', {

@@ -190,7 +190,7 @@
 //       the staff directory and edits its own profile; the System Owner stays protected.
 // v439: Yellow Pages hides every primary field by default — one click on a card
 //       reveals that card only; a release no longer wipes the panel-hint cache.
-const CACHE_VERSION = 461;
+const CACHE_VERSION = 462;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 /* One cache, two precache sets, one release pin.
 
@@ -401,6 +401,8 @@ const APP_SHELL = [
   './js/rtdb-keys.js',
   './js/username-sync-codec.js',
   './js/notification-rules.js',
+  './js/notification-presentation.js',
+  './js/notification-history.js',
   './js/notifications.js',
   './js/push-notifications.js',
   './',

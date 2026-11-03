@@ -112,6 +112,8 @@ test('a notice arriving while signed in queues an in-app alert and tapping it op
   assert.equal(board.refresh().total, 3);
   assert.ok(controller.feed().some(item => item.kind === 'notice' && item.sourceId === 'N-LIVE'));
   ctx.click(ctx.$('#apcInAppAlert [data-apc-alert-open^="notice:N-LIVE"]'));
+  await ctx.waitFor(() => Boolean(ctx.$('#noticeModal [data-apc-notice-detail-sheet^="notice:N-LIVE"]')), 3000);
+  ctx.click(ctx.$('#noticeModal [data-apc-notice-detail-action]'));
   await ctx.waitFor(() => clicks.includes('notice-board'), 3000);
   assert.equal(cardVisible(), false);
   assert.equal(ctx.$('#noticeBoardDetail').hidden, false);
@@ -125,6 +127,8 @@ test('something arriving while the app is open appears at once; tapping a result
   assert.match(card().textContent, /ফলাফল প্রকাশিত হয়েছে/);
   clicks.length = 0;
   ctx.click(ctx.$('#apcInAppAlert [data-apc-alert-open^="result:E-R"]'));
+  await ctx.waitFor(() => Boolean(ctx.$('#noticeModal [data-apc-notice-detail-sheet^="result:E-R"]')), 3000);
+  ctx.click(ctx.$('#noticeModal [data-apc-notice-detail-action]'));
   await ctx.waitFor(() => clicks.includes('exams'), 3000);
   assert.equal(cardVisible(), false);
 });

@@ -22,6 +22,7 @@ import { showFeedback } from './ui.js';
 import { KEYS, STAFF_KEYS, listDocuments } from './database.js';
 import { loadNotices, loadRoster } from './office-data.js';
 import { listTeacherAssignments } from './teacher-assignments.js';
+import { getUnreadClassChatSummary, CLASS_CHAT_READ_KEY } from './class-chat-head.js';
 import { getDeviceId } from './session.js';
 import {
   BOOT_KEY_PREFIX, CLEARED_KEY_PREFIX, LOCAL_WRITE_KEY, NOTICE_BOARD_READ_PREFIX, PROMPT_HIDDEN_KEY, REGISTRATION_REVIEWERS,
@@ -30,8 +31,9 @@ import {
   planDeliveries, pushPayload, seenRecord, viewerKeyOf
 } from './notification-rules.js';
 import {
-  listNotifications, markDelivered, markRead, notificationSettings,
-  saveNotificationSettings, syncNotifications, unreadNotifications
+  listNotifications, listActiveNotifications, listArchivedNotifications,
+  markDelivered, markRead, notificationSettings,
+  saveNotificationSettings, syncNotifications
 } from './notification-store.js';
 
 /* A notification tapped while no app window was open: the service worker
@@ -63,8 +65,8 @@ const REFRESH_DEBOUNCE_MS = 400;
 const REGISTRATION_POLL_MS = 15000;
 const ARM_FALLBACK_MS = 12000;
 const SW_READY_TIMEOUT_MS = 2500;
-const WATCHED_KEYS = new Set([KEYS.notices, KEYS.settings, KEYS.exams, KEYS.students, KEYS.registrationNotifications, KEYS.transactions, KEYS.teaching]);
-const WATCHED_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'students', 'registrationNotifications', 'transactions', 'teaching']);
+const WATCHED_KEYS = new Set([KEYS.notices, KEYS.settings, KEYS.exams, KEYS.students, KEYS.registrationNotifications, KEYS.transactions, KEYS.teaching, KEYS.classChat, CLASS_CHAT_READ_KEY]);
+const WATCHED_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'students', 'registrationNotifications', 'transactions', 'teaching', 'classChat']);
 /* Which records each person's notifications are built from. */
 const NEEDS = Object.freeze({
   student: { students: true, transactions: true, exams: true, teaching: true },
@@ -76,12 +78,12 @@ const NEEDS = Object.freeze({
 /* Where a tapped item goes when the payload does not name a view. */
 const KIND_TARGET = Object.freeze({
   exam: 'exams', 'exam-soon': 'exams', 'exam-live': 'exams', result: 'exams', homework: 'courses', birthday: 'home', 'birthday-soon': 'students',
-  notice: 'notice-board', broadcast: 'notice-board',
+  notice: 'notice-board', broadcast: 'notice-board', chat: 'class-chat',
   approved: 'home', rejected: 'home',
   'payment-review': 'cash-counter', 'payment-rejected': 'home', 'exam-review': 'exams',
   'exam-returned': 'online-exams', 'exam-approved': 'online-exams'
 });
-const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'exam-published', 'result-published', 'homework', 'payment-rejected', 'payment-review']);
+const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'exam-published', 'result-published', 'homework', 'payment-rejected', 'payment-review', 'chat']);
 const NOTICE_BOARD_KINDS = new Set(['notice', 'broadcast']);
 const generalNotificationItems = items => items;
 const generalNotificationRecords = records => records;
@@ -100,7 +102,7 @@ const PANEL_SHELL = Object.freeze({
 const PANEL_READY_TIMEOUT_MS = 20000;
 /* Rules versions prevent newly-added feed types from replaying old records as
    fresh. Time-critical exam reminders remain current across an upgrade. */
-export const RULES_VERSION = 3;
+export const RULES_VERSION = 4;
 export const RULES_KEY_PREFIX = 'activePlus.notifications.rules.v1:';
 const V2_KINDS = new Set([
   'registration', 'approved', 'rejected', 'exam-soon', 'exam-live', 'payment',
@@ -269,6 +271,7 @@ function rawFeed(cleared = null) {
     students: want.students ? safely(loadRoster) : null,
     registrationNotifications: reviewsRegistrations() ? readJSON(KEYS.registrationNotifications, []) : null,
     transactions: want.transactions ? safely(() => listDocuments('transactions')) : null,
+    chatMessages: safely(() => getUnreadClassChatSummary(viewer).unreadMessages || []),
     viewer,
     cleared,
     localWrites: readJSON(LOCAL_WRITE_KEY, null)
@@ -665,6 +668,11 @@ export function refreshNotifications() {
     // Time-based exam reminders are always current, so they may still ring.
     plan.notify = plan.notify.filter(item => !V2_KINDS.has(item.kind) || item.kind === 'exam-soon' || item.kind === 'exam-live');
   }
+  if (rulesVersion < 4) {
+    // Existing unread chat messages remain visible in the inbox, but a software
+    // upgrade must not announce the entire pre-existing chat backlog.
+    plan.notify = plan.notify.filter(item => item.kind !== 'chat');
+  }
   let upgradeRead = [];
   if (rulesVersion < 3) {
     // Homework reminders are new: don't treat assignments already on the
@@ -710,9 +718,13 @@ export function refreshNotifications() {
     .filter(record => record.read === true)
     .map(record => record.key)
     .filter(key => typeof key === 'string' && key));
-  plan.notify = plan.notify.filter(item => !readKeys.has(item.key));
+  const archivedKeys = new Set(listArchivedNotifications(viewerKey).map(record => record.key));
+  plan.notify = plan.notify.filter(item => !readKeys.has(item.key) && !archivedKeys.has(item.key));
+  const visibleFeed = feed.filter(item => !archivedKeys.has(item.key));
   // The in-app card needs no phone permission (owner decision 2026-09-30).
-  if (armed && inAppNotificationsEnabled()) queueInAppAlerts(generalNotificationItems(feed), generalNotificationItems(full));
+  const inAppEnabled = inAppNotificationsEnabled();
+  if (armed && inAppEnabled) queueInAppAlerts(generalNotificationItems(visibleFeed), generalNotificationItems(full.filter(item => !archivedKeys.has(item.key))));
+  else if (armed && plan.notify.length && userSettings().enabled !== false) playTone();
   if (armed && reviewsRegistrations() && plan.notify.some(item => item.kind === 'registration')) {
     const toastMessage = 'নতুন শিক্ষার্থী রেজিস্ট্রেশন করেছে';
     showFeedback(toastMessage);
@@ -727,7 +739,7 @@ export function refreshNotifications() {
   paintPill();
   scheduleActionBoundary();
   window.dispatchEvent(new CustomEvent('apc-notifications-updated', { detail: { delivered } }));
-  return { delivered, feed };
+  return { delivered, feed: visibleFeed };
 }
 
 function scheduleRefresh() {
@@ -966,6 +978,24 @@ export function initNotifications() {
       scheduleRefresh();
     });
     window.addEventListener('teaching-data-updated', scheduleRefresh);
+    window.addEventListener('apc-class-chat-updated', scheduleRefresh);
+    window.addEventListener('apc-class-chat-read-updated', event => {
+      const roomKey = String(event?.detail?.roomKey || '').trim();
+      const readAt = Number(event?.detail?.timestamp) || Date.now();
+      if (roomKey) {
+        const keys = listNotifications(viewerKey)
+          .filter(record => record.type === 'chat' && record.targetId === roomKey &&
+            record.read === false && (Number(record.at) || 0) <= readAt)
+          .map(record => record.key).filter(Boolean);
+        if (keys.length) {
+          writeSeen([...new Set([...readSeen(), ...keys])]);
+          const changed = markRead(viewerKey, keys);
+          markInAppHandled(keys);
+          publish({ chatRead: changed });
+        }
+      }
+      scheduleRefresh();
+    });
     if (reviewsRegistrations()) {
       const pollTimer = setInterval(() => {
         if (document.visibilityState === 'hidden' || !panelVisible()) return;
@@ -989,9 +1019,11 @@ export function initNotifications() {
     });
     controller = {
       refresh: refreshNotifications,
-      unread: () => generalNotificationRecords(unreadNotifications(viewerKey)).length,
-      unreadKeys: () => generalNotificationRecords(unreadNotifications(viewerKey)).map(record => record.key),
+      unread: () => generalNotificationRecords(listActiveNotifications(viewerKey).filter(record => record.read === false)).length,
+      unreadKeys: () => generalNotificationRecords(listActiveNotifications(viewerKey).filter(record => record.read === false)).map(record => record.key),
       records: () => generalNotificationRecords(listNotifications(viewerKey)),
+      activeRecords: () => generalNotificationRecords(listActiveNotifications(viewerKey)),
+      history: () => generalNotificationRecords(listArchivedNotifications(viewerKey)),
       markRead: keys => {
         const list = [...new Set((Array.isArray(keys) ? keys : [keys]).map(key => String(key || '')).filter(Boolean))];
         if (!list.length) return 0;
@@ -1005,7 +1037,7 @@ export function initNotifications() {
         return changed;
       },
       markAllRead: () => {
-        const unreadKeys = generalNotificationRecords(unreadNotifications(viewerKey)).map(record => record.key);
+        const unreadKeys = generalNotificationRecords(listActiveNotifications(viewerKey).filter(record => record.read === false)).map(record => record.key);
         markAllSeen();
         writeNoticeBoardReceipts(unreadKeys);
         const changed = markRead(viewerKey, unreadKeys);
@@ -1024,7 +1056,10 @@ export function initNotifications() {
       },
       preview: () => previewNotification(),
       playTone,
-      feed: () => generalNotificationItems(buildFeed()),
+      feed: () => {
+        const archived = new Set(listArchivedNotifications(viewerKey).map(record => record.key));
+        return generalNotificationItems(buildFeed().filter(item => !archived.has(item.key)));
+      },
       seen: seenKeys,
       markAllSeen,
       clear: clearNotifications,

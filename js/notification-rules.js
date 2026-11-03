@@ -612,7 +612,35 @@ export function sortNewestFirst(items) {
   return [...items].sort((left, right) => (right.at || 0) - (left.at || 0));
 }
 
-export function notificationFeed({ notices = [], config = null, examDb = null, teachingDb = null, viewer = null, now = nowEpoch(), localWrites = null, students = null, registrationNotifications = null, transactions = null, cleared = null } = {}) {
+function classChatItems(messages = []) {
+  const list = Array.isArray(messages) ? messages.slice(-100) : [];
+  return list.map(message => {
+    const id = text(message?.id);
+    const classId = text(message?.classId);
+    if (!id || !classId) return null;
+    const sender = text(message?.senderName) || 'একজন সদস্য';
+    const body = text(message?.text).slice(0, 140);
+    const stamp = Number(message?.ts) || Date.parse(text(message?.createdAt) || '') || 0;
+    return {
+      key: `chat:${id}`,
+      source: 'classChat',
+      sourceId: id,
+      kind: 'chat',
+      category: 'chat',
+      title: `নতুন বার্তা · ${sender}`,
+      body: body ? `${classId} · ${body}` : `${classId} শ্রেণির চ্যাটে নতুন বার্তা`,
+      at: stamp,
+      target: 'class-chat',
+      targetId: text(message?.roomKey) || classId,
+      action: 'open-chat',
+      actionLabel: 'চ্যাট খুলুন',
+      audience: classId,
+      roomKey: text(message?.roomKey)
+    };
+  }).filter(Boolean);
+}
+
+export function notificationFeed({ notices = [], config = null, examDb = null, teachingDb = null, viewer = null, now = nowEpoch(), localWrites = null, students = null, registrationNotifications = null, transactions = null, chatMessages = [], cleared = null } = {}) {
   const items = [];
   const broadcast = broadcastItem(config);
   if (broadcast) items.push(broadcast);
@@ -625,6 +653,7 @@ export function notificationFeed({ notices = [], config = null, examDb = null, t
     if (!prev || (item.at || 0) >= (prev.at || 0)) latestNotices.set(item.sourceId, item);
   }
   items.push(...latestNotices.values());
+  items.push(...classChatItems(chatMessages));
   items.push(...examItems(examDb, viewer, now));
   items.push(...homeworkItems(teachingDb, viewer, now));
   items.push(...registrationItems(students, viewer, registrationNotifications));

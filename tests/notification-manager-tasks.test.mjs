@@ -66,12 +66,16 @@ test('tapping a task in the bell opens its view and clears it', async () => {
   ctx.click(ctx.$('#notificationButton'));
   const open = ctx.$('button[data-apc-notice-open="payment-review:T2"]');
   assert.ok(open, 'the item offers its action');
-  assert.equal(open.textContent, 'পেমেন্ট দেখুন');
+  assert.equal(open.textContent, 'বিস্তারিত দেখুন');
   ctx.click(open);
   await ctx.flush();
+  const detail = ctx.$('[data-apc-notice-detail-sheet="payment-review:T2"]');
+  assert.ok(detail, 'task opens context detail before navigation');
   /* The counter seat name retired with the old layout: on the Manager the
      approval queue is the finance view's approval segment (see the e2e file),
-     so the tap lands on the হিসাব seat. */
+     so the explicit context action lands on the হিসাব seat. */
+  ctx.click(detail.querySelector('[data-apc-notice-detail-action]'));
+  await ctx.flush();
   assert.equal(clicks.at(-1), 'finance');
   assert.ok(!controller.feed().some(item => item.key === 'payment-review:T2'));
   const paper = controller.feed().find(item => item.kind === 'exam-review');

@@ -108,8 +108,12 @@ test('the bell and in-app alert both render a distinct action button', async () 
   const modal = ctx.$('#apcNoticeModal');
   assert.equal(modal.querySelector('#apcNoticeTitle').textContent, 'নোটিফিকেশন');
   const taskButton = modal.querySelector('button.notice-action[data-apc-notice-open="homework:HW-1:rev1"]');
-  assert.equal(taskButton.textContent, 'বাড়ির কাজ খুলুন');
+  assert.equal(taskButton.textContent, 'বিস্তারিত দেখুন');
   ctx.click(taskButton);
+  await ctx.flush();
+  const taskDetail = modal.querySelector('[data-apc-notice-detail-sheet="homework:HW-1:rev1"]');
+  assert.ok(taskDetail, 'notification opens its context detail before navigation');
+  ctx.click(taskDetail.querySelector('[data-apc-notice-detail-action]'));
   await ctx.flush();
   assert.equal(opened.at(-1).sourceId, 'HW-1');
   assert.equal(modal.hidden, true);
@@ -118,14 +122,18 @@ test('the bell and in-app alert both render a distinct action button', async () 
   ctx.window.dispatchEvent(new ctx.window.CustomEvent('apc-inapp-alerts', { detail: { count: 1 } }));
   await ctx.waitFor(() => Boolean(ctx.$('#apcInAppAlert .apc-inapp-alert-action')));
   const examButton = ctx.$('#apcInAppAlert .apc-inapp-alert-action');
-  assert.equal(examButton.textContent, 'এখনই পরীক্ষা দিন');
+  assert.equal(examButton.textContent, 'বিস্তারিত দেখুন');
   ctx.click(examButton);
+  await ctx.flush();
+  const examDetail = modal.querySelector('[data-apc-notice-detail-sheet^="exam-live:EX-2"]');
+  assert.ok(examDetail, 'in-app exam alert opens context detail first');
+  ctx.click(examDetail.querySelector('[data-apc-notice-detail-action]'));
   await ctx.flush();
   assert.equal(opened.at(-1).sourceId, 'EX-2');
   assert.equal(center.isOpen(), false);
 });
 
-test('a due homework task already on-device stays read when rule version 3 is introduced', async () => {
+test('a due homework task already on-device stays read when rule version 4 is introduced', async () => {
   const now = new Date();
   const today = dayKey(now);
   const viewerKey = `student:${student.studentId}`;
@@ -150,7 +158,7 @@ test('a due homework task already on-device stays read when rule version 3 is in
   assert.equal(record.read, true, 'the new reminder must not create an unread badge on upgrade');
   assert.equal(engine.unread(), 0);
   assert.deepEqual(alerts, [], 'existing work does not appear as a new in-app alert');
-  assert.equal(JSON.parse(ctx.window.localStorage.getItem(`activePlus.notifications.rules.v1:${viewerKey}`)).version, 3);
+  assert.equal(JSON.parse(ctx.window.localStorage.getItem(`activePlus.notifications.rules.v1:${viewerKey}`)).version, 4);
 });
 
 test('an Action Center homework CTA opens and expands the matching student work', async () => {

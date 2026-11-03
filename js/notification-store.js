@@ -21,11 +21,13 @@
    classes never removes a record. */
 
 import { KEYS, readRaw, writeRaw } from './database.js';
+import { archiveState, notificationPresentation, NOTIFICATION_ARCHIVE_AFTER_DAYS } from './notification-presentation.js';
 
 export const NOTIFICATIONS_KEY = KEYS.notifications;
 export const NOTIFICATION_SETTINGS_KEY = KEYS.notificationSettings;
 export const RECORDS_VERSION = 1;
 export const MAX_RECORDS_PER_USER = 600;
+export const ARCHIVE_AFTER_DAYS = NOTIFICATION_ARCHIVE_AFTER_DAYS;
 const SHARED_READ_PREFIX = '__apcNotificationSeenV1_';
 const MAX_SHARED_RECEIPTS_PER_USER = 600;
 
@@ -200,6 +202,14 @@ export function listNotifications(userId) {
     .sort((left, right) => (Number(right.at) || 0) - (Number(left.at) || 0));
 }
 
+export function listActiveNotifications(userId) {
+  return listNotifications(userId).filter(record => record.archived !== true);
+}
+
+export function listArchivedNotifications(userId) {
+  return listNotifications(userId).filter(record => record.archived === true);
+}
+
 export function unreadNotifications(userId) {
   return listNotifications(userId).filter(record => record.read === false);
 }
@@ -284,6 +294,23 @@ export function markDelivered(userId, keys, at = Date.now()) {
   return changed;
 }
 
+/* Archive is a state transition, not deletion. Read receipts and record keys
+   remain intact so the existing cross-device acknowledgement logic is safe. */
+export function archiveExpiredNotifications(userId, now = Date.now()) {
+  const owner = text(userId);
+  if (!owner) return 0;
+  const all = loadRecords().records;
+  let changed = 0;
+  const next = all.map(record => {
+    if (text(record.userId) !== owner || record.archived === true) return record;
+    const archived = archiveState(record, now, ARCHIVE_AFTER_DAYS);
+    if (archived !== record) changed += 1;
+    return archived;
+  });
+  if (changed) saveRecords(next);
+  return changed;
+}
+
 /* Records are stored as JSON, so every read builds fresh objects: the set of
    records to keep is identified by key/id, never by object identity. */
 const recordIdentity = record => `${text(record?.key)}\u0000${text(record?.id)}`;
@@ -329,7 +356,10 @@ export function recordFromFeedItem(item, { userId, read = false, at = Date.now()
     deliveredAt: '',
     // Internal: ordering + the section chip on the card.
     at: stamp,
-    section: SECTION_LABEL[type] || 'নোটিশ'
+    section: SECTION_LABEL[type] || 'নোটিশ',
+    ...notificationPresentation(item),
+    archived: false,
+    archivedAt: ''
   };
 }
 
@@ -349,10 +379,11 @@ export function recordFromFeedItem(item, { userId, read = false, at = Date.now()
 export function syncNotifications({ userId, feed = [], legacyRead = [], now = Date.now() } = {}) {
   const owner = text(userId);
   if (!owner) return { created: 0, kept: 0, records: [] };
+  const stamp = Number(now) || Date.now();
+  archiveExpiredNotifications(owner, stamp);
   const store = loadRecords();
   const items = Array.isArray(feed) ? feed : [];
   const live = new Set(items.map(item => text(item?.key)).filter(Boolean));
-  const stamp = Number(now) || Date.now();
   const legacy = new Set((Array.isArray(legacyRead) ? legacyRead : []).map(text));
   const settings = readSharedSettings();
   const knownKeys = new Set(
@@ -379,7 +410,7 @@ export function syncNotifications({ userId, feed = [], legacyRead = [], now = Da
       resolved = true;
       return { ...record, read: shared, readAt: shared ? (record.readAt || new Date(stamp).toISOString()) : '' };
     }
-    if ((record.type !== 'homework' && record.type !== 'registration') || record.read !== false || live.has(key)) return record;
+    if (!['homework', 'registration', 'chat'].includes(record.type) || record.read !== false || live.has(key)) return record;
     resolved = true;
     return { ...record, read: true, readAt: new Date(stamp).toISOString() };
   });
@@ -405,6 +436,7 @@ export function syncNotifications({ userId, feed = [], legacyRead = [], now = Da
     withIds.push(record);
   }
   saveRecords([...base, ...withIds]);
+  archiveExpiredNotifications(owner, stamp);
   pruneRecords(owner);
   return { created: withIds.length, kept: 0, records: withIds.length ? withIds : listNotifications(owner) };
 }
@@ -426,6 +458,9 @@ export function notificationSettings(userId) {
   if (!owner) return { ...NOTIFICATION_DEFAULTS, types: { ...NOTIFICATION_DEFAULTS.types } };
   const stored = loadSettingsFile().users[owner];
   const merged = { ...NOTIFICATION_DEFAULTS, ...(isObject(stored) ? stored : {}) };
+  // The owner selected always-on in-app sound; retain the old field only for
+  // backward-compatible settings reads, never as a user-disable switch.
+  merged.sound = true;
   // Deep-clone types and fill missing keys from defaults (migration)
   merged.types = { ...NOTIFICATION_DEFAULTS.types, ...(isObject(stored?.types) ? stored.types : {}) };
   return merged;
@@ -444,7 +479,8 @@ export function saveNotificationSettings(userId, patch = {}) {
           if (k in patch.types) next.types[k] = patch.types[k] === true;
         }
       }
-    } else if (field in patch) next[field] = patch[field] === true;
+    } else if (field === 'sound') next.sound = true;
+    else if (field in patch) next[field] = patch[field] === true;
   }
   // Allow flat per-type patch keys like typeNotice for backward compat with callers
   for (const k of Object.keys(NOTIFICATION_DEFAULTS.types)) {

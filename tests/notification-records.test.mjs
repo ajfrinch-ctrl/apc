@@ -15,7 +15,8 @@ import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
 import {
   NOTIFICATIONS_KEY, NOTIFICATION_SETTINGS_KEY, NOTIFICATION_DEFAULTS, notificationId, nextNotificationId,
-  listNotifications, unreadCount, unreadNotifications, markRead, markAllRead, markUnread, markDelivered,
+  listNotifications, listActiveNotifications, listArchivedNotifications, archiveExpiredNotifications,
+  unreadCount, unreadNotifications, markRead, markAllRead, markUnread, markDelivered,
   notificationByKey, pruneRecords, recordFromFeedItem, syncNotifications, notificationSettings, saveNotificationSettings
 } from '../js/notification-store.js';
 import { unreadBadgeText } from '../js/notice-center.js';
@@ -192,14 +193,48 @@ test('the newest records are kept and unread ones are never pruned', async () =>
   }
 });
 
+test('30-day archive separates active inbox from history and preserves unread receipts', async () => {
+  await loadPage('student.html');
+  const owner = 'student:AP-ARCHIVE';
+  const old = item('notice:ARCHIVE-OLD', DAY);
+  syncNotifications({ userId: owner, feed: [old], now: DAY });
+  assert.equal(archiveExpiredNotifications(owner, DAY + 31 * 86400000), 1);
+  syncNotifications({ userId: owner, feed: [item('notice:ACTIVE', DAY + 31 * 86400000)], now: DAY + 31 * 86400000 });
+  assert.deepEqual(listArchivedNotifications(owner).map(row => row.key), ['notice:ARCHIVE-OLD']);
+  assert.deepEqual(listActiveNotifications(owner).map(row => row.key), ['notice:ACTIVE']);
+  assert.equal(notificationByKey(owner, 'notice:ARCHIVE-OLD').read, false);
+  assert.equal(unreadCount(owner), 2, 'archiving does not mark a notification as read');
+  assert.equal(archiveExpiredNotifications(owner, DAY + 32 * 86400000), 0, 'archiving is idempotent');
+});
+
+test('sync automatically archives records that have crossed the 30-day boundary', async () => {
+  await loadPage('student.html');
+  const owner = 'student:AP-AUTO-ARCHIVE';
+  syncNotifications({ userId: owner, feed: [item('notice:OLD', DAY)], now: DAY });
+  syncNotifications({ userId: owner, feed: [], now: DAY + 31 * 86400000 });
+  assert.equal(listArchivedNotifications(owner).length, 1);
+  assert.equal(listActiveNotifications(owner).length, 0);
+});
+
+test('a chat notification is acknowledged when its message leaves the unread room feed', async () => {
+  await loadPage('student.html');
+  const owner = 'student:AP-CHAT-READ';
+  const chat = { key: 'chat:MSG-1', kind: 'chat', sourceId: 'MSG-1', target: 'class-chat',
+    targetId: 'class_10', title: 'নতুন বার্তা', body: 'ক্লাস ১০ · নতুন বার্তা', at: DAY };
+  syncNotifications({ userId: owner, feed: [chat], now: DAY });
+  assert.equal(notificationByKey(owner, chat.key).read, false);
+  syncNotifications({ userId: owner, feed: [], now: DAY + 60_000 });
+  assert.equal(notificationByKey(owner, chat.key).read, true);
+});
+
 test('settings are per user, saved, and a fresh user gets the defaults', async () => {
   const ctx = await loadPage('student.html');
   assert.deepEqual(notificationSettings('student:AP-1'), { ...NOTIFICATION_DEFAULTS });
   const saved = saveNotificationSettings('student:AP-1', { background: false, sound: false });
-  assert.deepEqual([saved.background, saved.sound, saved.inApp, saved.enabled], [false, false, true, true]);
+  assert.deepEqual([saved.background, saved.sound, saved.inApp, saved.enabled], [false, true, true, true]);
   assert.deepEqual(
     [notificationSettings('student:AP-1').background, notificationSettings('student:AP-1').sound, notificationSettings('student:AP-1').inApp],
-    [false, false, true]
+    [false, true, true]
   );
   assert.deepEqual(notificationSettings('student:AP-2'), { ...NOTIFICATION_DEFAULTS }, 'another user keeps the defaults');
   // Rewriting keeps the file readable and ignores unknown fields.

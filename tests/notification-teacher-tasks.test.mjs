@@ -48,8 +48,11 @@ test('a returned paper is announced with its reason and opens the exam list', as
   assert.match(shown.at(-1).options.body, /প্রশ্ন ৩-এর উত্তর ভুল/);
   ctx.click(ctx.$('#notificationButton'));
   const open = ctx.$('button[data-apc-notice-open^="exam-returned:P1:"]');
-  assert.equal(open?.textContent, 'সংশোধন করুন');
+  assert.equal(open?.textContent, 'বিস্তারিত দেখুন');
   ctx.click(open);
+  const detail = ctx.$('[data-apc-notice-detail-sheet^="exam-returned:P1:"]');
+  assert.ok(detail, 'returned paper opens its context detail first');
+  ctx.click(detail.querySelector('[data-apc-notice-detail-action]'));
   await ctx.flush();
   assert.equal(clicks.at(-1), 'online-exams');
 });
