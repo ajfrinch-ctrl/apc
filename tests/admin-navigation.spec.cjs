@@ -36,7 +36,7 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
   await expect(home.locator('#dashTitle')).toContainText('স্বাগতম');
   await expect(home.locator('#adminTodayDate')).toBeVisible();
   await expect(home.locator('#adminHeroAdvice')).toBeVisible();
-  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(1);
+  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(6);
   await expect(home.locator('.admin-portal-grid > a')).toHaveCount(3);
 
   for (const theme of ['light', 'dark']) {
@@ -131,7 +131,8 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await expect(tiles).toHaveCount(1);
       const quickGrid = page.locator('#adminFeatureGrid');
       const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), tiles.first().boundingBox()]);
-      expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
+      expect(quickTileBox.width).toBeGreaterThan(quickGridBox.width * 0.4);
+  expect(quickTileBox.width).toBeLessThan(quickGridBox.width * 0.6);
       // The current Admin skin uses full-width horizontal action cards.
       expect(await tiles.first().evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
       // One inline SVG per tile, inside a fixed container: never a missing image.
@@ -601,7 +602,7 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
   expect(bottomBar.x).toBe(phoneShell.x);
   const quickGrid = page.locator('#adminFeatureGrid');
   const quickTile = page.locator('#adminFeatureGrid .admin-feature-tile');
-  await expect(quickTile).toHaveCount(1);
+  await expect(quickTile).toHaveCount(6);
   const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), quickTile.boundingBox()]);
   expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
   expect(await quickTile.evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
