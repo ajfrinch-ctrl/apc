@@ -97,7 +97,9 @@ test('clicking the same tab repeatedly builds no duplicate content and no stuck 
   assert.equal(activeSeat(), 'more', 'the nested System hub stays under More');
   ctx.click(ctx.$('.admin-bottom-item[data-panel-view="dashboard"]'));
   await ctx.waitFor(() => activePanel() === 'dashboard');
-  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="system"]'));
+  ctx.click(ctx.$('.admin-bottom-item[data-panel-view="more"]'));
+  await ctx.waitFor(() => activePanel() === 'more');
+  ctx.click(ctx.$('#adminMoreMenu [data-panel-view="system"]'));
   await ctx.waitFor(() => activePanel() === 'system');
   ctx.click(ctx.$('#adminSystemMenu [data-panel-view="security"]'));
   await ctx.waitFor(() => activePanel() === 'security');

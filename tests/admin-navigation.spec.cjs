@@ -544,7 +544,7 @@ for (const width of [320, 390]) {
     await bottom(page, 'system');
     await page.locator('#adminSystemMenu .admin-more-item[data-panel-view="security"]').click();
     await expect(page.locator('.admin-view[data-view-panel="security"]')).toBeVisible();
-    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
     await more(page, 'profile');
     await expect(page.locator('.admin-view[data-view-panel="profile"]')).toBeVisible();
     await expect(groupNav).toBeVisible();
@@ -614,7 +614,7 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
     await bottom(page, 'system');
     await page.locator(`#adminSystemMenu .admin-more-item[data-panel-view="${view}"]`).click();
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
-    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
   }
   await more(page, 'data');
   await page.locator('#adminDataMenu .admin-more-item[data-panel-view=backup]').click();

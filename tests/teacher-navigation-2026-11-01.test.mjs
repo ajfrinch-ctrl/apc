@@ -147,7 +147,9 @@ test('একই ফিচার দুই মেনু থেকে একই �
 });
 
 test('নম্বর ও ফলাফল একটি আলাদা লেন ও আলাদা রুট (`#marks`), পুরোনো `#exam` alias', async () => {
-  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
+  await settle();
+  ctx.click($('#teacherHome [data-panel-view="online-exams"]'));
   await settle();
   ctx.click($('#teacherOnlineExams [data-panel-view="exam"]'));
   await settle();
