@@ -1768,7 +1768,8 @@ function refreshView(view) {
   const parent = DETAIL_VIEW_PARENTS[view] || view;
   // Re-entering the Profile hub resets its group menu; a routed group must
   // keep that group open while the profile data is refreshed.
-  const refresh = parent === 'profile' && view !== parent ? renderAdminProfile : VIEW_REFRESHERS[parent];
+  const refresh = view === 'audit-exam' ? renderGradeAudit
+    : parent === 'profile' && view !== parent ? renderAdminProfile : VIEW_REFRESHERS[parent];
   if (!refresh || !viewExists(view) || !viewExists(parent)) return;
   try { refresh(); } catch (error) {
     console.warn(`[Active Plus] ${view} refresh failed:`, error?.message);
