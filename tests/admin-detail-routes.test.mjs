@@ -39,7 +39,11 @@ test('all details inherit exactly their hub capability and bottom seat for every
     assert.equal(VIEW_SEAT[view], VIEW_SEAT[parent] || parent, view);
     for (const role of ['admin', 'manager', 'teacher', 'payment', 'student', 'unknown']) {
       const access = createAccess(role);
-      assert.equal(access.allowsView(view), access.allowsView(parent), `${role}: ${view}`);
+      assert.equal(
+        access.allowsView(view),
+        view === 'audit-exam' ? access.has(CAPABILITIES.EXAMS_PUBLISH) : access.allowsView(parent),
+        `${role}: ${view}`
+      );
     }
   }
   assert.equal(routeFromHash('#not-a-real-view'), null);
