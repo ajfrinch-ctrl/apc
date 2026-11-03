@@ -452,8 +452,6 @@ const APP_SHELL = [
   './js/notification-settings.js',
   './js/settings-hub.js',
   './js/staff-account-forms.js',
-  './js/panel-capabilities.js',
-  './js/admin-permissions.js',
   './js/academics.js',
   './js/brand.js',
   './js/exam-data.js',
@@ -471,7 +469,6 @@ const APP_SHELL = [
   './assets/daily-quotes.json',
   './assets/daily-advice.json',
   './js/home-hero.js',
-  './js/home-hero.js' + '?v=379',
   './js/home-hero-entry.js',
   './js/student-home-hero-entry.js' + '?v=379',
   './js/student-home-daily-hero.js' + '?v=379',
@@ -542,6 +539,12 @@ const APP_SHELL = [
 /* Staff half of the precache — see the note above APP_SHELL. These files are
    fetched the first time a staff panel asks for them, not at install. */
 const STAFF_SHELL = [
+  './css/staff-panel-theme.css',
+  './js/staff-panel-theme.js',
+  './js/staff-navigation.js',
+  './js/staff-daily-advice.js',
+  './js/panel-capabilities.js',
+  './js/admin-permissions.js',
   './css/teacher-panel.css',
   './admin.html',
   './manager.html',
