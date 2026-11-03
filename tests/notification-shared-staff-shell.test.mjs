@@ -29,5 +29,5 @@ test('one notification centre owns the shared modal, filters, list and read acti
     assert.ok(source.includes(contract), 'shared inbox contract missing: ' + contract);
   }
   assert.match(source, /const PAGE_SIZE = 40/, 'the shared inbox keeps bounded initial rendering');
-  assert.match(source, /function reviewerRole\(\)/, 'reviewer-only registration queue remains role-gated');
+  assert.match(source, /(?:function reviewerRole\(\)|const reviewerRole\s*=\s*\(\)\s*=>)/, 'reviewer-only registration queue remains role-gated');
 });
