@@ -72,7 +72,8 @@ test('Manager student cards start compact, show pending entries once and disclos
     assert.equal(card.querySelector('.manager-student-details-toggle').getAttribute('aria-expanded'), 'false');
   }
   assert.match(pendingCard().querySelector('.manager-student-head').textContent, /পেন্ডিং শিক্ষার্থী/);
-  assert.match(pendingCard().querySelector('.manager-student-head').textContent, /S-PENDING/);
+  assert.doesNotMatch(pendingCard().querySelector('.manager-student-head').textContent, /S-PENDING/,
+    'Student ID stays behind the disclosure');
   assert.match(pendingCard().querySelector('.manager-student-head').textContent, /অপেক্ষমাণ/);
   assert.doesNotMatch(pendingCard().querySelector('.manager-student-head').textContent, /অষ্টম শ্রেণি|01700000000/);
 
@@ -81,6 +82,8 @@ test('Manager student cards start compact, show pending entries once and disclos
   assert.equal(pendingCard().querySelector('.manager-student-details-toggle').getAttribute('aria-expanded'), 'true');
   assert.equal(pendingCard().querySelector('.manager-student-details-toggle').getAttribute('aria-controls'), pendingCard().querySelector('.manager-student-details').id);
   assert.match(pendingCard().querySelector('.manager-student-details').textContent, /অষ্টম শ্রেণি/);
+  assert.match(pendingCard().querySelector('.manager-student-details').textContent, /S-PENDING/,
+    'Student ID appears only after disclosure');
   assert.equal(pendingCard().querySelector('[data-manager-action="approve-student"]').closest('.manager-student-details').hidden, false);
 
   ctx.click(approvedCard().querySelector('.manager-student-details-toggle'));
