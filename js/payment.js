@@ -215,6 +215,16 @@ document.addEventListener('click',event=>{
     }
     return;
   }
+  if(event.target.closest('#payClosingShortcut')) {
+    if(showCounterView('reports')) {
+      const repPanel = $('#payReportsPanel');
+      const repBtn = $('[data-pay-toggle="reports-builder"]');
+      if (repPanel) repPanel.dataset.payOpen = 'reports-builder';
+      if (repBtn) { repBtn.classList.add('is-open'); repBtn.setAttribute('aria-expanded', 'true'); }
+      reports.preset('cash.closing');
+    }
+    return;
+  }
   const seat=event.target.closest('[data-panel-view]');
   if(seat) {
     if(seat.dataset.gateBlocked === '1' || seat.dataset.homeBlocked === '1') return;
@@ -225,16 +235,6 @@ document.addEventListener('click',event=>{
       const stuBtn = $('[data-pay-toggle="student-search"]');
       if (stuPanel) stuPanel.dataset.payOpen = 'student-search';
       if (stuBtn) { stuBtn.classList.add('is-open'); stuBtn.setAttribute('aria-expanded', 'true'); }
-    }
-    return;
-  }
-  if(event.target.closest('#payClosingShortcut')) {
-    if(showCounterView('reports')) {
-      const repPanel = $('#payReportsPanel');
-      const repBtn = $('[data-pay-toggle="reports-builder"]');
-      if (repPanel) repPanel.dataset.payOpen = 'reports-builder';
-      if (repBtn) { repBtn.classList.add('is-open'); repBtn.setAttribute('aria-expanded', 'true'); }
-      reports.preset('cash.closing');
     }
     return;
   }
