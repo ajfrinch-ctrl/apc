@@ -1,6 +1,6 @@
-/* Resolve and apply the shared staff-panel colour theme.
-   Role styling is presentation only; permissions remain in the existing
-   capability/session layers. This module never grants access or changes routes. */
+/* Resolve the staff-panel root marker for shared layout rules.
+   All four roles inherit the same Active Plus palette; this marker does not
+   recolour a panel, grant access, change routes or alter capabilities. */
 
 export const STAFF_PANEL_ROLES = Object.freeze(['teacher', 'manager', 'admin', 'payment']);
 
