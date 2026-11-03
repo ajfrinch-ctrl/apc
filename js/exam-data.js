@@ -1407,7 +1407,7 @@ export const examRepository = {
     const db = await mutate(db => {
       const e = examById(db, examId); if (actor.role === 'teacher') teacherOwns(e, actor); const person = eligibleParticipant(e, student);
       if (!examMatchesStudent(e, person) || !e.participants.some(item => item.id === person.id)) fail('শিক্ষার্থী এই পরীক্ষার assigned class/batch roster-এ নেই।');
-       if (e.resultsPublished && actor.role === 'teacher') fail('ম্যানেজার ফলাফল প্রকাশ করেছেন; নম্বর আর পরিবর্তন করা যাবে না।');
+       if (e.resultsPublished) fail('ম্যানেজার ফলাফল প্রকাশ করেছেন; নম্বর আর পরিবর্তন করা যাবে না।');
       if (!isLiveExam(e) || e.type === 'mcq' || nowEpoch() < new Date(`${classExamDate(e.startAt)}T00:00:00+06:00`).getTime()) fail('ক্লাসে পরীক্ষার দিন থেকে নম্বর দেওয়া যাবে।');
       if (e.questions.some(q => !Object.hasOwn(questionScores, q.id) || !['string', 'number'].includes(typeof questionScores[q.id]) || !String(questionScores[q.id]).trim() || !Number.isFinite(Number(questionScores[q.id])) || round(Number(questionScores[q.id])) !== Number(questionScores[q.id]) || Number(questionScores[q.id]) < 0 || Number(questionScores[q.id]) > q.marks)) fail('প্রতিটি প্রশ্নের নম্বর শূন্য থেকে পূর্ণমানের মধ্যে দিন।');
       const score = round(e.questions.reduce((sum, q) => sum + Number(questionScores[q.id]), 0));
