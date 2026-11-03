@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
 import { STAFF_NAV_TABS, STAFF_NAV_ROUTES, staffTabForRoute, syncStaffNavigation, bindStaffNavigation } from '../js/staff-navigation.js';
 
 test('all staff roles share the same five visible navigation seats', () => {
@@ -66,4 +67,33 @@ test('shared click engine delegates only enabled tabs to the role route adapter'
   const disabled = { disabled: true, dataset: { staffTab: 'finance' } };
   listener({ target: { closest: () => disabled }, preventDefault() { throw new Error('disabled tab must not navigate'); }, stopImmediatePropagation() {} });
   assert.equal(calls.length, 1);
+});
+
+
+test('all four rendered panels expose the same accessible five-seat navigation', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const pages = [
+    ['admin.html', 'admin'],
+    ['teacher.html', 'teacher'],
+    ['manager.html', 'manager'],
+    ['payment.html', 'payment']
+  ];
+  for (const [page, role] of pages) {
+    const html = await readFile(new URL('../' + page, import.meta.url), 'utf8');
+    const document = new JSDOM(html).window.document;
+    const nav = document.querySelector('.staff-bottom-nav');
+    assert.ok(nav, page + ' has the shared staff navigation');
+    assert.equal(nav.getAttribute('aria-label'), 'স্টাফ নেভিগেশন');
+    const buttons = [...nav.querySelectorAll(':scope > button[data-staff-tab]')];
+    assert.deepEqual(buttons.map(button => button.dataset.staffTab), STAFF_NAV_TABS.map(tab => tab.key));
+    assert.deepEqual(buttons.map(button => button.querySelector('.nav-label')?.textContent.trim()), STAFF_NAV_TABS.map(tab => tab.label));
+    for (const [index, tab] of STAFF_NAV_TABS.entries()) {
+      const button = buttons[index];
+      assert.equal(button.type, 'button', page + '/' + tab.key + ' is a native keyboard-operable button');
+      const unavailable = STAFF_NAV_ROUTES[role][tab.key] === null;
+      assert.equal(button.disabled, unavailable, page + '/' + tab.key + ' disabled state follows the role route table');
+      assert.equal(button.getAttribute('aria-disabled') === 'true', unavailable,
+        page + '/' + tab.key + ' announces unavailable routes');
+    }
+  }
 });
