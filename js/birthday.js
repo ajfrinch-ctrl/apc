@@ -1,0 +1,16 @@
+import { dhakaParts, nowEpoch } from './time.js';
+
+const pad2 = value => String(value).padStart(2, '0');
+const isLeapYear = year => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+
+export function isStudentBirthday(birthDate, now = nowEpoch()) {
+  const match = String(birthDate ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const stamp = match ? `${match[2]}-${match[3]}` : '';
+  if (!stamp) return false;
+  const date = new Date(Number(now));
+  if (!Number.isFinite(date.getTime())) return false;
+  const part = dhakaParts(date);
+  const today = `${pad2(part.month)}-${pad2(part.day)}`;
+  if (stamp === today) return true;
+  return stamp === '02-29' && !isLeapYear(part.year) && today === '03-01';
+}

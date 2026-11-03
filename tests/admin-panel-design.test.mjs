@@ -26,7 +26,7 @@ test('every remaining Admin view opens with a subtitle under its title', () => {
 
 test('hub rows end in a chevron icon, never a text arrow, and the audit view uses the svg back button', () => {
   assert.doesNotMatch(html, /<span aria-hidden="true">→<\/span>/, 'no text arrows in hub rows');
-  assert.equal((html.match(/admin-menu-arrow/g) || []).length, 10, 'system, data, More hub rows (incl. the new নোটিশ ও কনটেন্ট row) carry the arrow slot');
+  assert.equal((html.match(/admin-menu-arrow/g) || []).length, 12, 'system, data, More hub rows (incl. the new নোটিশ ও কনটেন্ট row) carry the arrow slot');
   const audit = viewOf('audit');
   assert.match(audit, /data-icon="back"/, 'the audit back button is the shared svg');
   assert.doesNotMatch(audit, />←<\/button>/, 'no text back arrow');
@@ -54,21 +54,25 @@ test('student avatars show the student initials, grapheme-safe', () => {
   // always readable; only the Student ID is masked until it is asked for.
   assert.match(js, /<span class="student-avatar" aria-hidden="true">\$\{escapeHtml\(initialsOf\(name\)\)\}/,
     'the roster avatar is drawn from the always-visible name');
-  assert.match(js, /audit-id-badge">ID: \$\{escapeHtml\(revealed \? rowKey : PRIVACY_MASK\)\}/,
+  assert.match(js, /audit-id-badge"[^>]*>ID: \$\{revealed \? escapeHtml\(rowKey\) : PRIVACY_MASK\}/,
     'the Student ID, and only the Student ID, waits behind the reveal');
 });
 
-test('Admin Home keeps its text-only welcome while the other 16 views retain their 3D hero cards', () => {
+test('Admin Home uses the shared staff hero while secondary views stay free of legacy hero artwork', () => {
   assert.match(html, /<body class="admin-reference">/, 'admin body carries .admin-reference');
   const allPanels = ['dashboard', 'staff', 'system', 'migration', 'roles', 'students', 'reports', 'data', 'backup', 'audit', 'security', 'academics', 'settings', 'more', 'profile', 'content', 'advice'];
   for (const panel of allPanels) {
     const chunk = viewOf(panel);
-    // Hero cards removed from Admin Panel (2026-10-27): no panel loads the large 3D illustration
     assert.doesNotMatch(chunk, /teacher-hero-scene|data-admin-hero-art|data-hero-card=/,
-      `${panel} no longer loads the large 3D illustration (hero card removed)`);
-    // Date pill / glint / hero advice were part of the hero card and are also removed
-    assert.doesNotMatch(chunk, /teacher-hero-scene|teacher-hero-date-pill|teacher-hero-glint|data-admin-hero-advice=/,
-      `${panel} has no hero artwork remnants`);
+      `${panel} does not load legacy 3D hero artwork`);
+    if (panel === 'dashboard') {
+      assert.match(chunk, /staff-home-hero/, 'Admin Home uses the shared four-role hero surface');
+      assert.match(chunk, /adminTodayDate|admin-date-pill/, 'the shared hero retains its date');
+      assert.match(chunk, /adminHeroAdvice/, 'the shared hero retains its advice slot');
+    } else {
+      assert.doesNotMatch(chunk, /teacher-hero-date-pill|teacher-hero-glint|data-admin-hero-advice=/,
+        `${panel} has no legacy hero remnants`);
+    }
   }
   const actionCardCount = (html.match(/teacher-action-card/g) || []).length;
   assert.ok(actionCardCount >= 30, `admin.html has horizontal .teacher-action-card buttons (${actionCardCount})`);

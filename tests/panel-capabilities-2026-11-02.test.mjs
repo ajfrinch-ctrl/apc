@@ -14,7 +14,7 @@ import {
   ENTRY_CAPABILITIES, ENTRY_KINDS, PANEL_ROLES, applyCapabilityGate,
   applyHomeDoorRules, entryReport, panelCapabilities
 } from '../js/panel-capabilities.js';
-import { CAPABILITIES, ROLE_CAPABILITIES } from '../js/admin-permissions.js';
+import { ADMIN_FEATURE_TILES, CAPABILITIES, ROLE_CAPABILITIES, VIEW_CAPABILITIES } from '../js/admin-permissions.js';
 
 const html = file => readFileSync(file, 'utf8');
 const doc = file => new JSDOM(html(file)).window.document;
@@ -61,6 +61,30 @@ test('one entry contract: notice · lecture · chat · report carry the same sha
     const required = role === 'admin' ? ['chat', 'notice', 'lecture'] : ['chat', 'notice', 'report'];
     for (const kind of required) assert.ok(kinds.has(kind), `${role} has a ${kind} entry`);
   }
+});
+
+test('Admin home quick actions follow the owner priority order', () => {
+  assert.deepEqual(ADMIN_FEATURE_TILES.map(tile => tile.label), [
+    'নিবন্ধন অনুমোদন', 'নোটিফিকেশন', 'স্টাফ ব্যবস্থাপনা',
+    'রিপোর্ট কেন্দ্র', 'অর্থ সারাংশ', 'পরীক্ষা ব্যবস্থাপনা'
+  ]);
+  assert.equal(ADMIN_FEATURE_TILES[1].action, 'notifications');
+  assert.equal(ADMIN_FEATURE_TILES[4].view, 'reports');
+  assert.equal(ADMIN_FEATURE_TILES[4].action, 'finance-summary');
+  assert.equal(ADMIN_FEATURE_TILES[4].capability, CAPABILITIES.REPORTS_VIEW,
+    'Finance home access is a report-only route, never a cash collection route');
+  assert.equal(ADMIN_FEATURE_TILES[5].view, 'audit-exam');
+  assert.equal(ADMIN_FEATURE_TILES[5].capability, CAPABILITIES.EXAMS_PUBLISH);
+});
+
+test('Admin retains full exam and approval capabilities through the Academic entry', () => {
+  const admin = panelCapabilities('admin');
+  assert.equal(admin.has(CAPABILITIES.EXAMS_VIEW), true);
+  assert.equal(admin.has(CAPABILITIES.EXAMS_PUBLISH), true);
+  const adminDocument = doc('admin.html');
+  const examDoor = adminDocument.querySelector('[data-panel-view="audit-exam"][data-admin-cap="exams.publish"]');
+  assert.ok(examDoor, 'Admin has a dedicated exam-management door inside Academic');
+  assert.equal(VIEW_CAPABILITIES['audit-exam'], CAPABILITIES.EXAMS_PUBLISH);
 });
 
 test('the lecture entry is gated by the one real capability and the counter never carries it', () => {
@@ -137,4 +161,42 @@ test('each panel wires the one gate at boot — no panel boots without it', () =
     assert.match(source, /applyPanelCapabilities\(/, `${file} imports and calls the gate`);
     assert.ok(source.includes(needle), `${file} names its own role`);
   }
+});
+
+
+test('re-allowing a capability restores the original disabled, hidden and accessibility state', () => {
+  const document = new JSDOM(`
+    <button id="pre-disabled" data-cap="${CAPABILITIES.CONTENT_LECTURE_SHEETS}" disabled aria-hidden="false" tabindex="-1">disabled before gate</button>
+    <button id="pre-hidden" data-cap="${CAPABILITIES.CONTENT_LECTURE_SHEETS}" hidden>hidden before gate</button>
+  `).window.document;
+  const disabled = document.querySelector('#pre-disabled');
+  const hidden = document.querySelector('#pre-hidden');
+
+  applyCapabilityGate({ root: document, role: 'payment' });
+  assert.equal(disabled.hidden, true);
+  assert.equal(disabled.disabled, true);
+  assert.equal(disabled.getAttribute('aria-hidden'), 'true');
+  assert.equal(disabled.getAttribute('tabindex'), '-1');
+  assert.equal(hidden.hidden, true);
+
+  applyCapabilityGate({ root: document, role: 'teacher' });
+  assert.equal(disabled.hidden, false);
+  assert.equal(disabled.disabled, true, 'a control disabled before the gate stays disabled');
+  assert.equal(disabled.getAttribute('aria-hidden'), 'false', 'an existing accessibility state is restored');
+  assert.equal(disabled.getAttribute('tabindex'), '-1', 'an existing tabindex is restored');
+  assert.equal(hidden.hidden, true, 'an element hidden before the gate stays hidden');
+});
+
+test('home route rules restore an element’s original hidden state instead of exposing it', () => {
+  const document = new JSDOM('<section id="home"><button id="door" data-panel-view="private" hidden aria-hidden="false">private</button></section>').window.document;
+  const home = document.querySelector('#home');
+  const door = document.querySelector('#door');
+
+  applyHomeDoorRules({ root: home, role: 'teacher', routes: [] });
+  assert.equal(door.hidden, true);
+  assert.equal(door.getAttribute('aria-hidden'), 'true');
+
+  applyHomeDoorRules({ root: home, role: 'teacher', routes: ['private'] });
+  assert.equal(door.hidden, true, 'a route becoming permitted must not reveal content that was initially hidden');
+  assert.equal(door.getAttribute('aria-hidden'), 'false');
 });

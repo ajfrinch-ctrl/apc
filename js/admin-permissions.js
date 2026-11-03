@@ -2,14 +2,10 @@
    that already exists in this repository.
 
    Sources of truth (never modified by this file):
-     • firestore.rules      — Admin owns reports, settings, notices, routine,
-                              transactions and exam records; a Manager may
-                              approve/reject a student (and, by owner
-                              decision 2026-09-30, the Admin too — see
-                              js/registration-review.js) and is the only role
-                              that may publish/reject a pending exam.
-     • functions/index.js   — "Manager is the only role allowed to publish or
-                              reject pending exam records."
+     • firestore.rules      — Admin owns system controls; Admin and Manager may
+                              approve/reject students and review/publish exams.
+     • functions/index.js   — server-side exam transitions accept Admin and
+                              Manager; Teacher remains submit-only.
      • manager.html         — the separate approval portal (students + exams).
      • teacher.html / payment.html — their own panels, each with its own role.
 
@@ -31,12 +27,13 @@
    Admin Panel scope (System Control + Staff + Permissions + Security + Data +
    Reports + Settings)
    ---------------------------------------------------------------------------
-   Daily operations are NOT Admin territory and are deliberately not granted
-   here — they stay in the panel that owns them:
+   Daily collection, routine entry, notice publishing and teaching are NOT Admin
+   territory. Exam review/publication is an explicit exception shared with
+   Manager, as required by the owner:
 
      • fee collection / cash-counter entry  → payment.html (Cash Counter)
      • routine entry, daily notices         → manager.html (Manager)
-     • student approval, exam publish       → manager.html (Manager)
+     • student approval, exam publish       → Admin + manager.html (Manager)
      • class teaching, homework, attendance → teacher.html (Teacher)
 */
 
@@ -68,9 +65,9 @@ export const CAPABILITIES = Object.freeze({
      2026-09-30 — Admin (js/registration-review.js is the shared path). */
   STUDENTS_APPROVE: 'students.approve',
 
-  /* Kept so the existing role boundary stays readable in one place. None of
-     these is granted to Admin: they belong to the Manager / Teacher / Cash
-     Counter panels and to their own portals. */
+  /* Shared business capabilities. Admin and Manager both hold exam review /
+     publication; the remaining daily-operation capabilities stay with the
+     Manager / Teacher / Cash Counter panels. */
   FINANCE_VIEW: 'finance.view',
   FINANCE_COLLECT: 'finance.collect',
   NOTICES_MANAGE: 'notices.manage',
@@ -93,6 +90,8 @@ const ADMIN = Object.freeze([
   CAPABILITIES.STUDENTS_VIEW,
   CAPABILITIES.STUDENTS_MANAGE,
   CAPABILITIES.STUDENTS_APPROVE,
+  CAPABILITIES.EXAMS_VIEW,
+  CAPABILITIES.EXAMS_PUBLISH,
   CAPABILITIES.REPORTS_VIEW,
   CAPABILITIES.DATA_MANAGE,
   CAPABILITIES.BACKUP_MANAGE,
@@ -140,7 +139,7 @@ export const ROLE_CAPABILITIES = Object.freeze({
 export const DETAIL_VIEW_PARENTS = Object.freeze({
   'data-stats': 'data', 'data-danger': 'data',
   'backup-export': 'backup', 'backup-restore': 'backup',
-  'audit-log': 'audit', 'audit-exam': 'audit',
+  'audit-log': 'audit', 'audit-exam': 'academics',
   'settings-branding': 'settings', 'settings-classes': 'settings',
   'settings-broadcast': 'settings', 'settings-maintenance': 'settings',
   'content-lecture-sheets': 'content', 'content-notices': 'content', 'content-records': 'content',
@@ -191,16 +190,17 @@ const MAIN_VIEW_CAPABILITIES = Object.freeze({
 export const VIEW_CAPABILITIES = Object.freeze({
   ...MAIN_VIEW_CAPABILITIES,
   ...Object.fromEntries(Object.entries(DETAIL_VIEW_PARENTS)
-    .map(([view, parent]) => [view, MAIN_VIEW_CAPABILITIES[parent]]))
+    .map(([view, parent]) => [view, MAIN_VIEW_CAPABILITIES[parent]])),
+  'audit-exam': CAPABILITIES.EXAMS_PUBLISH
 });
 
 /** Five shared seats: হোম · স্টাফ · রিপোর্ট · সিস্টেম · আরও.
  *  Data, profile and advice remain available from the More hub. */
 export const ADMIN_BOTTOM_NAV = Object.freeze([
-  { view: 'dashboard', label: 'হোম', icon: 'dashboard', capability: CAPABILITIES.DASHBOARD, order: 1 },
-  { view: 'staff', label: 'স্টাফ', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 2 },
-  { view: 'reports', label: 'রিপোর্ট', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 3 },
-  { view: 'system', label: 'সিস্টেম', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 4 },
+  { view: 'dashboard', label: 'হোম', icon: 'home', capability: CAPABILITIES.DASHBOARD, order: 1 },
+  { view: 'staff', label: 'কাজ', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 2 },
+  { view: 'academics', label: 'একাডেমিক', icon: 'book', capability: CAPABILITIES.SETTINGS_MANAGE, order: 3 },
+  { view: 'reports', label: 'হিসাব', icon: 'wallet', capability: CAPABILITIES.REPORTS_VIEW, order: 4 },
   { view: 'more', label: 'আরও', icon: 'more', capability: CAPABILITIES.PROFILE_VIEW, order: 5 }
 ]);
 
@@ -221,6 +221,7 @@ export const ADMIN_DATA_NAV = Object.freeze([
 
 /** More hub destinations keep their stable route names and original gates. */
 export const ADMIN_MORE_NAV = Object.freeze([
+  { view: 'system', label: 'সিস্টেম ও নিরাপত্তা', hint: 'রোল, সিকিউরিটি, অ্যাপ সেটিংস ও একাডেমিক কনফিগারেশন', icon: 'settings', capability: CAPABILITIES.SETTINGS_MANAGE, order: 0 },
   { view: 'data', label: 'ডেটা ও ব্যাকআপ', hint: 'রেকর্ড, স্টোরেজ, ব্যাকআপ ও অডিট', icon: 'data', capability: CAPABILITIES.DATA_MANAGE, order: 1 },
   { view: 'content', label: 'নোটিশ ও কনটেন্ট', hint: 'প্রকাশিত নোটিশ/কাজ দেখুন ও মুছুন', icon: 'bell', capability: CAPABILITIES.DATA_MANAGE, order: 1 },
   { view: 'profile', label: 'আমার অ্যাকাউন্ট', hint: 'পরিচয়, পাসওয়ার্ড ও পছন্দ', icon: 'profile', capability: CAPABILITIES.PROFILE_VIEW, order: 2 },
@@ -229,9 +230,9 @@ export const ADMIN_MORE_NAV = Object.freeze([
 
 /** Which seat lights up for a view that lives inside a hub. */
 const MAIN_VIEW_SEAT = Object.freeze({
-  roles: 'system', security: 'system', settings: 'system', academics: 'system', migration: 'system',
+  roles: 'more', security: 'more', settings: 'more', system: 'more', academics: 'academics', migration: 'more',
   data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', content: 'more', phonebook: 'more',
-  students: 'dashboard', 'class-chat': 'more'
+  students: 'staff', 'class-chat': 'more'
 });
 export const VIEW_SEAT = Object.freeze({
   ...MAIN_VIEW_SEAT,
@@ -243,8 +244,12 @@ export const VIEW_SEAT = Object.freeze({
  *  the signed-in role holds. No daily cash/fee entry tile. */
 /* Home keeps only work that is not already a bottom tab or a সিস্টেম/ডেটা hub card. */
 export const ADMIN_FEATURE_TILES = Object.freeze([
-  { view: 'students', label: 'নিবন্ধন অনুমোদন', sub: 'শিক্ষার্থীদের নতুন আবেদন যাচাই ও অনুমোদন করুন', icon: 'approval', capability: CAPABILITIES.STUDENTS_VIEW, order: 1 },
-  { view: 'content-lecture-sheets', label: 'লেকচার শিট স্টুডিও', sub: 'A4 এডিটরে নতুন লেকচার শিট তৈরি, PDF ও প্রকাশ করুন', icon: 'book', capability: CAPABILITIES.CONTENT_LECTURE_SHEETS, order: 2 }
+  { view: 'students', label: 'নিবন্ধন অনুমোদন', sub: 'নতুন শিক্ষার্থী আবেদন যাচাই ও অনুমোদন করুন', icon: 'approval', capability: CAPABILITIES.STUDENTS_APPROVE, order: 1 },
+  { view: 'dashboard', action: 'notifications', label: 'নোটিফিকেশন', sub: 'ভর্তি, পরীক্ষা, ফলাফল ও নোটিশের আপডেট দেখুন', icon: 'bell', capability: CAPABILITIES.DASHBOARD, order: 2 },
+  { view: 'staff', label: 'স্টাফ ব্যবস্থাপনা', sub: 'স্টাফ অ্যাকাউন্ট, ভূমিকা ও অনুমতি পরিচালনা করুন', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 3 },
+  { view: 'reports', label: 'রিপোর্ট কেন্দ্র', sub: 'শিক্ষার্থী, উপস্থিতি, পরীক্ষা ও স্টাফ রিপোর্ট তৈরি করুন', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 4 },
+  { view: 'reports', action: 'finance-summary', label: 'অর্থ সারাংশ', sub: 'ফি, বকেয়া, লেনদেন ও পেমেন্ট রিপোর্ট দেখুন', icon: 'wallet', capability: CAPABILITIES.REPORTS_VIEW, order: 5 },
+  { view: 'audit-exam', label: 'পরীক্ষা ব্যবস্থাপনা', sub: 'পরীক্ষা তৈরি, অনুমোদন, প্রকাশ ও ফলাফল পরিচালনা করুন', icon: 'exam', capability: CAPABILITIES.EXAMS_PUBLISH, order: 6 },
 ]);
 
 export function capabilitiesForRole(role) {

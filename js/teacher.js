@@ -17,13 +17,14 @@ import { classByName } from './academics.js';
 import { NOTICE_CATEGORIES } from './notification-rules.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
+import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { initFixedShell } from './fixed-shell.js';
 import { registerServiceWorker } from './service-worker.js';
 import { mountReports, refreshReports } from './reports.js';
 import { teachingRepository, DEMO_TEACHER, ACTIVITY_TYPES, PROGRESS_LABELS, escapeText as esc, todayISO, displayDate, safeResourceURL, matchesStudent, watchTeachingData } from './teaching-data.js';
-import { pickTeacherAdvice, pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { initOrgInfo } from './org-info.js';
 
 const $ = selector => document.querySelector(selector);
@@ -165,15 +166,15 @@ function renderHome() {
   /* প্রতিদিন নতুন পরামর্শ: একই ঢাকা-দিনে একই লাইন, পরদিন নিজে থেকে বদলায়।
      কোনো স্টোরেজ/নেটওয়ার্ক নেই — বিশুদ্ধ তারিখ-ভিত্তিক নির্বাচন। */
   const warmLine = $('.teacher-hero-warm');
-  if (warmLine) warmLine.textContent = pickTeacherAdvice();
+  if (warmLine) warmLine.textContent = pickStaffSectionAdvice('home');
   $$('[data-teacher-hero-advice]').forEach(el => {
     const section = el.dataset.teacherHeroAdvice || 'home';
     if (section === 'home') {
-      el.textContent = pickTeacherAdvice();
+      el.textContent = pickStaffSectionAdvice('home');
     } else if (section === 'records') {
-      el.textContent = pickTeacherSectionAdvice(state.view || 'homework');
+      el.textContent = pickStaffSectionAdvice(state.view || 'homework');
     } else {
-      el.textContent = pickTeacherSectionAdvice(section);
+      el.textContent = pickStaffSectionAdvice(section);
     }
   });
   const themeStatus = $('[data-more-theme-status]');
@@ -200,7 +201,7 @@ function renderRecords() {
   if (!ACTIVITY_TYPES[state.view]) return;
   $('#teacherRecordsTitle').textContent = ACTIVITY_TYPES[state.view].plural;
   const recordAdvice = $('#teacherRecords [data-teacher-hero-advice="records"]');
-  if (recordAdvice) recordAdvice.textContent = pickTeacherSectionAdvice(state.view || 'homework');
+  if (recordAdvice) recordAdvice.textContent = pickStaffSectionAdvice(state.view || 'homework');
   const status = $('#teacherStatusFilter');
   if (status && status.tagName === 'SELECT') status.value = state.status;
   $('#teacherNewActivity').hidden = state.view === 'exam';
@@ -608,16 +609,7 @@ function setView(view) {
     el.setAttribute('aria-selected', String(active));
     if (el.matches('.pay-tile')) el.setAttribute('aria-pressed', String(active));
   });
-  /* The bottom bar keeps its four seats: the academic/class screens light up
-     the ক্লাস seat, the class-test results the পরীক্ষা seat. */
-  const bottomView = view === 'home' ? 'home'
-    : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'lecture-sheets', 'notice', 'routine', 'routine-view', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'classes'
-        : ['exam', 'online-exams'].includes(view) ? 'online-exams' : 'more';
-  $$('.admin-bottom [data-panel-view]').forEach(el => {
-    const active = el.dataset.panelView === bottomView;
-    el.classList.toggle('active', active);
-    if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
-  });
+  syncStaffNavigation('teacher', routeFor(view));
   if (view === 'lecture-sheets') mountTeacherLectureSheets();
   /* মালিক-নির্দেশ ২০২৬-১১-০২: প্রোফাইল আর সেটিংস দুটি আলাদা স্ক্রিন। সেটিংসে
      ঢুকলেই শুধু গ্রুপ-মেনু — পুরোনো `সব বিভাগ` চিপ-সারি আর নেই, তাই এক ক্লিকে
@@ -628,6 +620,7 @@ function setView(view) {
   // The open page lives in the URL, so a refresh lands back on it.
   rememberRoute(routeFor(view));
 }
+bindStaffNavigation({ role: 'teacher', onNavigate: route => setView(route) });
 async function reload() {
   try {
     /* WHO is at the panel decides what is fetched: the active staff identity's
@@ -1146,6 +1139,8 @@ async function showTeacherShell() {
   });
   watchOwnPanelSession('teacher');
   window.dispatchEvent(new Event('apc-session-ready'));
+  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
+    .catch(error => console.warn('[Active Plus] Teacher notification centre unavailable:', error?.name || 'unknown'));
   return loaded;
 }
 /** The content editor is mounted once; its own paint() keeps it current. */
@@ -1306,7 +1301,7 @@ document.addEventListener('click', event => {
     setView(nav.dataset.panelView);
     if (nav.dataset.panelView === 'profile') {
       const adviceEl = $('#teacherProfile [data-teacher-hero-advice]');
-      if (adviceEl) adviceEl.textContent = pickTeacherSectionAdvice('profile');
+      if (adviceEl) adviceEl.textContent = pickStaffSectionAdvice('more');
     }
   }
   const courseChBtn = event.target.closest('[data-course-ch-action]');

@@ -35,7 +35,7 @@ async function enterStudents(page) {
   const alertClose = page.locator('#apcAlertBackdrop [data-apc-alert-close]').first();
   await alertClose.waitFor({ state: 'visible', timeout: 1500 }).catch(() => {});
   if (await alertClose.isVisible().catch(() => false)) await alertClose.click();
-  await page.locator('.manager-bottom [data-panel-view="students"]').click();
+  await page.locator('.staff-bottom-nav [data-panel-view="students"]').click();
   await expect(page.locator('.manager-view[data-view-panel="students"]')).toBeVisible();
   await expect(page.locator('#managerPendingBadge')).toHaveText('১ অপেক্ষমাণ');
 }
@@ -135,8 +135,8 @@ for (const viewport of viewportCases) {
     // A fresh visit and a refresh both return the accordion to its compact state.
     await pending.locator('.manager-student-details-toggle').click();
     await expect(pendingDetails).toBeVisible();
-    await page.locator('.manager-bottom [data-panel-view="dashboard"]').click();
-    await page.locator('.manager-bottom [data-panel-view="students"]').click();
+    await page.locator('.staff-bottom-nav [data-panel-view="dashboard"]').click();
+    await page.locator('.staff-bottom-nav [data-panel-view="students"]').click();
     await expect(page.locator('.manager-view.active')).toHaveAttribute('data-view-panel', 'students');
     await expect(page.locator('.manager-student-details[hidden]')).toHaveCount(7);
     await pending.locator('.manager-student-details-toggle').click();
@@ -144,12 +144,12 @@ for (const viewport of viewportCases) {
     await page.reload();
     await expect(page.locator('#managerShell')).toBeVisible();
     await expect(page.locator('.manager-view[data-view-panel="students"]')).toBeVisible();
-    await expect(page.locator('.manager-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'students');
+    await expect(page.locator('.staff-bottom-nav [aria-current="page"]')).toHaveAttribute('data-panel-view', 'students');
     await expect(page.locator('.manager-student-details[hidden]')).toHaveCount(7);
 
     const topbar = page.locator('.manager-shell > .app-topbar');
     const topbarY = (await topbar.boundingBox()).y;
-    const bottom = page.locator('.manager-bottom');
+    const bottom = page.locator('.staff-bottom-nav');
     expect(await bottom.evaluate(element => getComputedStyle(element).position)).toBe('fixed');
     const bottomBox = await bottom.boundingBox();
     expect(bottomBox.y + bottomBox.height).toBeGreaterThanOrEqual(viewport.height - 1);

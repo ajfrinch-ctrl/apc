@@ -116,13 +116,14 @@ test('the counter desk opens on হোম with the five counter tabs and nothing
   await seedRoster(page);
   await enter(page);
   // The counter's own five seats, one per step of its job.
-  const seats = page.locator('nav.admin-bottom [data-panel-view]');
-  await expect(seats).toHaveText(['হোম', 'শিক্ষার্থী', 'পেমেন্ট', 'রিপোর্ট', 'আরও']);
+  const seats = page.locator('nav.admin-bottom .admin-bottom-item');
+  await expect(seats).toHaveText(['হোম', 'কাজ', 'একাডেমিক', 'হিসাব', 'আরও']);
+  await expect(seats.nth(2)).toBeDisabled();
   await expect(page.locator('nav.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'home');
   await expect(page.locator('[data-pay-panel="home"]')).toBeVisible();
 
   // No other role's views live anywhere on this page.
-  await expect(page.locator('[data-panel-view], [data-panel-view], [data-panel-view], [data-student-view]')).toHaveCount(0);
+  await expect(page.locator('.manager-view, .teacher-view, .admin-view, [data-student-view]')).toHaveCount(0);
 
   // An empty day says so instead of inventing rows.
   await expect(page.locator('#payTodayList')).toContainText('আজ এখনও কোনো লেনদেন নেই।');

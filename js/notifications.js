@@ -68,7 +68,7 @@ const WATCHED_COLLECTIONS = Object.freeze(['notices', 'settings', 'exams', 'stud
 /* Which records each person's notifications are built from. */
 const NEEDS = Object.freeze({
   student: { students: true, transactions: true, exams: true, teaching: true },
-  admin: { students: true },
+  admin: { students: true, exams: true },
   manager: { students: true, transactions: true, exams: true },
   teacher: { exams: true, students: true },
   payment: { transactions: true }
@@ -81,7 +81,7 @@ const KIND_TARGET = Object.freeze({
   'payment-review': 'cash-counter', 'payment-rejected': 'home', 'exam-review': 'exams',
   'exam-returned': 'online-exams', 'exam-approved': 'online-exams'
 });
-const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework', 'payment-rejected', 'payment-review']);
+const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'exam-published', 'result-published', 'homework', 'payment-rejected', 'payment-review']);
 const NOTICE_BOARD_KINDS = new Set(['notice', 'broadcast']);
 const generalNotificationItems = items => items;
 const generalNotificationRecords = records => records;

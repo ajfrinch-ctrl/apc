@@ -219,7 +219,7 @@ test('Admin UX: Home keeps only approval; staff, backup and reports remain reach
 
   // Five-item bottom nav with standardised "স্টাফ" spelling
   const navLabels = ctx.$$('.admin-bottom .nav-label').map(n => n.textContent.trim());
-  assert.deepEqual(navLabels, ['হোম', 'স্টাফ', 'রিপোর্ট', 'সিস্টেম', 'আরও']);
+  assert.deepEqual(navLabels, ['হোম', 'কাজ', 'একাডেমিক', 'হিসাব', 'আরও']);
 
   // The sole Home work tile opens registration approval; the five duplicate
   // shortcuts are gone, not the workflows or their own navigation routes.

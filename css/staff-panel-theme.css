@@ -1,0 +1,335 @@
+/* Universal Staff Panel — shared appearance.
+   All four staff roles inherit the same Active Plus light/dark palette from
+   foundation.css. Role markers are for structure and routing only; they do
+   not recolour the shell. Content and permissions remain role-specific. */
+
+/* One shared five-seat navigation shell across all staff entry points. */
+.staff-bottom-nav {
+  left: 50%;
+  right: auto;
+  width: min(100vw, 430px);
+  max-width: 430px;
+  transform: translateX(-50%);
+  justify-content: space-around;
+  gap: 0;
+}
+.staff-bottom-nav > .admin-bottom-item {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  min-height: 54px;
+  margin: 0;
+  padding: 4px 2px 2px;
+  border: 0;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  font-size: 11.5px;
+  line-height: 1.25;
+  font-weight: 500;
+}
+.staff-bottom-nav > .admin-bottom-item > .nav-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+}
+.staff-bottom-nav > .admin-bottom-item .nav-chip {
+  width: 54px;
+  height: 30px;
+  border-radius: 16px;
+}
+@media (max-width: 380px) {
+  .staff-bottom-nav > .admin-bottom-item { padding-inline: 0; font-size: 10.5px; }
+}
+
+.staff-bottom-nav > .admin-bottom-item:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+
+/* Shared home hero component: identical geometry and type across all four
+   portals; the role token set above supplies the only palette difference. */
+.staff-home-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  min-height: 224px;
+  margin: 2px 0 16px;
+  padding: 16px 18px;
+  overflow: hidden;
+  border: 1px solid var(--pay-hero-line);
+  border-radius: 24px;
+  background: var(--pay-hero-gradient) !important;
+  color: var(--pay-on-hero);
+  box-shadow: var(--pay-shadow);
+}
+.staff-home-hero::after { display: none !important; }
+.staff-home-hero .teacher-hero-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  min-height: 188px;
+  padding: 0;
+}
+.staff-home-hero .teacher-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+.staff-home-hero .teacher-hero-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  margin-top: auto;
+}
+.staff-home-hero h1,
+.staff-home-hero .teacher-hero-welcome h1 {
+  max-width: 100%;
+  margin: 0;
+  color: var(--pay-on-hero);
+  font-size: clamp(22px, 5.4vw, 26px);
+  font-weight: 800;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+.staff-home-hero .teacher-hero-advice {
+  max-width: 38ch;
+  margin: 0;
+  color: var(--pay-on-hero-soft);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.staff-home-hero .teacher-hero-date-pill,
+.staff-home-hero .admin-date-pill {
+  max-width: 100%;
+  padding: 5px 11px;
+  border: 1px solid var(--pay-hero-line);
+  border-radius: 999px;
+  background: var(--pay-hero-chip);
+  color: var(--pay-on-hero);
+  font-size: 11.5px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.app-topbar-icon:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+
+/* The legacy Teacher reference skin had a wider, taller nav override. Bring it
+   back onto the same five-seat footprint as Admin, Manager and Payment. */
+.teacher-reference .teacher-shell > .staff-bottom-nav {
+  left: 50% !important;
+  right: auto !important;
+  width: min(100vw, 430px) !important;
+  max-width: 430px !important;
+  min-height: calc(66px + var(--safe-bottom)) !important;
+  padding: 6px 6px calc(6px + var(--safe-bottom)) !important;
+  transform: translateX(-50%) !important;
+}
+.teacher-reference .teacher-shell > .staff-bottom-nav > .admin-bottom-item {
+  flex: 1 1 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  min-height: 54px !important;
+  padding: 4px 2px 2px !important;
+  font-size: 11.5px !important;
+}
+
+
+/* Shared profile identity surface: each role keeps its own protected fields
+   and renderer, while the outer card uses one common geometry. */
+.staff-profile-card {
+  min-width: 0;
+  border-radius: 22px;
+  box-shadow: var(--pay-shadow);
+}
+.staff-profile-card :is(h2, h3) {
+  overflow-wrap: anywhere;
+}
+
+
+/* One action-card surface contract for the four staff homes. Layout remains
+   owned by each role (grid vs. full-width stack); the card skin does not. */
+html[data-staff-panel] .teacher-action-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  box-shadow: var(--pay-shadow);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+html[data-staff-panel] .teacher-action-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+html[data-staff-panel] .teacher-action-card:active {
+  transform: translateY(1px) scale(.99);
+}
+html[data-staff-panel] .teacher-action-card .teacher-action-art,
+html[data-staff-panel] .teacher-action-card .pay-tile-icon {
+  flex: none;
+}
+
+
+/* Shared dashboard action grid: identical responsive rhythm across all roles.
+   The actual actions remain role-specific and retain their existing guarded
+   data-panel-view / data-pay-toggle behavior. */
+html[data-staff-panel] .staff-home-action-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: stretch;
+  gap: 12px !important;
+  width: 100%;
+}
+html[data-staff-panel] .staff-home-action-grid > * {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 92px;
+}
+html[data-staff-panel] .staff-home-action-grid > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+@media (max-width: 360px) {
+  html[data-staff-panel] .staff-home-action-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  html[data-staff-panel] .staff-home-action-grid > :last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+}
+
+
+/* Shared outer surface for role-specific Home summaries and activity panels.
+   Content and data remain owned by each role; only the card geometry is shared. */
+html[data-staff-panel] .staff-home-summary-surface {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: var(--color-surface);
+  box-shadow: var(--pay-shadow);
+  padding: 16px;
+}
+html[data-staff-panel] .staff-home-summary-surface > :first-child { margin-top: 0; }
+html[data-staff-panel] .staff-home-summary-surface > :last-child { margin-bottom: 0; }
+html[data-staff-panel] .staff-home-kpi {
+  min-width: 0;
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  box-shadow: none;
+}
+html[data-staff-panel] .staff-home-kpi .tile-label {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+html[data-staff-panel] .staff-home-kpi .tile-value {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+
+/* Role identity palettes. The shell geometry is shared, but every staff
+   workspace has its own unmistakable accent and hero treatment.
+   Admin = blue, Manager = violet, Teacher = teal, Payment = amber.
+   These are presentation-only tokens; they never affect permissions/data. */
+html[data-staff-panel="admin"] {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --brand-2: #60a5fa;
+  --pay-hero-gradient: linear-gradient(130deg, #1e40af 0%, #2563eb 52%, #0e7490 100%);
+  --pay-disc: #dbeafe;
+  --pay-disc-ink: #1d4ed8;
+  --ring-track: rgba(37, 99, 235, .18);
+  --accent-glow: 0 12px 28px rgba(37, 99, 235, .18);
+}
+html[data-staff-panel="manager"] {
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --brand-2: #a78bfa;
+  --pay-hero-gradient: linear-gradient(130deg, #5b21b6 0%, #7c3aed 52%, #be185d 100%);
+  --pay-disc: #ede9fe;
+  --pay-disc-ink: #6d28d9;
+  --ring-track: rgba(124, 58, 237, .18);
+  --accent-glow: 0 12px 28px rgba(124, 58, 237, .18);
+}
+html[data-staff-panel="teacher"] {
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
+  --brand-2: #2dd4bf;
+  --pay-hero-gradient: linear-gradient(130deg, #115e59 0%, #0f766e 52%, #0891b2 100%);
+  --pay-disc: #ccfbf1;
+  --pay-disc-ink: #0f766e;
+  --ring-track: rgba(15, 118, 110, .18);
+  --accent-glow: 0 12px 28px rgba(15, 118, 110, .18);
+}
+html[data-staff-panel="payment"] {
+  --color-primary: #b45309;
+  --color-primary-hover: #92400e;
+  --brand-2: #f59e0b;
+  --pay-hero-gradient: linear-gradient(130deg, #92400e 0%, #d97706 52%, #c2410c 100%);
+  --pay-disc: #fef3c7;
+  --pay-disc-ink: #92400e;
+  --ring-track: rgba(217, 119, 6, .20);
+  --accent-glow: 0 12px 28px rgba(217, 119, 6, .18);
+}
+
+/* Keep role identity vivid and readable in AMOLED mode as well. */
+html[data-theme="dark"][data-staff-panel="admin"] {
+  --color-primary: #93c5fd;
+  --color-primary-hover: #bfdbfe;
+  --brand-2: #60a5fa;
+  --pay-hero-gradient: linear-gradient(130deg, #1e3a8a 0%, #1d4ed8 52%, #155e75 100%);
+  --pay-disc: rgba(96, 165, 250, .16);
+  --pay-disc-ink: #bfdbfe;
+  --ring-track: rgba(147, 197, 253, .24);
+}
+html[data-theme="dark"][data-staff-panel="manager"] {
+  --color-primary: #c4b5fd;
+  --color-primary-hover: #ddd6fe;
+  --brand-2: #a78bfa;
+  --pay-hero-gradient: linear-gradient(130deg, #4c1d95 0%, #6d28d9 52%, #831843 100%);
+  --pay-disc: rgba(167, 139, 250, .16);
+  --pay-disc-ink: #ddd6fe;
+  --ring-track: rgba(196, 181, 253, .24);
+}
+html[data-theme="dark"][data-staff-panel="teacher"] {
+  --color-primary: #5eead4;
+  --color-primary-hover: #99f6e4;
+  --brand-2: #2dd4bf;
+  --pay-hero-gradient: linear-gradient(130deg, #134e4a 0%, #0f766e 52%, #155e75 100%);
+  --pay-disc: rgba(45, 212, 191, .16);
+  --pay-disc-ink: #99f6e4;
+  --ring-track: rgba(94, 234, 212, .24);
+}
+html[data-theme="dark"][data-staff-panel="payment"] {
+  --color-primary: #fcd34d;
+  --color-primary-hover: #fde68a;
+  --brand-2: #fbbf24;
+  --pay-hero-gradient: linear-gradient(130deg, #78350f 0%, #b45309 52%, #9a3412 100%);
+  --pay-disc: rgba(251, 191, 36, .16);
+  --pay-disc-ink: #fde68a;
+  --ring-track: rgba(252, 211, 77, .24);
+}

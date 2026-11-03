@@ -139,13 +139,17 @@ test('একই ফিচার দুই মেনু থেকে একই �
   assert.deepEqual(visibleScreens(), ['teacherOnlineExams']);
   ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
-  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
+  await settle();
+  ctx.click($('#teacherHome [data-panel-view="online-exams"]'));
   await settle();
   assert.equal(ctx.window.location.hash, fromHome, 'হোম-কার্ড ও নিচের সিট একই hash দেয়');
 });
 
 test('নম্বর ও ফলাফল একটি আলাদা লেন ও আলাদা রুট (`#marks`), পুরোনো `#exam` alias', async () => {
-  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
+  await settle();
+  ctx.click($('#teacherHome [data-panel-view="online-exams"]'));
   await settle();
   ctx.click($('#teacherOnlineExams [data-panel-view="exam"]'));
   await settle();

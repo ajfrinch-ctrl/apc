@@ -539,7 +539,7 @@ export function paymentRejectedItems(transactions, viewer) {
 }
 
 export function examReviewItems(examDb, viewer) {
-  if (viewer?.kind !== 'staff' || text(viewer.role) !== 'manager' || !isObject(examDb)) return [];
+  if (viewer?.kind !== 'staff' || !['admin', 'manager'].includes(text(viewer.role)) || !isObject(examDb)) return [];
   return (Array.isArray(examDb.exams) ? examDb.exams : [])
     .filter(exam => isObject(exam) && text(exam.id) && exam.status === 'pending')
     .map(exam => ({
@@ -548,8 +548,37 @@ export function examReviewItems(examDb, viewer) {
       source: 'exams', sourceId: text(exam.id), kind: 'exam-review', actionable: true,
       title: 'পরীক্ষা অনুমোদনের অপেক্ষায়',
       body: `${examName(exam)} · ${text(exam.className) || ''}${text(exam.teacherName) ? ` · ${text(exam.teacherName)}` : ''}${Number(exam.startAt) ? ` · শুরু ${bnWhen(exam.startAt)}` : ''}`,
-      at: Number(exam.submittedAt) || Number(exam.updatedAt) || 0, target: 'exams', audience: 'ম্যানেজার'
+      at: Number(exam.submittedAt) || Number(exam.updatedAt) || 0, target: viewer.role === 'admin' ? 'audit-exam' : 'exams', audience: 'Admin/Manager'
     }));
+}
+
+export function staffExamItems(examDb, viewer) {
+  if (viewer?.kind !== 'staff' || !['admin', 'manager'].includes(text(viewer.role)) || !isObject(examDb)) return [];
+  const target = viewer.role === 'admin' ? 'audit-exam' : 'exams';
+  const audience = 'Admin/Manager';
+  const items = [];
+  for (const exam of Array.isArray(examDb.exams) ? examDb.exams : []) {
+    if (!isObject(exam) || !text(exam.id)) continue;
+    if (exam.status === 'published' && Number(exam.publishedAt)) {
+      items.push({
+        key: `exam-published:${text(exam.id)}:${Number(exam.publishedAt)}`,
+        source: 'exams', sourceId: text(exam.id), kind: 'exam-published', actionable: true, action: 'open', actionLabel: 'পরীক্ষা দেখুন',
+        title: 'পরীক্ষা প্রকাশিত হয়েছে',
+        body: `${examName(exam)}${Number(exam.startAt) ? ` · শুরু ${bnWhen(exam.startAt)}` : ''}`,
+        at: Number(exam.publishedAt), target, audience
+      });
+    }
+    if (exam.resultsPublished === true && Number(exam.resultsPublishedAt)) {
+      items.push({
+        key: `result-published:${text(exam.id)}:${Number(exam.resultsPublishedAt)}`,
+        source: 'exams', sourceId: text(exam.id), kind: 'result-published', actionable: true, action: 'open', actionLabel: 'ফলাফল দেখুন',
+        title: 'পরীক্ষার ফলাফল প্রকাশিত হয়েছে',
+        body: examName(exam),
+        at: Number(exam.resultsPublishedAt), target, audience
+      });
+    }
+  }
+  return items;
 }
 
 export function teacherExamItems(examDb, viewer) {
@@ -605,6 +634,7 @@ export function notificationFeed({ notices = [], config = null, examDb = null, t
   items.push(...paymentReviewItems(transactions, viewer));
   items.push(...paymentRejectedItems(transactions, viewer));
   items.push(...examReviewItems(examDb, viewer));
+  items.push(...staffExamItems(examDb, viewer));
   items.push(...teacherExamItems(examDb, viewer));
   items.push(...birthdayItems(viewer, now));
   items.push(...birthdayTodayStaffItems(students, viewer, now));

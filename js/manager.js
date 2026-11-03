@@ -4,6 +4,7 @@ import { hasStaffSession, clearStaffSession, readStaffAccount, goToLoginPage, ST
 import { STAFF_DIRECTORY_RULES } from './staff-directory.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
+import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
@@ -31,7 +32,7 @@ import { normalizeClassId, normalizeSectionId } from './class-key.js';
 import { listClasses } from './academics.js';
 import { noticeCategory, noticeCategoryInfo } from './notification-rules.js';
 import { mountReports, refreshReports } from './reports.js';
-import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { iconMarkup } from './icons.js';
 import { initOrgInfo } from './org-info.js';
 
@@ -175,7 +176,7 @@ function syncManagerPanelHead() {
   $$('[data-home-intro]').forEach(intro => { intro.dataset.heroMode = mode; });
   $$('[data-manager-hero-advice]').forEach(node => {
     const key = node.dataset.managerHeroAdvice || 'dashboard';
-    node.textContent = pickTeacherSectionAdvice(key);
+    node.textContent = pickStaffSectionAdvice(key);
   });
   const homeTitle = $('#managerHomeTitle');
   if (homeTitle) {
@@ -215,16 +216,7 @@ function renderView(view) {
   document.getElementById('managerShell')?.classList.toggle('is-chat-fullscreen', isChatFullscreen);
   document.getElementById('managerMain')?.classList.toggle('is-chat-view', isChatFullscreen);
   if (isChatFullscreen) mountManagerClassChat();
-  const seat = view === 'dashboard' ? 'dashboard'
-    : view === 'students' ? 'students'
-      : view === 'class-chat' ? 'more'
-      : ['academic', 'academic-records', 'notices', 'routine', 'exams', 'results', 'courses', 'lecture-sheets', 'teachers', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'academic'
-        : view === 'finance' ? 'finance' : 'more';
-  $$('.manager-bottom [data-panel-view]').forEach(button => {
-    const active = button.dataset.panelView === seat;
-    button.classList.toggle('active', active);
-    if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
-  });
+  syncStaffNavigation('manager', view);
   // Each return to Settings starts at its group menu, never a stale subsection.
   if (view === 'settings') resetSettingsHub('[data-settings-hub="manager"]');
   // Refresh reopens this page: the open view lives in the URL. It is remembered
@@ -251,6 +243,17 @@ function renderView(view) {
   $('#managerMain')?.scrollTo({ top: 0, behavior: 'smooth' });
   return true;
 }
+bindStaffNavigation({ role: 'manager', onNavigate: route => {
+  if (route === 'students') {
+    const studentsPanel = $('.manager-view[data-view-panel="students"]');
+    if (studentsPanel) delete studentsPanel.dataset.studentsOpen;
+  }
+  if (route === 'finance') {
+    const financePanel = $('.manager-view[data-view-panel="finance"]');
+    if (financePanel) delete financePanel.dataset.financeOpen;
+  }
+  renderView(route);
+} });
 function compactRow(text, meta = '') { return `<div class="manager-compact-row"><strong>${escapeHtml(text)}</strong>${meta ? `<br><small>${escapeHtml(meta)}</small>` : ''}</div>`; }
 function attendanceSummary() {
   const today = todayISO();
@@ -307,8 +310,9 @@ function managerStudentDetailsMarkup(student, fee) {
     const appliedDate = escapeHtml(formatPendingDate(student));
     return `<div class="manager-student-detail-grid">${managerStudentDetailGroup('অনুমোদনের অপেক্ষায়', `<p>নাম: ${escapeHtml(student.name || 'নাম নেই')} • আইডি: ${escapeHtml(student.id || '—')}</p><p>${['শ্রেণি', className, group].filter(Boolean).join(' • ')}</p><p>তারিখ: ${appliedDate}</p>`)}${contact}</div>`;
   }
+  const identity = managerStudentDetailGroup('পরিচয়', `<p>শিক্ষার্থী ID: ${escapeHtml(student.id || '—')}</p>`);
   const progress = managerStudentDetailGroup('অগ্রগতি', `<p>মাসিক বকেয়া ${money(fee.due)}</p><p>উপস্থিতি ${student.attendance == null ? '—' : `${escapeHtml(student.attendance)}%`} • গড় ফল ${student.average == null ? '—' : escapeHtml(student.average)}</p>`);
-  return `<div class="manager-student-detail-grid">${managerStudentDetailGroup('শ্রেণি ও ব্যাচ', `<p>${[className, group].filter(Boolean).join(' • ') || '—'}</p>`)}${contact}${progress}</div>`;
+  return `<div class="manager-student-detail-grid">${identity}${managerStudentDetailGroup('শ্রেণি ও ব্যাচ', `<p>${[className, group].filter(Boolean).join(' • ') || '—'}</p>`)}${contact}${progress}</div>`;
 }
 /** শিক্ষার্থী: one screen for the whole student lifecycle. The pending queue is
     the canonical home for pending registrations; the all-roster list contains
@@ -339,7 +343,6 @@ function renderStudents() {
           <div class="manager-record-head manager-student-head">
             <div class="manager-student-identity">
               <h2>${escapeHtml(student.name || 'নাম নেই')}</h2>
-              <p class="manager-meta">শিক্ষার্থী ID: ${escapeHtml(student.id || 'ভর্তি আবেদন')}</p>
             </div>
             <div class="manager-student-summary-side">
               <span class="badge badge-pending">অপেক্ষমাণ</span>
@@ -398,7 +401,6 @@ function renderStudents() {
           <div class="manager-record-head manager-student-head">
             <div class="manager-student-identity">
               <h2>${escapeHtml(student.name || 'নাম নেই')}</h2>
-              <p class="manager-meta">শিক্ষার্থী ID: ${escapeHtml(student.id)}</p>
             </div>
             <div class="manager-student-summary-side">
               <span class="badge ${tone}">${escapeHtml(statusLabel[status] || status || 'অজানা')}</span>
@@ -1497,6 +1499,8 @@ async function enterManager() {
   syncManagerPanelHead();
   watchOwnPanelSession('manager');
   window.dispatchEvent(new Event('apc-session-ready'));
+  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
+    .catch(error => console.warn('[Active Plus] Manager notification centre unavailable:', error?.name || 'unknown'));
 }
 /** The content editor is mounted once and only painted when its page opens. */
 let courseEditor = null;

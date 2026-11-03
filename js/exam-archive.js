@@ -1,6 +1,6 @@
 import { nowEpoch } from './time.js';
 /* Date-wise Examination archive.
-   Pure helpers shared by the Manager/Teacher examination screens: filtering,
+   Pure helpers shared by the Admin/Manager/Teacher examination screens: filtering,
    date-wise grouping, the workflow timeline and the permission matrix. No DOM
    and no storage here — everything is derived from the records the repository
    returns (js/exam-data.js), so the same rules can be tested on their own. */
@@ -152,27 +152,29 @@ export function examPermissions(actor, exam, { attempts = 0, openAttempts = 0, n
   const role = actor?.role;
   const manager = role === 'manager';
   const admin = role === 'admin';
+  const reviewer = manager || admin;
   const teacher = role === 'teacher';
   const expectedId = actor?.id && actor.id !== 'TCH-001' ? actor.id : currentTeacherId();
   const own = teacher && isOwnTeacherRecord(exam?.teacherId, expectedId);
-  const editable = isEditableExam(exam) && attempts === 0 && (manager || own);
+  const author = manager || admin || own;
+  const editable = isEditableExam(exam) && attempts === 0 && author;
   const live = isLiveExam(exam);
   return {
     view: manager || admin || own,
     questions: manager || admin || own,
     edit: editable,
-    duplicate: manager || (teacher && own),
+    duplicate: manager || admin || (teacher && own),
     request: editable && ['draft', 'rejected'].includes(exam.status),
-    review: manager && ['pending', 'draft', 'rejected'].includes(exam.status),
-    approve: manager && ['pending', 'draft', 'rejected'].includes(exam.status) && Number(exam.startAt) > now,
-    publish: manager && ['draft', 'pending', 'approved'].includes(exam.status) && Number(exam.startAt) > now,
-    unpublish: manager && exam.status === 'published' && openAttempts === 0,
-    complete: manager && live && Number(exam.endAt) <= now && openAttempts === 0,
-    archive: manager && exam.status !== 'archived' && openAttempts === 0,
-    restore: manager && exam.status === 'archived',
-    remove: ['draft', 'rejected', 'archived'].includes(exam.status) && attempts === 0 && (manager || own),
+    review: reviewer && ['pending', 'draft', 'rejected'].includes(exam.status),
+    approve: reviewer && ['pending', 'draft', 'rejected'].includes(exam.status) && Number(exam.startAt) > now,
+    publish: reviewer && ['draft', 'pending', 'approved'].includes(exam.status) && Number(exam.startAt) > now,
+    unpublish: reviewer && exam.status === 'published' && openAttempts === 0,
+    complete: reviewer && live && Number(exam.endAt) <= now && openAttempts === 0,
+    archive: reviewer && exam.status !== 'archived' && openAttempts === 0,
+    restore: reviewer && exam.status === 'archived',
+    remove: ['draft', 'rejected', 'archived'].includes(exam.status) && attempts === 0 && (manager || admin || own),
     results: manager || admin || own,
     grade: (manager || admin || own) && live && exam.type !== 'mcq',
-    reschedule: manager && exam.status !== 'archived' && attempts === 0
+    reschedule: reviewer && exam.status !== 'archived' && attempts === 0
   };
 }

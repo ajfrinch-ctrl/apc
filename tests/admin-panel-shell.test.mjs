@@ -64,13 +64,13 @@ test('the Admin role keeps system control only — no daily operations', () => {
     CAPABILITIES.ROUTINE_MANAGE,
     CAPABILITIES.CLASSES_MANAGE,
     CAPABILITIES.APP_MANAGE,
-    CAPABILITIES.EXAMS_VIEW,
-    CAPABILITIES.EXAMS_PUBLISH,
     CAPABILITIES.TEACHING_PANEL,
     CAPABILITIES.PAYMENT_PANEL
   ]) {
     assert.equal(access.has(capability), false, `Admin must not hold ${capability}`);
   }
+  assert.equal(createAccess('admin').has(CAPABILITIES.EXAMS_VIEW), true, 'Admin owns academic exam access');
+  assert.equal(createAccess('admin').has(CAPABILITIES.EXAMS_PUBLISH), true, 'Admin can approve and publish exams');
   assert.equal(createAccess('admin').allowsView('finance'), false, 'the collection view no longer exists');
   assert.equal(createAccess('admin').allowsView('routine'), false);
   assert.equal(createAccess('admin').allowsView('notices'), false);
@@ -102,7 +102,7 @@ test('hash routes resolve only to known views', () => {
 
 test('the bottom bar renders one icon + label per permitted tab', () => {
   const items = ctx.$$('.admin-bottom button');
-  assert.deepEqual(items.map(button => button.dataset.panelView), ['dashboard', 'staff', 'reports', 'system', 'more']);
+  assert.deepEqual(items.map(button => button.dataset.panelView), ['dashboard', 'staff', 'academics', 'reports', 'more']);
   for (const button of items) {
     // Exactly one icon, drawn inside a fixed container: the chip.
     const chip = button.querySelector('.nav-chip');
@@ -171,7 +171,7 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
 test('the dashboard grid is generated from the permission model', () => {
   const tiles = ctx.$$('#adminFeatureGrid .admin-feature-tile');
   assert.deepEqual(tiles.map(tile => tile.dataset.panelView), [
-    'students'
+    'students', 'dashboard', 'staff', 'reports', 'reports', 'audit-exam'
   ]);
   for (const tile of tiles) {
     const wrap = tile.querySelector('.admin-feature-icon');
@@ -230,13 +230,13 @@ test('nothing outside the Admin role survives in the DOM', () => {
   }
 });
 
-test('no exam publish/approval control lives in the Admin panel', () => {
-  // Exam records are read in Reports; publishing stays with the Manager portal.
-  assert.ok(ctx.$('#adminExamWorkspace'), 'Admin has an exam grading workspace on the audit page');
-  const labels = ctx.$$('.admin-shell button').map(button => button.textContent);
-  for (const label of labels) {
-    assert.doesNotMatch(label, /প্রকাশ করুন|অনুমোদন দিয়ে|ফি গ্রহণ/, 'Admin must not publish, approve or collect');
-  }
+test('Admin Academic workspace exposes exam approval and publication controls', () => {
+  assert.ok(ctx.$('#adminExamWorkspace'), 'Admin has an exam-management workspace');
+  const workspace = ctx.$('#adminExamWorkspace');
+  assert.ok(createAccess('admin').allowsView('audit-exam'), 'Admin can open the exam-management workspace');
+  assert.equal(workspace.isConnected, true, 'the Admin exam workspace remains mounted');
+  assert.equal(createAccess('admin').has(CAPABILITIES.EXAMS_PUBLISH), true);
+  assert.equal(createAccess('admin').has(CAPABILITIES.FINANCE_COLLECT), false, 'Admin sees finance summaries, not cash collection');
 });
 
 test('a hash route opens a permitted view and moves the active tab', async () => {
@@ -246,8 +246,8 @@ test('a hash route opens a permitted view and moves the active tab', async () =>
 
   ctx.window.location.hash = '#settings';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="settings"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'system',
-    'a screen inside the সিস্টেম hub keeps its own seat lit');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'more',
+    'সিস্টেম hub is nested under the shared More seat');
 
   ctx.window.location.hash = '#backup';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="backup"]').classList.contains('active'));
@@ -263,14 +263,14 @@ test('a hash route opens a permitted view and moves the active tab', async () =>
 
   ctx.window.location.hash = '#students';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'dashboard',
-    'the registration review reached from হোম keeps হোম lit');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'staff',
+    'student management belongs to the shared কাজ seat');
 
   // A route that belongs to another panel never moves the panel.
   ctx.window.location.hash = '#finance';
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'), true);
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'dashboard');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'staff');
   ctx.window.location.hash = '';
 });
 
@@ -278,7 +278,7 @@ test('Account → Security → Account reopens the correct Admin content on ever
   const hub = ctx.$('[data-settings-hub="admin"]');
   const moreSeat = ctx.$('.admin-bottom [data-panel-view="more"]');
   const accountRow = ctx.$('#adminMoreMenu [data-panel-view="profile"]');
-  const systemSeat = ctx.$('.admin-bottom [data-panel-view="system"]');
+  const systemSeat = moreSeat;
   const openAccount = async () => { ctx.click(moreSeat); await ctx.flush(3); ctx.click(accountRow); await ctx.flush(4); };
   await ctx.waitFor(() => Boolean(hub.querySelector('[data-settings-groups]')));
   const groupNav = hub.querySelector('[data-settings-groups]');
@@ -302,6 +302,8 @@ test('Account → Security → Account reopens the correct Admin content on ever
   await ctx.flush(2);
   onlyVisibleGroup('security');
   ctx.click(systemSeat);
+  await ctx.flush(4);
+  ctx.click(ctx.$('#adminMoreMenu .admin-more-item[data-panel-view="system"]'));
   await ctx.flush(4);
   ctx.click(ctx.$('#adminSystemMenu .admin-more-item[data-panel-view="security"]'));
   await ctx.flush(4);

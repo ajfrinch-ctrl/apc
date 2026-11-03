@@ -140,7 +140,7 @@ service cloud.firestore {
         || (isStudent() && resource.data.status == 'published' && resource.data.className == studentClass()
           && (resource.data.get('group', '') == '' || resource.data.get('group', '') == studentGroup()));
       // No client may smuggle answers into a nested question or publish/erase
-      // an exam. managerReviewExam uses the Admin SDK after server validation.
+      // an exam. managerReviewExam (Admin/Manager) uses the Admin SDK after server validation.
       allow create, update, delete: if false;
 
       /* Answer key + private exam material: never readable by students. */

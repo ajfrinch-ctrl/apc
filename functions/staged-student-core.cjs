@@ -1,7 +1,7 @@
 'use strict';
 
 /* Phase 7: verified Auth identity -> server-owned pending Student enrollment ->
- * Manager decision. No SDK imports so transactional behavior can be tested
+ * Admin/Manager decision. No SDK imports so transactional behavior can be tested
  * without a live project. This is not the local registration flow. */
 const { safeId } = require('./staged-exam-core.cjs');
 const CLASSES = Object.freeze([
@@ -106,15 +106,15 @@ async function reviewStagedStudent({ db, auth, serverTimestamp, caller, data } =
   if (!db || typeof db.doc !== 'function' || typeof db.runTransaction !== 'function' ||
       !auth || typeof auth.getUser !== 'function' || typeof auth.setCustomUserClaims !== 'function' ||
       typeof serverTimestamp !== 'function') refuse('trusted-admin-required');
-  if (!safeId(caller?.uid) || caller.token?.role !== 'manager' || caller.token?.status !== 'active' ||
-      caller.token?.mustChangePassword === true || caller.token?.firebase?.sign_in_provider !== 'password') refuse('manager-required');
+  if (!safeId(caller?.uid) || !['admin', 'manager'].includes(caller.token?.role) || caller.token?.status !== 'active' ||
+      caller.token?.mustChangePassword === true || caller.token?.firebase?.sign_in_provider !== 'password') refuse('reviewer-required');
   if (!exact(data, ['uid', 'decision', 'note']) || !safeId(data.uid) ||
       !['approved', 'rejected'].includes(data.decision)) refuse('invalid-review');
   const note = data.note === undefined ? '' : (data.note === '' ? '' : normalizedText(data.note, 500));
   if (data.decision === 'rejected' && !note) refuse('invalid-review');
   const uid = data.uid, decision = data.decision;
   const authUser = await auth.getUser(uid);
-  // Manager is not the Student, so validate the target Auth record explicitly.
+  // Admin/Manager is not the Student, so validate the target Auth record explicitly.
   if (authUser.uid !== uid || authUser.disabled || !authUser.emailVerified ||
       !EMAIL.test(authUser.email || '') || authUser.email.endsWith('@accounts.activeplus.app') ||
       authUser.customClaims?.role !== 'student' || authUser.customClaims?.studentId !== uid ||

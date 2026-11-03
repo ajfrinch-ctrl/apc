@@ -21,20 +21,20 @@ test('Manager Settings returns to its group menu after switching pages at 320px'
   const settings = page.locator('.manager-view[data-view-panel="settings"]');
   const hub = page.locator('[data-settings-hub="manager"]');
   const nav = hub.locator('[data-settings-groups]');
-  await page.locator('.manager-bottom [data-panel-view="more"]').click();
+  await page.locator('.staff-bottom-nav [data-panel-view="more"]').click();
   await page.locator('#managerMoreHub [data-panel-view="settings"]').click();
   await expect(settings).toBeVisible();
   await hub.locator('[data-settings-open="security"]').click();
   await expect(hub.locator('[data-settings-group="security"]')).toBeVisible();
 
-  await page.locator('.manager-bottom [data-panel-view="dashboard"]').click();
-  await page.locator('.manager-bottom [data-panel-view="more"]').click();
+  await page.locator('.staff-bottom-nav [data-panel-view="dashboard"]').click();
+  await page.locator('.staff-bottom-nav [data-panel-view="more"]').click();
   await page.locator('#managerMoreHub [data-panel-view="settings"]').click();
   await expect(settings).toBeVisible();
   await expect(nav).toBeVisible();
   await expect(hub.locator('[data-settings-group]:not([hidden])')).toHaveCount(0);
   await expect(page.locator('.manager-view.active')).toHaveCount(1);
-  await expect(page.locator('.manager-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
+  await expect(page.locator('.staff-bottom-nav [aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });

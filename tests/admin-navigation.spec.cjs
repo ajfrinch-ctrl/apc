@@ -1,14 +1,19 @@
 const { test, expect } = require('./fixtures.cjs');
 const { enterPortal } = require('./portal-session.cjs');
-// Five shared seats: Home, Staff, Reports, System, More. Data/Profile/Advice
-// remain in the More hub; daily operations stay with their owning panels.
-const mobileViews = ['dashboard', 'staff', 'reports', 'system', 'more'];
+// Five shared seats: Home, Work, Academic, Finance, More. System and Data
+// are nested pages inside More; daily operations stay with their owning panels.
+const mobileViews = ['dashboard', 'staff', 'academics', 'reports', 'more'];
 const systemViews = ['roles', 'security', 'settings', 'academics', 'migration'];
 async function enter(page) {
   await enterPortal(page, 'admin');
   await expect(page.locator('#adminShell')).toBeVisible();
 }
 async function bottom(page, view) {
+  if (view === 'system') {
+    await page.locator('.admin-bottom [data-panel-view="more"]').click();
+    await page.locator('#adminMoreMenu .admin-more-item[data-panel-view="system"]').click();
+    return;
+  }
   await page.locator(`.admin-bottom [data-panel-view="${view}"]`).click();
 }
 async function more(page, view) {
@@ -31,7 +36,7 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
   await expect(home.locator('#dashTitle')).toContainText('স্বাগতম');
   await expect(home.locator('#adminTodayDate')).toBeVisible();
   await expect(home.locator('#adminHeroAdvice')).toBeVisible();
-  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(1);
+  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(6);
   await expect(home.locator('.admin-portal-grid > a')).toHaveCount(3);
 
   for (const theme of ['light', 'dark']) {
@@ -126,7 +131,8 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await expect(tiles).toHaveCount(1);
       const quickGrid = page.locator('#adminFeatureGrid');
       const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), tiles.first().boundingBox()]);
-      expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
+      expect(quickTileBox.width).toBeGreaterThan(quickGridBox.width * 0.4);
+  expect(quickTileBox.width).toBeLessThan(quickGridBox.width * 0.6);
       // The current Admin skin uses full-width horizontal action cards.
       expect(await tiles.first().evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
       // One inline SVG per tile, inside a fixed container: never a missing image.
@@ -174,13 +180,13 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
         const panel = page.locator(`.admin-view[data-view-panel="${view}"]`);
         await expect(panel).toBeVisible();
         await expect(panel.locator('h1')).toBeFocused();
-        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       }
       // More maps Data, Content, Profile and Advice without a sixth bottom seat.
       await bottom(page, 'more');
-      await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(4);
-      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.panelView))).toEqual(['data', 'content', 'profile', 'advice']);
+      await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(5);
+      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.panelView))).toEqual(['system', 'data', 'content', 'profile', 'advice']);
       await page.locator('#adminMoreMenu .admin-more-item[data-panel-view=data]').click();
       await expect(page.locator('.admin-view[data-view-panel=data]')).toBeVisible();
       await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
@@ -539,7 +545,7 @@ for (const width of [320, 390]) {
     await bottom(page, 'system');
     await page.locator('#adminSystemMenu .admin-more-item[data-panel-view="security"]').click();
     await expect(page.locator('.admin-view[data-view-panel="security"]')).toBeVisible();
-    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
     await more(page, 'profile');
     await expect(page.locator('.admin-view[data-view-panel="profile"]')).toBeVisible();
     await expect(groupNav).toBeVisible();
@@ -596,9 +602,10 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
   expect(bottomBar.x).toBe(phoneShell.x);
   const quickGrid = page.locator('#adminFeatureGrid');
   const quickTile = page.locator('#adminFeatureGrid .admin-feature-tile');
-  await expect(quickTile).toHaveCount(1);
+  await expect(quickTile).toHaveCount(6);
   const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), quickTile.boundingBox()]);
-  expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
+  expect(quickTileBox.width).toBeGreaterThan(quickGridBox.width * 0.4);
+  expect(quickTileBox.width).toBeLessThan(quickGridBox.width * 0.6);
   expect(await quickTile.evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
   for (const view of mobileViews) {
     await bottom(page, view);
@@ -609,10 +616,48 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
     await bottom(page, 'system');
     await page.locator(`#adminSystemMenu .admin-more-item[data-panel-view="${view}"]`).click();
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
-    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
   }
   await more(page, 'data');
   await page.locator('#adminDataMenu .admin-more-item[data-panel-view=backup]').click();
   await expect(page.locator('.admin-view[data-view-panel=backup]')).toBeVisible();
   await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
+});
+
+
+test('Admin opens the exam workspace from Academic and gets full review controls', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enter(page);
+  await page.locator('.staff-bottom-nav [data-panel-view="academics"]').click();
+  const academics = page.locator('.admin-view[data-view-panel="academics"]');
+  await expect(academics).toBeVisible();
+  await academics.locator('[data-panel-view="audit-exam"]').click();
+
+  const examView = page.locator('.admin-view[data-view-panel="audit-exam"]');
+  const workspace = page.locator('#adminExamWorkspace');
+  await expect(examView).toBeVisible();
+  await expect(workspace.locator('[data-exam-action="view-approval"]')).toBeVisible();
+  await expect(workspace.locator('[data-exam-action="bank"]')).toBeVisible();
+  await expect(workspace.locator('[data-exam-action="new-mcq"]')).toBeVisible();
+  await expect(page.locator('.staff-bottom-nav [data-staff-tab="academic"]')).toHaveAttribute('aria-current', 'page');
+});
+
+
+test('Admin home presents the six owner-priority shortcuts in the required order', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enter(page);
+  const tiles = page.locator('#adminFeatureGrid .admin-feature-tile');
+  await expect(tiles).toHaveCount(6);
+  await expect(page.locator('#adminFeatureGrid .admin-feature-label')).toHaveText([
+    'নিবন্ধন অনুমোদন', 'নোটিফিকেশন', 'স্টাফ ব্যবস্থাপনা',
+    'রিপোর্ট কেন্দ্র', 'অর্থ সারাংশ', 'পরীক্ষা ব্যবস্থাপনা'
+  ]);
+});
+
+
+test('Admin notification shortcut opens the shared notification inbox', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enter(page);
+  await page.locator('#adminFeatureGrid .admin-feature-tile').nth(1).click();
+  await expect(page.locator('.apc-fb-panel[role="dialog"]')).toBeVisible();
 });

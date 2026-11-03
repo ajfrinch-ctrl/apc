@@ -19,11 +19,12 @@ function setup() {
     [TEACHER_ASSIGNMENTS_KEY, JSON.stringify(assignments)],
     [STAFF_ACCOUNTS.teacher.accountKey, JSON.stringify({ role: 'teacher', username: 'teacher.apc', fullName: 'Test Teacher', status: 'active' })],
     [STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', fullName: 'Test Manager', status: 'active' })],
+    [STAFF_ACCOUNTS.admin.accountKey, JSON.stringify({ role: 'admin', username: 'admin.apc', fullName: 'Test Admin', status: 'active' })],
     [STORAGE_KEYS.account, JSON.stringify({ status: 'active', student: one })]
   ]); let fail = false, events = 0;
   clock = start - 3600000; Date.now = () => clock;
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
-  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1'], [STORAGE_KEYS.session, '1']]);
+  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1'], [STAFF_ACCOUNTS.admin.sessionKey, '1'], [STORAGE_KEYS.session, '1']]);
   globalThis.window = { localStorage: { getItem: key => store.get(key) ?? null, setItem: (key, value) => { if (fail) throw new Error('quota'); store.set(key, value); } }, sessionStorage: { getItem: key => sessions.get(key) ?? null, setItem: (key, value) => sessions.set(key, value), removeItem: key => sessions.delete(key) }, dispatchEvent: () => events++ };
   return { store, fail: () => { fail = true; }, get events() { return events; } };
 }
@@ -72,7 +73,7 @@ test('teacher exam actions and participants are bounded to assigned class/batch'
   await assert.rejects(repo.markWrittenAbsent(id, three));
 });
 
-test('teacher drafts → submit → Manager rejection/edit/approval; no premature publication', async () => {
+test('teacher drafts → submit → Admin/Manager review, rejection and publication; no premature publication', async () => {
   setup(); let db = await repo.saveDraft(fields()); const id = db.exams[0].id;
   assert.equal(db.exams[0].status, 'draft');
   await assert.rejects(repo.review(id, 'publish'));
@@ -80,7 +81,7 @@ test('teacher drafts → submit → Manager rejection/edit/approval; no prematur
   await assert.rejects(repo.requestApproval(id, { role: 'teacher', id: 'OTHER' }));
   await repo.requestApproval(id);
   await assert.rejects(repo.review(id, 'publish', {}, TEACHER_ACTOR));
-  await assert.rejects(repo.review(id, 'publish', {}, ADMIN_ACTOR), /শুধু ম্যানেজার/);
+  db = await repo.review(id, 'approve', {}, ADMIN_ACTOR); assert.equal(db.exams[0].status, 'approved');
   db = await repo.review(id, 'reject', { note: 'প্রশ্ন সংশোধন করুন' }, MANAGER_ACTOR); assert.equal(db.exams[0].status, 'rejected');
   db = await repo.saveDraft({ ...fields(), id }); assert.equal(db.exams[0].status, 'draft');
   await repo.requestApproval(id); db = await repo.review(id, 'publish', { negative: 1 }, MANAGER_ACTOR);

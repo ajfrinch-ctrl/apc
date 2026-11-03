@@ -73,10 +73,10 @@ test('top and bottom bars carry the green brand color in light and AMOLED themes
 
 test('student, manager and teacher have real, named service shortcuts', () => {
   const allowed = {
-    manager: ['students', 'classes', 'teachers', 'routine', 'exams', 'notices', 'finance', 'reports'],
+    manager: ['students', 'classes', 'teachers', 'routine', 'exams', 'notices', 'finance', 'reports', 'lecture-sheets'],
     teacher: []
   };
-  const expectedCount = { manager: 9, teacher: 0 };
+  const expectedCount = { manager: 10, teacher: 0 };
   const studentCards = [
     ['homework', 'বাড়ির কাজ'], ['exams', 'পরীক্ষা'], ['suggestion', 'সাজেশন'],
     ['question-bank', 'প্রশ্নব্যাংক'], ['exam-results', 'ফলাফল'], ['notice-board', 'নোটিশ বোর্ড'], ['class-chat', 'শ্রেণি চ্যাট']
@@ -226,8 +226,11 @@ test('notification settings live inside a hidden view, never floating outside th
 
 test('counter keeps only its job surfaces, not wallet dashboard extras', () => {
   const document = doc('payment');
-  const seats = [...document.querySelectorAll('.admin-bottom [data-panel-view]')].map(seat => seat.dataset.panelView);
-  assert.deepEqual(seats, ['home', 'students', 'payment', 'reports', 'more'], 'one seat per step of the counter job');
+  const seats = [...document.querySelectorAll('.staff-bottom-nav > .admin-bottom-item')];
+  assert.equal(seats.length, 5, 'the counter keeps the shared five-seat navigation');
+  assert.deepEqual(seats.map(seat => seat.dataset.staffTab), ['home', 'work', 'academic', 'finance', 'more']);
+  assert.deepEqual(seats.filter(seat => seat.dataset.panelView).map(seat => seat.dataset.panelView), ['home', 'students', 'payment', 'more']);
+  assert.equal(seats[2].disabled, true, 'Academic stays visible but disabled for the counter role');
   /* ২০২৬-১১-০২: پنج job seat অপরিবর্তিত; কাউন্টারের নিজের প্রোফাইল এখন আলাদা
      স্ক্রিন (পঞ্চম সিটের নিচে নয়) — চার স্টাফ প্যানেলের একই প্রোফাইল নিয়ম। */
   assert.deepEqual([...document.querySelectorAll('[data-pay-panel]')].map(panel => panel.dataset.payPanel),

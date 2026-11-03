@@ -190,7 +190,7 @@
 //       the staff directory and edits its own profile; the System Owner stays protected.
 // v439: Yellow Pages hides every primary field by default — one click on a card
 //       reveals that card only; a release no longer wipes the panel-hint cache.
-const CACHE_VERSION = 459;
+const CACHE_VERSION = 461;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 /* One cache, two precache sets, one release pin.
 
@@ -452,7 +452,6 @@ const APP_SHELL = [
   './js/notification-settings.js',
   './js/settings-hub.js',
   './js/staff-account-forms.js',
-  './js/panel-capabilities.js',
   './js/academics.js',
   './js/brand.js',
   './js/exam-data.js',
@@ -492,6 +491,7 @@ const APP_SHELL = [
   './js/storage.js',
   './js/ui.js',
   './js/shell.js',
+  './js/birthday.js',
   './js/routine.js',
   './js/profile.js',
   './js/student-profile-card.js',
@@ -540,6 +540,12 @@ const APP_SHELL = [
 /* Staff half of the precache — see the note above APP_SHELL. These files are
    fetched the first time a staff panel asks for them, not at install. */
 const STAFF_SHELL = [
+  './css/staff-panel-theme.css',
+  './js/staff-panel-theme.js',
+  './js/staff-navigation.js',
+  './js/staff-daily-advice.js',
+  './js/panel-capabilities.js',
+  './js/admin-permissions.js',
   './css/teacher-panel.css',
   './admin.html',
   './manager.html',
@@ -560,7 +566,6 @@ const STAFF_SHELL = [
   './js/admin-device-approvals.js',
   './js/admin-migration.js',
   './js/admin-panel-ui.js',
-  './js/admin-permissions.js',
   './js/advice-admin.js',
   './js/advice-admin-entry.js',
   './js/backup-crypto.js',

@@ -1,6 +1,4 @@
 import { dhakaKey } from './time.js';
-import { pickDailyAdvice, readAdviceCache } from './daily-advice.js';
-import { pickAdminOperationalAdvice, ADMIN_OPERATIONAL_ADVICE_SEEDS, pickAdminSectionAdvice } from './admin-operational-advice.js';
 import { initExamManager } from './exam-manager.js';
 import { studentRecordMarkup } from './student-record.js';
 import { initAdminAcademics } from './admin-academics.js';
@@ -10,10 +8,12 @@ import { iconMarkup } from './icons.js';
 /* Admin panel — System Control + Staff Management + Permissions + Security +
    Data + Reports + Settings.
 
-   Scope note: daily operations are NOT here on purpose.
+   Scope note: daily operations stay with their owning panels, while the Admin
+   retains institution-wide approval authority:
      • fee collection / cash-counter entry  → payment.html (Cash Counter)
      • routine entry, daily notices         → manager.html (Manager)
-     • student approval, exam publish       → manager.html (Manager)
+     • student registration approval        → Admin + Manager
+     • exam review / approval / publication → Admin + Manager
      • teaching, homework, attendance       → teacher.html (Teacher)
    Admin sees system-level monitoring, owns every staff identity (Staff ID) and
    keeps the device's data safe. Username and password are required; the roster,
@@ -36,6 +36,8 @@ import { escapeHtml } from './sanitize.js';
 import { matchesStudentQuery } from './student-search.js';
 import { createAccess, CAPABILITIES, routeFromHash, VIEW_SEAT, DETAIL_VIEW_PARENTS, VIEW_CAPABILITIES } from './admin-permissions.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
+import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
+import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { rememberRoute, onRouteChange } from './panel-route.js';
 import { activateAdminDetail, placeRenderedDetails } from './admin-detail-views.js';
 import { openRegistrationReview, DECIDED_EVENT, listPendingRegistrations, pendingQueueMarkup, bindPendingQueueActions } from './registration-review.js';
@@ -199,6 +201,8 @@ async function enterPanel() {
   readStaffAccount('admin')
     .then(account => ensureBootstrapStaffAccounts(account?.username || 'admin.apc'));
   window.dispatchEvent(new Event('apc-session-ready'));
+  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
+    .catch(error => console.warn('[Active Plus] Admin notification centre unavailable:', error?.name || 'unknown'));
 }
 
 function exitPanel() {
@@ -275,7 +279,7 @@ function syncAdminHeroCards() {
     const key = welcomeBox.dataset.adminHeroAdvice || 'admin-dashboard';
     if (key === 'admin-dashboard') return;
     const p = welcomeBox.querySelector('p');
-    const line = pickAdminSectionAdvice(key);
+    const line = pickStaffSectionAdvice(key);
     if (p && line) p.textContent = line;
   });
 }
@@ -356,13 +360,7 @@ function setView(view, { history = 'replace', clearBack = false } = {}) {
   openDefaultPrimarySection(target);
   if (target === 'phonebook') mountAdminPhonebook();
   syncAdminHeroCards();
-  const seat = seatFor(target);
-  $$('.admin-bottom-item').forEach(item => {
-    const active = item.dataset.panelView === seat;
-    item.classList.toggle('active', active);
-    if (active) item.setAttribute('aria-current', 'page');
-    else item.removeAttribute('aria-current');
-  });
+  syncStaffNavigation('admin', target);
   $('#adminMain').scrollTo({ top: 0, behavior: 'instant' });
   // User navigation pushes an entry like Student; startup replaces, and a
   // browser history traversal keeps the entry it is restoring.
@@ -435,6 +433,8 @@ function navigateBack(fallback) {
     { history: 'replace', clearBack: true });
 }
 
+bindStaffNavigation({ role: 'admin', onNavigate: (route, button) => navigate(route, button) });
+
 /* ---------- Dashboard ---------- */
 
 /* Two-grapheme initials for avatars: Bengali names keep their conjuncts
@@ -495,17 +495,7 @@ function renderDashboard() {
     todayDateEl.dateTime = dateKey;
   }
   const adviceNode = $('#adminHeroAdvice');
-  if (adviceNode) {
-    const cacheItems = readAdviceCache()?.items;
-    const hasCustomAdvice = Array.isArray(cacheItems) && cacheItems.length;
-    if (hasCustomAdvice) {
-      const picked = pickDailyAdvice(cacheItems, dateKey);
-      if (picked?.text) adviceNode.textContent = picked.text;
-    } else {
-      const picked = pickAdminOperationalAdvice(dateKey, ADMIN_OPERATIONAL_ADVICE_SEEDS);
-      if (picked?.text) adviceNode.textContent = picked.text;
-    }
-  }
+  if (adviceNode) adviceNode.textContent = pickStaffSectionAdvice('home', today);
   syncAdminHeroCards();
 }
 
@@ -602,7 +592,7 @@ function renderStudents() {
         const isPending = student.status === 'pending';
         return `
           <article class="student-row student-row-redesigned${revealed ? ' is-revealed' : ''}${isPending ? ' is-pending' : ''}" data-student-row="${escapeHtml(rowKey)}"${revealed ? ' data-student-revealed="1"' : ''}>
-            <div class="student-row-main" role="button" tabindex="0" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}" aria-expanded="${revealed ? 'true' : 'false'}">
+            <div class="student-row-main">
               <span class="student-avatar" aria-hidden="true">${escapeHtml(initialsOf(name))}</span>
               <div class="student-copy">
                 <div class="student-title-line">
@@ -611,24 +601,20 @@ function renderStudents() {
                 </div>
                 <div class="student-meta-line">
                   <span class="student-short-hint">${isPending ? 'অপেক্ষমাণ — বিস্তারিত দেখুন' : (student.className ? escapeHtml(student.className) : 'বিস্তারিত দেখুন')}</span>
+                  <span class="audit-id-badge" dir="ltr">ID: ${revealed ? escapeHtml(rowKey) : PRIVACY_MASK}</span>
                 </div>
               </div>
-              <span class="student-row-chevron" aria-hidden="true">${revealed ? '▴' : '▾'}</span>
+              <button class="mini-btn student-id-reveal" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}" aria-expanded="${revealed ? 'true' : 'false'}">${revealed ? 'আইডি লুকান' : 'আইডি দেখুন'}</button>
             </div>
             <div class="student-row-detail" ${revealed ? '' : 'hidden'}>
               <div class="student-meta-line">
-                <span class="audit-id-badge">ID: ${escapeHtml(rowKey)}</span>
                 ${student.className ? `<span class="badge">${escapeHtml(student.className)}</span>` : ''}
-                ${student.mobile ? `<span class="audit-id-badge" dir="ltr">${escapeHtml(student.mobile)}</span>` : ''}
               </div>
               <div class="student-actions">
                 <button class="mini-btn" type="button" data-action="view" data-id="${escapeHtml(rowKey)}">প্রোফাইল</button>
                 <button class="mini-btn" type="button" data-action="edit" data-id="${escapeHtml(rowKey)}">সম্পাদনা</button>
                 <button class="mini-btn" type="button" data-action="reset-pin" data-id="${escapeHtml(rowKey)}">পাসওয়ার্ড রিসেট</button>
-                ${student.status === 'pending' && access.has(CAPABILITIES.STUDENTS_APPROVE)
-                  ? `<button class="mini-btn approve primary" type="button" data-action="review-registration" data-id="${escapeHtml(rowKey)}">রিভিউ ও অনুমোদন</button>`
-                  : ''}
-                <button class="mini-btn" type="button" data-action="${revealed ? 'hide-student' : 'reveal-student'}" data-id="${escapeHtml(rowKey)}" aria-expanded="${revealed ? 'true' : 'false'}">${revealed ? 'সংক্ষিপ্ত করুন' : 'আইডি দেখুন'}</button>
+                ${student.status === 'pending' && access.has(CAPABILITIES.STUDENTS_APPROVE) ? `<button class="mini-btn approve primary" type="button" data-action="review-registration" data-id="${escapeHtml(rowKey)}">রিভিউ ও অনুমোদন</button>` : ''}
               </div>
             </div>
           </article>`;
@@ -1009,7 +995,7 @@ function saveBroadcastFromForm() {
 const ROLE_ORDER = Object.freeze(['admin', 'manager', 'teacher', 'payment', 'student']);
 
 const ROLE_SUMMARY = Object.freeze({
-  admin: 'System Control, স্টাফ ম্যানেজমেন্ট, অনুমতি, সিকিউরিটি, ডেটা, ব্যাকআপ, রিপোর্ট ও সেটিংস',
+  admin: 'পূর্ণ নিয়ন্ত্রণ: স্টাফ, শিক্ষার্থী ও পরীক্ষা অনুমোদন, একাডেমিক, রিপোর্ট, সিকিউরিটি, ডেটা ও সেটিংস',
   manager: 'দৈনন্দিন অপারেশন: শিক্ষার্থী অনুমোদন, নোটিশ, রুটিন, পরীক্ষা প্রকাশ, হিসাব পর্যালোচনা',
   teacher: 'ক্লাস, বাড়ির কাজ, উপস্থিতি, সাজেশন ও পরীক্ষা — শিক্ষক প্যানেল',
   payment: 'ফি গ্রহণ ও ক্যাশ কাউন্টার এন্ট্রি — Payment রিসিভ প্যানেল',
@@ -1784,7 +1770,8 @@ function refreshView(view) {
   const parent = DETAIL_VIEW_PARENTS[view] || view;
   // Re-entering the Profile hub resets its group menu; a routed group must
   // keep that group open while the profile data is refreshed.
-  const refresh = parent === 'profile' && view !== parent ? renderAdminProfile : VIEW_REFRESHERS[parent];
+  const refresh = view === 'audit-exam' ? renderGradeAudit
+    : parent === 'profile' && view !== parent ? renderAdminProfile : VIEW_REFRESHERS[parent];
   if (!refresh || !viewExists(view) || !viewExists(parent)) return;
   try { refresh(); } catch (error) {
     console.warn(`[Active Plus] ${view} refresh failed:`, error?.message);
