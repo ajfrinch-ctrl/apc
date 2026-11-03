@@ -201,6 +201,8 @@ async function enterPanel() {
   readStaffAccount('admin')
     .then(account => ensureBootstrapStaffAccounts(account?.username || 'admin.apc'));
   window.dispatchEvent(new Event('apc-session-ready'));
+  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
+    .catch(error => console.warn('[Active Plus] Admin notification centre unavailable:', error?.name || 'unknown'));
 }
 
 function exitPanel() {
