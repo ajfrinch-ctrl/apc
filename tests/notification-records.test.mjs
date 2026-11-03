@@ -216,6 +216,21 @@ test('sync automatically archives records that have crossed the 30-day boundary'
   assert.equal(listActiveNotifications(owner).length, 0);
 });
 
+test('a read pending approval stays active while its source remains pending, then archives after resolution', async () => {
+  await loadPage('admin.html');
+  const owner = 'staff:admin.apc';
+  const pending = { key: 'registration:PENDING-OLD', kind: 'registration', actionable: true,
+    sourceId: 'PENDING-OLD', title: 'নতুন ভর্তি', body: 'অনুমোদনের অপেক্ষায়', at: DAY };
+  syncNotifications({ userId: owner, feed: [pending], now: DAY + 31 * 86400000 });
+  markRead(owner, [pending.key], DAY + 31 * 86400000);
+  syncNotifications({ userId: owner, feed: [pending], now: DAY + 32 * 86400000 });
+  assert.equal(listActiveNotifications(owner).some(row => row.key === pending.key), true,
+    'opening the item does not archive a still-pending approval');
+  syncNotifications({ userId: owner, feed: [], now: DAY + 33 * 86400000 });
+  assert.equal(listArchivedNotifications(owner).some(row => row.key === pending.key), true,
+    'the resolved approval can move into History');
+});
+
 test('a chat notification is acknowledged when its message leaves the unread room feed', async () => {
   await loadPage('student.html');
   const owner = 'student:AP-CHAT-READ';
