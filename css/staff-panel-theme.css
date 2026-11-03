@@ -304,3 +304,15 @@ html[data-theme="dark"][data-staff-panel="payment"] {
   padding: 4px 2px 2px !important;
   font-size: 11.5px !important;
 }
+
+
+/* Shared profile identity surface: each role keeps its own protected fields
+   and renderer, while the outer card uses one common geometry. */
+.staff-profile-card {
+  min-width: 0;
+  border-radius: 22px;
+  box-shadow: var(--pay-shadow);
+}
+.staff-profile-card :is(h2, h3) {
+  overflow-wrap: anywhere;
+}
