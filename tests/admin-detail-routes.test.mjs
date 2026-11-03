@@ -35,7 +35,7 @@ test('every Admin detail is a unique sibling screen with its own labelled Back',
 
 test('all details inherit exactly their hub capability and bottom seat for every role', () => {
   for (const [view, parent] of entries) {
-    assert.equal(viewCapability(view), viewCapability(parent), view);
+    assert.equal(viewCapability(view), view === 'audit-exam' ? CAPABILITIES.EXAMS_PUBLISH : viewCapability(parent), view);
     assert.equal(VIEW_SEAT[view], VIEW_SEAT[parent] || parent, view);
     for (const role of ['admin', 'manager', 'teacher', 'payment', 'student', 'unknown']) {
       const access = createAccess(role);
@@ -52,7 +52,7 @@ test('capability enforcement removes forbidden detail markup, not merely its lau
     const access = createAccess(role);
     const result = enforceCapabilities({ root: doc, access });
     for (const [view, parent] of entries) {
-      if (access.allowsView(parent)) {
+      if (view === 'audit-exam' ? access.allowsView(view) : access.allowsView(parent)) {
         assert.ok(doc.querySelector(`.admin-view[data-view-panel="${view}"]`), `${role}: permitted ${view} remains`);
       } else {
         assert.equal(doc.querySelector(`.admin-view[data-view-panel="${view}"]`), null, `${role}: ${view} removed`);
