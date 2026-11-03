@@ -338,3 +338,32 @@ html[data-staff-panel] .teacher-action-card .teacher-action-art,
 html[data-staff-panel] .teacher-action-card .pay-tile-icon {
   flex: none;
 }
+
+
+/* Shared dashboard action grid: identical responsive rhythm across all roles.
+   The actual actions remain role-specific and retain their existing guarded
+   data-panel-view / data-pay-toggle behavior. */
+html[data-staff-panel] .staff-home-action-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: stretch;
+  gap: 12px !important;
+  width: 100%;
+}
+html[data-staff-panel] .staff-home-action-grid > * {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 92px;
+}
+html[data-staff-panel] .staff-home-action-grid > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+@media (max-width: 360px) {
+  html[data-staff-panel] .staff-home-action-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  html[data-staff-panel] .staff-home-action-grid > :last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+}
