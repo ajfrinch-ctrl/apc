@@ -51,3 +51,21 @@ test('all four staff home dashboards use the shared responsive action grid', asy
   assert.match(theme, /\.staff-home-action-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s);
   assert.match(theme, /max-width:\s*360px/);
 });
+
+
+test('role-specific Home summaries share the same outer surface and KPI geometry', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const cases = [
+    ['admin.html', ['staff-home-summary-surface']],
+    ['teacher.html', ['staff-home-summary-surface']],
+    ['manager.html', ['staff-home-summary-surface', 'staff-home-kpi']],
+    ['payment.html', ['staff-home-summary-surface']]
+  ];
+  for (const [page, classes] of cases) {
+    const html = await readFile(new URL('../' + page, import.meta.url), 'utf8');
+    for (const name of classes) assert.ok(html.includes(name), page + ' must use ' + name);
+  }
+  const theme = await readFile(new URL('../css/staff-panel-theme.css', import.meta.url), 'utf8');
+  assert.match(theme, /\.staff-home-summary-surface\s*\{[^}]*border-radius:\s*22px/s);
+  assert.match(theme, /\.staff-home-kpi\s*\{[^}]*min-height:\s*88px/s);
+});
