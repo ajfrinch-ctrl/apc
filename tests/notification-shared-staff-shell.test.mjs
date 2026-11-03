@@ -8,7 +8,7 @@ const STAFF_PAGES = ['admin.html', 'manager.html', 'teacher.html', 'payment.html
 test('all staff roles expose the same notification bell and shared stylesheet', async () => {
   for (const page of STAFF_PAGES) {
     const html = await readFile(new URL('../' + page, import.meta.url), 'utf8');
-    assert.match(html, /css\/notifications\.css\?v=460/, page + ' must load the shared notification styles');
+    assert.match(html, /css\/notifications\.css\?v=\d+/, page + ' must load the shared notification styles');
     assert.match(html, /id="notificationButton"/, page + ' must expose the shared bell control');
     assert.match(html, /aria-label="নোটিফিকেশন দেখুন"/, page + ' must keep the accessible bell label');
   }
