@@ -25,6 +25,7 @@ test('role tabs resolve to existing role-specific routes', () => {
   assert.equal(staffTabForRoute('admin', 'system'), 'more');
   assert.equal(staffTabForRoute('admin', 'students'), 'work');
   assert.equal(staffTabForRoute('admin', 'academics-subjects'), 'academic');
+  assert.equal(staffTabForRoute('admin', 'audit-exam'), 'academic');
   assert.equal(staffTabForRoute('admin', 'profile-data'), 'more');
   assert.equal(staffTabForRoute('teacher', 'marks'), 'academic');
   assert.equal(staffTabForRoute('manager', 'class-chat'), 'more');
