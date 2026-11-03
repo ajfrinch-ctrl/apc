@@ -993,7 +993,7 @@ function saveBroadcastFromForm() {
 const ROLE_ORDER = Object.freeze(['admin', 'manager', 'teacher', 'payment', 'student']);
 
 const ROLE_SUMMARY = Object.freeze({
-  admin: 'System Control, স্টাফ ম্যানেজমেন্ট, অনুমতি, সিকিউরিটি, ডেটা, ব্যাকআপ, রিপোর্ট ও সেটিংস',
+  admin: 'পূর্ণ নিয়ন্ত্রণ: স্টাফ, শিক্ষার্থী ও পরীক্ষা অনুমোদন, একাডেমিক, রিপোর্ট, সিকিউরিটি, ডেটা ও সেটিংস',
   manager: 'দৈনন্দিন অপারেশন: শিক্ষার্থী অনুমোদন, নোটিশ, রুটিন, পরীক্ষা প্রকাশ, হিসাব পর্যালোচনা',
   teacher: 'ক্লাস, বাড়ির কাজ, উপস্থিতি, সাজেশন ও পরীক্ষা — শিক্ষক প্যানেল',
   payment: 'ফি গ্রহণ ও ক্যাশ কাউন্টার এন্ট্রি — Payment রিসিভ প্যানেল',
