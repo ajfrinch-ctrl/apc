@@ -62,15 +62,22 @@ export function allowsElement(element, role) {
   return needed.some(capability => held.has(capability));
 }
 
-const remember = (element, key) => String(element?.dataset?.[key] || '');
+/* Keep the pre-gate state so re-allowing an entry never enables a control
+   that was already disabled or exposes an element that was already hidden. */
+const originalGateState = new WeakMap();
 
 /* Hiding is reversible on purpose: the element keeps its place in the markup,
    but it can no longer be seen, clicked, focused or announced. */
 function setBlocked(element, blocked) {
   if (blocked) {
     if (element.dataset.gateBlocked === '1') return;
+    originalGateState.set(element, {
+      hidden: Boolean(element.hidden),
+      disabled: 'disabled' in element ? Boolean(element.disabled) : null,
+      ariaHidden: element.getAttribute('aria-hidden'),
+      tabindex: element.getAttribute('tabindex')
+    });
     element.dataset.gateBlocked = '1';
-    element.dataset.gateWasHidden = element.hidden ? '1' : '';
     element.hidden = true;
     element.setAttribute('aria-hidden', 'true');
     element.setAttribute('tabindex', '-1');
@@ -78,12 +85,15 @@ function setBlocked(element, blocked) {
     return;
   }
   if (element.dataset.gateBlocked !== '1') return;
+  const previous = originalGateState.get(element);
   delete element.dataset.gateBlocked;
-  if (remember(element, 'gateWasHidden') !== '1') element.hidden = false;
-  delete element.dataset.gateWasHidden;
-  element.removeAttribute('aria-hidden');
-  element.removeAttribute('tabindex');
-  if ('disabled' in element) element.disabled = false;
+  element.hidden = previous?.hidden ?? false;
+  if ('disabled' in element) element.disabled = previous?.disabled ?? false;
+  if (previous?.ariaHidden == null) element.removeAttribute('aria-hidden');
+  else element.setAttribute('aria-hidden', previous.ariaHidden);
+  if (previous?.tabindex == null) element.removeAttribute('tabindex');
+  else element.setAttribute('tabindex', previous.tabindex);
+  originalGateState.delete(element);
 }
 
 /**
@@ -116,6 +126,8 @@ export function applyCapabilityGate({ root, role } = {}) {
  * @param {string}  options.role
  * @param {Iterable<string>} options.routes  the panel's own view list
  */
+const originalHomeDoorState = new WeakMap();
+
 export function applyHomeDoorRules({ root, role, routes = [] } = {}) {
   if (!root) return { blocked: [], allowed: 0 };
   const allowed = new Set([...routes].map(route => String(route)));
@@ -123,18 +135,33 @@ export function applyHomeDoorRules({ root, role, routes = [] } = {}) {
   let shown = 0;
   root.querySelectorAll('[data-panel-view]').forEach(door => {
     const route = door.dataset.panelView;
+    /* The capability gate owns this element until it is re-allowed. Do not
+       snapshot its temporary hidden state as the home door's original state. */
+    if (door.dataset.gateBlocked === '1') {
+      blocked.push(route);
+      return;
+    }
     const permitted = allowed.has(route) && allowsElement(door, role);
     if (permitted) {
       if (door.dataset.homeBlocked === '1') {
+        const previous = originalHomeDoorState.get(door);
+        door.hidden = previous?.hidden ?? false;
+        if (previous?.ariaHidden == null) door.removeAttribute('aria-hidden');
+        else door.setAttribute('aria-hidden', previous.ariaHidden);
         delete door.dataset.homeBlocked;
-        door.hidden = false;
-        door.removeAttribute('aria-hidden');
+        originalHomeDoorState.delete(door);
       }
       shown += 1;
       return;
     }
     blocked.push(route);
-    door.dataset.homeBlocked = '1';
+    if (door.dataset.homeBlocked !== '1') {
+      originalHomeDoorState.set(door, {
+        hidden: Boolean(door.hidden),
+        ariaHidden: door.getAttribute('aria-hidden')
+      });
+      door.dataset.homeBlocked = '1';
+    }
     door.hidden = true;
     door.setAttribute('aria-hidden', 'true');
   });
