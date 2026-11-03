@@ -19,6 +19,7 @@
 import { ADMIN_BOTTOM_NAV, ADMIN_SYSTEM_NAV, ADMIN_DATA_NAV, ADMIN_MORE_NAV, ADMIN_FEATURE_TILES, enforceCapabilities } from './admin-permissions.js';
 import { iconElement, paintIcon } from './icons.js';
 import { staffTabForRoute } from './staff-navigation.js';
+import { selectReport } from './reports.js';
 
 /* The bottom bar and the "More" menu use the same icon language, so a section
    looks identical wherever it appears. */
@@ -146,11 +147,7 @@ function renderFeatureGrid(container, entries, onNavigate) {
       /* Finance is a summary/report door, never a cash-collection shortcut. Set
          the fee report before navigation so ReportCenter retains it on refresh. */
       if (entry.action === 'finance-summary') {
-        const reportSelect = document.querySelector('#adminReports select[name="report"]');
-        if (reportSelect && [...reportSelect.options].some(option => option.value === 'fee.monthly')) {
-          reportSelect.value = 'fee.monthly';
-          reportSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        selectReport(document.querySelector('#adminReports'), 'fee.monthly');
       }
       onNavigate(entry.view, tile);
       if (entry.action === 'notifications') document.querySelector('#notificationButton')?.click();
