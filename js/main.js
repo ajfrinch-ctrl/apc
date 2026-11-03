@@ -355,7 +355,14 @@ function ensureNavigation() {
 async function enterApp(expectedSequence = null) {
   /* The navigation engine belongs to the signed-in Student surface, not the
      login first-paint graph. Wait for it before exposing the app shell. */
-  await ensureNavigation();
+  try {
+    await ensureNavigation();
+  } catch (error) {
+    navigationReady = null;
+    console.warn('[Active Plus] Student navigation could not be loaded:', error?.message || error);
+    setAuthMessage('অ্যাপের নেভিগেশন লোড করা যায়নি। ইন্টারনেট সংযোগ যাচাই করে আবার চেষ্টা করুন।');
+    return;
+  }
   if (expectedSequence !== null && expectedSequence !== sessionRestoreSequence) return;
   if (!hasSession()) return;
   sessionRestoreSequence += 1;
