@@ -469,6 +469,7 @@ const APP_SHELL = [
   './assets/daily-quotes.json',
   './assets/daily-advice.json',
   './js/home-hero.js',
+  './js/home-hero.js' + '?v=379',
   './js/home-hero-entry.js',
   './js/student-home-hero-entry.js' + '?v=379',
   './js/student-home-daily-hero.js' + '?v=379',
