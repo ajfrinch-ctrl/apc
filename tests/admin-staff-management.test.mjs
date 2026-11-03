@@ -70,7 +70,8 @@ test('the staff list opens with one permanent Staff ID per system role', async (
 test('staff cards start collapsed and disclose details for one selected person at a time', async () => {
   assert.equal(ctx.$$('#staffList .staff-card-details[hidden]').length, 4);
   assert.equal(ctx.$$('#staffList .staff-details-toggle[aria-expanded="false"]').length, 4);
-  assert.equal(ctx.$$('#staffList .staff-card-mobile-summary').length, 4, 'every collapsed summary includes a mobile value or placeholder');
+  assert.equal(ctx.$('#staffList .staff-card-mobile-summary').length, 0, 'collapsed summaries do not expose mobile numbers');
+  for (const card of ctx.$('#staffList .staff-card')) assert.match(card.querySelector('.staff-card-details').textContent, /মোবাইল নেই|01\\d{9}/, 'mobile remains in the explicit details view');
   const owner = staffCard('STF-0001');
   assert.equal(owner.querySelector('.staff-card-actions').closest('.staff-card-details'), owner.querySelector('.staff-card-details'));
   assert.equal(owner.querySelector('.staff-card-actions').closest('.staff-card-details').hidden, true,
@@ -184,10 +185,10 @@ test('create builds a new staff account with the next unique Staff ID', async ()
   ctx.submit(form);
   await ctx.waitFor(() => Boolean(staffCard('STF-0005')));
   const newCard = staffCard('STF-0005');
-  assert.equal(newCard.querySelector('.staff-card-mobile-summary span').textContent, '01712345678',
-    'the collapsed summary now includes the mobile number');
+  assert.equal(newCard.querySelector('.staff-card-mobile-summary'), null, 'the collapsed summary keeps mobile private');
   ctx.click(newCard.querySelector('.staff-details-toggle'));
   await ctx.waitFor(() => staffCard('STF-0005').querySelector('.staff-recent-activity-list li'));
+  assert.ok(staffCard('STF-0005').querySelector('.staff-card-details').textContent.includes('01712345678'), 'the mobile appears only after deliberate disclosure');
   assert.match(staffCard('STF-0005').querySelector('.staff-recent-activity').textContent, /তৈরি করেছেন/,
     'the recent activity is rendered from the record history');
   ctx.click(staffCard('STF-0005').querySelector('.staff-details-toggle'));
