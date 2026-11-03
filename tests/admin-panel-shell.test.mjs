@@ -263,14 +263,14 @@ test('a hash route opens a permitted view and moves the active tab', async () =>
 
   ctx.window.location.hash = '#students';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'dashboard',
-    'the registration review reached from হোম keeps হোম lit');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'staff',
+    'student management belongs to the shared কাজ seat');
 
   // A route that belongs to another panel never moves the panel.
   ctx.window.location.hash = '#finance';
   await ctx.flush();
   assert.equal(ctx.$('.admin-view[data-view-panel="students"]').classList.contains('active'), true);
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'dashboard');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'staff');
   ctx.window.location.hash = '';
 });
 
