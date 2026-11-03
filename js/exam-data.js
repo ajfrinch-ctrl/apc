@@ -1389,7 +1389,7 @@ export const examRepository = {
     const db = await mutate(db => {
       const e = examById(db, examId); if (actor.role === 'teacher') teacherOwns(e, actor); const person = eligibleParticipant(e, student);
        if (!examMatchesStudent(e, person) || !e.participants.some(item => item.id === person.id)) fail('শিক্ষার্থী এই পরীক্ষার নির্ধারিত ক্লাস/ব্যাচ তালিকায় নেই।');
-       if (e.resultsPublished && actor.role === 'teacher') fail('ম্যানেজার ফলাফল প্রকাশ করেছেন; নম্বর আর পরিবর্তন করা যাবে না।');
+       if (e.resultsPublished) fail('ম্যানেজার ফলাফল প্রকাশ করেছেন; নম্বর আর পরিবর্তন করা যাবে না।');
       if (!isLiveExam(e) || e.type === 'mcq' || nowEpoch() < new Date(`${classExamDate(e.startAt)}T00:00:00+06:00`).getTime()) fail('ক্লাসে পরীক্ষার দিন থেকে উপস্থিতি দেওয়া যাবে।');
       const prior = db.attempts.find(a => a.examId === e.id && a.studentId === person.id);
        if (prior) fail('নম্বর আছে; আগে ম্যানেজারের সাথে নম্বর সংশোধন করুন।');
