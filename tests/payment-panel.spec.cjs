@@ -123,7 +123,7 @@ test('the counter desk opens on হোম with the five counter tabs and nothing
   await expect(page.locator('[data-pay-panel="home"]')).toBeVisible();
 
   // No other role's views live anywhere on this page.
-  await expect(page.locator('[data-panel-view], [data-panel-view], [data-panel-view], [data-student-view]')).toHaveCount(0);
+  await expect(page.locator('.manager-view, .teacher-view, .admin-view, [data-student-view]')).toHaveCount(0);
 
   // An empty day says so instead of inventing rows.
   await expect(page.locator('#payTodayList')).toContainText('আজ এখনও কোনো লেনদেন নেই।');
