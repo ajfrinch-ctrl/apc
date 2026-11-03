@@ -133,6 +133,7 @@ test('permissions decide who sees and moves a paper at each status', () => {
   assert.equal(examPermissions(manager, { ...published, status: 'archived' }).restore, true);
   assert.equal(examPermissions(manager, { ...published, status: 'published' }, { openAttempts: 1 }).unpublish, false);
   assert.equal(examPermissions(teacher, { ...own, teacherId: 'OTHER' }).questions, false, 'another teacher’s paper stays private');
+  assert.equal(examPermissions(admin, own).request, true, 'Admin can submit an authored exam for review');
   assert.equal(examPermissions(admin, own).approve, true, 'Admin can approve a submitted exam');
   assert.equal(examPermissions(admin, own).publish, true, 'Admin can publish an approved exam');
   assert.equal(examPermissions(admin, published).unpublish, true, 'Admin can withdraw publication safely');
@@ -188,6 +189,8 @@ test('Admin can create, approve, publish, reject and retire exams with a verifie
   const id = db.exams[0].id;
   assert.equal(find(db, id).createdByRole, 'admin');
 
+  db = await repo.requestApproval(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).status, 'pending');
   db = await repo.approve(id, ADMIN_ACTOR);
   assert.equal(find(db, id).status, 'approved');
   assert.equal(find(db, id).approvedBy, 'Test Admin');
@@ -199,6 +202,8 @@ test('Admin can create, approve, publish, reject and retire exams with a verifie
   clock = end + 1000;
   db = await repo.complete(id, ADMIN_ACTOR);
   assert.equal(find(db, id).status, 'completed');
+  db = await repo.publishResults(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).resultsPublished, true, 'Admin can publish the final results');
   db = await repo.archive(id, ADMIN_ACTOR);
   assert.equal(find(db, id).status, 'archived');
   db = await repo.restore(id, ADMIN_ACTOR);
