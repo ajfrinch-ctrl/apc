@@ -81,7 +81,7 @@ const KIND_TARGET = Object.freeze({
   'payment-review': 'cash-counter', 'payment-rejected': 'home', 'exam-review': 'exams',
   'exam-returned': 'online-exams', 'exam-approved': 'online-exams'
 });
-const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'homework', 'payment-rejected', 'payment-review']);
+const ACTION_KINDS = new Set(['exam', 'exam-soon', 'exam-live', 'exam-published', 'result-published', 'homework', 'payment-rejected', 'payment-review']);
 const NOTICE_BOARD_KINDS = new Set(['notice', 'broadcast']);
 const generalNotificationItems = items => items;
 const generalNotificationRecords = records => records;
