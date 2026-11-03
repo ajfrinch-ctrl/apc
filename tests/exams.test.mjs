@@ -72,7 +72,7 @@ test('teacher exam actions and participants are bounded to assigned class/batch'
   await assert.rejects(repo.markWrittenAbsent(id, three));
 });
 
-test('teacher drafts → submit → Manager rejection/edit/approval; no premature publication', async () => {
+test('teacher drafts → submit → Admin/Manager review, rejection and publication; no premature publication', async () => {
   setup(); let db = await repo.saveDraft(fields()); const id = db.exams[0].id;
   assert.equal(db.exams[0].status, 'draft');
   await assert.rejects(repo.review(id, 'publish'));
@@ -80,7 +80,7 @@ test('teacher drafts → submit → Manager rejection/edit/approval; no prematur
   await assert.rejects(repo.requestApproval(id, { role: 'teacher', id: 'OTHER' }));
   await repo.requestApproval(id);
   await assert.rejects(repo.review(id, 'publish', {}, TEACHER_ACTOR));
-  await assert.rejects(repo.review(id, 'publish', {}, ADMIN_ACTOR), /শুধু ম্যানেজার/);
+  db = await repo.review(id, 'approve', {}, ADMIN_ACTOR); assert.equal(db.exams[0].status, 'approved');
   db = await repo.review(id, 'reject', { note: 'প্রশ্ন সংশোধন করুন' }, MANAGER_ACTOR); assert.equal(db.exams[0].status, 'rejected');
   db = await repo.saveDraft({ ...fields(), id }); assert.equal(db.exams[0].status, 'draft');
   await repo.requestApproval(id); db = await repo.review(id, 'publish', { negative: 1 }, MANAGER_ACTOR);
