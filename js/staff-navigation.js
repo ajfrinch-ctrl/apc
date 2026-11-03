@@ -23,7 +23,7 @@ const ROUTE_ALIASES = Object.freeze({
     system: 'more', students: 'work', 'class-chat': 'more', profile: 'more', settings: 'more',
     data: 'more', 'data-stats': 'more', 'data-danger': 'more', backup: 'more',
     'backup-export': 'more', 'backup-restore': 'more', audit: 'more', 'audit-log': 'more',
-    'audit-exam': 'more', security: 'more', 'security-owner': 'more', 'security-password': 'more',
+    'audit-exam': 'academic', security: 'more', 'security-owner': 'more', 'security-password': 'more',
     'security-protected': 'more', 'security-boundaries': 'more', 'security-devices': 'more',
     'device-fingerprint': 'more', migration: 'more', 'migration-teacher': 'more',
     'migration-student': 'more', roles: 'more', 'roles-admin': 'more', 'roles-manager': 'more',
