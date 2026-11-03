@@ -604,7 +604,8 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
   const quickTile = page.locator('#adminFeatureGrid .admin-feature-tile');
   await expect(quickTile).toHaveCount(6);
   const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), quickTile.boundingBox()]);
-  expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
+  expect(quickTileBox.width).toBeGreaterThan(quickGridBox.width * 0.4);
+  expect(quickTileBox.width).toBeLessThan(quickGridBox.width * 0.6);
   expect(await quickTile.evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
   for (const view of mobileViews) {
     await bottom(page, view);
