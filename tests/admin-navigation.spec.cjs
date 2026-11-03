@@ -621,3 +621,21 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
   await expect(page.locator('.admin-view[data-view-panel=backup]')).toBeVisible();
   await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
 });
+
+
+test('Admin opens the exam workspace from Academic and gets full review controls', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enter(page);
+  await page.locator('.staff-bottom-nav [data-panel-view="academics"]').click();
+  const academics = page.locator('.admin-view[data-view-panel="academics"]');
+  await expect(academics).toBeVisible();
+  await academics.locator('[data-panel-view="audit-exam"]').click();
+
+  const examView = page.locator('.admin-view[data-view-panel="audit-exam"]');
+  const workspace = page.locator('#adminExamWorkspace');
+  await expect(examView).toBeVisible();
+  await expect(workspace.locator('[data-exam-action="view-approval"]')).toBeVisible();
+  await expect(workspace.locator('[data-exam-action="bank"]')).toBeVisible();
+  await expect(workspace.locator('[data-exam-action="new-mcq"]')).toBeVisible();
+  await expect(page.locator('.staff-bottom-nav [data-staff-tab="academic"]')).toHaveAttribute('aria-current', 'page');
+});
