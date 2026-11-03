@@ -296,13 +296,17 @@ export function markDelivered(userId, keys, at = Date.now()) {
 
 /* Archive is a state transition, not deletion. Read receipts and record keys
    remain intact so the existing cross-device acknowledgement logic is safe. */
-export function archiveExpiredNotifications(userId, now = Date.now()) {
+export function archiveExpiredNotifications(userId, now = Date.now(), liveKeys = null) {
   const owner = text(userId);
   if (!owner) return 0;
   const all = loadRecords().records;
   let changed = 0;
   const next = all.map(record => {
     if (text(record.userId) !== owner || record.archived === true) return record;
+    const key = text(record.key);
+    const pendingStillLive = liveKeys instanceof Set && liveKeys.has(key) &&
+      ['registration', 'exam-review', 'exam-returned', 'payment-review'].includes(record.type);
+    if (pendingStillLive) return record;
     const archived = archiveState(record, now, ARCHIVE_AFTER_DAYS);
     if (archived !== record) changed += 1;
     return archived;
@@ -380,10 +384,13 @@ export function syncNotifications({ userId, feed = [], legacyRead = [], now = Da
   const owner = text(userId);
   if (!owner) return { created: 0, kept: 0, records: [] };
   const stamp = Number(now) || Date.now();
-  archiveExpiredNotifications(owner, stamp);
-  const store = loadRecords();
   const items = Array.isArray(feed) ? feed : [];
   const live = new Set(items.map(item => text(item?.key)).filter(Boolean));
+  // Keep still-live approval work in the active inbox even if it has already
+  // been opened/read. Once the source event disappears (decision/resolution),
+  // the expired record can move into History.
+  archiveExpiredNotifications(owner, stamp, live);
+  const store = loadRecords();
   const legacy = new Set((Array.isArray(legacyRead) ? legacyRead : []).map(text));
   const settings = readSharedSettings();
   const knownKeys = new Set(
@@ -410,7 +417,7 @@ export function syncNotifications({ userId, feed = [], legacyRead = [], now = Da
       resolved = true;
       return { ...record, read: shared, readAt: shared ? (record.readAt || new Date(stamp).toISOString()) : '' };
     }
-    if (!['homework', 'registration', 'chat'].includes(record.type) || record.read !== false || live.has(key)) return record;
+    if (!['homework', 'registration', 'chat', 'exam-review', 'exam-returned', 'payment-review'].includes(record.type) || record.read !== false || live.has(key)) return record;
     resolved = true;
     return { ...record, read: true, readAt: new Date(stamp).toISOString() };
   });
@@ -436,7 +443,7 @@ export function syncNotifications({ userId, feed = [], legacyRead = [], now = Da
     withIds.push(record);
   }
   saveRecords([...base, ...withIds]);
-  archiveExpiredNotifications(owner, stamp);
+  archiveExpiredNotifications(owner, stamp, live);
   pruneRecords(owner);
   return { created: withIds.length, kept: 0, records: withIds.length ? withIds : listNotifications(owner) };
 }
