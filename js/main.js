@@ -13,7 +13,6 @@ import { activeStaffRoles } from './staff-auth.js';
 import { staffPanelPath } from './login.js';
 import { switchAuthTab, initLogin } from './login.js';
 import { requestLogout, initLogout } from './logout.js';
-import { initNavigation } from './navigation.js';
 import { initFixedShell } from './fixed-shell.js';
 import { loadStudentFeatures } from './student-features.js';
 
@@ -345,7 +344,18 @@ function handleAction(action) {
   }
 }
 
-function enterApp() {
+let navigationReady = null;
+function ensureNavigation() {
+  navigationReady ||= import('./navigation.js').then(({ initNavigation }) => {
+    initNavigation({ onAction: handleAction });
+  });
+  return navigationReady;
+}
+
+async function enterApp() {
+  /* The navigation engine belongs to the signed-in Student surface, not the
+     login first-paint graph. Wait for it before exposing the app shell. */
+  await ensureNavigation();
   sessionRestoreSequence += 1;
   setView(viewRouteFromHash(), { history: 'replace' });
   openStudentApp(state);
@@ -373,7 +383,6 @@ async function shouldAutoLogin() {
 }
 
 renderStudent(state.student);
-initNavigation({ onAction: handleAction });
 const refreshNotices = () => { window.apcNoticeCenter?.paint?.(); noticeBoard.refresh(); };
 let rosterProfileSyncFlight = null;
 async function applyRosterProfileToStudent() {
