@@ -23,7 +23,12 @@ test('the counter opens on হোম from a genuine session, never a directory/d
  const {$,$$}=ctx;
  assert.equal($('#payShell').hidden,false);
  /* Five seats, one per step of the counter's own job. */
- assert.deepEqual($$('.admin-bottom [data-panel-view]').map(seat=>seat.dataset.panelView),['home','students','payment','reports','more']);
+ const seats=$('.staff-bottom-nav > .admin-bottom-item');
+ assert.equal(seats.length,5);
+ assert.deepEqual(seats.map(seat=>seat.dataset.staffTab),['home','work','academic','finance','more']);
+ assert.deepEqual(seats.filter(seat=>seat.dataset.panelView).map(seat=>seat.dataset.panelView),['home','students','payment','more']);
+ assert.deepEqual(seats.map(seat=>seat.querySelector('.nav-label').textContent.trim()),['হোম','কাজ','একাডেমিক','হিসাব','আরও']);
+ assert.equal(seats[2].disabled,true);
  assert.equal($('.admin-bottom [aria-current="page"]').dataset.panelView,'home');
  assert.equal($('[data-pay-panel="home"]').hidden,false);
  for(const view of ['students','payment','reports','more']) assert.equal($(`[data-pay-panel="${view}"]`).hidden,true,view);
@@ -41,7 +46,7 @@ test('the counter opens on হোম from a genuine session, never a directory/d
 
 test('each seat opens its own step and the counter can walk the whole job',async()=>{
  const {$,$$,click,waitFor}=ctx;
- for(const [seat,title] of [['students','শিক্ষার্থী'],['payment','পেমেন্ট এন্ট্রি'],['reports','পেমেন্ট রিপোর্ট'],['more','আরও'],['home','আজকের লেনদেন']]) {
+ for(const [seat,title] of [['students','শিক্ষার্থী'],['payment','পেমেন্ট এন্ট্রি'],['more','আরও'],['home','আজকের লেনদেন']]) {
   click($(`.admin-bottom [data-panel-view="${seat}"]`));
   assert.equal($(`[data-pay-panel="${seat}"]`).hidden,false,seat);
   assert.equal($(`.admin-bottom [aria-current="page"]`).dataset.panelView,seat);
@@ -175,7 +180,7 @@ test('the counter Report Center previews only after Generate and says so when no
  const {$,click,waitFor}=ctx;
  /* Only the browser primitives jsdom lacks (canvas/font/image), never app logic. */
  stubPdfPrimitives(ctx.window);
- click($('.admin-bottom [data-panel-view="reports"]'));
+ click($('#payClosingShortcut'));
  const preview=$('#paymentReports .counter-report-preview');
  assert.equal(preview.textContent,'','no preview before Generate');
  /* A daily report for a day with no ledger rows: still Generate-then-preview,
