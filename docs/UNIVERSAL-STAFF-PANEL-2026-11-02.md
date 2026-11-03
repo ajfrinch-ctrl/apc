@@ -91,4 +91,4 @@ Admin-এর পুরোনো `data-admin-cap` (role-এর ভেতরের
 
 ## 2026-11-03 update
 
-চারটি staff role এখন একই Active Plus light/dark palette ব্যবহার করে; role marker শুধু shared layout scope নির্ধারণ করে। Admin-এর Academic tab-এ exam-management workspace রয়েছে এবং Admin ও Manager ভর্তি/পরীক্ষা অনুমোদন করতে পারেন। Admin-এর exam, question-bank ও result controls role capability দিয়ে gate করা।
+চারটি staff role এখন একই Active Plus light/dark palette ব্যবহার করে; role marker শুধু shared layout scope নির্ধারণ করে। Admin-এর Academic tab-এ exam-management workspace রয়েছে এবং Admin ও Manager ভর্তি/পরীক্ষা অনুমোদন করতে পারেন। Admin-এর exam, question-bank ও result controls role capability দিয়ে gate করা। Shared notification center পাঁচটি panel-এ sign-in-এর পর lazy-load হয়।
