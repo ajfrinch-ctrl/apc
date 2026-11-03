@@ -38,12 +38,17 @@ test('all four staff panels share one navigation contract', () => {
   for (const panel of PANELS) {
     const { window } = doc(panel.file);
     const seats = [...window.document.querySelectorAll('.admin-bottom > button')];
-    assert.ok(seats.length >= 4, `${panel.file}: at least four seats`);
+    assert.equal(seats.length, 5, `${panel.file}: the shared shell has exactly five seats`);
     for (const seat of seats) {
       assert.ok(seat.querySelector('.nav-chip'), `${panel.file}: every seat has a chip`);
       assert.ok(seat.querySelector('svg image, svg path'), `${panel.file}: every seat draws an icon`);
       assert.ok(seat.querySelector('.nav-label')?.textContent.trim(), `${panel.file}: every seat is labelled`);
-      assert.ok(seat.hasAttribute(panel.attr), `${panel.file}: every seat names the page it opens`);
+      if (seat.disabled) {
+        assert.equal(seat.getAttribute('aria-disabled'), 'true', `${panel.file}: disabled seats are explicitly unavailable`);
+        assert.equal(seat.hasAttribute(panel.attr), false, `${panel.file}: a disabled seat cannot claim a route`);
+      } else {
+        assert.ok(seat.hasAttribute(panel.attr), `${panel.file}: every enabled seat names the page it opens`);
+      }
     }
     assert.equal(seats.filter(seat => seat.hasAttribute('aria-current')).length, 1,
       `${panel.file}: exactly one seat is current`);

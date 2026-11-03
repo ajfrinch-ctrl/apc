@@ -1,14 +1,19 @@
 const { test, expect } = require('./fixtures.cjs');
 const { enterPortal } = require('./portal-session.cjs');
-// Five shared seats: Home, Staff, Reports, System, More. Data/Profile/Advice
-// remain in the More hub; daily operations stay with their owning panels.
-const mobileViews = ['dashboard', 'staff', 'reports', 'system', 'more'];
+// Five shared seats: Home, Work, Academic, Finance, More. System and Data
+// are nested pages inside More; daily operations stay with their owning panels.
+const mobileViews = ['dashboard', 'staff', 'academics', 'reports', 'more'];
 const systemViews = ['roles', 'security', 'settings', 'academics', 'migration'];
 async function enter(page) {
   await enterPortal(page, 'admin');
   await expect(page.locator('#adminShell')).toBeVisible();
 }
 async function bottom(page, view) {
+  if (view === 'system') {
+    await page.locator('.admin-bottom [data-panel-view="more"]').click();
+    await page.locator('#adminMoreMenu .admin-more-item[data-panel-view="system"]').click();
+    return;
+  }
   await page.locator(`.admin-bottom [data-panel-view="${view}"]`).click();
 }
 async function more(page, view) {
@@ -174,13 +179,13 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
         const panel = page.locator(`.admin-view[data-view-panel="${view}"]`);
         await expect(panel).toBeVisible();
         await expect(panel.locator('h1')).toBeFocused();
-        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       }
       // More maps Data, Content, Profile and Advice without a sixth bottom seat.
       await bottom(page, 'more');
-      await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(4);
-      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.panelView))).toEqual(['data', 'content', 'profile', 'advice']);
+      await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(5);
+      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.panelView))).toEqual(['system', 'data', 'content', 'profile', 'advice']);
       await page.locator('#adminMoreMenu .admin-more-item[data-panel-view=data]').click();
       await expect(page.locator('.admin-view[data-view-panel=data]')).toBeVisible();
       await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
