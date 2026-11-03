@@ -74,8 +74,11 @@ test('role-specific Home summaries share the same outer surface and KPI geometry
 test('each staff role has a distinct light and dark theme palette', async () => {
   const { readFile } = await import('node:fs/promises');
   const theme = await readFile(new URL('../css/staff-panel-theme.css', import.meta.url), 'utf8');
-  for (const role of ['admin', 'manager', 'teacher', 'payment']) {
+  const roleColors = { admin: '#2563eb', manager: '#7c3aed', teacher: '#0f766e', payment: '#b45309' };
+  assert.equal(new Set(Object.values(roleColors)).size, 4, 'all four role accents are distinct');
+  for (const [role, color] of Object.entries(roleColors)) {
     assert.ok(theme.includes('html[data-staff-panel="' + role + '"] {'), role + ' light palette');
+    assert.ok(theme.includes('--color-primary: ' + color + ';'), role + ' has its own primary accent');
     assert.ok(theme.includes('html[data-theme="dark"][data-staff-panel="' + role + '"] {'), role + ' dark palette');
   }
   assert.ok(theme.includes('html[data-staff-panel] .staff-home-action-grid'),
