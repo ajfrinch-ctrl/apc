@@ -247,7 +247,12 @@ export const VIEW_SEAT = Object.freeze({
  *  the signed-in role holds. No daily cash/fee entry tile. */
 /* Home keeps only work that is not already a bottom tab or a সিস্টেম/ডেটা hub card. */
 export const ADMIN_FEATURE_TILES = Object.freeze([
-  { view: 'students', label: 'নিবন্ধন অনুমোদন', sub: 'শিক্ষার্থীদের নতুন আবেদন যাচাই ও অনুমোদন করুন', icon: 'approval', capability: CAPABILITIES.STUDENTS_VIEW, order: 1 },
+  { view: 'students', label: 'নিবন্ধন অনুমোদন', sub: 'নতুন শিক্ষার্থী আবেদন যাচাই ও অনুমোদন করুন', icon: 'approval', capability: CAPABILITIES.STUDENTS_APPROVE, order: 1 },
+  { view: 'dashboard', action: 'notifications', label: 'নোটিফিকেশন', sub: 'ভর্তি, পরীক্ষা, ফলাফল ও নোটিশের আপডেট দেখুন', icon: 'bell', capability: CAPABILITIES.DASHBOARD, order: 2 },
+  { view: 'staff', label: 'স্টাফ ব্যবস্থাপনা', sub: 'স্টাফ অ্যাকাউন্ট, ভূমিকা ও অনুমতি পরিচালনা করুন', icon: 'staff', capability: CAPABILITIES.STAFF_MANAGE, order: 3 },
+  { view: 'reports', label: 'রিপোর্ট কেন্দ্র', sub: 'শিক্ষার্থী, উপস্থিতি, পরীক্ষা ও স্টাফ রিপোর্ট তৈরি করুন', icon: 'reports', capability: CAPABILITIES.REPORTS_VIEW, order: 4 },
+  { view: 'reports', action: 'finance-summary', label: 'অর্থ সারাংশ', sub: 'ফি, বকেয়া, লেনদেন ও পেমেন্ট রিপোর্ট দেখুন', icon: 'wallet', capability: CAPABILITIES.REPORTS_VIEW, order: 5 },
+  { view: 'audit-exam', label: 'পরীক্ষা ব্যবস্থাপনা', sub: 'পরীক্ষা তৈরি, অনুমোদন, প্রকাশ ও ফলাফল পরিচালনা করুন', icon: 'exam', capability: CAPABILITIES.EXAMS_PUBLISH, order: 6 },
 ]);
 
 export function capabilitiesForRole(role) {
