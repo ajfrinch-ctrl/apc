@@ -639,3 +639,15 @@ test('Admin opens the exam workspace from Academic and gets full review controls
   await expect(workspace.locator('[data-exam-action="new-mcq"]')).toBeVisible();
   await expect(page.locator('.staff-bottom-nav [data-staff-tab="academic"]')).toHaveAttribute('aria-current', 'page');
 });
+
+
+test('Admin home presents the six owner-priority shortcuts in the required order', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enter(page);
+  const tiles = page.locator('#adminFeatureGrid .admin-feature-tile');
+  await expect(tiles).toHaveCount(6);
+  await expect(page.locator('#adminFeatureGrid .admin-feature-label')).toHaveText([
+    'নিবন্ধন অনুমোদন', 'নোটিফিকেশন', 'স্টাফ ব্যবস্থাপনা',
+    'রিপোর্ট কেন্দ্র', 'অর্থ সারাংশ', 'পরীক্ষা ব্যবস্থাপনা'
+  ]);
+});
