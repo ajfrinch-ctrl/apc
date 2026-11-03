@@ -39,7 +39,7 @@ test('the student list names every student and hides only phone and ID', () => {
   const rows = admin.$$('#studentList .student-row');
   assert.ok(rows.length > 0);
   assert.equal(admin.$$('#studentList .student-meta-line small').length, 0, 'no phone line in the list');
-  assert.equal(admin.$$('#studentList .student-meta-line span').length, rows.length, 'each row keeps only the Student ID chip');
+  assert.equal(admin.$('#studentList .audit-id-badge').length, rows.length, 'each row keeps exactly one Student ID chip');
   const text = admin.$('#studentList').textContent;
   for (const student of adminStudents) {
     /* Owner rule 2026-10-31: “তালিকায় নাম সবসময় দেখা যাক, শুধু ফোন/আইডি
