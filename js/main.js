@@ -370,8 +370,6 @@ async function enterApp(expectedSequence = null) {
   openStudentApp(state);
   refreshSignedInSurface();
   window.dispatchEvent(new Event('apc-session-ready'));
-  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
-    .catch(error => console.warn('[Active Plus] Student notification centre unavailable:', error?.name || 'unknown'));
 }
 
 function leaveApp() {
