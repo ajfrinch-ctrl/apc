@@ -1,6 +1,6 @@
-/* Resolve the staff-panel root marker for shared layout rules.
-   All four roles inherit the same Active Plus palette; this marker does not
-   recolour a panel, grant access, change routes or alter capabilities. */
+/* Resolve the staff-panel root marker. The marker selects a role-specific
+   presentation palette in staff-panel-theme.css; it never grants access,
+   changes routes, or alters role capabilities. */
 
 export const STAFF_PANEL_ROLES = Object.freeze(['teacher', 'manager', 'admin', 'payment']);
 
