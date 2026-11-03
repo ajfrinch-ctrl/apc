@@ -14,7 +14,7 @@ import {
   ENTRY_CAPABILITIES, ENTRY_KINDS, PANEL_ROLES, applyCapabilityGate,
   applyHomeDoorRules, entryReport, panelCapabilities
 } from '../js/panel-capabilities.js';
-import { CAPABILITIES, ROLE_CAPABILITIES } from '../js/admin-permissions.js';
+import { CAPABILITIES, ROLE_CAPABILITIES, VIEW_CAPABILITIES } from '../js/admin-permissions.js';
 
 const html = file => readFileSync(file, 'utf8');
 const doc = file => new JSDOM(html(file)).window.document;
