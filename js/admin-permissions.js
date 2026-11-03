@@ -93,6 +93,8 @@ const ADMIN = Object.freeze([
   CAPABILITIES.STUDENTS_VIEW,
   CAPABILITIES.STUDENTS_MANAGE,
   CAPABILITIES.STUDENTS_APPROVE,
+  CAPABILITIES.EXAMS_VIEW,
+  CAPABILITIES.EXAMS_PUBLISH,
   CAPABILITIES.REPORTS_VIEW,
   CAPABILITIES.DATA_MANAGE,
   CAPABILITIES.BACKUP_MANAGE,
@@ -140,7 +142,7 @@ export const ROLE_CAPABILITIES = Object.freeze({
 export const DETAIL_VIEW_PARENTS = Object.freeze({
   'data-stats': 'data', 'data-danger': 'data',
   'backup-export': 'backup', 'backup-restore': 'backup',
-  'audit-log': 'audit', 'audit-exam': 'audit',
+  'audit-log': 'audit', 'audit-exam': 'academics',
   'settings-branding': 'settings', 'settings-classes': 'settings',
   'settings-broadcast': 'settings', 'settings-maintenance': 'settings',
   'content-lecture-sheets': 'content', 'content-notices': 'content', 'content-records': 'content',
@@ -191,7 +193,8 @@ const MAIN_VIEW_CAPABILITIES = Object.freeze({
 export const VIEW_CAPABILITIES = Object.freeze({
   ...MAIN_VIEW_CAPABILITIES,
   ...Object.fromEntries(Object.entries(DETAIL_VIEW_PARENTS)
-    .map(([view, parent]) => [view, MAIN_VIEW_CAPABILITIES[parent]]))
+    .map(([view, parent]) => [view, MAIN_VIEW_CAPABILITIES[parent]])),
+  'audit-exam': CAPABILITIES.EXAMS_PUBLISH
 });
 
 /** Five shared seats: হোম · স্টাফ · রিপোর্ট · সিস্টেম · আরও.
