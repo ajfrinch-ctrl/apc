@@ -492,6 +492,7 @@ const APP_SHELL = [
   './js/storage.js',
   './js/ui.js',
   './js/shell.js',
+  './js/birthday.js',
   './js/routine.js',
   './js/profile.js',
   './js/student-profile-card.js',
