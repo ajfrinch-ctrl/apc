@@ -1,5 +1,5 @@
 import { nowEpoch, dhakaDateTimeInput, parseDhakaDateTime, dhakaKey } from './time.js';
-/* Examination workspace (Manager + Teacher).
+/* Examination workspace (Admin + Manager review; Manager + Teacher authoring).
    Date-wise on purpose: the landing screen is a grouped, filterable history
    where questions stay collapsed behind View Questions — no exam ever lies
    open on the screen, and no two dates ever mix in one list.
@@ -39,7 +39,7 @@ export function initExamManager(container, role) {
   let bankFilters = { query: '', className: 'all', subject: 'all', chapter: 'all', type: 'all', difficulty: 'all' };
   let bankPage = 0, bankEditing = '';
   root.classList.add('exam-workspace');
-  root.innerHTML = '<p class="exam-note">লোকাল ডেমো • প্রশ্ন শিক্ষক তৈরি করবেন, ম্যানেজার পর্যালোচনা/অনুমোদন/প্রকাশ করবেন। পরীক্ষা ও প্রশ্ন তারিখ অনুযায়ী আলাদা রেকর্ডে থাকে; ডেমোতে সব শ্রেণির অনুমোদিত শিক্ষার্থী অংশ নিতে পারে।</p><p class="exam-error" role="alert" data-exam-error hidden></p><p class="exam-message" role="status" data-exam-message hidden></p><div data-exam-content></div>';
+  root.innerHTML = '<p class="exam-note">লোকাল ডেমো • প্রশ্ন শিক্ষক তৈরি করবেন; Admin ও Manager পর্যালোচনা/অনুমোদন/প্রকাশ করবেন। পরীক্ষা ও প্রশ্ন তারিখ অনুযায়ী আলাদা রেকর্ডে থাকে; ডেমোতে সব শ্রেণির অনুমোদিত শিক্ষার্থী অংশ নিতে পারে।</p><p class="exam-error" role="alert" data-exam-error hidden></p><p class="exam-message" role="status" data-exam-message hidden></p><div data-exam-content></div>';
   const $ = selector => root.querySelector(selector), content = $('[data-exam-content]');
   const button = (action, label, id = '', cls = '') => `<button type="button" class="${cls}" data-exam-action="${action}" data-id="${esc(id)}">${label}</button>`;
   const back = (label = '← পরীক্ষার তালিকা') => `<div class="exam-actions">${button('list', label)}</div>`;
@@ -70,19 +70,17 @@ export function initExamManager(container, role) {
     return `<section class="exam-hub" aria-label="পরীক্ষা পরিচালনা করুন">
       <div class="exam-actions">
         ${button('view-history', '🧾 পরীক্ষার ইতিহাস')}
-        ${role === 'manager' ? button('view-approval', `✅ পরীক্ষা অনুমোদন (${num(pendingCount)})`) : ''}
+        ${['admin', 'manager'].includes(role) ? button('view-approval', `✅ পরীক্ষা অনুমোদন (${num(pendingCount)})`) : ''}
         ${button('view-upcoming', `⏳ আসন্ন পরীক্ষা${upcoming ? ` (${num(upcoming)})` : ''}`)}
         ${button('view-archive', '🗂️ পরীক্ষার প্রশ্ন দেখুন')}
-        ${button('bank', '📚 প্রশ্ন সংরক্ষণ করুন')}
+        ${canManageBank ? button('bank', '📚 প্রশ্ন সংরক্ষণ করুন') : ''}
       </div>
-      <div class="exam-actions" aria-label="পরীক্ষা তৈরি করুন">
-        ${Object.entries(EXAM_TYPES).map(([type, label]) => button('new-' + type, `পরীক্ষা তৈরি করুন — ${label}`, '', 'primary')).join('')}
-      </div>
+      ${canManageBank ? `<div class="exam-actions" aria-label="পরীক্ষা তৈরি করুন">${Object.entries(EXAM_TYPES).map(([type, label]) => button('new-' + type, `পরীক্ষা তৈরি করুন — ${label}`, '', 'primary')).join('')}</div>` : ''}
       ${countersMarkup(exams)}
     </section>`;
   }
   function approvalQueueMarkup(exams) {
-    if (role !== 'manager') return '';
+    if (!['admin', 'manager'].includes(role)) return '';
     const queue = exams.filter(e => ['pending', 'approved'].includes(e.status));
     if (!queue.length) {
       return `<section class="exam-card" data-exam-approval-queue><h3>পরীক্ষা অনুমোদন তালিকা</h3><p class="exam-note">অনুমোদনের অপেক্ষায় কোনো পরীক্ষা নেই।</p></section>`;
