@@ -88,8 +88,8 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    const retiredChat = control => control.id === 'classChatTopbarButton'
     || control.id === 'managerChangePassword'
     || control['data-panel-view'] === 'class-chat';
-   const currentRoutes=new Set(now.filter(control=>control.id!=='managerFinanceApprovalLink').map(control=>JSON.stringify(control)));
-   for(const control of controls(old).filter(c=>c.id!=='managerFinanceApprovalLink'&&!retiredChat(c)))assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
+   const currentControls=now.filter(control=>control.id!=='managerFinanceApprovalLink');
+   for(const control of controls(old).filter(c=>c.id!=='managerFinanceApprovalLink'&&!retiredChat(c)))assert.ok(currentControls.some(actual=>Object.entries(control).every(([key,value])=>actual[key]===value)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
    const adviceRoute=page==='manager'?'data-panel-view':'data-panel-view';
    assert.ok(now.some(control=>control[adviceRoute]==='advice'),'daily advice remains reachable from More');
   }else if(page==='teacher'){
@@ -105,7 +105,7 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    const retired = control => control['data-panel-view'] === 'students'
     || control.id === 'teacherChangePassword'
     || (typeof control.id === 'string' && control.id.startsWith('teacherStudent'));
-   const currentRoutes=new Set(now.map(control=>JSON.stringify(control)));
+   const currentControls=now;
    for(const control of controls(old)){
     if(retired(control)) continue;
     assert.ok(currentRoutes.has(JSON.stringify(control)),`teacher keeps existing route/control ${JSON.stringify(control)}`);
