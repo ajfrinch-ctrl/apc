@@ -316,3 +316,25 @@ html[data-theme="dark"][data-staff-panel="payment"] {
 .staff-profile-card :is(h2, h3) {
   overflow-wrap: anywhere;
 }
+
+
+/* One action-card surface contract for the four staff homes. Layout remains
+   owned by each role (grid vs. full-width stack); the card skin does not. */
+html[data-staff-panel] .teacher-action-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  box-shadow: var(--pay-shadow);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+html[data-staff-panel] .teacher-action-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+html[data-staff-panel] .teacher-action-card:active {
+  transform: translateY(1px) scale(.99);
+}
+html[data-staff-panel] .teacher-action-card .teacher-action-art,
+html[data-staff-panel] .teacher-action-card .pay-tile-icon {
+  flex: none;
+}
