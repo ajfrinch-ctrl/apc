@@ -150,7 +150,12 @@ function renderFeatureGrid(container, entries, onNavigate) {
         selectReport(document.querySelector('#adminReports'), 'fee.monthly');
       }
       onNavigate(entry.view, tile);
-      if (entry.action === 'notifications') document.querySelector('#notificationButton')?.click();
+      if (entry.action === 'notifications') {
+        void import('./notifications.js').then(({ initNotifications }) => {
+          initNotifications();
+          document.querySelector('#notificationButton')?.click();
+        }).catch(error => console.warn('[Active Plus] notification shortcut unavailable:', error?.name || 'unknown'));
+      }
       if (entry.action === 'finance-summary') {
         const toggle = document.querySelector('[data-admin-section-toggle="reports-builder"]');
         if (toggle?.getAttribute('aria-expanded') !== 'true') toggle?.click();
