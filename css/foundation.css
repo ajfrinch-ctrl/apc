@@ -53,7 +53,7 @@
  --tone-amber:#d97706;--tone-amber-soft:rgba(245,158,11,.16);
  --tone-violet:#6d4dfa;--tone-violet-soft:rgba(122,92,255,.14);
  --tone-rose:#d6415d;--tone-rose-soft:rgba(219,77,103,.14);--tone-coral:#df5b32;--tone-coral-soft:rgba(223,91,50,.14);
- --student-id-face:#f4f8f5;--student-id-ink:#0f3625;
+ --student-id-face:#f4f8f5;--student-id-ink:#0f3625;--student-id-shadow:0 14px 34px rgba(11,107,74,.18),0 2px 8px rgba(0,0,0,.08);
  --ring-track:rgba(14,122,85,.16);
  --accent-glow:0 12px 28px rgba(14,122,85,.20);--card-glow:0 14px 34px rgba(14,95,67,.09);
  /* Pay skin (css/ui-wallet.css): the shared green brand band, icon discs and
