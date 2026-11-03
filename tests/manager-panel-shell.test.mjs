@@ -56,7 +56,7 @@ test('Manager boots on the operational dashboard with only its allow-listed sect
 });
 
 test('Manager student cards start compact, show pending entries once and disclose one card at a time', async () => {
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="students"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="students"]'));
   await ctx.waitFor(() => ctx.$('.manager-view[data-view-panel="students"]')?.classList.contains('active'));
   await ctx.waitFor(() => ctx.$$('#managerStudentQueue [data-manager-student]').length === 1
     && ctx.$$('#managerStudentList [data-manager-student]').length === 1);
@@ -114,7 +114,7 @@ test('Manager student cards start compact, show pending entries once and disclos
 test('Manager student approval updates only the pending registration through the Manager flow', async () => {
   /* অনুমোদন has no separate seat any more: the pending queue lives inside
      শিক্ষার্থী, and the old name still opens that screen with the filter set. */
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="students"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="students"]'));
   ctx.click(ctx.$('.manager-view[data-view-panel="students"] [data-student-scope="pending"]'));
   await ctx.flush();
   assert.equal(ctx.$$('#managerStudentQueue [data-manager-action="approve-student"]').length, 1);
@@ -139,7 +139,7 @@ test('Manager navigation refuses unknown or admin-only route identifiers', () =>
 });
 
 test('Manager alone assigns Teacher class/batch scope through the Teachers workflow', async () => {
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="academic"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="academic"]'));
   ctx.click(ctx.$('#managerAcademicTeachers[data-panel-view="teachers"]'));
   await ctx.waitFor(() => ctx.$('#managerTeacherAssignmentForm [name=className]')?.options.length > 1);
   const form = ctx.$('#managerTeacherAssignmentForm');
@@ -206,7 +206,7 @@ test('the Manager student search finds a student by Student ID, including Bangla
    refresh lands back on it (the URL keeps the page). */
 test('the আরও page lists every module as a real page, not a floating drawer', async () => {
   assert.equal(ctx.$('#managerMoreDrawer'), null, 'the old drawer is gone');
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="more"]'));
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'more');
 
   const page = ctx.$('.manager-view[data-view-panel="more"]');
@@ -214,9 +214,9 @@ test('the আরও page lists every module as a real page, not a floating drawe
   assert.equal(ctx.$('#managerMoreTitle').textContent.trim(), 'আরও');
   assert.equal(ctx.window.location.hash, '#more', 'the open page lives in the URL');
 
-  const footer = ctx.$$('.manager-bottom [data-panel-view]');
+  const footer = ctx.$$('.staff-bottom-nav [data-panel-view]');
   assert.deepEqual(footer.map(button => button.dataset.panelView), ['dashboard', 'students', 'academic', 'finance', 'more']);
-  assert.equal(ctx.$('.manager-bottom [data-panel-view="reports"]'), null, 'reports lives in More, not a sixth tab');
+  assert.equal(ctx.$('.staff-bottom-nav [data-panel-view="reports"]'), null, 'reports lives in More, not a sixth tab');
   const rows = ctx.$$('#managerMoreHub .pay-tile');
   assert.deepEqual(rows.map(row => row.dataset.panelView), ['profile', 'settings', 'reports', 'advice']);
   assert.equal(rows.some(row => row.dataset.panelView === 'classes'), false, 'ক্লাস পরিচালনা is not in আরও');
@@ -230,7 +230,7 @@ test('the আরও page lists every module as a real page, not a floating drawe
     await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === view);
     assert.equal(ctx.$('.manager-view.active').hidden, false, `${view} is the one visible page`);
     assert.equal(ctx.$$('.manager-view.active').length, 1, 'repeat navigation never activates two pages');
-    assert.equal(ctx.$('.manager-bottom [aria-current="page"]').dataset.panelView, 'more', `${view} keeps More selected`);
+    assert.equal(ctx.$('.staff-bottom-nav [aria-current="page"]').dataset.panelView, 'more', `${view} keeps More selected`);
     assert.equal(ctx.window.location.hash, `#${view}`);
     ctx.click(ctx.$(`.manager-view[data-view-panel="${view}"] [data-panel-view="more"]`));
     await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'more');
@@ -241,7 +241,7 @@ test('the আরও page lists every module as a real page, not a floating drawe
 });
 
 test('every আরও row opens its own page without an error', async () => {
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="more"]'));
   await ctx.flush();
   for (const row of ctx.$$('#managerMoreHub .pay-tile')) {
     if (row.classList.contains('is-logout')) continue;
@@ -250,7 +250,7 @@ test('every আরও row opens its own page without an error', async () => {
     await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === view);
     assert.equal(ctx.$('.manager-view.active').hidden, false, `${view} is visible`);
     assert.equal(ctx.window.location.hash, `#${view}`, `${view} is remembered in the URL`);
-    if (view !== 'more') { ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]')); await ctx.flush(); }
+    if (view !== 'more') { ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="more"]')); await ctx.flush(); }
   }
   assert.deepEqual(ctx.jsdomErrors, [], 'no page raised an error while opening');
 });
@@ -262,7 +262,7 @@ test('Manager Settings re-entry clears a previously open group and keeps one act
   const groups = [...hub.querySelectorAll('[data-settings-group]')];
   const settings = () => ctx.$('#managerMoreHub [data-panel-view="settings"]');
 
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="more"]'));
   await ctx.flush(2);
   ctx.click(settings());
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'settings');
@@ -272,12 +272,12 @@ test('Manager Settings re-entry clears a previously open group and keeps one act
   assert.equal(nav.hidden, true);
 
   // Leave Settings and re-enter: stale Security content must not remain.
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="dashboard"]'));
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="dashboard"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="more"]'));
   ctx.click(settings());
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'settings');
   assert.equal(ctx.$$('.manager-view.active').length, 1);
-  assert.equal(ctx.$('.manager-bottom [aria-current="page"]').dataset.panelView, 'more');
+  assert.equal(ctx.$('.staff-bottom-nav [aria-current="page"]').dataset.panelView, 'more');
   assert.equal(nav.hidden, false, 're-entering Settings shows the group menu');
   assert.ok(groups.every(group => group.hidden), 'no stale Manager subsection stays visible');
 
@@ -285,13 +285,13 @@ test('Manager Settings re-entry clears a previously open group and keeps one act
   ctx.click(hub.querySelector('[data-settings-open="account"]'));
   await ctx.flush(2);
   assert.equal(hub.querySelector('[data-settings-group="account"]').hidden, false);
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="dashboard"]'));
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="more"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="dashboard"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="more"]'));
   ctx.click(settings());
   await ctx.waitFor(() => ctx.$('.manager-view.active')?.dataset.viewPanel === 'settings');
   assert.equal(nav.hidden, false);
   assert.ok(groups.every(group => group.hidden));
-  ctx.click(ctx.$('.manager-bottom [data-panel-view="dashboard"]'));
+  ctx.click(ctx.$('.staff-bottom-nav [data-panel-view="dashboard"]'));
 });
 
 test('Manager Settings is the shared five-group hub, with no duplicated control', () => {
