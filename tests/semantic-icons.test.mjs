@@ -71,6 +71,7 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    continue;
   }
   const old=new JSDOM(readCheckpoint(page)).window.document;
+  if(page==='payment') old.querySelector('#payClosingShortcut')?.setAttribute('data-panel-view','reports');
   /* The teacher's existing "পরীক্ষা নিন" hint now targets the explicit online-exams route;
      both routes resolve to the same panel, but notifications and task links use online-exams. */
   if(page==='teacher') old.querySelector('.admin-bottom [data-panel-view="exam"]')?.setAttribute('data-panel-view','online-exams');
