@@ -54,7 +54,7 @@ test('student avatars show the student initials, grapheme-safe', () => {
   // always readable; only the Student ID is masked until it is asked for.
   assert.match(js, /<span class="student-avatar" aria-hidden="true">\$\{escapeHtml\(initialsOf\(name\)\)\}/,
     'the roster avatar is drawn from the always-visible name');
-  assert.match(js, /audit-id-badge">ID: \$\{escapeHtml\(revealed \? rowKey : PRIVACY_MASK\)\}/,
+  assert.match(js, /audit-id-badge"[^>]*>ID: \$\{escapeHtml\(revealed \? rowKey : PRIVACY_MASK\)\}/,
     'the Student ID, and only the Student ID, waits behind the reveal');
 });
 
