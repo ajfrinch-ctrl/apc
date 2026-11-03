@@ -108,7 +108,7 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    const currentControls=now;
    for(const control of controls(old)){
     if(retired(control)) continue;
-    assert.ok(currentRoutes.has(JSON.stringify(control)),`teacher keeps existing route/control ${JSON.stringify(control)}`);
+    assert.ok(currentControls.some(actual=>Object.entries(control).every(([key,value])=>actual[key]===value)),`teacher keeps existing route/control ${JSON.stringify(control)}`);
    }
   }else {
    /* ২০২৬-১১-০২: কাউন্টার এখন নিজের প্রোফাইল স্ক্রিন পেয়েছে (Admin/Teacher/
