@@ -563,8 +563,9 @@ test('the Admin slot is the only one with staff CRUD, and its hub cards are capa
   const source = read('js/admin-permissions.js');
   assert.match(source, /STAFF_MANAGE: 'staff\.manage'/);
   const adminGrant = source.slice(source.indexOf('const ADMIN = Object.freeze(['), source.indexOf(']);', source.indexOf('const ADMIN = Object.freeze([')));
-  for (const withheld of ['FINANCE_COLLECT', 'FINANCE_VIEW', 'NOTICES_MANAGE', 'ROUTINE_MANAGE', 'EXAMS_PUBLISH', 'TEACHING_PANEL', 'PAYMENT_PANEL'])
+  for (const withheld of ['FINANCE_COLLECT', 'FINANCE_VIEW', 'NOTICES_MANAGE', 'ROUTINE_MANAGE', 'TEACHING_PANEL', 'PAYMENT_PANEL'])
     assert.equal(adminGrant.includes(withheld), false, `${withheld} stays outside Admin`);
+  assert.equal(adminGrant.includes('EXAMS_PUBLISH'), true, 'Admin owns exam approval and publication');
   /* Every hub card carries the capability that unlocks it. */
   const system = ctxSection(html, 'system');
   for (const match of system.matchAll(/data-panel-view="([a-z-]+)" data-admin-cap="([a-z.]+)"/g)) {
