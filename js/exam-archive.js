@@ -1,6 +1,6 @@
 import { nowEpoch } from './time.js';
 /* Date-wise Examination archive.
-   Pure helpers shared by the Manager/Teacher examination screens: filtering,
+   Pure helpers shared by the Admin/Manager/Teacher examination screens: filtering,
    date-wise grouping, the workflow timeline and the permission matrix. No DOM
    and no storage here — everything is derived from the records the repository
    returns (js/exam-data.js), so the same rules can be tested on their own. */
