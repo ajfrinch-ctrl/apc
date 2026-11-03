@@ -352,10 +352,12 @@ function ensureNavigation() {
   return navigationReady;
 }
 
-async function enterApp() {
+async function enterApp(expectedSequence = null) {
   /* The navigation engine belongs to the signed-in Student surface, not the
      login first-paint graph. Wait for it before exposing the app shell. */
   await ensureNavigation();
+  if (expectedSequence !== null && expectedSequence !== sessionRestoreSequence) return;
+  if (!hasSession()) return;
   sessionRestoreSequence += 1;
   setView(viewRouteFromHash(), { history: 'replace' });
   openStudentApp(state);
@@ -417,7 +419,7 @@ void import('./install.js').then(({ initInstallPrompt }) => initInstallPrompt())
 void import('./service-worker.js').then(({ registerServiceWorker }) => registerServiceWorker()).catch(() => {});
 initLogin({
   state,
-  onAuthenticated: ON_AUTH_PAGE ? goToStudentPanel : enterApp
+  onAuthenticated: ON_AUTH_PAGE ? goToStudentPanel : () => enterApp()
 });
 if (ON_AUTH_PAGE) {
   void import('./register.js').then(({ initRegister }) => initRegister({ state }));
@@ -451,7 +453,7 @@ async function restoreEntrySession() {
     state.student = { ...state.student, ...(state.account.student || {}) };
     saveStudent(state.student);
     if (sequence !== sessionRestoreSequence) return;
-    await enterApp();
+    await enterApp(sequence);
   } else if (ON_APP_PAGE) {
     // No session: the panel page never renders for a signed-out visitor.
     window.location.replace('index.html');
