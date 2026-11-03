@@ -410,7 +410,7 @@ test('the grid doors open their own screens and the routine lives on one screen'
   await settle();
   /* ২০২৬-১১-০১: নম্বর এন্ট্রি হোম-চিপ নয় — পরীক্ষা সিটের ভেতরে, যেখানে
      পরীক্ষার সব লেন থাকে; সেখান থেকে রেকর্ডসের টাইপ-ট্যাব সব কার্যক্রম দেখায়। */
-  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
+  ctx.click($('#teacherHome [data-panel-view="online-exams"]'));
   await settle();
   assert.equal($('#teacherOnlineExams').hidden, false, 'পরীক্ষা সিট');
   ctx.click($('#teacherOnlineExams [data-panel-view="exam"]'));
@@ -527,7 +527,7 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
     'ক্লাস nav seat never displays two badges simultaneously');
 
   // Verify পরীক্ষা note uses ম্যানেজার and question bank placeholder is in Bengali
-  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
+  ctx.click($('#teacherHome [data-panel-view="online-exams"]'));
   await settle();
   assert.doesNotMatch($('#teacherOnlineExams > .teacher-local-note').textContent, /\bManager\b/);
   assert.match($('#teacherOnlineExams > .teacher-local-note').textContent, /ম্যানেজার/);
