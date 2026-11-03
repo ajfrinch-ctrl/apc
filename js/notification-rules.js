@@ -552,6 +552,35 @@ export function examReviewItems(examDb, viewer) {
     }));
 }
 
+export function staffExamItems(examDb, viewer) {
+  if (viewer?.kind !== 'staff' || !['admin', 'manager'].includes(text(viewer.role)) || !isObject(examDb)) return [];
+  const target = viewer.role === 'admin' ? 'audit-exam' : 'exams';
+  const audience = 'Admin/Manager';
+  const items = [];
+  for (const exam of Array.isArray(examDb.exams) ? examDb.exams : []) {
+    if (!isObject(exam) || !text(exam.id)) continue;
+    if (exam.status === 'published' && Number(exam.publishedAt)) {
+      items.push({
+        key: `exam-published:${text(exam.id)}:${Number(exam.publishedAt)}`,
+        source: 'exams', sourceId: text(exam.id), kind: 'exam-published', actionable: true,
+        title: 'পরীক্ষা প্রকাশিত হয়েছে',
+        body: `${examName(exam)}${Number(exam.startAt) ? ` · শুরু ${bnWhen(exam.startAt)}` : ''}`,
+        at: Number(exam.publishedAt), target, audience
+      });
+    }
+    if (exam.resultsPublished === true && Number(exam.resultsPublishedAt)) {
+      items.push({
+        key: `result-published:${text(exam.id)}:${Number(exam.resultsPublishedAt)}`,
+        source: 'exams', sourceId: text(exam.id), kind: 'result-published', actionable: true,
+        title: 'পরীক্ষার ফলাফল প্রকাশিত হয়েছে',
+        body: examName(exam),
+        at: Number(exam.resultsPublishedAt), target, audience
+      });
+    }
+  }
+  return items;
+}
+
 export function teacherExamItems(examDb, viewer) {
   if (viewer?.kind !== 'staff' || text(viewer.role) !== 'teacher' || !isObject(examDb)) return [];
   const items = [];
@@ -605,6 +634,7 @@ export function notificationFeed({ notices = [], config = null, examDb = null, t
   items.push(...paymentReviewItems(transactions, viewer));
   items.push(...paymentRejectedItems(transactions, viewer));
   items.push(...examReviewItems(examDb, viewer));
+  items.push(...staffExamItems(examDb, viewer));
   items.push(...teacherExamItems(examDb, viewer));
   items.push(...birthdayItems(viewer, now));
   items.push(...birthdayTodayStaffItems(students, viewer, now));
