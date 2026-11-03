@@ -1887,7 +1887,7 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
 .student-reference #studentIdCardView .page-intro { margin-bottom: 12px; padding-top: 16px; gap: 8px; }
 .student-reference #studentIdCardView .page-intro h1 { font-size: 20px; font-weight: 500; }
 .student-reference #studentIdCardView .pay-back { color: var(--color-text); background: transparent; border: 0; width: 28px; min-width: 28px; }
-.student-reference #studentIdCardView .student-id-preview { width: min(100%, 360px); margin-inline: auto; border-radius: 26px; overflow: hidden; background: var(--student-id-face); box-shadow: 0 14px 34px rgba(11,107,74,.18), 0 2px 8px rgba(0,0,0,.08); }
+.student-reference #studentIdCardView .student-id-preview { width: min(100%, 360px); margin-inline: auto; border-radius: 26px; overflow: hidden; background: var(--student-id-face); box-shadow: var(--student-id-shadow); }
 .student-reference #studentIdCardView .student-id-preview > svg { display: block; width: 100%; height: auto; }
 .student-reference #studentIdCardView .student-id-side-tabs { display: flex; justify-content: center; gap: 6px; margin: 12px auto; max-width: 360px; }
 .student-reference #studentIdCardView .student-id-side-tabs button { min-height: 36px; padding: 6px 14px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); border-radius: 999px; font-size: 12px; font-weight: 600; }
