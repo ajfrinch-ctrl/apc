@@ -88,9 +88,10 @@ test('the bell and in-app alert both render a distinct action button', async () 
   };
   let read = false;
   let pendingAlerts = [];
+  let visibleFeed = [homeworkItem];
   const opened = [];
   const api = {
-    feed: () => [homeworkItem],
+    feed: () => visibleFeed,
     unread: () => read ? 0 : 1,
     unreadKeys: () => read ? [] : [homeworkItem.key],
     markRead: keys => { read = true; return keys.length; },
@@ -119,6 +120,7 @@ test('the bell and in-app alert both render a distinct action button', async () 
   assert.equal(modal.hidden, true);
 
   pendingAlerts = [examItem];
+  visibleFeed = [homeworkItem, examItem];
   ctx.window.dispatchEvent(new ctx.window.CustomEvent('apc-inapp-alerts', { detail: { count: 1 } }));
   await ctx.waitFor(() => Boolean(ctx.$('#apcInAppAlert .apc-inapp-alert-action')));
   const examButton = ctx.$('#apcInAppAlert .apc-inapp-alert-action');
