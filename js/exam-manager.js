@@ -308,7 +308,7 @@ export function initExamManager(container, role) {
     view = 'home'; selected = null; openQuestion = null;
     const visible = db.exams;
     const list = filterExams(visible, filters);
-    content.innerHTML = `${role === 'admin' ? '<p class="exam-note">Admin নম্বর সংশোধন করতে পারেন; অনুমোদন ও প্রকাশ Manager-এর কাজ।</p>' : ''}
+    content.innerHTML = `${role === 'admin' ? '<p class="exam-note">Admin পরীক্ষা তৈরি, সম্পাদনা, অনুমোদন, প্রকাশ, ফলাফল ও নম্বর সংশোধন করতে পারেন।</p>' : ''}
       ${hubMarkup(visible)}${teacherRejectedBanner(visible)}${approvalQueueMarkup(visible)}${filterMarkup(visible)}
       <h2 class="exam-section-title">পরীক্ষার ইতিহাস — তারিখ অনুযায়ী</h2>
       ${groupsMarkup(list)}`;
