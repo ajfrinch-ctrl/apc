@@ -8,10 +8,12 @@ import { iconMarkup } from './icons.js';
 /* Admin panel — System Control + Staff Management + Permissions + Security +
    Data + Reports + Settings.
 
-   Scope note: daily operations are NOT here on purpose.
+   Scope note: daily operations stay with their owning panels, while the Admin
+   retains institution-wide approval authority:
      • fee collection / cash-counter entry  → payment.html (Cash Counter)
      • routine entry, daily notices         → manager.html (Manager)
-     • student approval, exam publish       → manager.html (Manager)
+     • student registration approval        → Admin + Manager
+     • exam review / approval / publication → Admin + Manager
      • teaching, homework, attendance       → teacher.html (Teacher)
    Admin sees system-level monitoring, owns every staff identity (Staff ID) and
    keeps the device's data safe. Username and password are required; the roster,
