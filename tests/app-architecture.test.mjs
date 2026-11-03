@@ -448,7 +448,7 @@ test('a Manager notice is class/batch-scoped and Notice stays separate from Noti
 
 test('the Cash Counter bottom bar is exactly হোম / শিক্ষার্থী / পেমেন্ট / রিপোর্ট / আরও', async () => {
   const ctx = await loadPage('payment.html');
-  const seats = ctx.$('.staff-bottom-nav > .admin-bottom-item');
+  const seats = ctx.$$('.staff-bottom-nav > .admin-bottom-item');
   assert.equal(seats.length, 5, 'the counter keeps all five shared seats');
   assert.deepEqual(seats.map(seat => seat.dataset.staffTab), ['home', 'work', 'academic', 'finance', 'more']);
   assert.deepEqual(seats.filter(seat => seat.dataset.panelView).map(seat => seat.dataset.panelView), ['home', 'students', 'payment', 'more']);
