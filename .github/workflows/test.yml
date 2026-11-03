@@ -19,4 +19,6 @@ jobs:
       - run: npm ci
       - run: npm run build:firebase && git diff --exit-code -- vendor/firebase/
       - run: npm test
+      - name: Run browser regression suite
+        run: npm run test:e2e:local
       - run: node tools/load-budget.mjs
