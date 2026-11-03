@@ -207,10 +207,10 @@ test('Question Bank writes enforce staff role and Teacher assignments; Student r
   await assert.rejects(questionBank.save(mcq({ group: 'Batch B', text: 'ভুল ব্যাচের প্রশ্ন' }), 'Teacher'), { code: 'ACCESS_DENIED' });
   await assert.rejects(questionBank.save(mcq({ className: 'একাদশ শ্রেণি', group: 'বিজ্ঞান', text: 'ভুল শ্রেণির প্রশ্ন' }), 'Teacher'), { code: 'ACCESS_DENIED' });
 
-  const managerSession = store().getItem(STAFF_ACCOUNTS.manager.sessionKey);
-  store().removeItem(STAFF_ACCOUNTS.manager.sessionKey);
+  const managerSession = ctx.window.sessionStorage.getItem(STAFF_ACCOUNTS.manager.sessionKey);
+  ctx.window.sessionStorage.removeItem(STAFF_ACCOUNTS.manager.sessionKey);
   await assert.rejects(questionBank.save(mcq({ text: 'কোনো Manager session ছাড়া' }), 'MANAGER'), { code: 'ACCESS_DENIED' });
-  store().setItem(STAFF_ACCOUNTS.manager.sessionKey, managerSession);
+  ctx.window.sessionStorage.setItem(STAFF_ACCOUNTS.manager.sessionKey, managerSession);
   await assert.rejects(questionBank.save(mcq({ text: 'শিক্ষার্থী লিখতে পারবে না' }), 'STUDENT'), { code: 'ACCESS_DENIED' });
   const adminRows = await listQuestionsForStaff('admin');
   assert.ok(adminRows.length >= 5, 'Admin can inspect the full question bank');
