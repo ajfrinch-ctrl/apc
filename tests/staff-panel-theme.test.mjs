@@ -81,3 +81,17 @@ test('each staff role has a distinct light and dark theme palette', async () => 
   assert.ok(theme.includes('html[data-staff-panel] .staff-home-action-grid'),
     'shared shell rules still apply to all four staff roles');
 });
+
+test('each staff entry page advertises its own browser theme color', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const expected = [
+    ['admin.html', '#2563eb'],
+    ['manager.html', '#7c3aed'],
+    ['teacher.html', '#0f766e'],
+    ['payment.html', '#d97706']
+  ];
+  for (const [page, color] of expected) {
+    const html = await readFile(new URL('../' + page, import.meta.url), 'utf8');
+    assert.ok(html.includes('<meta name="theme-color" content="' + color + '">'), page + ' browser chrome color');
+  }
+});
