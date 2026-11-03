@@ -150,7 +150,7 @@ export async function listQuestionsForStudent(studentId) {
     .filter(row => !row.source?.examId || (row.endAt > 0 && row.endAt < now));
 }
 
-/** Scoped staff reader for Teacher/Manager workspaces. */
+/** Scoped staff reader for Admin/Manager/Teacher workspaces. */
 export async function listQuestionsForStaff(role) {
   if (!['admin', 'teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
     throw Object.assign(new Error('সক্রিয় Admin, Teacher বা Manager session প্রয়োজন।'), { code: 'ACCESS_DENIED' });
