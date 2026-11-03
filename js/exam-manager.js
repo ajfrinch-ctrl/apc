@@ -23,7 +23,7 @@ import {
 export function initExamManager(container, role) {
   const root = document.querySelector(container); if (!root) return;
   const actor = role === 'admin' ? ADMIN_ACTOR : role === 'manager' ? MANAGER_ACTOR : TEACHER_ACTOR;
-  const canManageBank = role === 'manager' || role === 'teacher';
+  const canManageBank = ['admin', 'manager', 'teacher'].includes(role);
   const academicClasses = () => listClasses().map(item => item.name);
   const roleClasses = () => {
     if (role !== 'teacher') { const names = academicClasses(); return names.length ? names : [...enabledClasses]; }
@@ -39,7 +39,7 @@ export function initExamManager(container, role) {
   let bankFilters = { query: '', className: 'all', subject: 'all', chapter: 'all', type: 'all', difficulty: 'all' };
   let bankPage = 0, bankEditing = '';
   root.classList.add('exam-workspace');
-  root.innerHTML = '<p class="exam-note">লোকাল ডেমো • প্রশ্ন শিক্ষক তৈরি করবেন; Admin ও Manager পর্যালোচনা/অনুমোদন/প্রকাশ করবেন। পরীক্ষা ও প্রশ্ন তারিখ অনুযায়ী আলাদা রেকর্ডে থাকে; ডেমোতে সব শ্রেণির অনুমোদিত শিক্ষার্থী অংশ নিতে পারে।</p><p class="exam-error" role="alert" data-exam-error hidden></p><p class="exam-message" role="status" data-exam-message hidden></p><div data-exam-content></div>';
+  root.innerHTML = '<p class="exam-note">লোকাল ডেমো • Admin, Manager ও Teacher পরীক্ষা তৈরি/সম্পাদনা করতে পারবেন; Admin ও Manager পর্যালোচনা/অনুমোদন/প্রকাশ করবেন। পরীক্ষা ও প্রশ্ন তারিখ অনুযায়ী আলাদা রেকর্ডে থাকে; ডেমোতে সব শ্রেণির অনুমোদিত শিক্ষার্থী অংশ নিতে পারে।</p><p class="exam-error" role="alert" data-exam-error hidden></p><p class="exam-message" role="status" data-exam-message hidden></p><div data-exam-content></div>';
   const $ = selector => root.querySelector(selector), content = $('[data-exam-content]');
   const button = (action, label, id = '', cls = '') => `<button type="button" class="${cls}" data-exam-action="${action}" data-id="${esc(id)}">${label}</button>`;
   const back = (label = '← পরীক্ষার তালিকা') => `<div class="exam-actions">${button('list', label)}</div>`;
