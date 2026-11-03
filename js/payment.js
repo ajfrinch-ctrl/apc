@@ -410,4 +410,6 @@ hasPaymentSession().then(async valid=>{
   applyPanelCapabilities({ role: 'payment', homeRoot: $('#payCounterHome'), routes: COUNTER_VIEWS });
   configureForm(); showCounterView('home'); await refreshToday();
   window.dispatchEvent(new Event('apc-session-ready'));
+  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
+    .catch(error => console.warn('[Active Plus] Payment notification centre unavailable:', error?.name || 'unknown'));
 });
