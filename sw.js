@@ -453,6 +453,7 @@ const APP_SHELL = [
   './js/settings-hub.js',
   './js/staff-account-forms.js',
   './js/panel-capabilities.js',
+  './js/admin-permissions.js',
   './js/academics.js',
   './js/brand.js',
   './js/exam-data.js',
