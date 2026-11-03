@@ -59,7 +59,7 @@ test('the Notice Board filters and opens notices separately from the bell, then 
   assert.match(ctx.$('#noticeModal').textContent, /জরুরি সার্ভার ঘোষণা/);
   ctx.click(ctx.$('#noticeModal .modal-close'));
 
-  const tapped = noticeItem({ id: 'NB-U', title: 'জরুরি ঘোষণা', body: 'বিস্তারিত NB-U', createdAt: '2026-10-04T10:00:00.000Z' });
+  const tapped = inbox.feed().find(item => item.kind === 'notice' && item.sourceId === 'NB-U');
   assert.equal(await inbox.openItem({ kind: 'notice', sourceId: 'NB-U', key: tapped.key }), true, 'a push tap opens the Notice Board detail');
   assert.equal(ctx.$('#noticeBoardDetail').hidden, false);
   assert.equal(ctx.$('#noticeBoardReadButton').disabled, false, 'direct tray/programmatic open keeps explicit Read ✓ button available');
