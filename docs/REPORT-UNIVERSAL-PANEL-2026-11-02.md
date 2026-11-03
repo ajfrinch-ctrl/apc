@@ -106,3 +106,14 @@
   `--t-back-size`, `--t-gap-card` — পেমেন্ট হিরো/কার্ড/ব্যাক-চিপ/স্ট্যাক আর
   হার্ডকোডেড সংখ্যা ব্যবহার করে না।
 - ফন্ট-স্কেল (font-size clamp) এখনো প্যানেলভেদে আলাদা লেখা — এটা পরের ধাপের কাজ।
+
+## 2026-11-03 owner-policy and verification addendum
+
+- চারটি staff role-এ একই Active Plus light/dark palette প্রযোজ্য; role marker কেবল layout/navigation scope নির্ধারণ করে, আলাদা role-colour নয়।
+- ভর্তি অনুমোদন Admin ও Manager—দুই ভূমিকাই করতে পারে। পরীক্ষার ক্ষেত্রে Admin-এর পূর্ণ authoring/question-bank/review/approval/publish/result/lifecycle control এবং Manager-এর বিদ্যমান management control রাখা হয়েছে; Teacher নিজের scope-এ পরীক্ষা তৈরি/সম্পাদনা করতে পারে।
+- Admin-এর Academic section-এ exam-management entry যুক্ত হয়েছে। `audit-exam` route এখন Academic seat-এর সঙ্গে যুক্ত এবং direct deep-link-ও `exams.publish` capability দিয়ে gate হয়।
+- Student enrollment ও exam review-এর server-side callable-এ Admin/Manager role যাচাই করা হয়; Firestore/Realtime Database schema বা Cloud Storage যোগ করা হয়নি।
+- Capability gate unblock হলে আগের `hidden`, `disabled`, `aria-hidden` ও `tabindex` state পুনরুদ্ধার করে; আগে থেকে disabled/hidden control ভুল করে সক্রিয় বা প্রকাশ পাবে না।
+- Test coverage বাড়ানো হয়েছে: Admin exam workflow, question-bank access, staged Student approval, four-role keyboard navigation, shared palette, capability-state restoration এবং Admin Academic exam entry।
+- CI workflow এখন `npm test`, `npm run test:e2e:local`, তারপর `node tools/load-budget.mjs` চালায়। সর্বশেষ সম্পন্ন CI run-এ 1510 tests-এর মধ্যে 1501 pass, 5 fail, 4 skipped ছিল; ওই পাঁচটি assertion সংশোধন করা হয়েছে। পরবর্তী commits-এর জন্য নতুন CI ফল এখনো পাওয়া যায়নি, তাই সব পরীক্ষা সফল বলা হচ্ছে না। Load-budget ওই পুরোনো run-এ skip হয়েছিল।
+- Branch `main` থেকে 174 commits ahead (57 files changed); full diff scope review না হওয়া পর্যন্ত PR Draft থাকবে এবং production deploy/merge করা হবে না।
