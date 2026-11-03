@@ -231,6 +231,21 @@ test('a read pending approval stays active while its source remains pending, the
     'the resolved approval can move into History');
 });
 
+test('record-cap pruning preserves a read but unresolved approval', async () => {
+  await loadPage('admin.html');
+  const owner = 'staff:admin.apc';
+  const pending = { key: 'registration:PENDING-CAP', kind: 'registration', actionable: true,
+    sourceId: 'PENDING-CAP', title: 'নতুন ভর্তি', body: 'অনুমোদনের অপেক্ষায়', at: DAY };
+  const ordinaryA = item('notice:CAP-A', DAY + 1000);
+  const ordinaryB = item('notice:CAP-B', DAY + 2000);
+  syncNotifications({
+    userId: owner, feed: [pending, ordinaryA, ordinaryB],
+    legacyRead: [pending.key, ordinaryA.key, ordinaryB.key], now: DAY + 3000
+  });
+  pruneRecords(owner, 1);
+  assert.ok(notificationByKey(owner, pending.key), 'pending approval must survive the record cap');
+});
+
 test('a chat notification is acknowledged when its message leaves the unread room feed', async () => {
   await loadPage('student.html');
   const owner = 'student:AP-CHAT-READ';
