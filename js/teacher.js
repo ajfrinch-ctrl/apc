@@ -1139,6 +1139,8 @@ async function showTeacherShell() {
   });
   watchOwnPanelSession('teacher');
   window.dispatchEvent(new Event('apc-session-ready'));
+  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
+    .catch(error => console.warn('[Active Plus] Teacher notification centre unavailable:', error?.name || 'unknown'));
   return loaded;
 }
 /** The content editor is mounted once; its own paint() keeps it current. */
