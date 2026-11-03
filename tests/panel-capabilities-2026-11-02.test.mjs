@@ -14,7 +14,7 @@ import {
   ENTRY_CAPABILITIES, ENTRY_KINDS, PANEL_ROLES, applyCapabilityGate,
   applyHomeDoorRules, entryReport, panelCapabilities
 } from '../js/panel-capabilities.js';
-import { CAPABILITIES, ROLE_CAPABILITIES, VIEW_CAPABILITIES } from '../js/admin-permissions.js';
+import { ADMIN_FEATURE_TILES, CAPABILITIES, ROLE_CAPABILITIES, VIEW_CAPABILITIES } from '../js/admin-permissions.js';
 
 const html = file => readFileSync(file, 'utf8');
 const doc = file => new JSDOM(html(file)).window.document;
@@ -61,6 +61,20 @@ test('one entry contract: notice · lecture · chat · report carry the same sha
     const required = role === 'admin' ? ['chat', 'notice', 'lecture'] : ['chat', 'notice', 'report'];
     for (const kind of required) assert.ok(kinds.has(kind), `${role} has a ${kind} entry`);
   }
+});
+
+test('Admin home quick actions follow the owner priority order', () => {
+  assert.deepEqual(ADMIN_FEATURE_TILES.map(tile => tile.label), [
+    'নিবন্ধন অনুমোদন', 'নোটিফিকেশন', 'স্টাফ ব্যবস্থাপনা',
+    'রিপোর্ট কেন্দ্র', 'অর্থ সারাংশ', 'পরীক্ষা ব্যবস্থাপনা'
+  ]);
+  assert.equal(ADMIN_FEATURE_TILES[1].action, 'notifications');
+  assert.equal(ADMIN_FEATURE_TILES[4].view, 'reports');
+  assert.equal(ADMIN_FEATURE_TILES[4].action, 'finance-summary');
+  assert.equal(ADMIN_FEATURE_TILES[4].capability, CAPABILITIES.REPORTS_VIEW,
+    'Finance home access is a report-only route, never a cash collection route');
+  assert.equal(ADMIN_FEATURE_TILES[5].view, 'audit-exam');
+  assert.equal(ADMIN_FEATURE_TILES[5].capability, CAPABILITIES.EXAMS_PUBLISH);
 });
 
 test('Admin retains full exam and approval capabilities through the Academic entry', () => {
