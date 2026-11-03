@@ -310,8 +310,9 @@ function managerStudentDetailsMarkup(student, fee) {
     const appliedDate = escapeHtml(formatPendingDate(student));
     return `<div class="manager-student-detail-grid">${managerStudentDetailGroup('অনুমোদনের অপেক্ষায়', `<p>নাম: ${escapeHtml(student.name || 'নাম নেই')} • আইডি: ${escapeHtml(student.id || '—')}</p><p>${['শ্রেণি', className, group].filter(Boolean).join(' • ')}</p><p>তারিখ: ${appliedDate}</p>`)}${contact}</div>`;
   }
+  const identity = managerStudentDetailGroup('পরিচয়', `<p>শিক্ষার্থী ID: ${escapeHtml(student.id || '—')}</p>`);
   const progress = managerStudentDetailGroup('অগ্রগতি', `<p>মাসিক বকেয়া ${money(fee.due)}</p><p>উপস্থিতি ${student.attendance == null ? '—' : `${escapeHtml(student.attendance)}%`} • গড় ফল ${student.average == null ? '—' : escapeHtml(student.average)}</p>`);
-  return `<div class="manager-student-detail-grid">${managerStudentDetailGroup('শ্রেণি ও ব্যাচ', `<p>${[className, group].filter(Boolean).join(' • ') || '—'}</p>`)}${contact}${progress}</div>`;
+  return `<div class="manager-student-detail-grid">${identity}${managerStudentDetailGroup('শ্রেণি ও ব্যাচ', `<p>${[className, group].filter(Boolean).join(' • ') || '—'}</p>`)}${contact}${progress}</div>`;
 }
 /** শিক্ষার্থী: one screen for the whole student lifecycle. The pending queue is
     the canonical home for pending registrations; the all-roster list contains
@@ -342,7 +343,6 @@ function renderStudents() {
           <div class="manager-record-head manager-student-head">
             <div class="manager-student-identity">
               <h2>${escapeHtml(student.name || 'নাম নেই')}</h2>
-              <p class="manager-meta">শিক্ষার্থী ID: ${escapeHtml(student.id || 'ভর্তি আবেদন')}</p>
             </div>
             <div class="manager-student-summary-side">
               <span class="badge badge-pending">অপেক্ষমাণ</span>
@@ -401,7 +401,6 @@ function renderStudents() {
           <div class="manager-record-head manager-student-head">
             <div class="manager-student-identity">
               <h2>${escapeHtml(student.name || 'নাম নেই')}</h2>
-              <p class="manager-meta">শিক্ষার্থী ID: ${escapeHtml(student.id)}</p>
             </div>
             <div class="manager-student-summary-side">
               <span class="badge ${tone}">${escapeHtml(statusLabel[status] || status || 'অজানা')}</span>
