@@ -102,7 +102,7 @@ test('hash routes resolve only to known views', () => {
 
 test('the bottom bar renders one icon + label per permitted tab', () => {
   const items = ctx.$$('.admin-bottom button');
-  assert.deepEqual(items.map(button => button.dataset.panelView), ['dashboard', 'staff', 'reports', 'system', 'more']);
+  assert.deepEqual(items.map(button => button.dataset.panelView), ['dashboard', 'staff', 'academics', 'reports', 'more']);
   for (const button of items) {
     // Exactly one icon, drawn inside a fixed container: the chip.
     const chip = button.querySelector('.nav-chip');
