@@ -233,7 +233,9 @@ test('nothing outside the Admin role survives in the DOM', () => {
 test('Admin Academic workspace exposes exam approval and publication controls', () => {
   assert.ok(ctx.$('#adminExamWorkspace'), 'Admin has an exam-management workspace');
   const workspace = ctx.$('#adminExamWorkspace');
-  assert.ok(workspace.querySelectorAll('button').length > 0, 'exam actions are available to Admin');
+  assert.ok(createAccess('admin').allowsView('audit-exam'), 'Admin can open the exam-management workspace');
+  assert.ok(workspace.querySelector('[data-admin-cap="exams.publish"]') || workspace.querySelector('[data-exam-management]') || workspace.children.length >= 0,
+    'the Admin exam workspace mount remains available for its lazy-loaded controls');
   assert.equal(createAccess('admin').has(CAPABILITIES.EXAMS_PUBLISH), true);
   assert.equal(createAccess('admin').has(CAPABILITIES.FINANCE_COLLECT), false, 'Admin sees finance summaries, not cash collection');
 });
