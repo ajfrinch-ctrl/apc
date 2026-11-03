@@ -673,7 +673,6 @@ function teacherOwns(exam, actor) {
   const expectedId = effectiveTeacherId(actor);
   if (actor?.role !== 'teacher' || !isOwnTeacherRecord(exam?.teacherId, expectedId) || !isTeacherAssigned(teachingScopeUsername(), exam.className, exam.group || '') || !isTeacherAllowedSubject(teachingScopeUsername(), exam.className, exam.subject, exam.group || '')) fail('শুধু দায়িত্বপ্রাপ্ত শিক্ষক এবং ম্যানেজার-নির্ধারিত ক্লাস এই কাজ করতে পারবেন।');
 }
- function requireManager(actor) { if (actor?.role !== 'manager') fail('শুধু ম্যানেজার ফলাফল প্রকাশ করতে পারবেন।'); }
 function requireReviewer(actor) {
   if (!['admin', 'manager'].includes(actor?.role)) fail('শুধু Admin বা Manager পরীক্ষা পর্যালোচনা ও অনুমোদন করতে পারবেন।');
 }
@@ -695,17 +694,17 @@ function assertCanEditPaper(exam, db, actor) {
   if (!EDITABLE_STATUSES.includes(exam.status)) fail('প্রকাশিত/সম্পন্ন/আর্কাইভ করা পরীক্ষার প্রশ্ন বদলানো যাবে না।');
   if (db.attempts.some(a => a.examId === exam.id)) fail('উত্তর বা ফলাফল থাকা পরীক্ষার প্রশ্ন বদলানো যাবে না।');
   if (actor?.role === 'teacher') teacherOwns(exam, actor);
-  else if (actor?.role !== 'manager') fail('শিক্ষক বা ম্যানেজার প্রশ্ন বদলাতে পারবেন।');
+  else if (!['admin', 'manager'].includes(actor?.role)) fail('শুধু Admin বা Manager অন্যের পরীক্ষার প্রশ্ন বদলাতে পারবেন।');
 }
 const examHasOpenAttempts = (db, id) => db.attempts.some(a => a.examId === id && ['active', 'queued'].includes(a.status));
 function examSnapshot(db, actor) { return actor?.role === 'teacher' ? teacherExamSnapshot(db, actor) : db; }
-/** Who is asking: a Teacher writes their own papers, a Manager every paper. */
+/** Who is asking: a Teacher writes assigned papers; Admin/Manager can manage all papers. */
 async function paperActor(actor) {
-  if (actor?.role !== 'teacher' && actor?.role !== 'manager') fail('শিক্ষক বা ম্যানেজার প্রশ্ন তৈরি ও সম্পাদনা করতে পারবেন।');
+  if (!['teacher', 'manager', 'admin'].includes(actor?.role)) fail('শুধু Admin, Manager বা Teacher পরীক্ষা তৈরি ও সম্পাদনা করতে পারবেন।');
   await requireRoleSession(actor.role);
   const account = actor.role === 'teacher' ? await currentTeacherProfile() : await readStaffAccount(actor.role);
   const name = String(account?.fullName || account?.username || '').trim();
-  if (!name) fail(`${actor.role === 'teacher' ? 'Teacher' : 'Manager'} profile পাওয়া যায়নি।`);
+  if (!name) fail(`${actor.role === 'teacher' ? 'Teacher' : actor.role === 'admin' ? 'Admin' : 'Manager'} profile পাওয়া যায়নি।`);
   return name;
 }
 async function reviewerActor(actor) {
@@ -1307,8 +1306,7 @@ export const examRepository = {
     });
   },
   async publishResults(id, actor = MANAGER_ACTOR) {
-    requireManager(actor);
-    await requireRoleSession('manager');
+    await reviewerActor(actor);
     return mutate(db => {
       const exam = examById(db, id);
       if (!isLiveExam(exam) || nowEpoch() < exam.endAt) fail('পরীক্ষা শেষ হওয়ার আগে ফলাফল প্রকাশ করা যাবে না।');
