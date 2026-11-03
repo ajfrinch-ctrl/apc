@@ -164,7 +164,7 @@ export function examPermissions(actor, exam, { attempts = 0, openAttempts = 0, n
     questions: manager || admin || own,
     edit: editable,
     duplicate: manager || admin || (teacher && own),
-    request: !admin && editable && ['draft', 'rejected'].includes(exam.status),
+    request: editable && ['draft', 'rejected'].includes(exam.status),
     review: reviewer && ['pending', 'draft', 'rejected'].includes(exam.status),
     approve: reviewer && ['pending', 'draft', 'rejected'].includes(exam.status) && Number(exam.startAt) > now,
     publish: reviewer && ['draft', 'pending', 'approved'].includes(exam.status) && Number(exam.startAt) > now,
