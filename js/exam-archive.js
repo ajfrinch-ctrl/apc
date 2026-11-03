@@ -152,6 +152,7 @@ export function examPermissions(actor, exam, { attempts = 0, openAttempts = 0, n
   const role = actor?.role;
   const manager = role === 'manager';
   const admin = role === 'admin';
+  const reviewer = manager || admin;
   const teacher = role === 'teacher';
   const expectedId = actor?.id && actor.id !== 'TCH-001' ? actor.id : currentTeacherId();
   const own = teacher && isOwnTeacherRecord(exam?.teacherId, expectedId);
@@ -163,16 +164,16 @@ export function examPermissions(actor, exam, { attempts = 0, openAttempts = 0, n
     edit: editable,
     duplicate: manager || (teacher && own),
     request: editable && ['draft', 'rejected'].includes(exam.status),
-    review: manager && ['pending', 'draft', 'rejected'].includes(exam.status),
-    approve: manager && ['pending', 'draft', 'rejected'].includes(exam.status) && Number(exam.startAt) > now,
-    publish: manager && ['draft', 'pending', 'approved'].includes(exam.status) && Number(exam.startAt) > now,
-    unpublish: manager && exam.status === 'published' && openAttempts === 0,
-    complete: manager && live && Number(exam.endAt) <= now && openAttempts === 0,
-    archive: manager && exam.status !== 'archived' && openAttempts === 0,
-    restore: manager && exam.status === 'archived',
+    review: reviewer && ['pending', 'draft', 'rejected'].includes(exam.status),
+    approve: reviewer && ['pending', 'draft', 'rejected'].includes(exam.status) && Number(exam.startAt) > now,
+    publish: reviewer && ['draft', 'pending', 'approved'].includes(exam.status) && Number(exam.startAt) > now,
+    unpublish: reviewer && exam.status === 'published' && openAttempts === 0,
+    complete: reviewer && live && Number(exam.endAt) <= now && openAttempts === 0,
+    archive: reviewer && exam.status !== 'archived' && openAttempts === 0,
+    restore: reviewer && exam.status === 'archived',
     remove: ['draft', 'rejected', 'archived'].includes(exam.status) && attempts === 0 && (manager || own),
     results: manager || admin || own,
     grade: (manager || admin || own) && live && exam.type !== 'mcq',
-    reschedule: manager && exam.status !== 'archived' && attempts === 0
+    reschedule: reviewer && exam.status !== 'archived' && attempts === 0
   };
 }
