@@ -48,16 +48,17 @@ const record = (now, actor) => ({ createdBy: actor, createdAt: now, updatedBy: a
 const normalized = value => text(value).normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
 const groupKey = value => normalized(value).replace(/\s*বিভাগ$/, '').trim();
 function roleFromActor(actor, hint = '') {
-  if (hint === 'teacher' || hint === 'manager') return hint;
+  if (['teacher', 'manager', 'admin'].includes(hint)) return hint;
   const label = String(actor || '').toLowerCase();
   if (label.includes('teacher')) return 'teacher';
-  if (label.includes('manager') || label === 'admin') return 'manager';
+  if (label.includes('admin')) return 'admin';
+  if (label.includes('manager')) return 'manager';
   return '';
 }
 async function requireBankWriter(actor, input = {}, { role: roleHint = '' } = {}) {
   const role = roleFromActor(actor, roleHint);
   if (!role || !(await hasStaffSession(role))) {
-    throw Object.assign(new Error('প্রশ্ন ব্যাংক বদলাতে সক্রিয় Teacher বা Manager session প্রয়োজন।'), { code: 'ACCESS_DENIED' });
+    throw Object.assign(new Error('প্রশ্ন ব্যাংক বদলাতে সক্রিয় Admin, Teacher বা Manager session প্রয়োজন।'), { code: 'ACCESS_DENIED' });
   }
   const account = await readStaffAccount(role);
   if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') {
