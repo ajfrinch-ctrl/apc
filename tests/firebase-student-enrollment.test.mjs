@@ -151,7 +151,7 @@ test('Manager approval atomically links both profiles and immutable audit before
 test('rejection requires a reason; other roles and mismatched Auth/index/profile cannot approve', async () => {
   const env = sandbox();
   await env.register();
-  for (const caller of [applicant(), { ...manager(), token: { ...manager().token, role: 'admin' } },
+  for (const caller of [applicant(), { ...manager(), token: { ...manager().token, role: 'teacher' } },
     { ...manager(), token: { ...manager().token, mustChangePassword: true } }]) {
     await assert.rejects(env.review(undefined, caller), EnrollmentError);
   }
