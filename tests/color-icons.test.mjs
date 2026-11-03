@@ -131,7 +131,7 @@ test('the new icon dependency ships in the bumped offline release', () => {
     const links = [...read(page + '.html').matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match => match[1]);
     /* The teacher panel appends its own Tailwind build (css/teacher-panel.css)
        after the canonical fifteen; every other portal links exactly fifteen. */
-    const scoped = page === 'student' ? [] : page === 'teacher'
+    const scoped = page === 'index' || page === 'student' ? [] : page === 'teacher'
       ? ['css/staff-panel-theme.css', 'css/teacher-panel.css']
       : ['css/staff-panel-theme.css'];
     assert.equal(links.length, 15 + scoped.length, `${page} links the fifteen canonical sheets plus its scoped staff layer`);
