@@ -12,13 +12,13 @@ test('ID card uses the exact stored ID, safely escapes text, and has APC brandin
   assert.doesNotMatch(svg, /<script|shownId|স্ক্যান/);
 });
 
-test('back repeats real ID and omits unavailable details without fabricated placeholders', () => {
+test('back encodes the real ID in its QR and masks contact details', () => {
   const back = studentIdCardSVG({ id: 'AP-42', guardianMobile: '01712345678' }, '', 'back');
   assert.doesNotMatch(back, /AP-42/, 'the ID is encoded in the QR rather than printed again on the back');
   assert.notEqual(back, studentIdCardSVG({ id: 'AP-43', guardianMobile: '01712345678' }, '', 'back'), 'the QR payload changes with the stored ID');
   assert.match(back, /017••••••78/, 'the guardian phone is masked on the card');
   assert.match(back, /স্ক্যান করে Student ID দেখুন/);
-  assert.match(back, /ব্যবহারের শর্ত/);
+  assert.match(back, /কার্ডটি শুধু শিক্ষার্থীর ব্যবহারের জন্য/);
 });
 
 test('missing IDs are not replaced with another number', () => {
