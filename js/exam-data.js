@@ -512,7 +512,7 @@ export function normalizeExam(exam) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(exam.examDate || ''))) exam.examDate = examDateOf(exam);
   if (!Number.isFinite(exam.durationMinutes)) exam.durationMinutes = examDurationMinutes(exam);
   if (typeof exam.createdBy !== 'string' || !exam.createdBy) exam.createdBy = String(exam.teacherName || '').trim();
-  if (exam.createdByRole !== 'teacher' && exam.createdByRole !== 'manager') exam.createdByRole = 'teacher';
+  if (!['teacher', 'manager', 'admin'].includes(exam.createdByRole)) exam.createdByRole = 'teacher';
   if (exam.questionOrder !== 'fixed') exam.questionOrder = 'shuffle';
   if (exam.optionOrder !== 'fixed') exam.optionOrder = 'shuffle';
   if (typeof exam.chapterId !== 'string') exam.chapterId = '';
