@@ -1,5 +1,5 @@
 import { nowEpoch, dhakaDateTimeInput, parseDhakaDateTime, dhakaKey } from './time.js';
-/* Examination workspace (Admin + Manager review; Manager + Teacher authoring).
+/* Examination workspace (Admin + Manager review; Admin/Manager/Teacher authoring).
    Date-wise on purpose: the landing screen is a grouped, filterable history
    where questions stay collapsed behind View Questions — no exam ever lies
    open on the screen, and no two dates ever mix in one list.
