@@ -18,3 +18,17 @@ test('applies the role as a presentation-only root marker', () => {
   assert.equal(applyStaffPanelTheme({ root, pathname: '/index.html' }), '');
   assert.equal(root.dataset.staffPanel, 'manager');
 });
+
+
+test('all four staff identity cards use the shared profile surface', async () => {
+  const { readFile } = await import('node:fs/promises');
+  for (const [page, id] of [
+    ['admin.html', 'adminProfileCard'],
+    ['teacher.html', 'teacherProfileCard'],
+    ['manager.html', 'managerProfileCard'],
+    ['payment.html', 'payOwnProfileCard']
+  ]) {
+    const html = await readFile(new URL('../' + page, import.meta.url), 'utf8');
+    assert.match(html, new RegExp('class="[^"]*\\bstaff-profile-card\\b[^"]*"[^>]*id="' + id + '"|id="' + id + '"[^>]*class="[^"]*\\bstaff-profile-card\\b'));
+  }
+});
