@@ -23,7 +23,7 @@ test('the counter opens on হোম from a genuine session, never a directory/d
  const {$,$$}=ctx;
  assert.equal($('#payShell').hidden,false);
  /* Five seats, one per step of the counter's own job. */
- const seats=$('.staff-bottom-nav > .admin-bottom-item');
+ const seats=$$('.staff-bottom-nav > .admin-bottom-item');
  assert.equal(seats.length,5);
  assert.deepEqual(seats.map(seat=>seat.dataset.staffTab),['home','work','academic','finance','more']);
  assert.deepEqual(seats.filter(seat=>seat.dataset.panelView).map(seat=>seat.dataset.panelView),['home','students','payment','more']);
