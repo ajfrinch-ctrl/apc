@@ -89,7 +89,7 @@
         <div class="pay-grid is-2 admin-feature-grid staff-home-action-grid" id="adminFeatureGrid" aria-label="হোম শর্টকাট"></div>
 
         <!-- Dues alert — simple card, no expand. Navigates full-screen to students/pending. -->
-        <article class="admin-card admin-home-dues" id="adminHomeDuesAlert" hidden data-home-group-goto="students" data-home-group aria-label="বকেয়া নজর">
+        <article class="admin-card admin-home-dues staff-home-summary-surface" id="adminHomeDuesAlert" hidden data-home-group-goto="students" data-home-group aria-label="বকেয়া নজর">
           <div class="admin-card-head"><div><p class="eyebrow">নজর দিন</p><h2>বকেয়া / অপেক্ষমাণ</h2></div><span class="badge badge-pending" data-dues-count>০</span></div>
           <p class="finance-hint">অপেক্ষমাণ নিবন্ধন/বকেয়া থাকলে এখানে দেখাবে — ট্যাপ করলে সরাসরি সংশ্লিষ্ট full-screen পেজ খুলবে।</p>
         </article>
@@ -98,7 +98,7 @@
         <!-- Institute card — every value is painted from the settings document
              (js/org-info.js). Nothing here is a second copy of the address: the
              empty hooks are filled at boot and immediately after a save. -->
-        <article class="admin-card admin-home-institute" id="adminHomeInstituteCard" aria-label="প্রতিষ্ঠান">
+        <article class="admin-card admin-home-institute staff-home-summary-surface" id="adminHomeInstituteCard" aria-label="প্রতিষ্ঠান">
           <div class="admin-card-head"><div><p class="eyebrow">প্রতিষ্ঠান</p><h2 data-org-name></h2></div></div>
           <p class="finance-hint" data-org-contact></p>
           <div class="org-contact-rows" data-org-live hidden>
