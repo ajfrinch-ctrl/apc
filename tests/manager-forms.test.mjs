@@ -29,7 +29,7 @@ before(async () => {
 });
 
 const openView = async view => {
-  ctx.click(ctx.$(`.manager-bottom [data-panel-view="${view}"]`) || ctx.$(`[data-panel-view="${view}"]`));
+  ctx.click(ctx.$(`.staff-bottom-nav [data-panel-view="${view}"]`) || ctx.$(`[data-panel-view="${view}"]`));
   await ctx.flush();
 };
 
