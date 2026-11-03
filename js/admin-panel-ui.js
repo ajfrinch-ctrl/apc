@@ -142,7 +142,23 @@ function renderFeatureGrid(container, entries, onNavigate) {
     label.dataset.actionSub = entry.sub || entry.hint || 'নতুন ও অপেক্ষমাণ শিক্ষার্থীদের নিবন্ধন আবেদন যাচাই ও অনুমোদন করুন';
 
     tile.append(iconWrap, label);
-    tile.addEventListener('click', () => onNavigate(entry.view, tile));
+    tile.addEventListener('click', () => {
+      /* Finance is a summary/report door, never a cash-collection shortcut. Set
+         the fee report before navigation so ReportCenter retains it on refresh. */
+      if (entry.action === 'finance-summary') {
+        const reportSelect = document.querySelector('#adminReports select[name="report"]');
+        if (reportSelect && [...reportSelect.options].some(option => option.value === 'fee')) {
+          reportSelect.value = 'fee';
+          reportSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      onNavigate(entry.view, tile);
+      if (entry.action === 'notifications') document.querySelector('#notificationButton')?.click();
+      if (entry.action === 'finance-summary') {
+        const toggle = document.querySelector('[data-admin-section-toggle="reports-builder"]');
+        if (toggle?.getAttribute('aria-expanded') !== 'true') toggle?.click();
+      }
+    });
     container.append(tile);
     return tile;
   });
