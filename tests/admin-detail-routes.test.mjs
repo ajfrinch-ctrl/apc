@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import {
-  DETAIL_VIEW_PARENTS, VIEW_SEAT, createAccess, enforceCapabilities,
+  CAPABILITIES, DETAIL_VIEW_PARENTS, VIEW_SEAT, createAccess, enforceCapabilities,
   routeFromHash, viewCapability
 } from '../js/admin-permissions.js';
 
