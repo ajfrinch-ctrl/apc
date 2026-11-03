@@ -31,12 +31,13 @@
    Admin Panel scope (System Control + Staff + Permissions + Security + Data +
    Reports + Settings)
    ---------------------------------------------------------------------------
-   Daily operations are NOT Admin territory and are deliberately not granted
-   here — they stay in the panel that owns them:
+   Daily collection, routine entry, notice publishing and teaching are NOT Admin
+   territory. Exam review/publication is an explicit exception shared with
+   Manager, as required by the owner:
 
      • fee collection / cash-counter entry  → payment.html (Cash Counter)
      • routine entry, daily notices         → manager.html (Manager)
-     • student approval, exam publish       → manager.html (Manager)
+     • student approval, exam publish       → Admin + manager.html (Manager)
      • class teaching, homework, attendance → teacher.html (Teacher)
 */
 
@@ -68,9 +69,9 @@ export const CAPABILITIES = Object.freeze({
      2026-09-30 — Admin (js/registration-review.js is the shared path). */
   STUDENTS_APPROVE: 'students.approve',
 
-  /* Kept so the existing role boundary stays readable in one place. None of
-     these is granted to Admin: they belong to the Manager / Teacher / Cash
-     Counter panels and to their own portals. */
+  /* Shared business capabilities. Admin and Manager both hold exam review /
+     publication; the remaining daily-operation capabilities stay with the
+     Manager / Teacher / Cash Counter panels. */
   FINANCE_VIEW: 'finance.view',
   FINANCE_COLLECT: 'finance.collect',
   NOTICES_MANAGE: 'notices.manage',
