@@ -83,8 +83,10 @@ function validateProfile(data, { requirePhone = true } = {}) {
   return { fullName, mobile, email, username, password };
 }
 function requireCaller(request, role) {
-  if (!request.auth || request.auth.token.status !== 'active' || request.auth.token.role !== role || request.auth.token.mustChangePassword === true) {
-    throw new HttpsError('permission-denied', `সক্রিয় ${role} অনুমতি প্রয়োজন।`);
+  const roles = Array.isArray(role) ? role : [role];
+  const label = roles.length === 1 ? roles[0] : roles.join(' বা ');
+  if (!request.auth || request.auth.token.status !== 'active' || !roles.includes(request.auth.token.role) || request.auth.token.mustChangePassword === true) {
+    throw new HttpsError('permission-denied', `সক্রিয় ${label} অনুমতি প্রয়োজন।`);
   }
 }
 function usernameDoc(username) { return db.doc(`usernameIndex/${username}`); }
@@ -320,9 +322,9 @@ exports.teacherSubmitExamForReview = onCall({ enforceAppCheck: true }, async req
   }
 });
 
-/** Manager is the only role allowed to publish/reject pending exam records. */
+/** Admin and Manager may publish/reject pending exam records; Firestore writes remain server-only. */
 exports.managerReviewExam = onCall(async request => {
-  requireCaller(request, 'manager');
+  requireCaller(request, ['admin', 'manager']);
   const examId = String(request.data?.examId || '');
   const decision = String(request.data?.decision || '');
   const note = String(request.data?.note || '').trim().slice(0, 500);
