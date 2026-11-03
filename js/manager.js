@@ -1499,6 +1499,8 @@ async function enterManager() {
   syncManagerPanelHead();
   watchOwnPanelSession('manager');
   window.dispatchEvent(new Event('apc-session-ready'));
+  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
+    .catch(error => console.warn('[Active Plus] Manager notification centre unavailable:', error?.name || 'unknown'));
 }
 /** The content editor is mounted once and only painted when its page opens. */
 let courseEditor = null;
