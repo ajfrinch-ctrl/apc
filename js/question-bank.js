@@ -152,7 +152,7 @@ export async function listQuestionsForStudent(studentId) {
 
 /** Scoped staff reader for Teacher/Manager workspaces. */
 export async function listQuestionsForStaff(role) {
-  if (!['teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
+  if (!['admin', 'teacher', 'manager'].includes(role) || !(await hasStaffSession(role))) {
     throw Object.assign(new Error('সক্রিয় Teacher বা Manager session প্রয়োজন।'), { code: 'ACCESS_DENIED' });
   }
   const account = await readStaffAccount(role);
