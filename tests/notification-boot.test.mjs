@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const entryFiles = ['admin.js', 'manager.js', 'teacher.js', 'payment.js', 'main.js'];
+const entryPages = ['index.html', 'admin.html', 'manager.html', 'teacher.html', 'payment.html'];
 
 test('shared notification center is lazy-loaded after each panel session is ready', () => {
   for (const file of entryFiles) {
