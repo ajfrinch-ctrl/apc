@@ -33,8 +33,10 @@ const written = (extra = {}) => ({
 
 before(async () => {
   ctx = await loadPage('index.html', { seed: { 'activePlus.demo.autofill.v1': 'off' } });
+  await provisionStaff('admin');
   await provisionStaff('manager');
   await provisionStaff('teacher');
+  seedStaffSession(ctx.window, 'admin');
   seedStaffSession(ctx.window, 'manager');
   seedStaffSession(ctx.window, 'teacher');
 });
@@ -210,7 +212,10 @@ test('Question Bank writes enforce staff role and Teacher assignments; Student r
   await assert.rejects(questionBank.save(mcq({ text: 'কোনো Manager session ছাড়া' }), 'MANAGER'), { code: 'ACCESS_DENIED' });
   store().setItem(STAFF_ACCOUNTS.manager.sessionKey, managerSession);
   await assert.rejects(questionBank.save(mcq({ text: 'শিক্ষার্থী লিখতে পারবে না' }), 'STUDENT'), { code: 'ACCESS_DENIED' });
-  await assert.rejects(listQuestionsForStaff('admin'), { code: 'ACCESS_DENIED' });
+  const adminRows = await listQuestionsForStaff('admin');
+  assert.ok(adminRows.length >= 5, 'Admin can inspect the full question bank');
+  const adminWrite = await questionBank.save(mcq({ text: 'Admin-এর প্রশ্নব্যাংক যাচাই' }), 'ADMIN');
+  assert.equal(adminWrite.createdBy, 'admin.apc', 'Admin may maintain the institute-wide question bank');
 
   const student = { id: 'STU-QB-A', name: 'ব্যাচ A', className: 'দশম শ্রেণি', group: 'Batch A' };
   store().setItem(STORAGE_KEYS.account, JSON.stringify({ status: 'active', student }));
