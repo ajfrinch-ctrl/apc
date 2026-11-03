@@ -504,6 +504,21 @@ export function openNotificationTarget(data) {
   return whenPanelReady().then(ready => ready && openTarget());
 }
 
+function openNotificationContext(data) {
+  const key = String(data?.key || '');
+  const showDetail = () => {
+    const center = window.apcNoticeCenter;
+    if (key && center && typeof center.open === 'function') {
+      try { window.apcNotifications?.markRead?.([key]); } catch {}
+      center.open(key);
+      return true;
+    }
+    return openNotificationTarget(data);
+  };
+  if (panelVisible()) return Promise.resolve(showDetail());
+  return whenPanelReady().then(ready => ready && showDetail());
+}
+
 async function takePendingClick() {
   try {
     if (!('caches' in window)) return null;
@@ -520,13 +535,13 @@ async function takePendingClick() {
 function watchNotificationClicks() {
   try {
     navigator.serviceWorker?.addEventListener?.('message', event => {
-      if (event.data?.type === 'apc-notification-click') void openNotificationTarget(event.data.data);
+      if (event.data?.type === 'apc-notification-click') void openNotificationContext(event.data.data);
     });
   } catch { /* no service worker: the inbox still works */ }
   // The panel restores its session asynchronously; give it a moment first.
   setTimeout(async () => {
     const data = await takePendingClick();
-    if (data) void openNotificationTarget(data);
+    if (data) void openNotificationContext(data);
   }, 800);
 }
 
