@@ -156,14 +156,15 @@ export function examPermissions(actor, exam, { attempts = 0, openAttempts = 0, n
   const teacher = role === 'teacher';
   const expectedId = actor?.id && actor.id !== 'TCH-001' ? actor.id : currentTeacherId();
   const own = teacher && isOwnTeacherRecord(exam?.teacherId, expectedId);
-  const editable = isEditableExam(exam) && attempts === 0 && (manager || own);
+  const author = manager || admin || own;
+  const editable = isEditableExam(exam) && attempts === 0 && author;
   const live = isLiveExam(exam);
   return {
     view: manager || admin || own,
     questions: manager || admin || own,
     edit: editable,
-    duplicate: manager || (teacher && own),
-    request: editable && ['draft', 'rejected'].includes(exam.status),
+    duplicate: manager || admin || (teacher && own),
+    request: !admin && editable && ['draft', 'rejected'].includes(exam.status),
     review: reviewer && ['pending', 'draft', 'rejected'].includes(exam.status),
     approve: reviewer && ['pending', 'draft', 'rejected'].includes(exam.status) && Number(exam.startAt) > now,
     publish: reviewer && ['draft', 'pending', 'approved'].includes(exam.status) && Number(exam.startAt) > now,
@@ -171,7 +172,7 @@ export function examPermissions(actor, exam, { attempts = 0, openAttempts = 0, n
     complete: reviewer && live && Number(exam.endAt) <= now && openAttempts === 0,
     archive: reviewer && exam.status !== 'archived' && openAttempts === 0,
     restore: reviewer && exam.status === 'archived',
-    remove: ['draft', 'rejected', 'archived'].includes(exam.status) && attempts === 0 && (manager || own),
+    remove: ['draft', 'rejected', 'archived'].includes(exam.status) && attempts === 0 && (manager || admin || own),
     results: manager || admin || own,
     grade: (manager || admin || own) && live && exam.type !== 'mcq',
     reschedule: reviewer && exam.status !== 'archived' && attempts === 0
