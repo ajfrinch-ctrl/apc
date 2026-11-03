@@ -367,3 +367,33 @@ html[data-staff-panel] .staff-home-action-grid > :last-child:nth-child(odd) {
     grid-column: auto;
   }
 }
+
+
+/* Shared outer surface for role-specific Home summaries and activity panels.
+   Content and data remain owned by each role; only the card geometry is shared. */
+html[data-staff-panel] .staff-home-summary-surface {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: var(--color-surface);
+  box-shadow: var(--pay-shadow);
+  padding: 16px;
+}
+html[data-staff-panel] .staff-home-summary-surface > :first-child { margin-top: 0; }
+html[data-staff-panel] .staff-home-summary-surface > :last-child { margin-bottom: 0; }
+html[data-staff-panel] .staff-home-kpi {
+  min-width: 0;
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  box-shadow: none;
+}
+html[data-staff-panel] .staff-home-kpi .tile-label {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+html[data-staff-panel] .staff-home-kpi .tile-value {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
