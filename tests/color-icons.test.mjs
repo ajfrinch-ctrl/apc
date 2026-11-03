@@ -131,11 +131,13 @@ test('the new icon dependency ships in the bumped offline release', () => {
     const links = [...read(page + '.html').matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match => match[1]);
     /* The teacher panel appends its own Tailwind build (css/teacher-panel.css)
        after the canonical fifteen; every other portal links exactly fifteen. */
-    const scoped = page === 'teacher' ? ['css/teacher-panel.css'] : [];
-    assert.equal(links.length, 15 + scoped.length, `${page} must link the fifteen canonical sheets`);
+    const scoped = page === 'student' ? [] : page === 'teacher'
+      ? ['css/staff-panel-theme.css', 'css/teacher-panel.css']
+      : ['css/staff-panel-theme.css'];
+    assert.equal(links.length, 15 + scoped.length, `${page} links the fifteen canonical sheets plus its scoped staff layer`);
     if (scoped.length) {
-      assert.deepEqual(links.slice(-scoped.length).map(href => href.split('?')[0]), scoped,
-        `${page} keeps its page-scoped sheet after the canonical order`);
+      assert.deepEqual(links.slice(15).map(href => href.split('?')[0]), scoped,
+        `${page} keeps its role-scoped sheets after the canonical order`);
     }
     for (const href of links) assert.match(href, new RegExp(`\\?v=${version}$`), `${page}: ${href} is not pinned to CACHE_VERSION`);
   }
