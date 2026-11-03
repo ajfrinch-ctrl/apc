@@ -22,7 +22,7 @@ const PAGES = ['index.html', 'admin.html', 'manager.html', 'teacher.html', 'paym
    off, so it cannot reach another portal. Keeping it out of design-system.css
    keeps the other four portals on exactly the same fifteen-sheet cascade. */
 export const PAGE_SCOPED_SHEETS = Object.freeze({
-  'teacher.html': Object.freeze(['teacher-panel.css', 'staff-panel-theme.css']),
+  'teacher.html': Object.freeze(['staff-panel-theme.css', 'teacher-panel.css']),
   'admin.html': Object.freeze(['staff-panel-theme.css']),
   'manager.html': Object.freeze(['staff-panel-theme.css']),
   'payment.html': Object.freeze(['staff-panel-theme.css'])
