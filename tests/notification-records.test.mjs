@@ -231,6 +231,18 @@ test('a read pending approval stays active while its source remains pending, the
     'the resolved approval can move into History');
 });
 
+test('legacy archived approvals are restored while their source remains pending', async () => {
+  await loadPage('admin.html');
+  const owner = 'staff:admin.apc';
+  const pending = { key: 'registration:LEGACY-ARCHIVE', kind: 'registration', actionable: true,
+    sourceId: 'LEGACY-ARCHIVE', title: 'পুরোনো ভর্তি', body: 'অনুমোদনের অপেক্ষায়', at: DAY };
+  syncNotifications({ userId: owner, feed: [pending], legacyRead: [pending.key], now: DAY });
+  archiveExpiredNotifications(owner, DAY + 31 * 86400000);
+  assert.equal(listArchivedNotifications(owner).some(row => row.key === pending.key), true);
+  syncNotifications({ userId: owner, feed: [pending], now: DAY + 32 * 86400000 });
+  assert.equal(listActiveNotifications(owner).some(row => row.key === pending.key), true);
+});
+
 test('record-cap pruning preserves a read but unresolved approval', async () => {
   await loadPage('admin.html');
   const owner = 'staff:admin.apc';
