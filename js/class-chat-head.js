@@ -199,7 +199,7 @@ function normalizeSummaryActor(actorInput) {
 export function getUnreadClassChatSummary(actorInput) {
   const actor = normalizeSummaryActor(actorInput);
   if (!actor) {
-    return { totalUnread: 0, byClass: {}, byRoom: {}, latestUnread: null };
+    return { totalUnread: 0, byClass: {}, byRoom: {}, latestUnread: null, unreadMessages: [] };
   }
   const receipts = readChatReceipts(actor);
   const studentRoomKey = actor.kind === 'student' ? roomKeyFor(actor.classId) : '';
@@ -209,6 +209,7 @@ export function getUnreadClassChatSummary(actorInput) {
   const byClass = {};
   const byRoom = {};
   let latestUnread = null;
+  const unreadMessages = [];
 
   for (const raw of messages) {
     if (!raw || typeof raw !== 'object' || raw.deleted === true) continue;
@@ -227,24 +228,25 @@ export function getUnreadClassChatSummary(actorInput) {
     byClass[classId] = (byClass[classId] || 0) + 1;
     byRoom[roomKey] = (byRoom[roomKey] || 0) + 1;
 
-    if (!latestUnread || ts >= latestUnread.ts) {
-      const senderRole = ['teacher', 'manager', 'admin'].includes(raw.senderRole) ? raw.senderRole : 'student';
-      latestUnread = {
-        id: String(raw.id || ''),
-        classId,
-        roomKey,
-        senderId,
-        senderName: String(raw.senderName || 'সদস্য').slice(0, 80),
-        senderRole,
-        senderBadge: senderRole === 'student' ? '' : (STAFF_LABELS[senderRole] || ''),
-        text: String(raw.text || '').slice(0, 140),
-        createdAt: String(raw.createdAt || ''),
-        ts
-      };
-    }
+    const senderRole = ['teacher', 'manager', 'admin'].includes(raw.senderRole) ? raw.senderRole : 'student';
+    const unreadMessage = {
+      id: String(raw.id || ''),
+      classId,
+      roomKey,
+      senderId,
+      senderName: String(raw.senderName || 'সদস্য').slice(0, 80),
+      senderRole,
+      senderBadge: senderRole === 'student' ? '' : (STAFF_LABELS[senderRole] || ''),
+      text: String(raw.text || '').slice(0, 140),
+      createdAt: String(raw.createdAt || ''),
+      ts
+    };
+    unreadMessages.push(unreadMessage);
+    if (!latestUnread || ts >= latestUnread.ts) latestUnread = unreadMessage;
   }
 
-  return { totalUnread, byClass, byRoom, latestUnread };
+  unreadMessages.sort((a, b) => a.ts - b.ts || a.id.localeCompare(b.id));
+  return { totalUnread, byClass, byRoom, latestUnread, unreadMessages: unreadMessages.slice(-100) };
 }
 
 async function resolveCurrentPortalActor(portal) {

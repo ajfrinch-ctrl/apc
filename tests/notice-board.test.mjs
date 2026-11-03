@@ -25,12 +25,12 @@ test('the Notice Board filters and opens notices separately from the bell, then 
   const ctx = await loadPage('student.html', { seed: {
     [KEYS.account]: JSON.stringify({ username: 'raisa', status: 'active', student }),
     [KEYS.notices]: JSON.stringify([
-      notice('NB-U', 'urgent', '2026-10-04T10:00:00.000Z', { title: 'জরুরি ঘোষণা', body: '<img src=x onerror=alert(1)> আজই দেখে নাও।' }),
-      notice('NB-A', 'academic', '2026-10-03T10:00:00.000Z'),
-      notice('NB-C', 'class', '2026-10-02T10:00:00.000Z'),
-      notice('NB-F', 'fee', '2026-10-01T10:00:00.000Z'),
-      notice('NB-E', 'exam', '2026-09-30T10:00:00.000Z'),
-      notice('NB-PRIVATE', 'fee', '2026-10-04T11:00:00.000Z', { audience: 'শুধু শিক্ষক' })
+      notice('NB-U', 'urgent', new Date(Date.now() - 60 * 60 * 1000).toISOString(), { title: 'জরুরি ঘোষণা', body: '<img src=x onerror=alert(1)> আজই দেখে নাও।' }),
+      notice('NB-A', 'academic', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()),
+      notice('NB-C', 'class', new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()),
+      notice('NB-F', 'fee', new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()),
+      notice('NB-E', 'exam', new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()),
+      notice('NB-PRIVATE', 'fee', new Date(Date.now() - 30 * 60 * 1000).toISOString(), { audience: 'শুধু শিক্ষক' })
     ]),
     [KEYS.settings]: JSON.stringify({ broadcastAlert: true, broadcastMessage: '<svg onload=alert(1)> জরুরি সার্ভার ঘোষণা' })
   } });
@@ -59,7 +59,7 @@ test('the Notice Board filters and opens notices separately from the bell, then 
   assert.match(ctx.$('#noticeModal').textContent, /জরুরি সার্ভার ঘোষণা/);
   ctx.click(ctx.$('#noticeModal .modal-close'));
 
-  const tapped = noticeItem({ id: 'NB-U', title: 'জরুরি ঘোষণা', body: 'বিস্তারিত NB-U', createdAt: '2026-10-04T10:00:00.000Z' });
+  const tapped = inbox.feed().find(item => item.kind === 'notice' && item.sourceId === 'NB-U');
   assert.equal(await inbox.openItem({ kind: 'notice', sourceId: 'NB-U', key: tapped.key }), true, 'a push tap opens the Notice Board detail');
   assert.equal(ctx.$('#noticeBoardDetail').hidden, false);
   assert.equal(ctx.$('#noticeBoardReadButton').disabled, false, 'direct tray/programmatic open keeps explicit Read ✓ button available');
@@ -256,10 +256,14 @@ test('Home 1-click Notice Card, More menu priority option, Notification Center a
   assert.equal(ctx.$('#noticeModal').hidden, false);
   assert.match(ctx.$('#noticeListStudent').textContent, /নতুন নোটিশ এসেছে - সাপ্তাহিক বন্ধের নোটিশ/);
 
-  /* 4) Clicking the notice notification directly opens #notice-boardView and that specific notice detail */
+  /* 4) A notice opens its context detail first; its explicit action opens the Notice Board item. */
   const notifCard = ctx.$('#noticeListStudent .notice-detail[data-apc-notice-open^="notice:NB-HOLIDAY-1"]');
   assert.ok(notifCard, 'the notice card inside Notification Center is clickable');
   ctx.click(notifCard);
+  await ctx.flush(3);
+  const contextDetail = ctx.$('#noticeModal [data-apc-notice-detail-sheet^="notice:NB-HOLIDAY-1"]');
+  assert.ok(contextDetail, 'notification opens its detail before navigation');
+  ctx.click(contextDetail.querySelector('[data-apc-notice-detail-action]'));
   await ctx.flush(6);
 
   assert.equal(ctx.$('#noticeModal').hidden, true, 'Notification Center modal closes');

@@ -118,16 +118,21 @@ test('the dark AMOLED overrides are flat rules, never nested CSS', () => {
   }
 });
 
-test('each page advertises its active light role color and shared AMOLED dark color', () => {
+test('each page advertises its own light role accent while the global theme switch remains consistent', () => {
   assert.equal(THEME_COLOR.dark, '#000000');
-  const roleColors = { admin: '#2563eb', manager: '#7c3aed', teacher: '#0f766e', payment: '#d97706' };
-  for (const page of PAGES) {
+  const expected = {
+    student: THEME_COLOR.light,
+    admin: '#2563eb',
+    manager: '#7c3aed',
+    teacher: '#0f766e',
+    payment: '#d97706'
+  };
+  for (const [page, color] of Object.entries(expected)) {
     const html = read(`${page}.html`);
     const meta = html.match(/<meta name="theme-color" content="([^"]+)">/);
     assert.ok(meta, `${page}.html has no theme-color meta`);
-    const expected = roleColors[page] || THEME_COLOR.light;
-    assert.equal(meta[1].toLowerCase(), expected.toLowerCase(),
-      `${page}.html advertises its role-specific light color`);
+    assert.equal(meta[1].toLowerCase(), color.toLowerCase(),
+      `${page}.html must advertise its role-specific light accent`);
   }
   assert.equal(themeColorFor('light'), THEME_COLOR.light);
   assert.equal(themeColorFor('dark'), THEME_COLOR.dark);

@@ -2,7 +2,7 @@
    • background_color is the app's light canvas (css/foundation.css --color-bg —
      the real token file; there is no css/tokens.css), theme_color is the green
      primary the brand describes (the palette's green token);
-   • every shipped page's <meta name="theme-color"> matches the manifest;
+   • the student/landing pages use the brand theme; staff entry pages advertise their role accents;
    • orientation is not locked to portrait;
    • the manifest shortcuts ./#routine and ./#results really resolve to student
      views (results opens the ফলাফল tab inside পরীক্ষা). */
@@ -43,7 +43,7 @@ test('manifest colors come from the real palette: white canvas, green primary', 
   assert.ok(appearance.includes("dark: '#000000'"), 'AMOLED stays true black');
 });
 
-test('student pages match the manifest and staff pages advertise their own role color', () => {
+test('student and landing pages use the manifest color while staff pages use role accents', () => {
   const expected = {
     'index.html': manifest.theme_color,
     'student.html': manifest.theme_color,
@@ -55,7 +55,7 @@ test('student pages match the manifest and staff pages advertise their own role 
   for (const [page, color] of Object.entries(expected)) {
     const meta = read(page).match(/<meta name="theme-color" content="([^"]+)">/);
     assert.ok(meta, `${page} has no theme-color meta`);
-    assert.equal(meta[1].toLowerCase(), color.toLowerCase(), `${page}: browser chrome color does not match its role`);
+    assert.equal(meta[1].toLowerCase(), color.toLowerCase(), `${page}: role theme-color is incorrect`);
   }
 });
 
