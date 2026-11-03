@@ -64,13 +64,13 @@ test('the Admin role keeps system control only — no daily operations', () => {
     CAPABILITIES.ROUTINE_MANAGE,
     CAPABILITIES.CLASSES_MANAGE,
     CAPABILITIES.APP_MANAGE,
-    CAPABILITIES.EXAMS_VIEW,
-    CAPABILITIES.EXAMS_PUBLISH,
     CAPABILITIES.TEACHING_PANEL,
     CAPABILITIES.PAYMENT_PANEL
   ]) {
     assert.equal(access.has(capability), false, `Admin must not hold ${capability}`);
   }
+  assert.equal(createAccess('admin').has(CAPABILITIES.EXAMS_VIEW), true, 'Admin owns academic exam access');
+  assert.equal(createAccess('admin').has(CAPABILITIES.EXAMS_PUBLISH), true, 'Admin can approve and publish exams');
   assert.equal(createAccess('admin').allowsView('finance'), false, 'the collection view no longer exists');
   assert.equal(createAccess('admin').allowsView('routine'), false);
   assert.equal(createAccess('admin').allowsView('notices'), false);
@@ -171,7 +171,7 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
 test('the dashboard grid is generated from the permission model', () => {
   const tiles = ctx.$$('#adminFeatureGrid .admin-feature-tile');
   assert.deepEqual(tiles.map(tile => tile.dataset.panelView), [
-    'students'
+    'students', 'dashboard', 'staff', 'reports', 'reports', 'audit-exam'
   ]);
   for (const tile of tiles) {
     const wrap = tile.querySelector('.admin-feature-icon');
@@ -230,13 +230,12 @@ test('nothing outside the Admin role survives in the DOM', () => {
   }
 });
 
-test('no exam publish/approval control lives in the Admin panel', () => {
-  // Exam records are read in Reports; publishing stays with the Manager portal.
-  assert.ok(ctx.$('#adminExamWorkspace'), 'Admin has an exam grading workspace on the audit page');
-  const labels = ctx.$$('.admin-shell button').map(button => button.textContent);
-  for (const label of labels) {
-    assert.doesNotMatch(label, /প্রকাশ করুন|অনুমোদন দিয়ে|ফি গ্রহণ/, 'Admin must not publish, approve or collect');
-  }
+test('Admin Academic workspace exposes exam approval and publication controls', () => {
+  assert.ok(ctx.$('#adminExamWorkspace'), 'Admin has an exam-management workspace');
+  const workspace = ctx.$('#adminExamWorkspace');
+  assert.ok(workspace.querySelectorAll('button').length > 0, 'exam actions are available to Admin');
+  assert.equal(createAccess('admin').has(CAPABILITIES.EXAMS_PUBLISH), true);
+  assert.equal(createAccess('admin').has(CAPABILITIES.FINANCE_COLLECT), false, 'Admin sees finance summaries, not cash collection');
 });
 
 test('a hash route opens a permitted view and moves the active tab', async () => {
