@@ -32,3 +32,22 @@ test('all four staff identity cards use the shared profile surface', async () =>
     assert.match(html, new RegExp('class="[^"]*\\bstaff-profile-card\\b[^"]*"[^>]*id="' + id + '"|id="' + id + '"[^>]*class="[^"]*\\bstaff-profile-card\\b'));
   }
 });
+
+
+test('all four staff home dashboards use the shared responsive action grid', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const cases = [
+    ['admin.html', 'adminFeatureGrid'],
+    ['teacher.html', 'দ্রুত কাজ'],
+    ['manager.html', 'দ্রুত অ্যাক্সেস'],
+    ['payment.html', 'pay-home-actions']
+  ];
+  for (const [page, marker] of cases) {
+    const html = await readFile(new URL('../' + page, import.meta.url), 'utf8');
+    assert.ok(html.includes('staff-home-action-grid'), page + ' must use the shared action grid');
+    assert.ok(html.includes(marker), page + ' must retain its role-specific home content');
+  }
+  const theme = await readFile(new URL('../css/staff-panel-theme.css', import.meta.url), 'utf8');
+  assert.match(theme, /\.staff-home-action-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(theme, /max-width:\s*360px/);
+});
