@@ -19,3 +19,4 @@ jobs:
       - run: npm ci
       - run: npm run build:firebase && git diff --exit-code -- vendor/firebase/
       - run: npm test
+      - run: node tools/load-budget.mjs
