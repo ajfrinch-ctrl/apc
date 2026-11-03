@@ -249,3 +249,87 @@ html[data-staff-panel] .staff-home-kpi .tile-value {
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
+
+
+/* Role identity palettes. The shell geometry is shared, but every staff
+   workspace has its own unmistakable accent and hero treatment.
+   Admin = blue, Manager = violet, Teacher = teal, Payment = amber.
+   These are presentation-only tokens; they never affect permissions/data. */
+html[data-staff-panel="admin"] {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --brand-2: #60a5fa;
+  --pay-hero-gradient: linear-gradient(130deg, #1e40af 0%, #2563eb 52%, #0e7490 100%);
+  --pay-disc: #dbeafe;
+  --pay-disc-ink: #1d4ed8;
+  --ring-track: rgba(37, 99, 235, .18);
+  --accent-glow: 0 12px 28px rgba(37, 99, 235, .18);
+}
+html[data-staff-panel="manager"] {
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --brand-2: #a78bfa;
+  --pay-hero-gradient: linear-gradient(130deg, #5b21b6 0%, #7c3aed 52%, #be185d 100%);
+  --pay-disc: #ede9fe;
+  --pay-disc-ink: #6d28d9;
+  --ring-track: rgba(124, 58, 237, .18);
+  --accent-glow: 0 12px 28px rgba(124, 58, 237, .18);
+}
+html[data-staff-panel="teacher"] {
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
+  --brand-2: #2dd4bf;
+  --pay-hero-gradient: linear-gradient(130deg, #115e59 0%, #0f766e 52%, #0891b2 100%);
+  --pay-disc: #ccfbf1;
+  --pay-disc-ink: #0f766e;
+  --ring-track: rgba(15, 118, 110, .18);
+  --accent-glow: 0 12px 28px rgba(15, 118, 110, .18);
+}
+html[data-staff-panel="payment"] {
+  --color-primary: #b45309;
+  --color-primary-hover: #92400e;
+  --brand-2: #f59e0b;
+  --pay-hero-gradient: linear-gradient(130deg, #92400e 0%, #d97706 52%, #c2410c 100%);
+  --pay-disc: #fef3c7;
+  --pay-disc-ink: #92400e;
+  --ring-track: rgba(217, 119, 6, .20);
+  --accent-glow: 0 12px 28px rgba(217, 119, 6, .18);
+}
+
+/* Keep role identity vivid and readable in AMOLED mode as well. */
+html[data-theme="dark"][data-staff-panel="admin"] {
+  --color-primary: #93c5fd;
+  --color-primary-hover: #bfdbfe;
+  --brand-2: #60a5fa;
+  --pay-hero-gradient: linear-gradient(130deg, #1e3a8a 0%, #1d4ed8 52%, #155e75 100%);
+  --pay-disc: rgba(96, 165, 250, .16);
+  --pay-disc-ink: #bfdbfe;
+  --ring-track: rgba(147, 197, 253, .24);
+}
+html[data-theme="dark"][data-staff-panel="manager"] {
+  --color-primary: #c4b5fd;
+  --color-primary-hover: #ddd6fe;
+  --brand-2: #a78bfa;
+  --pay-hero-gradient: linear-gradient(130deg, #4c1d95 0%, #6d28d9 52%, #831843 100%);
+  --pay-disc: rgba(167, 139, 250, .16);
+  --pay-disc-ink: #ddd6fe;
+  --ring-track: rgba(196, 181, 253, .24);
+}
+html[data-theme="dark"][data-staff-panel="teacher"] {
+  --color-primary: #5eead4;
+  --color-primary-hover: #99f6e4;
+  --brand-2: #2dd4bf;
+  --pay-hero-gradient: linear-gradient(130deg, #134e4a 0%, #0f766e 52%, #155e75 100%);
+  --pay-disc: rgba(45, 212, 191, .16);
+  --pay-disc-ink: #99f6e4;
+  --ring-track: rgba(94, 234, 212, .24);
+}
+html[data-theme="dark"][data-staff-panel="payment"] {
+  --color-primary: #fcd34d;
+  --color-primary-hover: #fde68a;
+  --brand-2: #fbbf24;
+  --pay-hero-gradient: linear-gradient(130deg, #78350f 0%, #b45309 52%, #9a3412 100%);
+  --pay-disc: rgba(251, 191, 36, .16);
+  --pay-disc-ink: #fde68a;
+  --ring-track: rgba(252, 211, 77, .24);
+}
