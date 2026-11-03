@@ -63,6 +63,16 @@ test('one entry contract: notice · lecture · chat · report carry the same sha
   }
 });
 
+test('Admin retains full exam and approval capabilities through the Academic entry', () => {
+  const admin = panelCapabilities('admin');
+  assert.equal(admin.has(CAPABILITIES.EXAMS_VIEW), true);
+  assert.equal(admin.has(CAPABILITIES.EXAMS_PUBLISH), true);
+  const adminDocument = doc('admin.html');
+  const examDoor = adminDocument.querySelector('[data-panel-view="audit-exam"][data-admin-cap="exams.publish"]');
+  assert.ok(examDoor, 'Admin has a dedicated exam-management door inside Academic');
+  assert.equal(VIEW_CAPABILITIES['audit-exam'], CAPABILITIES.EXAMS_PUBLISH);
+});
+
 test('the lecture entry is gated by the one real capability and the counter never carries it', () => {
   for (const role of ['admin', 'teacher', 'manager']) {
     assert.ok(panelCapabilities(role).has(CAPABILITIES.CONTENT_LECTURE_SHEETS), `${role} may author lecture sheets`);
