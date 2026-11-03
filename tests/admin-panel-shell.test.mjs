@@ -246,8 +246,8 @@ test('a hash route opens a permitted view and moves the active tab', async () =>
 
   ctx.window.location.hash = '#settings';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="settings"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'system',
-    'a screen inside the সিস্টেম hub keeps its own seat lit');
+  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'more',
+    'সিস্টেম hub is nested under the shared More seat');
 
   ctx.window.location.hash = '#backup';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="backup"]').classList.contains('active'));
@@ -278,7 +278,7 @@ test('Account → Security → Account reopens the correct Admin content on ever
   const hub = ctx.$('[data-settings-hub="admin"]');
   const moreSeat = ctx.$('.admin-bottom [data-panel-view="more"]');
   const accountRow = ctx.$('#adminMoreMenu [data-panel-view="profile"]');
-  const systemSeat = ctx.$('.admin-bottom [data-panel-view="system"]');
+  const systemSeat = moreSeat;
   const openAccount = async () => { ctx.click(moreSeat); await ctx.flush(3); ctx.click(accountRow); await ctx.flush(4); };
   await ctx.waitFor(() => Boolean(hub.querySelector('[data-settings-groups]')));
   const groupNav = hub.querySelector('[data-settings-groups]');
@@ -302,6 +302,8 @@ test('Account → Security → Account reopens the correct Admin content on ever
   await ctx.flush(2);
   onlyVisibleGroup('security');
   ctx.click(systemSeat);
+  await ctx.flush(4);
+  ctx.click(ctx.$('#adminMoreMenu .admin-more-item[data-panel-view="system"]'));
   await ctx.flush(4);
   ctx.click(ctx.$('#adminSystemMenu .admin-more-item[data-panel-view="security"]'));
   await ctx.flush(4);
