@@ -285,7 +285,7 @@ test('the student roster surface is fully removed while student data keeps feedi
   assert.equal($('#teacherStudentList'), null);
   assert.equal($$('.admin-bottom [data-panel-view="students"]').length, 0, 'no students nav seat');
   assert.equal($$('[data-student-detail], [data-guardian-student]').length, 0, 'list-only actions are gone');
-  assert.equal($('.staff-bottom-nav > .admin-bottom-item').length, 5, 'the shared five-seat navigation remains');
+  assert.equal($$('.staff-bottom-nav > .admin-bottom-item').length, 5, 'the shared five-seat navigation remains');
 });
 
 test('attendance marking from the উপস্থিতি ক্লাস tab clears its pending line when all present is saved', async () => {
