@@ -673,12 +673,16 @@ function teacherOwns(exam, actor) {
   const expectedId = effectiveTeacherId(actor);
   if (actor?.role !== 'teacher' || !isOwnTeacherRecord(exam?.teacherId, expectedId) || !isTeacherAssigned(teachingScopeUsername(), exam.className, exam.group || '') || !isTeacherAllowedSubject(teachingScopeUsername(), exam.className, exam.subject, exam.group || '')) fail('শুধু দায়িত্বপ্রাপ্ত শিক্ষক এবং ম্যানেজার-নির্ধারিত ক্লাস এই কাজ করতে পারবেন।');
 }
- function requireManager(actor) { if (actor?.role !== 'manager') fail('শুধু ম্যানেজার পরীক্ষা অনুমোদন করতে পারবেন।'); }
+ function requireManager(actor) { if (actor?.role !== 'manager') fail('শুধু ম্যানেজার ফলাফল প্রকাশ করতে পারবেন।'); }
+function requireReviewer(actor) {
+  if (!['admin', 'manager'].includes(actor?.role)) fail('শুধু Admin বা Manager পরীক্ষা পর্যালোচনা ও অনুমোদন করতে পারবেন।');
+}
 async function requireRoleSession(role) {
-  if (!(await hasStaffSession(role))) fail(`সক্রিয় ${role === 'teacher' ? 'Teacher' : 'Manager'} session ছাড়া এই কাজ করা যাবে না।`);
+  const label = role === 'teacher' ? 'Teacher' : role === 'admin' ? 'Admin' : 'Manager';
+  if (!(await hasStaffSession(role))) fail(`সক্রিয় ${label} session ছাড়া এই কাজ করা যাবে না।`);
   // The signed-in teacher is the active identity's record, not a role account.
   const account = role === 'teacher' ? await currentTeacherProfile() : await readStaffAccount(role);
-  if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') fail(`সক্রিয় ${role === 'teacher' ? 'Teacher' : 'Manager'} profile ছাড়া এই কাজ করা যাবে না।`);
+  if (!account || ['disabled', 'inactive', 'rejected'].includes(account.status) || account.accountStatus === 'disabled') fail(`সক্রিয় ${label} profile ছাড়া এই কাজ করা যাবে না।`);
 }
 function eligibleParticipant(exam, student) {
   const found = (exam.participants || []).find(person => person.id === student?.id);
@@ -704,12 +708,12 @@ async function paperActor(actor) {
   if (!name) fail(`${actor.role === 'teacher' ? 'Teacher' : 'Manager'} profile পাওয়া যায়নি।`);
   return name;
 }
-async function managerActor(actor) {
-  requireManager(actor);
-  await requireRoleSession('manager');
-  const account = await readStaffAccount('manager');
+async function reviewerActor(actor) {
+  requireReviewer(actor);
+  await requireRoleSession(actor.role);
+  const account = await readStaffAccount(actor.role);
   const name = String(account?.fullName || account?.username || '').trim();
-  if (!name) fail('Manager profile পাওয়া যায়নি।');
+  if (!name) fail(`${actor.role === 'admin' ? 'Admin' : 'Manager'} profile পাওয়া যায়নি।`);
   return name;
 }
 /** Same clock time, moved to the next day when the old slot has passed. */
@@ -1076,11 +1080,11 @@ export const examRepository = {
     });
     return examSnapshot(db, actor);
   },
-  /* Manager decisions: approve (Review → Approved), publish (→ Published,
+  /* Admin/Manager decisions: approve (Review → Approved), publish (→ Published,
      optionally with the final negative marking) and reject (back to the
      teacher with a note). */
   async review(id, decision, options = {}, actor) {
-    const name = await managerActor(actor);
+    const name = await reviewerActor(actor);
     const students = decision === 'publish' ? await teachingRepository.listApprovedStudents() : [];
     const db = await mutate(db => {
       const exam = examById(db, id);
@@ -1124,7 +1128,7 @@ export const examRepository = {
      only takes the paper out of the students' list until it is published
      again. A paper with work in flight cannot be pulled at all. */
   async unpublish(id, actor = MANAGER_ACTOR) {
-    const name = await managerActor(actor);
+    const name = await reviewerActor(actor);
     return mutate(db => {
       const exam = examById(db, id);
       if (exam.status !== 'published') fail('শুধু প্রকাশিত পরীক্ষার প্রকাশনা বাতিল করা যাবে।');
@@ -1134,7 +1138,7 @@ export const examRepository = {
     });
   },
   async complete(id, actor = MANAGER_ACTOR) {
-    const name = await managerActor(actor);
+    const name = await reviewerActor(actor);
     return mutate(db => {
       const exam = examById(db, id);
       if (!isLiveExam(exam)) fail('শুধু প্রকাশিত পরীক্ষা সম্পন্ন হিসেবে চিহ্নিত করা যাবে।');
@@ -1147,7 +1151,7 @@ export const examRepository = {
   /* Archiving is the safe way to retire a paper: nothing is deleted and the
      status it came from is remembered for Restore. */
   async archive(id, actor = MANAGER_ACTOR) {
-    const name = await managerActor(actor);
+    const name = await reviewerActor(actor);
     return mutate(db => {
       const exam = examById(db, id);
       if (exam.status === 'archived') fail('পরীক্ষাটি আগেই আর্কাইভ করা হয়েছে।');
@@ -1158,7 +1162,7 @@ export const examRepository = {
     });
   },
   async restore(id, actor = MANAGER_ACTOR) {
-    const name = await managerActor(actor);
+    const name = await reviewerActor(actor);
     return mutate(db => {
       const exam = examById(db, id);
       if (exam.status !== 'archived') fail('শুধু আর্কাইভ করা পরীক্ষা ফিরিয়ে আনা যাবে।');
@@ -1171,7 +1175,7 @@ export const examRepository = {
   /* Changing the date re-files the record under the new day; the questions,
      participants and answers all stay exactly as they were. */
   async reschedule(id, options = {}, actor = MANAGER_ACTOR) {
-    const name = await managerActor(actor);
+    const name = await reviewerActor(actor);
     return mutate(db => {
       const exam = examById(db, id);
       if (exam.status === 'archived') fail('আর্কাইভ করা পরীক্ষার তারিখ বদলানো যাবে না।');
