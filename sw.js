@@ -565,7 +565,6 @@ const STAFF_SHELL = [
   './js/admin-device-approvals.js',
   './js/admin-migration.js',
   './js/admin-panel-ui.js',
-  './js/admin-permissions.js',
   './js/advice-admin.js',
   './js/advice-admin-entry.js',
   './js/backup-crypto.js',
