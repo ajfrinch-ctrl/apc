@@ -302,11 +302,18 @@ export function archiveExpiredNotifications(userId, now = Date.now(), liveKeys =
   const all = loadRecords().records;
   let changed = 0;
   const next = all.map(record => {
-    if (text(record.userId) !== owner || record.archived === true) return record;
+    if (text(record.userId) !== owner) return record;
     const key = text(record.key);
     const pendingStillLive = liveKeys instanceof Set && liveKeys.has(key) &&
       ['registration', 'exam-review', 'exam-returned', 'payment-review'].includes(record.type);
-    if (pendingStillLive) return record;
+    if (pendingStillLive) {
+      if (record.archived === true) {
+        changed += 1;
+        return { ...record, archived: false, archivedAt: '' };
+      }
+      return record;
+    }
+    if (record.archived === true) return record;
     const archived = archiveState(record, now, ARCHIVE_AFTER_DAYS);
     if (archived !== record) changed += 1;
     return archived;
