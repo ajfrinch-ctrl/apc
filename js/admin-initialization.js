@@ -33,7 +33,7 @@ function isFastSandboxOrNode() {
    with no internet or a blocked CDN must still open the app normally. Share the
    exact specifier with js/login.js so cold mobile 4G never downloads sync-core
    twice under two query strings. */
-const SYNC_CORE_URL = '../sync/sync-core.js?v=20261028-admin-verification-fix';
+const SYNC_CORE_URL = '../sync/sync-core.js?v=464';
 const FAST_ENV = isFastSandboxOrNode();
 const STATE_BUDGET_MS = FAST_ENV ? 8000 : 20000;
 const CLAIM_BUDGET_MS = FAST_ENV ? 12000 : 25000;
@@ -84,6 +84,13 @@ export async function adminInitializationStatus({ budget = STATE_BUDGET_MS } = {
   try {
     const bridge = await withDeadline(import(SYNC_CORE_URL), 'admin state import', budget);
     const status = await withDeadline(bridge.adminInitializationState(), 'admin state', budget);
+    if (status && typeof status === 'object' && !status.ok) {
+      // Report only the error category, never credentials or cloud records.
+      console.warn('[Active Plus] Admin verification failed:', {
+        reason: status.reason || 'admin-check-failed',
+        code: status.error?.code || status.error?.name || 'unknown'
+      });
+    }
     return status && typeof status === 'object' ? status : { ok: false, reason: 'admin-check-failed' };
   } catch (error) {
     console.warn('[Active Plus] Admin initialization check unavailable:', {

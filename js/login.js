@@ -220,24 +220,31 @@ function withinBudget(promise, what, budget = ONLINE_BRIDGE_BUDGET_MS) {
   ]).finally(() => clearTimeout(timer));
 }
 
-async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS) {
+async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS, roles = null) {
   if (!LEGACY_CLOUD_ENABLED) return cloudPausedResult();
   if (!navigator.onLine) return;
   try {
-    const bridge = await withinBudget(import('../sync/sync-core.js?v=20260929-protected'), 'online bridge import', budget);
-    await withinBudget(bridge.hydrateStaffAccounts({ preserveLocalAdmin: staffAccountRecordExists('admin') }), 'online bridge hydrate', budget);
+    const bridge = await withinBudget(import('../sync/sync-core.js?v=464'), 'online bridge import', budget);
+    const result = await withinBudget(bridge.hydrateStaffAccounts({
+      preserveLocalAdmin: staffAccountRecordExists('admin'),
+      ...(roles ? { roles } : {})
+    }), 'online bridge hydrate', budget);
+    if (!result?.ok) {
+      console.warn(`[Active Plus] staff account sync unavailable during ${what}:`, result?.error?.code || result?.error?.name || result?.reason || 'unknown');
+    }
+    return result;
   } catch (error) {
-    console.warn(`[Active Plus] staff account sync unavailable during ${what}:`, error.message);
+    console.warn(`[Active Plus] staff account sync unavailable during ${what}:`, error?.code || error?.name || 'unknown');
   }
 }
 
 async function loadSyncBridge(budget = LOGIN_BRIDGE_IMPORT_MS) {
-  return withinBudget(import('../sync/sync-core.js?v=20260929-protected'), 'online identity import', budget);
+  return withinBudget(import('../sync/sync-core.js?v=464'), 'online identity import', budget);
 }
 
 function warmCloudBridge() {
   if (!LEGACY_CLOUD_ENABLED || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
-  void import('../sync/sync-core.js?v=20260929-protected').catch(() => {});
+  void import('../sync/sync-core.js?v=464').catch(() => {});
 }
 
 async function hydrateUserIdentifiersOnline(what, identifier = '', password = '', budget = LOGIN_IDENTITY_BUDGET_MS) {
@@ -248,13 +255,18 @@ async function hydrateUserIdentifiersOnline(what, identifier = '', password = ''
     return withinBudget(bridge.hydrateUserIdentifiers({ identifier, password }), 'online identity hydrate', budget);
   };
   try {
-    return await run();
+    const result = await run();
+    if (result && typeof result === 'object' && !result.ok) {
+      // Categories only: never log the identifier, password or cloud data.
+      console.warn(`[Active Plus] user id sync unavailable during ${what}:`, result.error?.code || result.error?.name || result.reason || 'unknown');
+    }
+    return result;
   } catch (error) {
-    console.warn(`[Active Plus] user id sync unavailable during ${what}:`, error.message);
+    console.warn(`[Active Plus] user id sync unavailable during ${what}:`, error?.code || error?.name || 'unknown');
     try {
       return await run();
     } catch (retryError) {
-      console.warn(`[Active Plus] user id sync retry failed during ${what}:`, retryError.message);
+      console.warn(`[Active Plus] user id sync retry failed during ${what}:`, retryError?.code || retryError?.name || 'unknown');
       return false;
     }
   }
@@ -272,7 +284,7 @@ async function runBackgroundLoginSync() {
   // Sync is deliberately fire-and-forget from the authentication path.
   // A slow/failed cloud bridge must never mutate or gate the login form.
   try {
-    const bridge = await import('../sync/sync-core.js?v=20260929-protected');
+    const bridge = await import('../sync/sync-core.js?v=464');
     void bridge.startRealtimeSync().catch(error => {
       console.warn('[Active Plus] background login sync unavailable:', error?.message || error);
     });
@@ -401,6 +413,22 @@ async function handleLogin(event, state, onAuthenticated) {
     }
     await admitVerifiedStudent({ matchedAccount: localMatch, typedId, pin, remember, attemptId, state, onAuthenticated });
     return;
+  }
+
+  // Generated staff IDs include their role. Read that one fixed-role account
+  // before searching the student index: a damaged or slow unrelated student
+  // collection must not prevent an existing Admin from signing in. A suffix
+  // never grants access: the stored username and password are still verified.
+  const suffix = normalizeStaffUsername(typedId).match(/\.(admin|manager|teacher|cash)\.apc$/)?.[1];
+  const hintedRole = suffix === 'cash' ? 'payment' : suffix;
+  if (hintedRole && navigator.onLine && attemptId === loginAttemptId) {
+    await hydrateStaffAccountsOnline('targeted login', LOGIN_IDENTITY_BUDGET_MS, [hintedRole]);
+    if (attemptId !== loginAttemptId) return;
+    const cloudRole = await resolveStaffRoleByUsername(typedId);
+    if (cloudRole && staffAccountRecordExists(cloudRole)) {
+      await handleStaffLogin(cloudRole, typedId, pin);
+      return;
+    }
   }
 
   // 4) No usable local account: ONLY NOW do a short, isolated cloud lookup.

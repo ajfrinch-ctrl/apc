@@ -2069,11 +2069,15 @@ export async function pollRegistrationFeedOnline() {
   }
 }
 
-export async function hydrateStaffAccounts({ preserveLocalAdmin = false } = {}) {
+export async function hydrateStaffAccounts({ preserveLocalAdmin = false, roles = null } = {}) {
   if (!navigator.onLine) return { ok: false, reason: 'offline' };
+  const requestedRoles = Array.isArray(roles)
+    ? [...new Set(roles)].filter(role => Object.hasOwn(STAFF_ACCOUNTS, role))
+    : Object.keys(STAFF_ACCOUNTS);
+  if (!requestedRoles.length) return { ok: false, reason: 'invalid-roles' };
   try {
     await ensureCloudAuth();
-    for (const role of Object.keys(STAFF_ACCOUNTS)) {
+    for (const role of requestedRoles) {
       if (role === 'admin' && preserveLocalAdmin && await readStaffLocal(role)) continue;
       // Credential hydration is read-only, even if this device has local edits.
       const snapshot = await get(ref(getDatabase(firebaseApp), STAFF_ROOT + '/' + role));
