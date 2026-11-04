@@ -41,5 +41,8 @@
     "katex": "^0.16.47",
     "qrcode-generator": "2.0.4",
     "tailwindcss": "^4.3.3"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
   }
 }
