@@ -6,6 +6,23 @@ async function login(page, role) {
   await expect(page.locator('#workspace')).toBeVisible();
 }
 async function section(page, name) { await page.locator(`#menu [data-section="${name}"]`).click(); }
+
+test('nested offline workspace loads its shared assets from the app root', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/demo/offline-roles.html');
+  await page.locator('#seed').click();
+  await login(page, 'manager');
+  const urls = await page.locator('#menu svg image').evaluateAll(images => images.map(image => image.getAttribute('href')));
+  expect(urls.length).toBeGreaterThan(0);
+  for (const url of urls) {
+    expect(new URL(url).pathname).toMatch(/^\/assets\/icons\/ai-3d\//);
+    expect((await page.request.get(url)).ok()).toBe(true);
+  }
+  // The isolated demo must not replace a staff panel's production worker.
+  expect(await page.evaluate(async () => Boolean(await navigator.serviceWorker.getRegistration('/')))).toBe(false);
+  expect(errors).toEqual([]);
+});
 for (const width of [320, 390]) {
   test(`offline shared roles: cash approval, data scope and reload at ${width}px`, async ({ page }) => {
     const errors = []; page.on('pageerror', e => errors.push(e.message));

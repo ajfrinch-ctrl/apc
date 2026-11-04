@@ -1,8 +1,12 @@
 const fs = require('node:fs');
 const { test, expect } = require('./fixtures.cjs');
-const { enterPortal, enterStudentApp } = require('./portal-session.cjs');
+const { enterPortal, enterStudentApp, newDevice, syncStorage } = require('./portal-session.cjs');
 
 test.use({ serviceWorkers: 'block', reducedMotion: 'reduce' });
+test.setTimeout(60000);
+test.afterEach(async ({ context }) => {
+  await Promise.all(context.browser().contexts().filter(device => device.__apcDevice).map(device => device.close()));
+});
 
 const ROSTER_SEED = [
   {
@@ -22,7 +26,6 @@ test('Desktop Full-Screen Word-Style Lecture Sheet Studio: Bangla যুক্�
   const errors = [];
   page.on('pageerror', err => {
     const msg = String(err?.message || err || '');
-    if (/auth\/network-request-failed|Supabase endpoint temporarily unreachable|Failed to fetch/i.test(msg)) return;
     errors.push(msg);
   });
   await page.route(/supabase\.co|firebaseio\.com|googleapis\.com/, route => route.abort());
@@ -123,6 +126,7 @@ test('Desktop Full-Screen Word-Style Lecture Sheet Studio: Bangla যুক্�
   await expect(overlay).toBeHidden();
   await expect(page.locator('#adminShell')).toBeVisible();
   await expect(page.locator('#adminLectureSheetsMount [data-ls-card]')).toHaveCount(1);
+  await page.locator('#adminLectureSheetsMount [data-ls-group-toggle]').click();
   await expect(page.locator('#adminLectureSheetsMount .ls-status-pill.is-published')).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -131,7 +135,6 @@ test('Mobile (375x812) Manager Studio zero-overflow + Student Panel online Lectu
   const errors = [];
   page.on('pageerror', err => {
     const msg = String(err?.message || err || '');
-    if (/auth\/network-request-failed|Supabase endpoint temporarily unreachable|Failed to fetch/i.test(msg)) return;
     errors.push(msg);
   });
   await page.route(/supabase\.co|firebaseio\.com|googleapis\.com/, route => route.abort());
@@ -151,7 +154,7 @@ test('Mobile (375x812) Manager Studio zero-overflow + Student Panel online Lectu
 
   await page.evaluate(() => { window.location.hash = '#courses'; });
   await expect(page.locator('[data-view-panel="courses"]')).toBeVisible();
-  await page.locator('[data-view-panel="courses"] [data-courses-action="editor"]').click();
+  await page.locator('[data-view-panel="courses"] [data-courses-action="editor"]').first().click();
   await expect(page.locator('#managerCourseEditor [data-ls-mgr-action="open-create"]')).toBeVisible();
 
   await page.locator('#managerCourseEditor [data-ls-mgr-action="open-create"]').click();
@@ -186,50 +189,48 @@ test('Mobile (375x812) Manager Studio zero-overflow + Student Panel online Lectu
   await overlay.locator('[data-ls-action="exit"]').click();
   await expect(overlay).toBeHidden();
 
-  // Capture courseContent from Manager storage so we can open Student session in clean student mode
-  const savedCourseContent = await page.evaluate(() => localStorage.getItem('activePlus.courseContent.v1'));
-  expect(savedCourseContent).toBeTruthy();
+  // A Student uses a separate device; sync only published course data.
+  const device = await newDevice(page.context(), { viewport: { width: 375, height: 812 } });
+  const pupil = await device.newPage();
+  await pupil.goto('/demo/offline-roles.html');
+  await syncStorage(page, pupil, ['activePlus.courseContent.v1']);
+  const studentErrors = [];
+  pupil.on('pageerror', error => studentErrors.push(error.message));
 
-  // 2. Student logs in on 375px Mobile & reads the published Lecture Sheet + downloads A4 PDF!
-  await page.evaluate(cc => {
-    localStorage.clear();
-    sessionStorage.clear();
-    localStorage.setItem('activePlus.courseContent.v1', cc);
-  }, savedCourseContent);
-
-  await enterStudentApp(page, {
+  await enterStudentApp(pupil, {
     id: 'AP-1024',
     name: 'রাইসা ইসলাম',
     className: 'দশম শ্রেণি',
     group: 'বিজ্ঞান'
   });
 
-  await page.locator('.bottom-nav [data-view="courses"]').click();
-  await page.locator('#studySections [data-study-section="courses"]').click();
-  await expect(page.locator('#courseHub')).toBeVisible();
+  await pupil.locator('.bottom-nav [data-view="courses"]').click();
+  await pupil.locator('#studySections [data-study-section="courses"]').click();
+  await expect(pupil.locator('#courseHub')).toBeVisible();
 
   // Open the auto-created chapter "অধ্যায় ২: সেট ও ফাংশন" -> "📖 অধ্যায় পড়ুন"
-  await page.locator('#courseHub [data-course-chapter-toggle]').first().click();
-  await page.locator('#courseHub [data-course-chapter-action="read"]').first().click();
+  await pupil.locator('#courseHub [data-course-chapter-toggle]').first().click();
+  await pupil.locator('#courseHub [data-course-chapter-action="read"]').first().click();
 
-  await expect(page.locator('#courseHub .ls-student-sheet-card')).toContainText('মোবাইল লেকচার শিট — সেট ও ফাংশন');
-  await expect(page.locator('#courseHub .ls-student-sheet-body')).toContainText('সংযোগ সেট ও ছেদ সেটের বিস্তারিত উদাহরণ');
+  await expect(pupil.locator('#courseHub .ls-student-sheet-card')).toContainText('মোবাইল লেকচার শিট — সেট ও ফাংশন');
+  await expect(pupil.locator('#courseHub .ls-student-sheet-body')).toContainText('সংযোগ সেট ও ছেদ সেটের বিস্তারিত উদাহরণ');
 
   // Open Full-Screen A4 Student Reader & close
-  await page.locator('#courseHub [data-student-lecture-reader]').first().click();
-  await expect(page.locator('#apcStudentLectureReader')).toBeVisible();
-  await page.locator('#apcStudentLectureReader [data-slr-close]').click();
-  await expect(page.locator('#apcStudentLectureReader')).toBeHidden();
+  await pupil.locator('#courseHub [data-student-lecture-reader]').first().click();
+  await expect(pupil.locator('#apcStudentLectureReader')).toBeVisible();
+  await pupil.locator('#apcStudentLectureReader [data-slr-close]').click();
+  await expect(pupil.locator('#apcStudentLectureReader')).toBeHidden();
 
   // Trigger Student On-Demand PDF Download
   const [studentDownload] = await Promise.all([
-    page.waitForEvent('download'),
-    page.locator('#courseHub [data-student-lecture-pdf]').first().click()
+    pupil.waitForEvent('download'),
+    pupil.locator('#courseHub [data-student-lecture-pdf]').first().click()
   ]);
   expect(studentDownload.suggestedFilename()).toMatch(/^[A-Za-z0-9_.-]+\.pdf$/);
   const stuPdfBytes = fs.readFileSync(await studentDownload.path());
   expect(stuPdfBytes.subarray(0, 8).toString('latin1')).toBe('%PDF-1.4');
 
+  expect(studentErrors).toEqual([]);
   expect(errors).toEqual([]);
 });
 
@@ -237,7 +238,6 @@ test('Teacher Panel (#courses) strictly scopes Lecture Sheet Studio to assigned 
   const errors = [];
   page.on('pageerror', err => {
     const msg = String(err?.message || err || '');
-    if (/auth\/network-request-failed|Supabase endpoint temporarily unreachable|Failed to fetch/i.test(msg)) return;
     errors.push(msg);
   });
   await page.route(/supabase\.co|firebaseio\.com|googleapis\.com/, route => route.abort());
@@ -247,9 +247,12 @@ test('Teacher Panel (#courses) strictly scopes Lecture Sheet Studio to assigned 
     localStorage.setItem('activePlus.admin.students.v1', JSON.stringify(roster));
   }, ROSTER_SEED);
 
-  // Assign teacher.apc exclusively to দশম শ্রেণি -> গণিত (বিজ্ঞান) via Manager first
-  await enterPortal(page, 'manager');
-  await page.evaluate(async () => {
+  // A Manager assigns the teacher on a different device, then the assignment syncs.
+  const managerDevice = await newDevice(page.context());
+  const manager = await managerDevice.newPage();
+  await manager.route(/supabase\.co|firebaseio\.com|googleapis\.com/, route => route.abort());
+  await enterPortal(manager, 'manager');
+  await manager.evaluate(async () => {
     const auth = await import('/js/staff-auth.js');
     await auth.provisionStaffAccount('teacher', 'Apc-E2E-2026', 'Apc-E2E-2026');
     const { saveTeacherAssignment } = await import('/js/teacher-assignments.js');
@@ -262,6 +265,10 @@ test('Teacher Panel (#courses) strictly scopes Lecture Sheet Studio to assigned 
       subjects: [firstSub.name]
     });
   });
+
+  await page.goto('/demo/offline-roles.html');
+  await syncStorage(manager, page, ['activePlus.manager.teacherAssignments.v1']);
+  await managerDevice.close();
 
   // Sign in as Teacher and open #courses -> উপকরণ তালিকা ও খসড়া
   await enterPortal(page, 'teacher');
@@ -297,10 +304,12 @@ test('Teacher Panel (#courses) strictly scopes Lecture Sheet Studio to assigned 
   await expect(page.locator('#teacherShell')).toBeVisible();
   await page.evaluate(() => { window.location.hash = '#courses'; });
   await page.locator('#teacherCourses [data-courses-action="materials"]').click();
+  await page.locator('#teacherCourseEditor [data-ls-group-toggle]').click();
   await expect(page.locator('#teacherCourseEditor [data-ls-card]')).toContainText('শিক্ষক লেকচার শিট — বীজগণিত');
   await expect(page.locator('#teacherCourseEditor [data-ls-card]')).not.toContainText('লেখক:');
   await expect(page.locator('#teacherCourseEditor [data-ls-card]')).not.toContainText('শিক্ষক:');
 
+  await page.locator('#teacherCourseEditor [data-ls-mgr-action="toggle-sheet"]').click();
   await page.locator('#teacherCourseEditor [data-ls-mgr-action="edit"]').first().click();
   await expect(page.locator('#apcLectureStudioOverlay .ProseMirror')).toContainText('বীজগাণিতিক সূত্রাবলি ও সৃজনশীল অনুশীলনী');
   await page.locator('#apcLectureStudioOverlay [data-ls-action="exit"]').click();

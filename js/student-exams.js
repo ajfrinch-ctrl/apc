@@ -1,5 +1,5 @@
 import { nowEpoch } from './time.js';
-import { examRepository as repo, examMatchesStudent, retryEligibility, firstAttemptMean, examResults, totalMarks, watchExams, isStudentVisibleExam, gradeFor } from './exam-data.js';
+import { examRepository as repo, examMatchesStudent, examResults, totalMarks, watchExams, isStudentVisibleExam, gradeFor } from './exam-data.js';
 import { examMeta, resultMarkup, classResultBoard, attemptStage, stageTag, codeTag, esc, num } from './exam-ui.js';
 import { downloadExamPDF } from './exam-pdf.js';
 import { setView } from './shell.js';
@@ -152,9 +152,8 @@ export function initStudentExams({ getStudent, getAccount }) {
     content.innerHTML = `<div class="exam-actions">${button('refresh', 'তালিকা / জমার অবস্থা হালনাগাদ')}</div><div class="exam-list">${exams.map(e => {
       const attempts = own(e), active = attempts.find(a => a.status === 'active'), queued = attempts.some(a => a.status === 'queued');
       const canFirst = !attempts.length && now >= e.startAt && now < e.endAt && now <= e.startAt + e.lateMinutes * 60000;
-      const retry = false;
       return `<article class="exam-card" data-student-exam="${esc(e.id)}">${examMeta(e)}<p class="exam-note">${stageTag(e)}${codeTag(e)}</p><p class="exam-note">${esc(e.instructions)}</p>${e.type === 'mcq' ? `<p class="exam-note">সব প্রশ্ন একসঙ্গে থাকবে। প্রতি ভুলে ${num(e.negative)} নম্বর কাটা হবে; সর্বনিম্ন মোট ০। প্রথম প্রবেশের সীমা ${num(e.lateMinutes)} মিনিট।</p>${queued ? `<p class="exam-message">${esc(attemptStage(attempts.find(a => a.status === 'queued'), e))}</p>` : ''}` : ''}
-        <div class="exam-actions">${e.type === 'mcq' ? active && now < e.endAt ? button('resume', 'পরীক্ষায় ফিরে যাও', e.id, 'primary') : canFirst ? button('start', 'পরীক্ষা শুরু করো', e.id, 'primary') : retry ? button('start', 'দ্বিতীয়বার পরীক্ষা দাও', e.id, 'primary') : `<small>${now < e.startAt ? 'নির্ধারিত সময়ে পরীক্ষা শুরু হবে।' : now >= e.endAt ? 'পরীক্ষার সময় শেষ।' : attempts.length ? 'চলমান গড়ের নিচে হলে দ্বিতীয় সুযোগ এখানে আসবে।' : 'প্রথম প্রবেশের সময়সীমা শেষ।'}</small>` : now >= e.startAt ? button('paper', 'প্রশ্নপত্র PDF ডাউনলোড', e.id, 'primary') : '<small>শুরুর সময় হলে PDF পাওয়া যাবে।</small>'}
+        <div class="exam-actions">${e.type === 'mcq' ? active && now < e.endAt ? button('resume', 'পরীক্ষায় ফিরে যাও', e.id, 'primary') : canFirst ? button('start', 'পরীক্ষা শুরু করো', e.id, 'primary')  : `<small>${now < e.startAt ? 'নির্ধারিত সময়ে পরীক্ষা শুরু হবে।' : now >= e.endAt ? 'পরীক্ষার সময় শেষ।' : attempts.length ? 'এই পরীক্ষায় একবারই অংশ নেওয়া যায়।' : 'প্রথম প্রবেশের সময়সীমা শেষ।'}</small>` : now >= e.startAt ? button('paper', 'প্রশ্নপত্র PDF ডাউনলোড', e.id, 'primary') : '<small>শুরুর সময় হলে PDF পাওয়া যাবে।</small>'}
         ${e.resultsPublished ? button('results', 'প্রকাশিত ফলাফল ও ক্লাসের মেধাক্রম', e.id): e.type === 'mcq' ? `<small>সবার উত্তরপত্র জমা হলেই ফলাফল নিজে থেকেই প্রকাশিত হবে।</small>` : '<small>ফলাফল Manager-এর প্রকাশের অপেক্ষায়।</small>'}${e.type === 'mcq' && now >= e.endAt ? button('solutions', 'সঠিক উত্তরসহ PDF', e.id) : ''}</div></article>`;
     }).join('') || `<p class="exam-card">${visible.length ? EMPTY_TAB_TEXT[tab] : 'অ্যাডমিন এখনও কোনো পরীক্ষা প্রকাশ করেননি।'}</p>`}</div>`;
     paintTabs();
@@ -176,15 +175,15 @@ export function initStudentExams({ getStudent, getAccount }) {
   function results(e, reset = true) {
     if (!e.resultsPublished) { view = 'list'; examId = null; attemptId = null; list(); message(e.type === 'mcq' ? 'ফলাফল এখনো প্রকাশিত হয়নি — সবার উত্তরপত্র জমা হলেই ফলাফল নিজে থেকেই প্রকাশিত হবে।' : 'ফলাফল এখনো ম্যানেজার প্রকাশ করেননি।'); return; }
     view = 'results'; examId = e.id; attemptId = null;
-    const mine = own(e), pending = mine.some(a => a.status === 'queued'), mean = firstAttemptMean(db, e.id);
+    const mine = own(e), pending = mine.some(a => a.status === 'queued');
     content.innerHTML = `<div class="exam-actions">${button('list', '← পরীক্ষার তালিকা')}${button('refresh', 'হালনাগাদ')}</div>${examMeta(e)}
       ${pending ? '<p class="exam-message">তোমার উত্তর ফোনে রাখা আছে। অনলাইনে এলে জমা ও মূল্যায়ন হবে।</p>' : ''}
       ${mine.filter(a => a.status === 'submitted').map(a => {
         const auto = e.type === 'mcq' && Number.isFinite(a.finishedAt) && a.finishedAt >= e.endAt;
         return `<div class="exam-summary"><h3>তোমার প্রচেষ্টা ${num(a.number)} • ${esc(attemptStage(a, e))}${auto ? ' (সময় শেষে স্বয়ংক্রিয় জমা)' : ''}</h3><strong>${num(a.score)} / ${num(totalMarks(e))}</strong>${e.type === 'mcq' ? `<p>সঠিক ${num(a.correct)} • ভুল ${num(a.wrong)} • অনুত্তরিত ${num(a.unanswered)}</p>` : ''}${a.comment ? `<p class="exam-teacher-comment" data-exam-comment><strong>শিক্ষকের মন্তব্য:</strong> ${esc(a.comment)}</p>` : ''}${auto ? '<p>নির্ধারিত সময় শেষ হওয়ায় উত্তরপত্র নিজে থেকেই জমা হয়েছে — জমা হওয়ার আগে যেসব উত্তর বাছা ছিল সেগুলোই গণনা হয়েছে।</p>' : ''}</div>`;
       }).join('')}
-      <p class="exam-note">${e.type === 'mcq' ? `দ্বিতীয় সুযোগ: জমা হওয়া প্রথম প্রচেষ্টার চলমান গড় ${mean === null ? 'এখনও নেই' : num(mean.toFixed(2))}। তার নিচে থাকলে সর্বোচ্চ দুইবার; শেষ সময় একই। শুরু করা দ্বিতীয় সুযোগ পরে গড় বদলালেও বাতিল হবে না।` : 'ক্লাসে পরীক্ষার পরে শিক্ষক নম্বর প্রকাশ করবেন।'}</p>
-      <div class="exam-actions">${false ? button('start', 'দ্বিতীয়বার পরীক্ষা দাও', e.id, 'primary') : ''}${e.type === 'mcq' && nowEpoch() >= e.endAt ? button('solutions', 'সঠিক উত্তরসহ PDF ডাউনলোড', e.id, 'primary') : e.type === 'mcq' ? '<small>সঠিক উত্তরসহ PDF সবার পরীক্ষা শেষ হলে পাওয়া যাবে।</small>' : ''}</div>${e.classResults ? classResultBoard(e, e.classResults, { meId: getStudent().id }) : resultMarkup(db, e)}`;
+      <p class="exam-note">${e.type === 'mcq' ? 'এই পরীক্ষায় প্রত্যেকে একবারই অংশ নিতে পারে।' : 'ক্লাসে পরীক্ষার পরে শিক্ষক নম্বর প্রকাশ করবেন।'}</p>
+      <div class="exam-actions">${e.type === 'mcq' && nowEpoch() >= e.endAt ? button('solutions', 'সঠিক উত্তরসহ PDF ডাউনলোড', e.id, 'primary') : e.type === 'mcq' ? '<small>সঠিক উত্তরসহ PDF সবার পরীক্ষা শেষ হলে পাওয়া যাবে।</small>' : ''}</div>${e.classResults ? classResultBoard(e, e.classResults, { meId: getStudent().id }) : resultMarkup(db, e)}`;
     if (reset) scrollTop();
   }
   function repaint() {

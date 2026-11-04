@@ -52,6 +52,7 @@ for (const { width } of VIEWS) {
     await suppressAutoAlertOnNextLoad(page);
     await page.reload();
     await page.locator('.admin-bottom [data-panel-view=finance]').click();
+    await page.locator('[data-finance-segment=collection]').click();
 
     // Four KPIs over the one ledger: approved total, this month, dues, pending.
     await expect(page.locator('#mgrFinanceTotal')).toHaveText('৳৩,০০০');
@@ -61,7 +62,7 @@ for (const { width } of VIEWS) {
     await expect(page.locator('#managerFinancePendingBadge')).toBeVisible();
     await expect(page.locator('.manager-finance-tabs .manager-finance-tab')).toHaveCount(4);
     await expect(page.locator('.manager-finance-tab.active')).toHaveAttribute('data-finance-segment', 'collection');
-    await expect(page.locator('.manager-finance-tab.active')).toHaveCSS('background-color', 'rgb(14, 122, 85)');
+    await expect(page.locator('.manager-finance-tab.active')).toHaveAttribute('aria-pressed', 'true');
     const preview = page.locator('#managerCollectionPendingList .manager-collection-row');
     await expect(preview).toHaveCount(1);
     await expect(preview.first()).toHaveAttribute('data-pending-payment', 'FIN-SPEC-2');
@@ -103,6 +104,7 @@ test('Manager can approve a pending payment directly from the compact collection
   await suppressAutoAlertOnNextLoad(page);
   await page.reload();
   await page.locator('.admin-bottom [data-panel-view=finance]').click();
+  await page.locator('[data-finance-segment=collection]').click();
   await expect(page.locator('#mgrFinancePending')).toHaveText('১');
   const row = page.locator('#managerCollectionPendingList .manager-collection-row');
   await expect(row).toHaveCount(1);
@@ -126,10 +128,12 @@ test('Admin reads money through the Report Center: Generate → preview → PDF'
   await select.selectOption('fee.transactions');
   await page.locator('#adminReports .rc-generate').click();
   await expect(page.locator('#adminReports .rc-preview')).toBeVisible();
+  await page.evaluate(() => { const click = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { window.__requestedDownload = this.download; return click.call(this); }; });
   const downloading = page.waitForEvent('download');
   await page.locator('#adminReports .rc-download').click();
   const file = await downloading;
-  expect(file.suggestedFilename()).toMatch(/\.pdf$/);
+  expect(await page.evaluate(() => window.__requestedDownload)).toMatch(/\.pdf$/);
+  if (!(process.env.CHROMIUM_EXECUTABLE && file.suggestedFilename() === 'download')) expect(file.suggestedFilename()).toMatch(/\.pdf$/);
   const bytes = await fs.readFile(await file.path());
   expect(bytes.toString('latin1').startsWith('%PDF-1.')).toBe(true);
   expect(bytes.toString('latin1')).toContain('%%EOF');

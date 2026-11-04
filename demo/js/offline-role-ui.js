@@ -1,6 +1,6 @@
-import { iconElement } from '../js/icons.js';
-import { registerServiceWorker } from '../js/service-worker.js';
-registerServiceWorker();
+import { iconElement } from '../../js/icons.js';
+// This isolated demo is not in the production precache. Registering the
+// production worker here would replace another open panel's staff shell.
 import { createRoleStore, ROLE_NAMES } from './offline-role-store.js';
 const db = createRoleStore(localStorage);
 const $ = s => document.querySelector(s);
@@ -123,7 +123,10 @@ function enter() {
   $('#menu').replaceChildren();
   for (const section of MENUS[actor.role]) {
     const b = button(SECTIONS[section][0], () => render(section), $('#menu')); b.dataset.section = section;
-    b.prepend(iconElement(SECTIONS[section][1]));
+    const icon = iconElement(SECTIONS[section][1]);
+    const image = icon.querySelector('image');
+    if (image) image.setAttribute('href', new URL(`../../${image.getAttribute('href')}`, import.meta.url).href);
+    b.prepend(icon);
   }
   render(MENUS[actor.role][0]);
 }

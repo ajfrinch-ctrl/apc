@@ -6,7 +6,8 @@ async function noOverflow(page, selector) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 for (const viewport of viewports) {
-  const phoneWidth = Math.min(viewport.width, 430);
+  // At desktop widths the deliberate wide-shell rule replaces the 430px cap.
+  const phoneWidth = viewport.width >= 768 ? Math.min(viewport.width, 1400) : Math.min(viewport.width, 430);
   test(`student app keeps phone layout at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -61,19 +62,21 @@ for (const viewport of viewports) {
     expect(managerNav.x).toBe(shell.x);
     await page.locator('.admin-bottom [data-panel-view=finance]').click();
     await expect(page.locator('[data-view-panel=finance]')).toBeVisible();
+    await page.locator('[data-finance-segment=collection]').click();
     await expect(page.locator('#mgrFinanceTotal')).toBeVisible();
-    for (const segment of ['collection','approval','due','history']) {
+    for (const segment of ['approval','due','history']) {
       await page.locator(`[data-finance-segment=${segment}]`).click();
       await expect(page.locator(`[data-finance-panel=${segment}]`)).toBeVisible();
       await noOverflow(page, '#managerShell');
     }
     // No academic or student-directory surface leaks into হিসাব.
-    await expect(page.locator('[data-panel-view], [data-panel-view]')).toHaveCount(0);
+    await expect(page.locator('[data-view-panel=finance] [data-panel-view="students"], [data-view-panel=finance] [data-panel-view="academic"]')).toHaveCount(0);
     await expect(page.locator('#managerStudentList')).toBeHidden();
 
     // Report Center: More → Reports → Generate → preview, then PDF. No preview first.
     await page.locator('.admin-bottom [data-panel-view=more]').click();
     await page.locator('#managerMoreHub [data-panel-view=reports]').click();
+    await page.locator('[data-view-panel=reports] [data-reports-action=builder]').click();
     await expect(page.locator('#managerReports select[name=report]')).toBeVisible();
     await expect(page.locator('#managerReports .rc-pdf-preview')).toHaveCount(0);
     await page.locator('#managerReports select[name=report]').selectOption('fee.transactions');
@@ -90,7 +93,11 @@ for (const viewport of viewports) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const downloading = page.waitForEvent('download');
     await page.locator('#managerReports .rc-download').click();
-    expect((await downloading).suggestedFilename()).toMatch(/\.pdf$/);
+    const reportFile = await downloading;
+    expect(reportFile.suggestedFilename()).toMatch(/^(download|.*\.pdf)$/);
+    const pdf = require('node:fs').readFileSync(await reportFile.path()).toString('latin1');
+    expect(pdf.startsWith('%PDF-1.')).toBe(true);
+    expect(pdf).toContain('%%EOF');
     await page.locator('#managerReports .rc-back').click();
     await noOverflow(page, '#managerShell');
 

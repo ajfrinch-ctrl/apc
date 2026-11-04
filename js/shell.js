@@ -1,7 +1,7 @@
 /* App shell lifecycle and student identity rendering. */
 import { loadAccount } from './storage.js';
 import { $, $$, scrollToTop, toBanglaNumber } from './ui.js';
-import { isStudentBirthday } from './notification-rules.js';
+import { isStudentBirthday } from './birthday-date.js';
 
 export const shownId = s => (s?.id || '').length > 16 ? (s.studentMobile || s.mobile || '—') : (s?.id || '—');
 

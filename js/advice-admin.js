@@ -242,7 +242,12 @@ export function initAdviceAdmin(rootOrSelector, { role, storeFactory = createAdv
   void store.ready?.then(async () => {
     const seeded = await store.seedDefaults(normalizedRole);
     if (seeded?.ok) setStatus('প্রাথমিক পরামর্শ-তালিকা প্রস্তুত।', 'online');
+    else if (seeded?.reason === 'network-unavailable') setStatus('অনলাইন পরামর্শ-তালিকা প্রস্তুত করা যায়নি; এই ডিভাইসের তালিকা ব্যবহার হচ্ছে।', 'offline');
     render();
+  }).catch(() => {
+    // Custom adapters can also reject while connecting; keep the cached list
+    // visible and report the failure rather than leaving a rejected boot task.
+    setStatus('অনলাইন পরামর্শ-তালিকা প্রস্তুত করা যায়নি; এই ডিভাইসের তালিকা ব্যবহার হচ্ছে।', 'offline');
   });
   updateCount();
   render();

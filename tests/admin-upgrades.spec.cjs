@@ -26,8 +26,7 @@ test('manager dashboard summarises the coaching, money included', async ({ page 
   await expect(page.locator('[data-view-panel=finance]')).toBeVisible();
   await expect(page.locator('#mgrFinanceTotal')).not.toBeEmpty();
   await expect(page.locator('#mgrFinancePending')).not.toBeEmpty();
-  await page.goto('/admin.html');
-  await expect(page.locator('#adminShell')).toBeVisible();
+  await enter(page, 'admin');
   await expect(page.locator('#mgrFinanceTotal, #mgrTodayCollection, #dashTransactionCount')).toHaveCount(0);
 });
 
@@ -103,26 +102,33 @@ test('staff management: create, edit, deactivate, reset password and delete', as
   await expect(page.locator('.admin-toast')).toContainText('সংরক্ষিত');
 });
 
-test('student lifecycle belongs to the Manager; the Admin panel has no directory', async ({ page }) => {
-  // The Admin console owns no student records: no list, no editor, no reset.
+test('student directory is available to Admin and Manager with role-appropriate actions', async ({ page }) => {
   await enter(page);
-  await expect(page.locator('#studentList, #studentSearch, [data-panel-view=students], [data-action=reset-pin]')).toHaveCount(0);
-  await expect(page.locator('#adminSystemMenu [data-panel-view=students]')).toHaveCount(0);
+  await page.evaluate(async () => {
+    const { saveRoster } = await import('/js/office-data.js');
+    if (!saveRoster([{ id: 'S-APPROVED', name: 'পরীক্ষা শিক্ষার্থী', className: 'দশম শ্রেণি', group: 'A', mobile: '01700000001', status: 'approved' }])) throw new Error('roster setup failed');
+  });
+  await page.reload();
+  await expect(page.locator('#adminShell')).toBeVisible();
+  await page.locator('#adminFeatureGrid [data-panel-view=students]').click();
+  await expect(page.locator('#studentList .student-row')).toHaveCount(1);
+  await page.locator('#studentList .student-row-main').click();
+  await expect(page.locator('#studentList [data-action=edit]')).toBeVisible();
+  await expect(page.locator('#studentList [data-action=reset-pin]')).toBeVisible();
 
-  // The Manager runs the whole life cycle from one screen.
-  await page.goto('/manager.html');
   await enter(page, 'manager');
   await bottom(page, 'manager', 'students');
-  await expect(page.locator('#managerStudentList .manager-record').first()).toBeVisible();
-  const first = page.locator('#managerStudentList .manager-record').first();
+  await page.locator('.manager-view[data-view-panel=students] [data-student-scope=all]').click();
+  const first = page.locator('#managerStudentList [data-manager-student="S-APPROVED"]');
+  await expect(first).toBeVisible();
+  await first.locator('.manager-student-details-toggle').click();
   await first.locator('[data-manager-action=view-student]').click();
   await expect(first.locator('.manager-student-extra')).toBeVisible();
   await first.locator('[data-manager-action=edit-student]').click();
   await expect(first.locator('.manager-edit-form')).toBeVisible();
   await expect(first.locator('.manager-edit-form input[name=name]')).not.toHaveValue('');
-  // Pending registrations are the same screen, behind their own scope chip.
-  await page.locator('[data-student-scope=pending]').click();
-  await expect(page.locator('#managerStudentQueue, #managerStudentList')).toBeVisible();
+  await page.locator('.manager-view[data-view-panel=students] [data-student-scope=pending]').click();
+  await expect(page.locator('#managerStudentQueue')).toBeVisible();
 });
 
 test('report center: Generate first, then a real preview and PDF — never before', async ({ page }) => {
@@ -136,25 +142,32 @@ test('report center: Generate first, then a real preview and PDF — never befor
   await select.selectOption('student.class-wise');
   await page.locator('#adminReports .rc-generate').click();
   await expect(page.locator('#adminReports .rc-preview')).toBeVisible();
+  await expect(page.locator('#adminReports .rc-preview-notice')).toHaveText('কোনো তথ্য পাওয়া যায়নি।');
+  // The Lambda Chromium used locally reports 'download' for Unicode filenames.
+  // Capture the actual requested name as well, then verify the downloaded PDF bytes.
+  await page.evaluate(() => { const click = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { window.__requestedDownload = this.download; return click.call(this); }; });
   const pdfDownload = page.waitForEvent('download');
   await page.locator('#adminReports .rc-download').click();
   const pdf = await pdfDownload;
-  expect(pdf.suggestedFilename()).toMatch(/\.pdf$/);
+  expect(await page.evaluate(() => window.__requestedDownload)).toMatch(/^ActivePlus_.*\.pdf$/);
+  if (!(process.env.CHROMIUM_EXECUTABLE && pdf.suggestedFilename() === 'download')) expect(pdf.suggestedFilename()).toMatch(/\.pdf$/);
   const bytes = await fs.readFile(await pdf.path());
   expect(bytes.toString('latin1').startsWith('%PDF-1.')).toBe(true);
   expect(bytes.toString('latin1')).toContain('%%EOF');
   await page.locator('#adminReports .rc-back').click();
   await expect(page.locator('#adminReports .rc-preview')).toHaveCount(0);
 
-  // An empty device still previews, with the one shared empty message.
+  // The status summary remains useful on an empty device: it renders zero counts.
   await select.selectOption('student.status');
   await page.locator('#adminReports .rc-generate').click();
-  await expect(page.locator('#adminReports .rc-preview-notice')).toHaveText('কোনো তথ্য পাওয়া যায়নি।');
+  await expect(page.locator('#adminReports .rc-preview')).toBeVisible();
+  await expect(page.locator('#adminReports .rc-pdf-preview')).toContainText(/অনুমোদিত\s*০/);
 });
 
 test('manager report families cover class, attendance, results and fees', async ({ page }) => {
   await enter(page, 'manager');
-  await bottom(page, 'manager', 'reports');
+  await page.locator('.manager-view[data-view-panel=dashboard] [data-panel-view=reports]').click();
+  await page.locator('.manager-view[data-view-panel=reports] [data-reports-action=builder]').click();
   const select = page.locator('#managerReports select[name=report]');
   await expect(select).toBeVisible();
   for (const report of ['student.class-wise', 'academic.attendance', 'result.marks', 'fee.transactions']) {
@@ -172,6 +185,8 @@ test('no teacher self-registration anywhere: teacher.html needs a real session',
   // self-registration door of its own.
   await enter(page);
   await expect(page.locator('#cfgTeacherRegistration, #teacherRegList, #teacherRegBadge')).toHaveCount(0);
+  // An Admin session can open every staff panel; sign out to test a genuinely unauthenticated device.
+  await page.evaluate(async () => (await import('/js/staff-auth.js')).clearStaffSession('admin'));
   await page.goto('/teacher.html');
   await expect(page.locator('#apcPanelLock')).toBeVisible();
   await expect(page.locator('#teacherShell')).toBeHidden();

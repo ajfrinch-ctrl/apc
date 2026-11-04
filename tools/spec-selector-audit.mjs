@@ -46,7 +46,8 @@ const cssSource = readdirSync(path.join(root, 'css')).filter(file => file.endsWi
 
 const idsIn = source => new Set([...source.matchAll(/\bid\s*[:=]\s*["']([A-Za-z][\w-]*)["']/g)].map(match => match[1]));
 const htmlIds = new Set(Object.values(pageSource).flatMap(source => [...idsIn(source)]));
-const runtimeIds = idsIn(jsSource);
+// HTML inside JS string/template literals may escape its attribute quotes.
+const runtimeIds = idsIn(jsSource.replace(/\\(["'])/g, '$1'));
 /* Ids a module builds per record (`id="activity-${name}"`): the literal part is a
    prefix, so any spec id starting with it is real but cannot be enumerated. */
 const dynamicIdPrefixes = [...jsSource.matchAll(/\bid\s*=\s*["'`]([A-Za-z][\w-]*)\$\{/g)].map(match => match[1]);

@@ -6,7 +6,7 @@ for (const width of [320, 390, 430, 1024]) {
     await page.setViewportSize({ width, height: 844 });
     await enterStudentApp(page);
     await expect(page.locator('#homeView')).toBeVisible();
-    await expect(page.locator('#studentServices .pay-tile')).toHaveCount(6);
+    await expect(page.locator('#studentServices .pay-tile')).toHaveCount(7);
     await expect(page.locator('#dashboardPendingSummary')).not.toContainText('লোড');
     const advice = page.locator('#dailyQuoteCard');
     const hero = page.locator('#homeView .student-home-hero');
@@ -17,19 +17,15 @@ for (const width of [320, 390, 430, 1024]) {
     await expect(hero.locator('[data-hero-slide]')).toHaveCount(4);
     await expect(page.locator('#homeView .hc-art')).toHaveCount(4);
     await expect(page.locator('#homeView .hc-art').first()).toHaveAttribute('aria-hidden', 'true');
-    const greetingArtworkAligned = await page.evaluate(() => {
+    await expect.poll(() => page.evaluate(() => {
       const art = document.querySelector('.hc-art--welcome')?.dataset.art;
       const greeting = document.querySelector('#dayGreeting')?.textContent.trim();
       if (!document.querySelector('#birthdayBanner')?.hidden) return art === 'party' && greeting?.startsWith('শুভ জন্মদিন');
-      const expected = {
-        morning: { art: ['morning'], greeting: 'শুভ সকাল' },
-        day: { art: ['noon', 'afternoon'], greeting: 'শুভ অপরাহ্ণ' },
-        evening: { art: ['afternoon'], greeting: 'শুভ সন্ধ্যা' },
-        night: { art: ['night'], greeting: 'শুভ রাত্রি' }
-      }[document.documentElement.dataset.timeTheme];
-      return Boolean(expected && expected.art.includes(art) && greeting === expected.greeting);
-    });
-    expect(greetingArtworkAligned).toBe(true);
+      const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+      const expectedArt = hour >= 5 && hour < 12 ? 'morning' : hour >= 12 && hour < 16 ? 'noon' : hour >= 16 && hour < 18 ? 'afternoon' : 'night';
+      const expectedGreeting = hour >= 5 && hour < 12 ? 'শুভ সকাল' : hour >= 12 && hour < 17 ? 'শুভ অপরাহ্ণ' : hour >= 17 && hour < 20 ? 'শুভ সন্ধ্যা' : 'শুভ রাত্রি';
+      return art === expectedArt && greeting === expectedGreeting;
+    })).toBe(true);
     const emptyRoutineArtClear = await page.evaluate(() => {
       const action = document.querySelector('.dashboard-empty-card .challenge-open')?.getBoundingClientRect();
       const art = document.querySelector('.hc-art--today')?.getBoundingClientRect();
@@ -233,22 +229,16 @@ for (const width of [320, 360, 390, 430, 448]) {
     await expect(card).toBeInViewport();
     await expect(page.locator('#dailyQuoteCard')).toBeHidden();
     await expect(card.locator('[data-hero-slide]')).toHaveCount(4);
-    await expect(card.locator('[data-hero-slide].is-active [data-hero-title]')).toHaveText('নিজের ছন্দে');
-    await expect(card.locator('[data-hero-slide].is-active [data-hero-description]'))
-      .toHaveText('অন্যের সঙ্গে নয়, গতকালের নিজের সঙ্গে প্রতিযোগিতা করো।');
+    await expect(card.locator('[data-hero-slide].is-active')).toHaveCount(1);
     await expect(card.locator('.hero-slider__controls button')).toHaveCount(2);
     await expect(card.locator('.hero-slider__indicators [data-hero-dot]')).toHaveCount(4);
 
-    const approved = [
-      ['own-pace', 'নিজের ছন্দে', 'অন্যের সঙ্গে নয়, গতকালের নিজের সঙ্গে প্রতিযোগিতা করো।'],
-      ['daily-goal', 'আজকের লক্ষ্য', 'আজ অন্তত ২০ মিনিট মনোযোগ দিয়ে পড়ার চেষ্টা করো।'],
-      ['joy-of-learning', 'শেখার আনন্দ', 'প্রতিটি নতুন বিষয় তোমাকে আরও দক্ষ করে তুলছে।'],
-      ['daily-tip', 'আজকের পরামর্শ', 'পড়ার পর বই বন্ধ করে নিজের ভাষায় বিষয়টি মনে করার চেষ্টা করো।']
-    ];
-    for (const [id, title, message] of approved) {
+    const approved = await page.evaluate(async () => (await import('/js/student-home-hero-entry.js')).STUDENT_HOME_HERO_SLIDES);
+    for (const { id, title, messages } of approved) {
       const slide = card.locator(`[data-hero-id="${id}"]`);
       await expect(slide.locator('[data-hero-title]')).toHaveText(title);
-      await expect(slide.locator('[data-hero-description]')).toHaveText(message);
+      const message = await slide.locator('[data-hero-description]').textContent();
+      expect(messages).toContain(message.trim());
       await expect(slide.locator('img')).toHaveAttribute('alt', /বাংলাদেশি/u);
     }
 

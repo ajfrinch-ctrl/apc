@@ -6,7 +6,7 @@ for(const theme of ['light','dark']) for(const width of [320,390,1024]) test(`lo
  await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
  const open=()=>page.locator('#studentLogout').click();
  await open();const sheet=page.locator('#logoutModal .modal');await expect(sheet).toBeVisible();
- const b=await sheet.boundingBox();expect(b.width).toBe(width);expect(b.y+b.height).toBe(844);
+ const b=await sheet.boundingBox();expect(b.width).toBe(width>=768?560:width);expect(b.y+b.height).toBe(844);
  await expect(sheet).toHaveCSS('border-top-left-radius','28px');
  await expect(page.locator('#logoutModalTitle')).toHaveCSS('font-size','20px');
  await expect(page.locator('#logoutModal .modal-header')).toHaveCSS('position','static');

@@ -17,15 +17,14 @@ for(const width of [320,390,1024])test(`Student Home Hero carousel is visible an
  const ids = ['own-pace', 'daily-goal', 'joy-of-learning', 'daily-tip'];
  const todayIndex = ((dayNumber % ids.length) + ids.length) % ids.length;
  const expectedId = ids[todayIndex];
- const expectedCopy = {
-  'own-pace': ['নিজের ছন্দে', 'অন্যের সঙ্গে নয়, গতকালের নিজের সঙ্গে প্রতিযোগিতা করো।'],
-  'daily-goal': ['আজকের লক্ষ্য', 'আজ অন্তত ২০ মিনিট মনোযোগ দিয়ে পড়ার চেষ্টা করো।'],
-  'joy-of-learning': ['শেখার আনন্দ', 'প্রতিটি নতুন বিষয় তোমাকে আরও দক্ষ করে তুলছে।'],
-  'daily-tip': ['আজকের পরামর্শ', 'পড়ার পর বই বন্ধ করে নিজের ভাষায় বিষয়টি মনে করার চেষ্টা করো।']
- }[expectedId];
+ const expectedSlide = await page.evaluate(async id => {
+  const { STUDENT_HOME_HERO_SLIDES } = await import('/js/student-home-hero-entry.js');
+  return STUDENT_HOME_HERO_SLIDES.find(slide => slide.id === id);
+ }, expectedId);
  await expect(card.locator(`[data-hero-id="${expectedId}"]`)).toHaveClass(/is-active/);
- await expect(card.locator('[data-hero-slide].is-active [data-hero-title]')).toHaveText(expectedCopy[0]);
- await expect(card.locator('[data-hero-slide].is-active [data-hero-description]')).toHaveText(expectedCopy[1]);
+ await expect(card.locator('[data-hero-slide].is-active [data-hero-title]')).toHaveText(expectedSlide.title);
+ const description = await card.locator('[data-hero-slide].is-active [data-hero-description]').textContent();
+ expect(expectedSlide.messages).toContain(description.trim());
  await expect(card.locator('.hero-slider__controls button')).toHaveCount(2);
  await expect(card.locator('.hero-slider__indicators [data-hero-dot]')).toHaveCount(4);
  for (const id of ids) {
@@ -50,6 +49,6 @@ for(const width of [320,390,1024])test(`Student Home Hero carousel is visible an
  }));
  expect(layout.pageFits).toBe(true);expect(layout.cardFits).toBe(true);expect(layout.cardHeight).toBeGreaterThan(230);expect(layout.cardHeight).toBeLessThanOrEqual(350);
  expect(layout.imageFit).toBe('contain');expect(layout.order).toBeTruthy();
- expect(layout.metrics).toBe(2);expect(layout.shortcuts).toBe(6);expect(layout.tabs).toBe(5);
+ expect(layout.metrics).toBe(2);expect(layout.shortcuts).toBe(7);expect(layout.tabs).toBe(5);
  await page.screenshot({path:`/tmp/student-hero-${width}.png`});
 });

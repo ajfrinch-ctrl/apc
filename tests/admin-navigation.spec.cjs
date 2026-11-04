@@ -31,7 +31,7 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
   await expect(home.locator('#dashTitle')).toContainText('স্বাগতম');
   await expect(home.locator('#adminTodayDate')).toBeVisible();
   await expect(home.locator('#adminHeroAdvice')).toBeVisible();
-  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(1);
+  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(2);
   await expect(home.locator('.admin-portal-grid > a')).toHaveCount(3);
 
   for (const theme of ['light', 'dark']) {
@@ -47,7 +47,7 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
           return { left, right, top, bottom, height };
         };
         const hero = box(intro);
-        const approval = box(home.querySelector('#adminFeatureGrid .admin-feature-tile'));
+        const approval = [...home.querySelectorAll('#adminFeatureGrid .admin-feature-tile')].map(box);
         const links = [...home.querySelectorAll('.admin-portal-grid > a')].map(box);
         const footer = [...document.querySelectorAll('.admin-bottom button')].map(box);
         return {
@@ -85,13 +85,13 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
       };
       expect(contrast(layout.weekdayColor, layout.headerColor)).toBeGreaterThanOrEqual(4.5);
       expect(contrast(layout.dateChipColor, layout.dateChipBackground)).toBeGreaterThanOrEqual(4.5);
-      expect(layout.hero.bottom).toBeLessThanOrEqual(layout.approval.top);
-      expect(layout.approval.bottom).toBeLessThanOrEqual(layout.links[0].top);
-      for (const rect of [layout.hero, layout.approval, ...layout.links, ...layout.footer]) {
+      expect(layout.hero.bottom).toBeLessThanOrEqual(layout.approval[0].top);
+      expect(layout.approval.at(-1).bottom).toBeLessThanOrEqual(layout.links[0].top);
+      for (const rect of [layout.hero, ...layout.approval, ...layout.links, ...layout.footer]) {
         expect(rect.left).toBeGreaterThanOrEqual(0);
         expect(rect.right).toBeLessThanOrEqual(width);
       }
-      for (const rect of [layout.approval, ...layout.links, ...layout.footer]) {
+      for (const rect of [...layout.approval, ...layout.links, ...layout.footer]) {
         expect(rect.height).toBeGreaterThanOrEqual(44);
       }
       await page.screenshot({ path: testInfo.outputPath(`admin-home-${width}-${theme}.png`) });
@@ -123,14 +123,14 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await expect(page.locator('#dashAppStatusRow, #dashTodayList, #dashPendingList, #dashNoticeCount')).toHaveCount(0);
       // Permission grid: one generated icon + one label per allowed section.
       const tiles = page.locator('#adminFeatureGrid .admin-feature-tile');
-      await expect(tiles).toHaveCount(1);
+      await expect(tiles).toHaveCount(2);
       const quickGrid = page.locator('#adminFeatureGrid');
       const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), tiles.first().boundingBox()]);
       expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
       // The current Admin skin uses full-width horizontal action cards.
       expect(await tiles.first().evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
       // One inline SVG per tile, inside a fixed container: never a missing image.
-      expect(await tiles.locator('.admin-feature-icon svg').evaluateAll(icons => icons.length)).toBe(1);
+      expect(await tiles.locator('.admin-feature-icon svg').evaluateAll(icons => icons.length)).toBe(2);
       expect(await tiles.locator('.admin-feature-icon > svg').evaluateAll(icons => icons.every(icon => icon.querySelector('image[href], path, circle, rect')))).toBe(true);
       expect(await tiles.locator('.admin-feature-label').evaluateAll(labels => labels.every(label => label.textContent.trim().length > 1))).toBe(true);
       // System Owner monitoring is not mixed with the Cash Counter collection action.
@@ -245,12 +245,13 @@ for (const width of [320, 390]) {
     const managerMore = managerCard.locator('.more-btn');
     await expect(collapsedDetails).toHaveCount(4);
     await expect(page.locator('#staffList .staff-details-toggle[aria-expanded="false"]')).toHaveCount(4);
-    await expect(page.locator('#staffList .staff-card-mobile-summary')).toHaveCount(4);
+    await expect(page.locator('#staffList .staff-card-details .staff-id-badge')).toHaveCount(4);
+    await expect(page.locator('#staffList .staff-card-head .staff-id-badge')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
     await ownerCard.locator('.staff-details-toggle').click();
     await expect(ownerDetails).toBeVisible();
-    await expect(ownerCard.locator('.staff-card-summary-line')).toContainText('মোবাইল নেই');
+    await expect(ownerDetails).toContainText('মোবাইল নেই');
     await expect(page.locator('#staffList .staff-details-toggle[aria-expanded="true"]')).toHaveCount(1);
     await ownerMore.click();
     await expect(backdrop).toBeVisible();
@@ -417,7 +418,7 @@ test('the Admin student roster retains filters and exposes pending review action
   await expect(firstStudent).toBeVisible();
   // List names are deliberately masked; search by the row's actual ID instead.
   const studentId = await firstStudent.locator('[data-action="view"]').getAttribute('data-id');
-  const statusClass = await firstStudent.locator('.badge').getAttribute('class');
+  const statusClass = await firstStudent.locator('.badge-approved, .badge-pending, .badge-rejected').getAttribute('class');
   const status = /badge-approved/.test(statusClass) ? 'approved' : /badge-rejected/.test(statusClass) ? 'rejected' : 'pending';
   const search = page.locator('#studentSearch');
   await search.fill(studentId);
@@ -448,6 +449,7 @@ test('the Admin student roster retains filters and exposes pending review action
   await expect(page.locator('#studentList [data-action=approve], #studentList [data-action=reject]')).toHaveCount(0);
   await expect(page.locator('.manager-approval-note')).toHaveCount(0);
   if (pendingCount > 0) {
+    await page.locator('#studentList .student-row-main[data-action=reveal-student]').first().click();
     await page.locator('#studentList [data-action=review-registration]').first().click();
     await expect(page.locator('#apcRegistrationReview')).toBeVisible();
     await expect(page.locator('#apcRegistrationReview [data-review-decision=approved]')).toBeVisible();
@@ -589,17 +591,17 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
   await expect(page.locator('.admin-bottom')).toBeVisible();
   await expect(page.locator('.admin-bottom button')).toHaveCount(5);
   const phoneShell = await page.locator('#adminShell').boundingBox();
-  expect(phoneShell.width).toBe(430);
-  expect(phoneShell.x).toBe(425);
+  expect(phoneShell.width).toBe(viewportWidth);
+  expect(phoneShell.x).toBe(0);
   const bottomBar = await page.locator('.admin-bottom').boundingBox();
   expect(bottomBar.width).toBe(phoneShell.width);
   expect(bottomBar.x).toBe(phoneShell.x);
   const quickGrid = page.locator('#adminFeatureGrid');
   const quickTile = page.locator('#adminFeatureGrid .admin-feature-tile');
-  await expect(quickTile).toHaveCount(1);
-  const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), quickTile.boundingBox()]);
+  await expect(quickTile).toHaveCount(2);
+  const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), quickTile.first().boundingBox()]);
   expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
-  expect(await quickTile.evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
+  expect(await quickTile.first().evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
   for (const view of mobileViews) {
     await bottom(page, view);
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();

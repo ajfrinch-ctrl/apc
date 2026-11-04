@@ -31,12 +31,17 @@ test('report: 60 real rows paginate, download PDF, empty filter opens preview',a
  await expect(page.locator('.rc-pdf-preview')).toContainText('শিক্ষার্থী 59');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const download=page.waitForEvent('download');await page.locator('.rc-download').click();const file=await download;const bytes=await fs.readFile(await file.path());expect(bytes.subarray(0,8).toString()).toContain('%PDF-1.');expect(bytes.toString('latin1')).toContain('%%EOF');
- await page.locator('.rc-back').click();await page.locator('select[name=report]').selectOption('exam.summary');await page.locator('.rc-generate').click();await expect(page.locator('.rc-preview')).toBeVisible();await expect(page.locator('.rc-preview-notice')).toHaveText('কোনো তথ্য পাওয়া যায়নি।');
+ await page.locator('.rc-back').click();await page.locator('select[name=report]').selectOption('exam.summary');await page.locator('.rc-generate').click();
+ await expect(page.locator('.rc-status')).toHaveText('একটি পরীক্ষা নির্বাচন করুন।');
+ await expect(page.locator('.rc-preview')).toHaveCount(0);
+ await page.locator('select[name=report]').selectOption('fee.transactions');await page.locator('.rc-generate').click();
+ await expect(page.locator('.rc-preview')).toBeVisible();await expect(page.locator('.rc-preview-notice')).toHaveText('কোনো তথ্য পাওয়া যায়নি।');
 });
 test('teacher: all 30 MCQ templates render, apply and copy without changing academic engine',async({page,context})=>{
  await context.grantPermissions(['clipboard-read','clipboard-write']);
  await page.addInitScript(()=>localStorage.setItem('activePlus.manager.teacherAssignments.v1',JSON.stringify([{id:'QA-AS',teacherUsername:'teacher.apc',teacherName:'QA Teacher',className:'দশম শ্রেণি',group:'',subject:'গণিত'}])));
- await enterPortal(page,'teacher');await page.locator('.admin-bottom [data-panel-view=exam]').click();
+ await enterPortal(page,'teacher');await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
+ await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
  await page.locator('[data-exam-action=new-mcq]').click();
  await expect(page.locator('[data-template-index] option')).toHaveCount(30);
  for(let i=0;i<30;i++){await page.locator('[data-template-index]').selectOption(String(i));await page.locator('[data-exam-action=use-template]').click();await expect(page.locator('[name=template]')).not.toHaveValue('');}
@@ -59,6 +64,7 @@ test('staff modal: visible heading, keyboard focus containment and Escape close'
 });
 test('payment search, collection, durable transaction and receipt PDF',async({page})=>{
  await enterPortal(page,'payment');await roster(page);await page.reload();
+ await page.locator('.admin-bottom [data-panel-view=students]').click();await page.locator('[data-pay-toggle=student-search]').click();
  await page.locator('#payStudentSearch').fill('QA-0');await page.locator('#paySearchResults .fee-search-result').click();
  await page.locator('#payProfileCollect').click();await page.locator('#payFeeAmount').fill('800');await page.locator('#payCollectionForm button[type=submit]').click();
  await expect(page.locator('#payReceiptBackdrop')).toBeVisible();await expect(page.locator('#payReceiptBody')).toContainText('৮০০');

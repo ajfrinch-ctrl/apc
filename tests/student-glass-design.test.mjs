@@ -102,8 +102,8 @@ test('the action center uses the same shared glass accent and a safe-height shee
   assert.equal(/\.notice-filters \.chip\.active \{[^}]*--pay-hero-a/s.test(sheet), false,
     'the old navy pill must not return');
   assert.match(sheet, /\.notice-detail\.unread:not\(\.is-birthday\)/, 'birthday gold keeps its own colours');
-  assert.match(sheet, /\.notice-action \{[^}]*linear-gradient\(135deg, var\(--glass-accent\)/s,
-    'the card CTA is the calm brand gradient');
+  assert.match(sheet, /\.notice-action \{[^}]*background: var\(--color-primary\);[^}]*color: var\(--color-on-accent\)/s,
+    'the card CTA uses the theme’s accessible accent and on-accent pair');
   assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(sheet), false, 'no raw paint in the action center either');
 });
 

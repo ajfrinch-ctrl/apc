@@ -89,18 +89,19 @@ export function studentIdCardSVG(student, photo = '', side = 'front') {
   const studentId = student?.id == null ? '' : String(student.id);
   let body;
   if (side === 'back') {
-    const address = wrapChars(student?.address, 34, 2);
+    const address = student?.address ? wrapChars(student.address, 34, 2) : [];
     body = `${cardChrome('Active Plus Coaching', 'শিখতে থাকো, এগিয়ে যাও')}
     <rect x="86" y="112" width="188" height="188" rx="20" fill="#ffffff" stroke="${LINE}" stroke-width="1.5"/>
-    ${qrMarkup(student, 94, 120, 172)}
-    <text x="180" y="326" text-anchor="middle" font-size="14" font-weight="700" fill="${INK}">স্ক্যান করে Student ID দেখুন</text>
-    ${infoRow('অভিভাবকের মোবাইল', String(student?.guardianMobile || '').trim() || '—', 366)}
-    ${infoRow('শিক্ষার্থীর মোবাইল', String(student?.studentMobile || '').trim() || '—', 400)}
-    <text x="30" y="434" font-size="12" fill="${MUTED}">ঠিকানা</text>
-    ${address.map((line, i) => `<text x="330" y="${434 + i * 18}" text-anchor="end" font-size="13" font-weight="600" fill="${INK}">${esc(line)}</text>`).join('')}
-    <path d="M30 ${434 + (address.length - 1) * 18 + 10}h300" stroke="${LINE}"/>
+    ${studentId ? qrMarkup(student, 94, 120, 172) : `<text x="180" y="210" text-anchor="middle" font-size="14" fill="${MUTED}">আইডি নেই</text>`}
+    <text x="180" y="326" text-anchor="middle" font-size="14" font-weight="700" fill="${INK}">${studentId ? 'স্ক্যান করে Student ID দেখুন' : 'আইডি পাওয়া যায়নি'}</text>
+    <text x="180" y="348" text-anchor="middle" font-size="${fitSize(studentId, 12)}" fill="${INK}"${studentId.length > 26 ? ' textLength="280" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(studentId || 'আইডি নেই')}</text>
+    ${student?.guardianMobile ? infoRow('অভিভাবকের মোবাইল', maskedPhone(student.guardianMobile), 376) : ''}
+    ${student?.studentMobile ? infoRow('শিক্ষার্থীর মোবাইল', maskedPhone(student.studentMobile), 410) : ''}
+    ${address.length ? `<text x="30" y="444" font-size="12" fill="${MUTED}">ঠিকানা</text>
+    ${address.map((line, i) => `<text x="330" y="${444 + i * 18}" text-anchor="end" font-size="13" font-weight="600" fill="${INK}">${esc(line)}</text>`).join('')}
+    <path d="M30 ${444 + (address.length - 1) * 18 + 10}h300" stroke="${LINE}"/>` : ''}
     <rect x="30" y="476" width="300" height="30" rx="10" fill="#ffffff" stroke="${LINE}"/>
-    <text x="180" y="496" text-anchor="middle" font-size="11" fill="${MUTED}">কার্ডটি শুধু শিক্ষার্থীর ব্যবহারের জন্য।</text>`;
+    <text x="180" y="496" text-anchor="middle" font-size="11" fill="${MUTED}">ব্যবহারের শর্ত: শুধু শিক্ষার্থীর জন্য।</text>`;
   } else {
     const hasPhoto = validPhoto(photo);
     const rollText = student?.roll ? bnb(student.roll) : '';
@@ -118,7 +119,7 @@ export function studentIdCardSVG(student, photo = '', side = 'front') {
     <rect x="30" y="334" width="300" height="64" rx="16" fill="#ffffff" stroke="${LINE}"/>
     <rect x="30" y="334" width="6" height="64" rx="3" fill="#f2b84b"/>
     <text x="50" y="357" font-size="10.5" letter-spacing="1.4" fill="${MUTED}">STUDENT ID</text>
-    <text x="50" y="383" font-size="${fitSize(student?.id, 24)}" font-weight="700" fill="${BRAND}"${String(student?.id || '').length > 26 ? ' textLength="260" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(student?.id || '—')}</text>
+    <text x="50" y="383" font-size="${fitSize(student?.id, 24)}" font-weight="700" fill="${BRAND}"${String(student?.id || '').length > 26 ? ' textLength="260" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(studentId || 'আইডি নেই')}</text>
     ${rows.map(([label, value], i) => infoRow(label, value, 428 + i * 34)).join('')}`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" role="img" aria-label="ডিজিটাল আইডি কার্ড · ${side === 'back' ? 'পেছনের পাশ' : 'সামনের পাশ'}">${cardDefs()}<g font-family="Noto Sans Bengali, sans-serif">${body}</g></svg>`;

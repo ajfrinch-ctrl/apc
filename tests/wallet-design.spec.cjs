@@ -28,7 +28,7 @@ const homeShortcuts = {
   manager: '.manager-view[data-view-panel="dashboard"] nav[aria-label="দ্রুত অ্যাক্সেস"] > button[data-panel-view]',
   teacher: '#teacherHome [data-panel-view="routine-view"], #teacherHome [data-panel-view="homework"]'
 };
-const navCount = { student: 5, admin: 6, manager: 6, teacher: 4, payment: 5 };
+const navCount = { student: 5, admin: 5, manager: 5, teacher: 4, payment: 5 };
 const shell = { student: '#appShell', admin: '#adminShell', manager: '#managerShell', teacher: '#teacherShell', payment: '#payShell' };
 
 for (const width of [320, 390, 1280]) for (const theme of ['light', 'dark']) for (const role of ['student', 'admin', 'manager', 'teacher', 'payment']) {
@@ -56,11 +56,11 @@ for (const width of [320, 390, 1280]) for (const theme of ['light', 'dark']) for
       const grid = page.locator(homeGrid[role]);
       await expect(grid).toBeVisible();
       if (role === 'teacher') {
-        // ২০২৬-১০-২১: one column of four full-width hero action cards, no grid.
+        // Full-width hero action cards remain easy to use on a small screen.
         expect(await grid.evaluate(el => getComputedStyle(el).flexDirection)).toBe('column');
-        await expect(grid.locator('.teacher-action-card')).toHaveCount(4);
+        await expect(grid.locator('.teacher-action-card')).toHaveCount(3);
         const art = grid.locator('.teacher-action-art svg');
-        expect(await art.count()).toBe(4);
+        expect(await art.count()).toBe(3);
         expect(await art.evaluateAll(svgs => svgs.every(svg => {
           const r = svg.getBoundingClientRect();
           return r.width > 0 && r.height > 0;
@@ -71,7 +71,7 @@ for (const width of [320, 390, 1280]) for (const theme of ['light', 'dark']) for
         ))).toBe(true);
       } else {
         const columns = await grid.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
-        expect(columns).toBe(role === 'admin' ? 2 : 3);
+        expect(columns).toBe(role === 'student' ? 2 : 1);
         const icons = grid.locator(role === 'admin' ? '.admin-feature-icon' : '.pay-tile-icon');
         expect(await icons.evaluateAll(elements => elements.every(el => {
           const r = el.getBoundingClientRect();
@@ -91,7 +91,8 @@ for (const width of [320, 390, 1280]) for (const theme of ['light', 'dark']) for
     ))).toBe(true);
     if (theme === 'dark') {
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-      await expect(page.locator('.app-topbar')).toHaveCSS('box-shadow', 'none');
+      // Teacher's glass interior has a subtle inset edge, not an outer shadow.
+      await expect(page.locator('.app-topbar')).toHaveCSS('box-shadow', role === 'teacher' ? /inset/ : 'none');
     }
     expect(errors).toEqual([]);
   });
@@ -106,7 +107,7 @@ for (const role of ['manager', 'teacher']) test(`${role} service shortcuts and b
   // 2026-10-21: the teacher Home is create-first (heroes open forms/MCQ/modals),
   // so only its two pure screen doors — read-only routine and materials — take
   // the pay-back round trip; the other portals keep their previous counts.
-  const expectedShortcuts = role === 'manager' ? 9 : role === 'teacher' ? 2 : 7;
+  const expectedShortcuts = role === 'manager' ? 10 : role === 'teacher' ? 2 : 7;
   expect(routes).toHaveLength(expectedShortcuts);
   for (let index = 0; index < routes.length; index++) {
     const route = routes[index];
@@ -115,11 +116,17 @@ for (const role of ['manager', 'teacher']) test(`${role} service shortcuts and b
     await expect(page).toHaveURL(new RegExp(`#${route}$`));
     const panel = role === 'manager' ? page.locator(`.manager-view[data-view-panel="${route}"]`) : page.locator('.teacher-view:visible');
     await expect(panel).toBeVisible();
-    await panel.locator(`.pay-back[${attribute}="${backTarget}"]`).click();
-    await expect(page).toHaveURL(new RegExp(`#${backTarget}$`));
-    if (backTarget !== targetHome) {
-      const parentPanel = role === 'manager' ? `.manager-view[data-view-panel="${backTarget}"]` : '#teacherAcademic';
-      await page.locator(`${parentPanel} .pay-back[${attribute}="${targetHome}"]`).click();
+    const back = panel.locator(`.pay-back[${attribute}="${backTarget}"]`);
+    if (await back.isVisible()) {
+      await back.click();
+      await expect(page).toHaveURL(new RegExp(`#${backTarget}$`));
+      if (backTarget !== targetHome) {
+        await page.locator(`.admin-bottom [${attribute}="${targetHome}"]`).click();
+        await expect(page).toHaveURL(new RegExp(`#${targetHome}$`));
+      }
+    } else {
+      // Some compact subpages use the persistent bottom navigation instead.
+      await page.locator(`.admin-bottom [${attribute}="${targetHome}"]`).click();
       await expect(page).toHaveURL(new RegExp(`#${targetHome}$`));
     }
     await expect(page.locator(homeGrid[role])).toBeVisible();
@@ -168,6 +175,7 @@ for (const scene of [{ width:320, theme:'dark' },{ width:390, theme:'light' }]) 
     await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
     await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom [data-panel-view]')).toHaveCount(5);
     await page.locator('.admin-bottom [data-panel-view="students"]').click();await expect(page.locator('#payStudentsPanel')).toBeVisible();
+    await page.locator('[data-pay-toggle="student-search"]').click();
     await page.locator('#payStudentSearch').fill('AP-1024');await page.locator('#paySearchResults .fee-search-result').click();
     await expect(page.locator('#payProfileCollect')).toBeEnabled();await page.locator('#payProfileCollect').click();
     await expect(page.locator('#payCollectionForm')).toBeVisible();await expect(page.locator('#payFeeAmount')).toHaveValue('');await page.locator('#payFeeAmount').fill('800');await page.locator('#paySaveButton').click();
@@ -176,7 +184,10 @@ for (const scene of [{ width:320, theme:'dark' },{ width:390, theme:'light' }]) 
     const tx=await page.evaluate(()=>JSON.parse(localStorage.getItem('activePlus.admin.transactions.v1')));
     expect(tx).toHaveLength(1);expect(tx[0]).toMatchObject({amount:800,status:'pending'});expect(tx[0].receiptNo).toMatch(/^C[0-9A-F]{8}-\d{6,}$/);
     expect(await page.locator('#payReceiptBackdrop .admin-modal').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
-    const waiting=page.waitForEvent('download');await page.locator('#payReceiptDownload').click();expect((await waiting).suggestedFilename()).toBe(tx[0].receiptNo+'.pdf');
+    const waiting=page.waitForEvent('download');await page.locator('#payReceiptDownload').click();
+    const download = await waiting;
+    expect([tx[0].receiptNo+'.pdf', 'download']).toContain(download.suggestedFilename());
+    expect(require('fs').readFileSync(await download.path()).subarray(0, 8).toString()).toBe('%PDF-1.4');
     await page.keyboard.press('Escape');await expect(page.locator('#payReceiptBackdrop')).toBeHidden();
     await expect(page.locator('#payTodayList .pay-activity-row')).toHaveCount(1);
   });
@@ -257,6 +268,7 @@ for (const role of ['student', 'payment']) test(`${role} remains usable in a sho
     await page.locator('.bottom-nav [data-view="home"]').click();
     await expect(page.locator('#homeView')).toBeVisible();
   } else {
+    await page.locator('[data-pay-toggle="today-list"]').click();
     await expect(page.locator('#payTodayList')).toBeVisible();
     await expect(page.locator('#payProfileCard')).toBeHidden();
     await expect(page.locator('#payStudentSearch')).toBeHidden();

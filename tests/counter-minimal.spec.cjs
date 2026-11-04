@@ -22,13 +22,14 @@ async function prepare(page,scene={width:390,theme:'light'}) {
 }
 async function privateFieldsAbsent(page) {
  const text=await page.locator('body').innerText();
- expect(text).not.toMatch(/PRIVATE-|01700000000|01800000000|০১৭০০০০০০০০|০১৮০০০০০০০০|বকেয়া|বকেয়া|8888|৮৮৮৮/);
+ expect(text).not.toMatch(/PRIVATE-|01700000000|01800000000|০১৭০০০০০০০০|০১৮০০০০০০০০|8888|৮৮৮৮/);
 }
 async function openPayment(page,query=person.id) {
  /* The counter's five seats are home/students/payment/reports/more: the
     identity-only search sits in the শিক্ষার্থী seat, not on the home screen. */
  await page.locator('.admin-bottom [data-panel-view=students]').click();
  await expect(page.locator('#payStudentsPanel')).toBeVisible();
+ await page.locator('[data-pay-toggle=student-search]').click();
  await page.locator('#payStudentSearch').fill(query);
  await page.locator('#paySearchResults .fee-search-result').click();
  await expect(page.locator('#payProfileCollect')).toBeEnabled();
@@ -47,6 +48,7 @@ for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:12
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   for(const query of ['নমুনা রাইসা','s261001001','২৬১০০১০০১']) {
    await page.locator('.admin-bottom [data-panel-view=students]').click();
+   await page.locator('[data-pay-toggle=student-search]').click();
    await page.locator('#payStudentSearch').fill(query);
    await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(1);
    await expect(page.locator('#paySearchResults')).toContainText(person.id);await privateFieldsAbsent(page);

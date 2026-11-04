@@ -106,7 +106,7 @@ test('the bell and in-app alert both render a distinct action button', async () 
   const center = mountNoticeCenter(api);
   ctx.click(ctx.$('#notificationButton'));
   const modal = ctx.$('#apcNoticeModal');
-  assert.equal(modal.querySelector('#apcNoticeTitle').textContent, 'অ্যাকশন সেন্টার');
+  assert.equal(modal.querySelector('#apcNoticeTitle').textContent, 'নোটিফিকেশন');
   const taskButton = modal.querySelector('button.notice-action[data-apc-notice-open="homework:HW-1:rev1"]');
   assert.equal(taskButton.textContent, 'বাড়ির কাজ খুলুন');
   ctx.click(taskButton);

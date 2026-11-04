@@ -61,29 +61,24 @@ test('the counter opens on a session only, and locks itself out without one', as
 test('the counter changes its own password from Settings; only that password signs in', async ({ page }) => {
   await enter(page);
 
-  // Settings → অ্যাকাউন্ট carries the same one password row every staff panel has.
+  // Settings → account uses the shared inline form and requires the current password.
   await page.locator('[data-panel-view="more"]').click();
   await page.locator('#payMorePanel [data-settings-open="account"]').click();
-  const row = page.locator('#payMorePanel [data-settings-row="password"]');
-  await expect(row).toHaveCount(1);
-  await row.click();
-  await expect(page.locator('.staff-pw-backdrop')).toBeVisible();
-  await expect(page.locator('.staff-pw-backdrop')).toHaveAttribute('data-staff-pw', 'payment');
-
-  // A short or mismatched pair is refused before anything is stored.
-  await page.locator('#staffPwNew').fill('123');
-  await page.locator('#staffPwConfirm').fill('123');
-  await page.locator('.staff-pw-form button[type=submit]').click();
-  await expect(page.locator('.staff-pw-error')).toBeVisible();
-  await page.locator('#staffPwNew').fill('Apc-Counter-2026');
-  await page.locator('#staffPwConfirm').fill('Apc-Counter-2027');
-  await page.locator('.staff-pw-form button[type=submit]').click();
-  await expect(page.locator('.staff-pw-error')).toBeVisible();
-
-  await page.locator('#staffPwNew').fill('Apc-Counter-2026');
-  await page.locator('#staffPwConfirm').fill('Apc-Counter-2026');
-  await page.locator('.staff-pw-form button[type=submit]').click();
-  await expect(page.locator('.staff-pw-backdrop')).toBeHidden();
+  const form = page.locator('#payMorePanel [data-settings-row=password]');
+  await expect(form).toBeVisible();
+  await form.locator('[name=currentPassword]').fill('Apc-E2E-2026');
+  await form.locator('[name=newPassword]').fill('123');
+  await form.locator('[name=confirmPassword]').fill('123');
+  await form.locator('button[type=submit]').click();
+  expect(await form.locator('[name=newPassword]').evaluate(input => input.checkValidity())).toBe(false);
+  await form.locator('[name=newPassword]').fill('Apc-Counter-2026');
+  await form.locator('[name=confirmPassword]').fill('Apc-Counter-2027');
+  await form.locator('button[type=submit]').click();
+  await expect(form.locator('[role=alert]')).toBeVisible();
+  await form.locator('[name=confirmPassword]').fill('Apc-Counter-2026');
+  await form.locator('button[type=submit]').click();
+  await expect(form.locator('[name=currentPassword]')).toHaveValue('');
+  await expect(form.locator('[name=newPassword]')).toHaveValue('');
 
   // The account is encrypted at rest; inspect the PBKDF2 record through the
   // supported reader and assert the ciphertext does not contain the password.
@@ -122,9 +117,10 @@ test('the counter desk opens on হোম with the five counter tabs and nothing
   await expect(page.locator('[data-pay-panel="home"]')).toBeVisible();
 
   // No other role's views live anywhere on this page.
-  await expect(page.locator('[data-panel-view], [data-panel-view], [data-panel-view], [data-student-view]')).toHaveCount(0);
+  await expect(page.locator('#adminShell, #managerShell, #teacherShell, #appShell, [data-student-view]')).toHaveCount(0);
 
   // An empty day says so instead of inventing rows.
+  await page.locator('[data-pay-toggle="today-list"]').click();
   await expect(page.locator('#payTodayList')).toContainText('আজ এখনও কোনো লেনদেন নেই।');
 });
 
@@ -132,6 +128,7 @@ test('search resolves name, ID, roll and exact phones but never class or guardia
   const [student] = await seedRoster(page);
   await enter(page);
   await page.locator('nav.admin-bottom [data-panel-view="students"]').click();
+  await page.locator('[data-pay-toggle="student-search"]').click();
 
   for (const query of [student.name, student.id, student.uniqueRoll]) {
     await page.locator('#payStudentSearch').fill(String(query));
@@ -166,6 +163,7 @@ test('verify → entry → receipt: a pending slip, a stored entry and a receipt
   const [student] = await seedRoster(page);
   await enter(page);
   await page.locator('nav.admin-bottom [data-panel-view="students"]').click();
+  await page.locator('[data-pay-toggle="student-search"]').click();
   await page.locator('#payStudentSearch').fill(student.id);
   await page.locator('#paySearchResults .fee-search-result').first().click();
 
@@ -196,11 +194,14 @@ test('verify → entry → receipt: a pending slip, a stored entry and a receipt
 
   const pdf = page.waitForEvent('download');
   await page.locator('#payReceiptDownload').click();
-  expect((await pdf).suggestedFilename()).toBe(`${receiptNumber}.pdf`);
+  const download = await pdf;
+  expect([`${receiptNumber}.pdf`, 'download']).toContain(download.suggestedFilename());
+  expect(require('node:fs').readFileSync(await download.path()).subarray(0, 8).toString()).toBe('%PDF-1.4');
 
   // The entry is on the counter's own day list; closing lands on হোম.
   await page.locator('#payReceiptClose').click();
   await expect(page.locator('[data-pay-panel="home"]')).toBeVisible();
+  await page.locator('[data-pay-toggle="today-list"]').click();
   await expect(page.locator('#payTodayList [data-pay-tx]').first()).toContainText(student.name);
 });
 

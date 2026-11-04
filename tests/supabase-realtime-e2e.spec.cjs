@@ -310,6 +310,7 @@ test('Dual-Cloud Failover automatically shifts live browser traffic to Firebase 
   );
 
   await enterStudentApp(page, { id: '261025009', name: 'তানভীর আহমেদ', className: 'দশম শ্রেণি', waitForNetworkIdle: false });
+  await expect(page).toHaveURL(/student\.html/);
 
   await expect.poll(async () => page.evaluate(() => ({
     mode: document.documentElement.dataset.cloudMode,

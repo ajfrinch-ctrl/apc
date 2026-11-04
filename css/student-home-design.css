@@ -90,6 +90,13 @@ body.student-reference #homeView .student-home-welcome {
   color: var(--student-home-welcome-ink);
   box-shadow: 0 10px 26px color-mix(in srgb, var(--student-home-welcome-ink) 9%, transparent);
 }
+/* Preserve the birthday celebration on the current welcome card, including
+   the same readable ink in both themes. */
+html[data-birthday] body.student-reference #homeView.active .student-home-welcome {
+  --student-home-welcome-ink: var(--birthday-ink);
+  background-image: var(--birthday-hero);
+}
+
 body.student-reference #homeView .student-home-welcome .pay-hero-id {
   display: flex;
   align-items: center;
@@ -553,7 +560,7 @@ html[data-theme="dark"] body.student-reference #homeView #studentServices .pay-t
   --home-tile: #50544f; --home-tile-ink: #f6f7f3; --home-tile-accent: #c2c8c0;
 }
 
-/* The shared Soft 3D float is intentionally phase-shifted across all six
+/* The shared Soft 3D float is intentionally phase-shifted across all seven
    Student shortcuts; no two neighboring icons bob in sync. */
 @media screen and (prefers-reduced-motion: no-preference) {
   body.student-reference #homeView #studentServices .pay-tile:nth-child(1) .pay-tile-icon svg[data-icon-set="active-plus-soft3d"] { animation-delay: 0s !important; }
@@ -562,6 +569,7 @@ html[data-theme="dark"] body.student-reference #homeView #studentServices .pay-t
   body.student-reference #homeView #studentServices .pay-tile:nth-child(4) .pay-tile-icon svg[data-icon-set="active-plus-soft3d"] { animation-delay: -1.08s !important; }
   body.student-reference #homeView #studentServices .pay-tile:nth-child(5) .pay-tile-icon svg[data-icon-set="active-plus-soft3d"] { animation-delay: -1.44s !important; }
   body.student-reference #homeView #studentServices .pay-tile:nth-child(6) .pay-tile-icon svg[data-icon-set="active-plus-soft3d"] { animation-delay: -1.8s !important; }
+  body.student-reference #homeView #studentServices .pay-tile:nth-child(7) .pay-tile-icon svg[data-icon-set="active-plus-soft3d"] { animation-delay: -2.16s !important; }
 }
 
 @media screen and (min-width: 768px) {

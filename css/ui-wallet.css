@@ -1888,7 +1888,7 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
 .student-reference #studentIdCardView .page-intro { margin-bottom: 12px; padding-top: 16px; gap: 8px; }
 .student-reference #studentIdCardView .page-intro h1 { font-size: 20px; font-weight: 500; }
 .student-reference #studentIdCardView .pay-back { color: var(--color-text); background: transparent; border: 0; width: 28px; min-width: 28px; }
-.student-reference #studentIdCardView .student-id-preview { width: min(100%, 360px); margin-inline: auto; border-radius: 26px; overflow: hidden; background: var(--student-id-face); box-shadow: 0 14px 34px rgba(11,107,74,.18), 0 2px 8px rgba(0,0,0,.08); }
+.student-reference #studentIdCardView .student-id-preview { width: min(100%, 360px); margin-inline: auto; border-radius: 26px; overflow: hidden; background: var(--student-id-face); box-shadow: var(--student-id-shadow); }
 .student-reference #studentIdCardView .student-id-preview > svg { display: block; width: 100%; height: auto; }
 .student-reference #studentIdCardView .student-id-side-tabs { display: flex; justify-content: center; gap: 6px; margin: 12px auto; max-width: 360px; }
 .student-reference #studentIdCardView .student-id-side-tabs button { min-height: 36px; padding: 6px 14px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); border-radius: 999px; font-size: 12px; font-weight: 600; }
@@ -2105,8 +2105,8 @@ svg.apc-glyph-icon { animation: apc-glyph-live 4.4s ease-in-out infinite; }
   background: var(--glass-accent); color: var(--color-surface);
 }
 :is(#noticeModal, #apcNoticeModal) .notice-action {
-  background: linear-gradient(135deg, var(--glass-accent), color-mix(in srgb, var(--glass-accent) 76%, var(--color-primary)));
-  color: var(--color-surface);
+  background: var(--color-primary);
+  color: var(--color-on-accent);
 }
 :is(#noticeModal, #apcNoticeModal) .notice-read-all {
   width: auto; min-height: 40px; margin: 0 0 0 auto; padding: 6px 12px;
@@ -8657,6 +8657,15 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
     border: 1px solid var(--color-border); border-radius: 16px;
     background: var(--color-surface); box-shadow: var(--glass-shadow-strong);
     overflow: hidden;
+  }
+  @media (min-width: 601px) {
+    /* The generic desktop modal rule is !important; the bell dropdown must
+       keep the same width used by positionPanel when anchored to the bell. */
+    #apcNoticeModal.apc-fb-backdrop:not([hidden]) .modal.apc-fb-panel {
+      width: min(380px, calc(100vw - 24px)) !important;
+      max-width: none !important;
+      margin: 0 !important;
+    }
   }
   #apcNoticeModal .apc-fb-header { flex: 0 0 auto; }
   #apcNoticeModal .notice-filters.apc-fb-filters {

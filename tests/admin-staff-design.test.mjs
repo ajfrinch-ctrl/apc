@@ -44,12 +44,14 @@ test('staff card and More-menu actions are Bengali, identifiers untouched', () =
   assert.match(js, /const initialsOf =/, 'avatars share the two-initial rule');
 });
 
-test('the card summary includes mobile, details include activity, and More actions live in a sheet', () => {
+test('the compact card keeps staff identifiers and activity in details, and More actions live in a sheet', () => {
   const js = read('js/staff-management.js');
   const card = js.slice(js.indexOf('function staffCard(record)'), js.indexOf('function renderList()'));
-  assert.match(card, /class="staff-card-summary-line"[\s\S]*?staff-id-badge[\s\S]*?staff-tag role-[\s\S]*?staff-card-mobile-summary[\s\S]*?className/,
-    'summary carries Staff ID, role and mobile beside the name while status remains visible');
-  assert.ok(card.includes("PRIVACY_MASK") || card.includes("record.mobile || 'মোবাইল নেই'"), 'the collapsed summary states when a mobile number is missing or masked for privacy');
+  const summary = card.slice(0, card.indexOf('class="staff-card-details"'));
+  assert.match(summary, /class="staff-card-summary-line"[\s\S]*?staff-tag role-/,
+    'the compact summary includes the role');
+  assert.doesNotMatch(summary, /staff-id-badge|record\.mobile/, 'identifiers and mobile are in details');
+  assert.match(card, /class="staff-card-details"[\s\S]*?staff-id-badge[\s\S]*?record\.mobile/);
   const detailsStart = card.indexOf('class="staff-card-details"');
   const actionsStart = card.indexOf('class="staff-card-actions"');
   assert.ok(detailsStart >= 0 && actionsStart > detailsStart, 'View/Edit/More render within the details disclosure');

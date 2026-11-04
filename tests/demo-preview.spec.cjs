@@ -12,17 +12,19 @@ const TEACHING = 'activePlus.teaching.v1';
 const FINANCE = 'activePlus.admin.transactions.v1';
 test.use({ viewport: { width: 390, height: 844 } });
 
-const storeCounts = page => page.evaluate(async ({ exams, teaching, finance }) => {
-  const { examRepository: e } = await import('/js/exam-data.js');
-  const { teachingRepository: t } = await import('/js/teaching-data.js');
-  const { financeRepository: f } = await import('/js/finance-data.js');
-  const db = await e.list();
+const storeCounts = page => page.evaluate(({ exams, teaching, finance }) => {
+  // Anonymous users cannot call the guarded repositories. Inspect the local
+  // stores without signing in or causing repository initialization instead.
+  const raw = [exams, teaching, finance].map(key => localStorage.getItem(key));
+  const examData = JSON.parse(raw[0] || '{}');
+  const teachingData = JSON.parse(raw[1] || '{}');
+  const transactions = JSON.parse(raw[2] || '[]');
   return {
-    exams: db.exams.length,
-    attempts: db.attempts.length,
-    activities: (await t.list()).activities.length,
-    transactions: (await f.listTransactions()).length,
-    raw: [exams, teaching, finance].map(key => localStorage.getItem(key))
+    exams: (examData.exams || []).length,
+    attempts: (examData.attempts || []).length,
+    activities: (teachingData.activities || []).length,
+    transactions: transactions.length,
+    raw
   };
 }, { exams: EXAMS, teaching: TEACHING, finance: FINANCE });
 

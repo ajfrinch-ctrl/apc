@@ -6,7 +6,8 @@ test('ID card uses the exact stored ID, safely escapes text, and has APC brandin
   const svg = studentIdCardSVG({ id: '000000000000000123', name: '<script>alert(1)</script>', className: 'দশম শ্রেণি' });
   assert.match(svg, /000000000000000123/);
   assert.match(svg, /&lt;script&gt;/);
-  assert.match(svg, /data:image\/png;base64,/);
+  assert.match(svg, /Active Plus Coaching/);
+  assert.match(svg, /<svg\b/);
   assert.match(svg, /শিখতে থাকো, এগিয়ে যাও/);
   assert.doesNotMatch(svg, /<script|shownId|স্ক্যান/);
 });
@@ -23,13 +24,16 @@ test('missing IDs are not replaced with another number', () => {
   const svg = studentIdCardSVG({ studentMobile: '01812345678' });
   assert.match(svg, /আইডি নেই/);
   assert.doesNotMatch(svg, /01812345678/);
+  const back = studentIdCardSVG({ studentMobile: '01812345678' }, '', 'back');
+  assert.match(back, /আইডি পাওয়া যায়নি/);
+  assert.doesNotMatch(back, /shape-rendering="crispEdges"/, 'no misleading QR without an ID');
 });
 
 
 test('portrait layout fits long names and long IDs while keeping the full ID', () => {
   const svg = studentIdCardSVG({ id: '000000000000000000000000123456789', name: 'অত্যন্ত দীর্ঘ শিক্ষার্থীর পূর্ণ নাম যেটি কার্ডে থাকবে', className: 'দশম শ্রেণি' });
   assert.match(svg, /000000000000000000000000123456789/);
-  assert.match(svg, /textLength="308"/);
-  assert.match(svg, /textLength="330"/);
-  assert.match(svg, /y="366"/);
+  assert.match(svg, /textLength="260" lengthAdjust="spacingAndGlyphs"/);
+  assert.match(svg, /textLength="320" lengthAdjust="spacingAndGlyphs"/);
+  assert.match(svg, /y="383"/);
 });

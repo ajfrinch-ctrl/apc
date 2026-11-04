@@ -201,8 +201,16 @@ function safeSetText(selector, value) { const node = $(selector); if (node) node
 function normalizeView(view) {
   const legacy = LEGACY_VIEWS[view];
   if (!legacy) return MANAGER_VIEWS.includes(view) ? { view } : null;
-  if (legacy.scope) studentScope = legacy.scope;
-  if (legacy.segment) financeSegment = legacy.segment;
+  if (legacy.scope) {
+    studentScope = legacy.scope;
+    const panel = $('.manager-view[data-view-panel="students"]');
+    if (panel) panel.dataset.studentsOpen = '1';
+  }
+  if (legacy.segment) {
+    financeSegment = legacy.segment;
+    const panel = $('.manager-view[data-view-panel="finance"]');
+    if (panel) panel.dataset.financeOpen = '1';
+  }
   return { view: legacy.view };
 }
 function renderView(view) {

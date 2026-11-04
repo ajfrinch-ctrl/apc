@@ -20,7 +20,7 @@ for(const role of ['admin','manager','teacher','payment'])test(`stored ${role} l
  expect(await page.evaluate(()=>localStorage.getItem('qa-preserve'))).toBe('unchanged');
 });
 test('missing login module never submits credentials to the URL or reloads',async({page})=>{
- await page.route('**/js/main.js',route=>route.abort('failed'));
+ await page.route(/\/js\/main\.js(?:\?.*)?$/,route=>route.abort('failed'));
  await page.goto('/index.html');
  await expect(page.locator('#appEntryError')).toBeVisible();
  let navigations=0;page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigations++});
@@ -34,7 +34,7 @@ test('panel module failure after verified login shows recovery instead of blank 
   const {STAFF_ACCOUNTS}=await import('/js/staff-auth.js');const {hashPassword}=await import('/js/password-hash.js');
   localStorage.setItem(STAFF_ACCOUNTS.admin.accountKey,JSON.stringify({username:'old.admin.apc',password:await hashPassword(password),role:'admin',fullName:'Old Admin'}));
  },PASSWORD);
- await page.route('**/js/admin.js',route=>route.abort('failed'));
+ await page.route(/\/js\/admin\.js(?:\?.*)?$/,route=>route.abort('failed'));
  await page.fill('#loginMobile','old.admin.apc');await page.fill('#loginPin',PASSWORD);await page.click('#loginForm button[type=submit]');
  await expect(page).toHaveURL(/\/admin.html$/);await expect(page.locator('#appEntryError')).toBeVisible();await expect(page.locator('#appEntryError button')).toHaveText('আবার চেষ্টা করুন');
  expect(await page.evaluate(()=>localStorage.getItem('activePlus.adminAccount.v1')!==null)).toBe(true);

@@ -42,7 +42,7 @@ async function instrument(page) {
     // Import while ALREADY offline; the worker must supply this module graph.
     window.__offlineReceipt = await import('/js/finance-receipt.js');
     await document.fonts.ready;
-    window.__statement = { texts: [], fills: [], images: 0, borders: 0, sources: [], fetches: [] };
+    window.__statement = { texts: [], fills: [], images: 0, imageDetails: [], borders: 0, sources: [], fetches: [] };
     const NativeFont = FontFace;
     window.FontFace = class extends NativeFont {
       constructor(name, source, options) {
@@ -60,6 +60,7 @@ async function instrument(page) {
       const native = CanvasRenderingContext2D.prototype[name];
       CanvasRenderingContext2D.prototype[name] = function (...args) {
         window.__statement[key]++;
+        if (name === 'drawImage') window.__statement.imageDetails.push({ alpha: this.globalAlpha, src: args[0]?.src || '' });
         return native.apply(this, args);
       };
     }
@@ -86,7 +87,10 @@ async function verifyDocument(page, download, status, info) {
   const draws = await page.evaluate(() => window.__statement);
   expect(draws.sources).toEqual([{ name: 'ReceiptBangla', binary: true }]);
   expect(draws.fetches).toEqual([]);
-  expect(draws.images).toBe(0);
+  // The current statement design deliberately adds the cached logo as a faint watermark.
+  expect(draws.images).toBe(1);
+  expect(draws.imageDetails[0].alpha).toBeCloseTo(0.07);
+  expect(draws.imageDetails[0].src).toContain('/assets/icons/app-logo.png');
   expect(draws.borders).toBe(0);
   expect(draws.fills).toHaveLength(1);
   expect(draws.fills[0].color).toBe('#ffffff');
@@ -100,7 +104,7 @@ async function verifyDocument(page, download, status, info) {
   const title = draws.texts.find(draw => draw.text === 'পেমেন্ট স্টেটমেন্ট');
   expect(title.top).toBeGreaterThanOrEqual(address.bottom + 4);
   // Inspect the actual JPEG embedded in the downloaded PDF, not a separately
-  // drawn HTML preview. Every pixel must be grayscale, with mostly white paper.
+  // drawn HTML preview. Only the faint logo may tint pixels; paper remains mostly white.
   const start = bytes.indexOf('4 0 obj\n');
   const stream = bytes.indexOf('stream\n', start) + 7;
   const length = Number(bytes.subarray(start, stream).toString('latin1').match(/\/Length (\d+)/)[1]);
@@ -111,16 +115,19 @@ async function verifyDocument(page, download, status, info) {
     canvas.width = bitmap.width; canvas.height = bitmap.height;
     const ctx = canvas.getContext('2d'); ctx.drawImage(bitmap, 0, 0);
     const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    let colored = 0, ink = 0;
+    let colored = 0, ink = 0, maxTint = 0;
     for (let i = 0; i < pixels.length; i += 4) {
-      if (Math.max(pixels[i], pixels[i+1], pixels[i+2]) - Math.min(pixels[i], pixels[i+1], pixels[i+2]) > 1) colored++;
+      const tint = Math.max(pixels[i], pixels[i+1], pixels[i+2]) - Math.min(pixels[i], pixels[i+1], pixels[i+2]);
+      maxTint = Math.max(maxTint, tint);
+      if (tint > 1) colored++;
       if (pixels[i] < 220) ink++;
     }
-    const result = { colored, inkFraction: ink / (canvas.width * canvas.height) };
+    const result = { coloredFraction: colored / (canvas.width * canvas.height), maxTint, inkFraction: ink / (canvas.width * canvas.height) };
     bitmap.close(); canvas.width = canvas.height = 0;
     return result;
   }, jpeg);
-  expect(image.colored).toBe(0);
+  expect(image.coloredFraction).toBeLessThan(0.12);
+  expect(image.maxTint).toBeLessThanOrEqual(24);
   expect(image.inkFraction).toBeGreaterThan(0.005);
   expect(image.inkFraction).toBeLessThan(0.12);
 }
@@ -183,6 +190,7 @@ test('the real counter saves a pending payment and downloads its simple statemen
   await expect(page.locator('#payShell')).toBeVisible();
   await page.locator('.admin-bottom [data-panel-view="students"]').click();
   await expect(page.locator('#payStudentsPanel')).toBeVisible();
+  await page.locator('[data-pay-toggle="student-search"]').click();
   await page.locator('#payStudentSearch').fill('AP-1024');
   await page.locator('#paySearchResults .fee-search-result').click();
   await expect(page.locator('#payProfileCollect')).toBeEnabled();
@@ -200,6 +208,8 @@ test('the real counter saves a pending payment and downloads its simple statemen
   await verifyDocument(page, await waiting, 'অনুমোদন বাকি', info);
   await expect(page.locator('#payReceiptDownload')).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem('activePlus.admin.transactions.v1'))).toBe(before);
+  await page.locator('#payReceiptClose').click();
+  await page.locator('[data-pay-toggle="today-list"]').click();
   await expect(page.locator('#payTodayList')).toContainText('অনুমোদন বাকি');
   // The day list shows the entry; nothing in the counter claims it as collected
   // money yet, and the counter owns no approved-total tile at all.

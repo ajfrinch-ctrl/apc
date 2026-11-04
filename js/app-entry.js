@@ -83,6 +83,20 @@
     panel.append(title, copy, retry, login);
     (document.getElementById('authScreen') || document.body).append(panel);
   }
+  // The parser starts the module request before DOMContentLoaded. A failed
+  // request can fire before start() attaches a listener to the script, leaving
+  // both login and staff panels without their recovery UI. Capture it from the
+  // head as soon as this guard runs, and wait for the body before rendering.
+  document.addEventListener('error', event => {
+    const target = event.target;
+    if (!(target instanceof HTMLScriptElement) || target.type !== 'module') return;
+    try {
+      if (new URL(target.src, location.href).pathname !== new URL(moduleUrl).pathname) return;
+    } catch { return; }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showFailure, { once: true });
+    else showFailure();
+  }, true);
+
   function start() {
     const file = entry.replace('./', '');
     const existing = document.querySelector(`script[type="module"][src*="${file}"]`);

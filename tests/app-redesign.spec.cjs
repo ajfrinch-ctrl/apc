@@ -2,11 +2,11 @@ const {test,expect}=require('./fixtures.cjs');
 const {enterPortal}=require('./portal-session.cjs');
 test.use({serviceWorkers:'block'});
 
-test('wide print media retains the original paper grids instead of the phone shell',async({page})=>{
+test('wide print media retains the original paper grids and hides navigation',async({page})=>{
  await page.setViewportSize({width:1280,height:900});
  await enterPortal(page,'admin');
  const screenShell=await page.locator('#adminShell').boundingBox();
- expect(screenShell.width).toBe(430);
+ expect(screenShell.width).toBe(1280);
  await page.emulateMedia({media:'print'});
   const printed=await page.evaluate(()=>({
   shell:document.querySelector('#adminShell').getBoundingClientRect().width,
@@ -18,7 +18,7 @@ test('wide print media retains the original paper grids instead of the phone she
  expect(printed.shell).toBeGreaterThan(1200);
  expect(printed.homeStats).toBe(0);
  expect(printed.portals).toBe(3);
- expect(printed.features).toBe(3);
+ expect(printed.features).toBe(2);
  expect(printed.nav).toBe('none');
 });
 for(const width of [320,390,1280]) for(const role of ['login','admin','manager','teacher','payment','student']) {
@@ -38,7 +38,7 @@ for(const width of [320,390,1280]) for(const role of ['login','admin','manager',
   await expect(page.locator('.launch-screen')).toHaveCount(0);
   await page.evaluate(()=>document.fonts.ready);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  const phoneWidth=Math.min(width,430);
+  const phoneWidth=width;
   const shellSelector=role==='login'?'#authScreen':role==='student'?'#appShell':role==='payment'?'#payShell':`#${role}Shell`;
   const shellBounds=await page.locator(shellSelector).boundingBox();
   expect(shellBounds.width).toBe(phoneWidth);
@@ -48,10 +48,11 @@ for(const width of [320,390,1280]) for(const role of ['login','admin','manager',
    const lightChrome=await page.evaluate(()=>({
     top:getComputedStyle(document.querySelector('.app-topbar')).backgroundColor,
     topText:getComputedStyle(document.querySelector('.app-topbar')).color,
-    bottom:getComputedStyle(document.querySelector('.bottom-nav,.admin-bottom'),'::before').backgroundColor
+    bottom:getComputedStyle(document.querySelector('.bottom-nav,.admin-bottom'),'::before').backgroundColor,
+    surface:(()=>{const probe=document.createElement('span');probe.style.cssText='background:var(--color-surface);color:var(--color-text)';document.body.append(probe);const style=getComputedStyle(probe);const result={background:style.backgroundColor,text:style.color};probe.remove();return result})()
    }));
-   expect(lightChrome.top).toBe('rgb(14, 122, 85)');
-   expect(lightChrome.topText).toBe('rgb(255, 255, 255)');
+   expect(lightChrome.top).toBe(role==='student'?lightChrome.surface.background:'rgb(14, 122, 85)');
+   expect(lightChrome.topText).toBe(role==='student'?lightChrome.surface.text:'rgb(255, 255, 255)');
    expect(lightChrome.bottom).not.toBe('rgb(255, 255, 255)');
    expect(lightChrome.bottom).not.toBe('rgba(0, 0, 0, 0)');
    if(role==='manager') {
@@ -63,14 +64,14 @@ for(const width of [320,390,1280]) for(const role of ['login','admin','manager',
       heroCards:panel.querySelectorAll('.hero-slider, .admin-hero').length,
       introVisible:!!intro && getComputedStyle(intro).display==='flex',
       headingColor:getComputedStyle(intro.querySelector('h1')).color,
-      summaryBackground:getComputedStyle(summary).backgroundColor,
+      summaryDisplay:getComputedStyle(summary).display,
       tileBackgrounds:[...summary.querySelectorAll('.manager-kpi-grid > .admin-stat-tile')].map(el=>getComputedStyle(el).backgroundColor)
      };
     });
     expect(home.heroCards).toBe(0);
     expect(home.introVisible).toBe(true);
     expect(home.headingColor).not.toBe('rgba(0, 0, 0, 0)');
-    expect(home.summaryBackground).toBe('rgba(0, 0, 0, 0)');
+    expect(home.summaryDisplay).toBe('none');
     expect(home.tileBackgrounds).toHaveLength(3);
     expect(home.tileBackgrounds.every(color=>color!=='rgba(0, 0, 0, 0)')).toBe(true);
    }
@@ -133,14 +134,16 @@ for(const width of [320,390,1280]) for(const role of ['login','admin','manager',
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }
   if(role!=='login') {
+   if(role==='student') await page.locator('.bottom-nav [data-view=home]').click();
    await page.evaluate(()=>document.documentElement.dataset.theme='dark');
    const darkChrome=await page.evaluate(()=>({
     top:getComputedStyle(document.querySelector('.app-topbar')).backgroundColor,
     topText:getComputedStyle(document.querySelector('.app-topbar')).color,
-    bottom:getComputedStyle(document.querySelector('.bottom-nav,.admin-bottom'),'::before').backgroundColor
+    bottom:getComputedStyle(document.querySelector('.bottom-nav,.admin-bottom'),'::before').backgroundColor,
+    surface:(()=>{const probe=document.createElement('span');probe.style.cssText='background:var(--color-surface);color:var(--color-text)';document.body.append(probe);const style=getComputedStyle(probe);const result={background:style.backgroundColor,text:style.color};probe.remove();return result})()
    }));
-   expect(darkChrome.top).toBe('rgb(14, 43, 31)');
-   expect(darkChrome.topText).toBe('rgb(244, 246, 250)');
+   expect(darkChrome.top).toBe(role==='student'?darkChrome.surface.background:'rgb(14, 43, 31)');
+   expect(darkChrome.topText).toBe(role==='student'?darkChrome.surface.text:'rgb(244, 246, 250)');
    expect(darkChrome.bottom).not.toBe('rgb(11, 13, 16)');
    expect(darkChrome.bottom).not.toBe('rgba(0, 0, 0, 0)');
    if(role==='manager') {
@@ -152,14 +155,14 @@ for(const width of [320,390,1280]) for(const role of ['login','admin','manager',
       heroCards:panel.querySelectorAll('.hero-slider, .admin-hero').length,
       introVisible:!!intro && getComputedStyle(intro).display==='flex',
       headingColor:getComputedStyle(intro.querySelector('h1')).color,
-      summaryBackground:getComputedStyle(summary).backgroundColor,
+      summaryDisplay:getComputedStyle(summary).display,
       firstTile:getComputedStyle(summary.querySelector('.manager-kpi-grid > .admin-stat-tile')).backgroundColor
      };
     });
     expect(home.heroCards).toBe(0);
     expect(home.introVisible).toBe(true);
     expect(home.headingColor).not.toBe('rgba(0, 0, 0, 0)');
-    expect(home.summaryBackground).toBe('rgba(0, 0, 0, 0)');
+    expect(home.summaryDisplay).toBe('none');
     expect(home.firstTile).not.toBe('rgba(0, 0, 0, 0)');
    }
    if(role==='student') {
@@ -199,7 +202,7 @@ for (const role of ['admin','manager','teacher']) test(`${role} secondary screen
  await page.evaluate(()=>document.documentElement.dataset.theme='dark');
  const views = role==='admin' ? ['staff','students','reports','roles','data','backup','security','settings','profile']
    : role==='manager' ? ['students','academic','classes','teachers','finance','cash-counter','notices','routine','exams','results','reports','profile','settings']
-   : ['students','classes','routine-view','homework','online-exams','suggestion','reports','profile'];
+   : ['classes','routine-view','homework','online-exams','suggestion','reports','profile'];
  for(const view of views) {
   if(role==='teacher') {
    await page.evaluate(view=>document.querySelector(`[data-panel-view="${view}"]`).click(),view);
@@ -237,43 +240,30 @@ for (const role of ['admin','manager','teacher']) test(`${role} secondary screen
  }
 });
 
-test('birthday hero keeps its celebration colors and readable text',async({page})=>{
+test('birthday welcome shows the greeting and readable celebration colors in both themes',async({page})=>{
  await page.setViewportSize({width:390,height:844});
+ await page.clock.setFixedTime(new Date('2026-10-09T12:00:00Z'));
  await page.goto('/demo/offline-roles.html');
  await page.evaluate(async()=>{
   const storage=await import('/js/storage.js');
-  await storage.persistAccount({username:'birthday.review',mobile:'01700000000',pin:'123456',status:'active',student:{id:'BIRTHDAY-1',name:'রায়হান আহমেদ',className:'অষ্টম শ্রেণি'}});
+  await storage.persistAccount({username:'birthday.review',mobile:'01700000000',pin:'123456',status:'active',student:{id:'BIRTHDAY-1',name:'রায়হান আহমেদ',className:'অষ্টম শ্রেণি',birthDate:'2008-10-09'}});
   await storage.persistSession(true);
  });
  await page.goto('/index.html');
  await expect(page.locator('#appShell')).toBeVisible();
- await page.evaluate(()=>{
-  document.documentElement.dataset.theme='light';
-  document.documentElement.setAttribute('data-birthday','');
- });
- const light=await page.evaluate(()=>{
-  const hero=document.querySelector('#homeView .pay-hero');
-  const style=getComputedStyle(hero,'::before');
-  return {
-   display:style.display,
-   background:style.backgroundImage,
-   greeting:getComputedStyle(hero.querySelector('.pay-greeting')).color,
-   name:getComputedStyle(hero.querySelector('.pay-hero-name')).color,
-   meta:getComputedStyle(hero.querySelector('.pay-hero-meta')).color,
-   avatar:getComputedStyle(hero.querySelector('.pay-avatar')).color,
-   link:getComputedStyle(hero.querySelector('.pay-hero-link')).color
-  };
- });
- expect(light.display).toBe('block');
- expect(light.background).toContain('rgb(246, 193, 90)');
- for(const key of ['greeting','name','meta','avatar','link']) expect(light[key]).toBe('rgb(59, 36, 16)');
- await page.evaluate(()=>document.documentElement.dataset.theme='dark');
- const dark=await page.locator('#homeView .pay-hero').evaluate(el=>({
-  background:getComputedStyle(el,'::before').backgroundImage,
-  name:getComputedStyle(el.querySelector('.pay-hero-name')).color
- }));
- expect(dark.background).toContain('rgb(255, 138, 122)');
- expect(dark.name).toBe('rgb(59, 36, 16)');
+ await expect(page.locator('html')).toHaveAttribute('data-birthday','');
+ await expect(page.locator('#birthdayBanner')).toBeVisible();
+ await expect(page.locator('#birthdayBanner')).toContainText('রায়হান');
+ for(const theme of ['light','dark']) {
+  await page.evaluate(choice=>document.documentElement.dataset.theme=choice,theme);
+  const card=await page.locator('#homeView .student-home-welcome').evaluate(el=>({
+   background:getComputedStyle(el).backgroundImage,
+   colors:[...el.querySelectorAll('.pay-greeting,.birthday-banner,.pay-hero-name,.pay-hero-meta,.pay-avatar')].map(node=>getComputedStyle(node).color)
+  }));
+  expect(card.background).toContain('rgb(246, 193, 90)');
+  expect(card.colors).toHaveLength(5);
+  expect(card.colors.every(color=>color==='rgb(59, 36, 16)')).toBe(true);
+ }
 });
 
 test('registration uses readable full-width fields on mobile',async({page},info)=>{
@@ -291,12 +281,14 @@ test('registration uses readable full-width fields on mobile',async({page},info)
  expect(sizes.every(s=>s.width>=20&&s.font>=16)).toBe(true);
  await expect(page.locator('.launch-screen')).toHaveCount(0);
  await page.screenshot({path:info.outputPath('register.png')});
+ await page.locator('#nameBn').fill('রায়হান আহমেদ');
+ await page.locator('#nameEn').fill('Raihan Ahmed');
  await page.locator('#regMobile').fill('01700000000');
  await page.locator('#regUsername').fill('review.student');
  await page.locator('#regPin').fill('123456');
  await page.locator('#regPinConfirm').fill('123456');
  await page.locator('[data-registration-step="1"] [data-next-step]').click();
- await expect(page.locator('#nameBn')).toBeVisible();
+ await expect(page.locator('#fatherName')).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:info.outputPath('register-personal.png')});
 });
