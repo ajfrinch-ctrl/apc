@@ -83,7 +83,13 @@ before(async () => {
 });
 after(() => ctx?.window.close());
 
-test('the login screen repaints as time passes — sun, season line and all', async () => {
+test('the login screen repaints as time passes — sun, season line and all', async t => {
+  // Exercise the clock fallback deterministically; CI may have live weather
+  // network access, unlike an offline developer machine.
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('weather unavailable in fallback test'); };
+  t.after(() => { globalThis.fetch = originalFetch; });
+  ctx.window.sessionStorage.removeItem('activePlus.authWeather.v3');
   await paintAuthSky(new Date('2026-01-10T12:00:00'));
   const screen = ctx.$('#authScreen');
   assert.equal(screen.dataset.sky, 'clear-day');
