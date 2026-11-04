@@ -15,4 +15,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:firebase && git diff --exit-code -- vendor/firebase/
-      - run: npm test
+      - name: Run npm test
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee "$RUNNER_TEMP/apc-test.log"
+          test_status=${PIPESTATUS[0]}
+          if [ "$test_status" -ne 0 ]; then
+            node tools/ci-test-annotations.mjs "$RUNNER_TEMP/apc-test.log"
+          fi
+          exit "$test_status"
