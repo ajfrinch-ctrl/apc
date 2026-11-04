@@ -876,7 +876,10 @@ async function refreshFirstAdminSetup({ openWhenUninitialized = false } = {}) {
     const status = await adminInitializationStatus();
     if (!status.ok) {
       closeFirstAdminOption();
-      if (!staffAccountRecordExists('admin')) {
+      // A background verification must not overwrite feedback from a user's
+      // login or another auth action that completed while the request ran.
+      const authMessage = $('#authMessage');
+      if (!staffAccountRecordExists('admin') && (!authMessage || authMessage.hidden)) {
         setAuthMessage(ADMIN_VERIFY_REQUIRED_MESSAGE);
       }
       scheduleFirstAdminRetry();
@@ -892,7 +895,7 @@ async function refreshFirstAdminSetup({ openWhenUninitialized = false } = {}) {
       clearOrphanedLocalAdmin();
       renderFirstAdminPreview();
     }
-    if (($('#authMessage')?.textContent || '').trim() === ADMIN_VERIFY_REQUIRED_MESSAGE) {
+    if (($('#authMessage .auth-message-text')?.textContent || '').trim() === ADMIN_VERIFY_REQUIRED_MESSAGE) {
       setAuthMessage('');
     }
     firstAdminState.available = true;

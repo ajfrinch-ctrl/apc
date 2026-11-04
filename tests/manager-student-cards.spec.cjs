@@ -37,6 +37,7 @@ async function enterStudents(page) {
   if (await alertClose.isVisible().catch(() => false)) await alertClose.click();
   await page.locator('.manager-bottom [data-panel-view="students"]').click();
   await expect(page.locator('.manager-view[data-view-panel="students"]')).toBeVisible();
+  await page.locator('.manager-view[data-view-panel="students"] [data-student-scope="all"]').click();
   await expect(page.locator('#managerPendingBadge')).toHaveText('১ অপেক্ষমাণ');
 }
 
@@ -71,8 +72,8 @@ for (const viewport of viewportCases) {
     await expect(statusGroups.nth(2).locator('[data-manager-student="S-REJECTED"]')).toHaveCount(1);
     await expect(pending.locator('.manager-student-visible-meta')).toContainText('নবম শ্রেণি');
     await expect(pending.locator('.manager-student-visible-meta')).toContainText('A');
-    await expect(page.locator('.manager-student-pending-banner')).toContainText('অপেক্ষমাণ আবেদন');
-    expect(await page.locator('.manager-student-scopes').evaluate(element => getComputedStyle(element).display)).toBe('flex');
+    await expect(page.locator('.manager-student-pending-banner')).toContainText('অনুমোদনের অপেক্ষায়');
+    await expect(page.locator('.manager-student-scopes [data-student-scope]')).toHaveCount(5);
     expect(await page.locator('#managerStudentSearch').evaluate(element => getComputedStyle(element).minHeight)).toBe('42px');
     const inactive = list.locator('[data-manager-student="S-INACTIVE"]');
     await inactive.locator('.manager-student-details-toggle').click();
@@ -138,6 +139,7 @@ for (const viewport of viewportCases) {
     await page.locator('.manager-bottom [data-panel-view="dashboard"]').click();
     await page.locator('.manager-bottom [data-panel-view="students"]').click();
     await expect(page.locator('.manager-view.active')).toHaveAttribute('data-view-panel', 'students');
+    await page.locator('.manager-view[data-view-panel="students"] [data-student-scope="all"]').click();
     await expect(page.locator('.manager-student-details[hidden]')).toHaveCount(7);
     await pending.locator('.manager-student-details-toggle').click();
     await expect(pendingDetails).toBeVisible();
@@ -145,6 +147,7 @@ for (const viewport of viewportCases) {
     await expect(page.locator('#managerShell')).toBeVisible();
     await expect(page.locator('.manager-view[data-view-panel="students"]')).toBeVisible();
     await expect(page.locator('.manager-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'students');
+    await page.locator('.manager-view[data-view-panel="students"] [data-student-scope="all"]').click();
     await expect(page.locator('.manager-student-details[hidden]')).toHaveCount(7);
 
     const topbar = page.locator('.manager-shell > .app-topbar');

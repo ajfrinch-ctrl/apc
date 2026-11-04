@@ -36,7 +36,7 @@ for (const viewport of [{ width:320, height:740 }, { width:360, height:800 }, { 
     page.on('pageerror', error => errors.push(error.message));
     await prepare(page, theme, viewport);
     await fits(page);
-    await expect(page.locator('#studentServices .pay-tile')).toHaveCount(6);
+    await expect(page.locator('#studentServices .pay-tile')).toHaveCount(7);
     expect(await page.locator('#studentServices .pay-tile').evaluateAll(items => items.every(item => {
       const box = item.getBoundingClientRect();
       return box.width >= 44 && box.height >= 44;

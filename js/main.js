@@ -412,7 +412,10 @@ initLogin({
 });
 if (ON_AUTH_PAGE) {
   void import('./register.js').then(({ initRegister }) => initRegister({ state }));
-  void import('./recovery.js').then(({ initRecovery }) => initRecovery({ state }));
+  void import('./recovery.js').then(({ initRecovery }) => initRecovery({ state })).catch(() => {
+    const notice = $('#recoveryLoadError');
+    if (notice) notice.hidden = false;
+  });
 }
 initLogout({ onLoggedOut: leaveApp });
 

@@ -10,8 +10,8 @@
    parser-blocking boot graph:
 
      • eager JS closure of js/main.js  ≤ 40 modules / 300 KB raw
-       (35 modules / 279.2 KB today; js/notification-rules.js is the largest
-        member at 37.6 KB and is deliberately eager for the birthday look)
+       (the birthday date helper is eager, while the notification rules engine
+        stays outside the first-paint graph)
      • every production page links the fifteen canonical stylesheets
      • the shipped font stays WOFF2 (a TTF-only @font-face would cost +214 KB)
 

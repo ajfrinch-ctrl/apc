@@ -83,6 +83,23 @@ test('only Admin and Manager roles can mount the editor; existing page routes re
   admin.editor.stop(); manager.editor.stop();
 });
 
+test('a failed background seed leaves the cached list visible and reports offline status', async () => {
+  const base = makeStoreFactory([entry()]);
+  const failing = {
+    ...base,
+    factory(options) {
+      const store = base.factory(options);
+      store.seedDefaults = async () => { throw new Error('network unavailable'); };
+      return store;
+    }
+  };
+  const { root, editor } = await makePage('manager.html', '[data-advice-admin]', 'manager', failing);
+  assert.equal(root.querySelectorAll('[data-advice-id]').length, 1);
+  assert.equal(root.querySelector('[data-advice-status]').dataset.tone, 'offline');
+  assert.match(root.querySelector('[data-advice-status]').textContent, /অনলাইন পরামর্শ-তালিকা প্রস্তুত করা যায়নি/u);
+  editor.stop();
+});
+
 test('editor renders ordered today/tomorrow badges and an accessible 0/140 form without pin controls', async () => {
   const rows = [entry('ADV-001', 1), entry('ADV-002', 2)];
   const { ctx, root, editor } = await makePage('admin.html', '[data-advice-admin]', 'admin', makeStoreFactory(rows));

@@ -73,10 +73,10 @@ test('top and bottom bars carry the green brand color in light and AMOLED themes
 
 test('student, manager and teacher have real, named service shortcuts', () => {
   const allowed = {
-    manager: ['students', 'classes', 'teachers', 'routine', 'exams', 'notices', 'finance', 'reports'],
+    manager: ['students', 'classes', 'teachers', 'routine', 'exams', 'notices', 'finance', 'reports', 'lecture-sheets'],
     teacher: []
   };
-  const expectedCount = { manager: 9, teacher: 0 };
+  const expectedCount = { manager: 10, teacher: 0 };
   const studentCards = [
     ['homework', 'বাড়ির কাজ'], ['exams', 'পরীক্ষা'], ['suggestion', 'সাজেশন'],
     ['question-bank', 'প্রশ্নব্যাংক'], ['exam-results', 'ফলাফল'], ['notice-board', 'নোটিশ বোর্ড'], ['class-chat', 'শ্রেণি চ্যাট']
@@ -144,7 +144,11 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
   const adminBacks = [...adminDocument.querySelectorAll('.pay-back')];
   const mainBacks = adminBacks.filter(button => !button.closest('[data-parent-view]'))
     .map(button => button.getAttribute('data-admin-back') || button.getAttribute('data-panel-view'));
-  assert.deepEqual(mainBacks, Array(16).fill('dashboard'), 'hub toggle panels removed — main screens return home');
+  assert.equal(mainBacks.length, 16);
+  const backupBack = adminDocument.querySelector('[data-view-panel="backup"] .pay-back');
+  assert.equal(backupBack.dataset.adminBack, 'data', 'backup returns to the data screen');
+  assert.equal(mainBacks.filter(parent => parent === 'data').length, 1);
+  assert.equal(mainBacks.filter(parent => parent === 'dashboard').length, 15);
   const detailBacks = adminBacks.filter(button => button.closest('[data-parent-view]'));
   assert.equal(detailBacks.length, 35, 'each routed detail has its own Back');
   for (const button of detailBacks) {

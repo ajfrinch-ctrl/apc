@@ -5,7 +5,7 @@ test.use({ serviceWorkers: 'block' });
    audit wall is rebuilt here from the shipped icon module itself: every
    illustration and glyph the app can paint, mounted into one page. The counts
    are part of the contract — adding artwork means updating them on purpose. */
-const ILLUSTRATION_COUNT = 33;
+const ILLUSTRATION_COUNT = 34;
 const GLYPH_COUNT = 65;
 
 for (const theme of ['light', 'dark']) test(`all colour/glyph artwork renders without invalid SVG or clipping (${theme})`, async ({ page }) => {

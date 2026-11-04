@@ -36,13 +36,15 @@ async function goAcademic(page) {
 async function create(page, type, title, overrides = {}) {
   if (type === 'routine') {
     await page.locator('.admin-bottom [data-panel-view=classes]').click();
-    await page.locator('#teacherClassList [data-teacher-open-class="দশম শ্রেণি"]').click();
-    await page.locator('.teacher-type-tabs [data-type-tab=routine]').click();
-    await page.locator('#teacherNewActivity').click();
+    await page.locator('#teacherClasses [data-panel-view=routine-view]').click();
+    await page.locator('#teacherRoutine [data-panel-view=routine]').click();
+    await page.locator('#teacherClassFilter').selectOption('দশম শ্রেণি');
+    await page.locator('#teacherRecords [data-records-action=create]').click();
   } else {
     await goAcademic(page);
-    // The Academic hub actions are one-tap creators and open the form directly.
+    // Academic actions open the records screen; its create card opens the editor.
     await page.locator(`#teacherAcademic [data-panel-view=${type}]`).click();
+    await page.locator('#teacherRecords [data-records-action=create]').click();
   }
   await page.locator('#activity-title').fill(title);
   await page.locator('#activity-subject').fill('গণিত');
@@ -111,17 +113,23 @@ test('the Teacher home homework hero opens the reused create form directly', asy
 });
 
 test('exam drafts must use Manager approval workflow; legacy marks are read-only', async ({ page, context }) => {
+  await page.clock.setFixedTime(new Date('2026-10-01T09:00:00Z'));
   await enter(page);
-  await goAcademic(page);
-  await page.locator('#teacherAcademic [data-academic-section=exams]').click();
+  await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
+  await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
+  await page.locator('#teacherExamWorkspace [data-exam-action=new-mcq]').click();
   await expect(page.locator('#teacherExamWorkspace [data-exam-form]')).toBeVisible();
   await page.locator('#teacherExamWorkspace [name=title]').fill('গণিত মূল্যায়ন'); await page.locator('#teacherExamWorkspace [name=subject]').selectOption('গণিত');
+  await page.locator('#teacherExamWorkspace [name=className]').selectOption('দশম শ্রেণি');
+  await page.locator('#teacherExamWorkspace [name=startAt]').fill('2026-10-01T16:00');
+  await page.locator('#teacherExamWorkspace [name=endAt]').fill('2026-10-01T17:00');
   await page.locator('#teacherExamWorkspace [name=template]').fill('প্রশ্ন: ২ + ২ কত?\nA: ৪\nB: ৫\nC: ৬\nD: ৭\nউত্তর: A');
   await page.locator('[data-exam-form] [type=submit]').click();
   await expect(page.locator('#teacherExamWorkspace [data-managed-exam]')).toContainText('খসড়া');
+  await expect(page.locator('#teacherExamWorkspace')).not.toHaveAttribute('aria-busy', 'true');
   await page.locator('#teacherExamWorkspace [data-exam-action=request]').click();
   await expect(page.locator('#teacherExamWorkspace [data-managed-exam]')).toContainText('অনুমোদনের অপেক্ষায়');
-  await page.locator('.admin-bottom [data-panel-view=exam]').click();
+  await page.locator('#teacherOnlineExams [data-panel-view=exam]').click();
   await expect(page.locator('#teacherNewActivity')).toBeHidden();
   const blocked = await page.evaluate(async () => {
     try {
@@ -147,9 +155,9 @@ test('homework student self-report is visible to teacher, review is visible to s
   await syncStorage(student, page, [KEY]);
   await page.reload();
   await expect(page.locator('#teacherShell')).toBeVisible();
-  await page.locator('.admin-bottom [data-panel-view=classes]').click();
-  await page.locator('#teacherClassList [data-teacher-open-class="দশম শ্রেণি"]').click();
-  await page.locator('.teacher-type-tabs [data-type-tab=homework]').click();
+  await goAcademic(page);
+  await page.locator('#teacherAcademic [data-panel-view=homework]').click();
+  await page.locator('#teacherClassFilter').selectOption('দশম শ্রেণি');
   const activityId = await card.getAttribute('data-activity-id');
   await card.locator('[data-record-action=progress]').click(); await expect(page.locator('[data-progress-id="AP-1024"]')).toHaveValue('done');
   await page.locator('[data-progress-id="AP-1024"]').selectOption('reviewed'); await page.locator('#teacherProgressForm [type=submit]').click();
@@ -171,9 +179,10 @@ test('routine creation, attendance, schedule conflicts and student routine', asy
   await expect(student.locator('#teacherRoutineList')).toContainText('অতিরিক্ত গণিত ক্লাস'); await expect(student.locator('#teacherRoutineList')).toContainText('উপস্থিত');
   await expect(student.locator('#teacherRoutineList')).toContainText('কক্ষ ২');
   await page.locator('.admin-bottom [data-panel-view=classes]').click();
-  await page.locator('#teacherClassList [data-teacher-open-class="দশম শ্রেণি"]').click();
-  await page.locator('.teacher-type-tabs [data-type-tab=routine]').click();
-  await page.locator('#teacherNewActivity').click(); await page.locator('#activity-title').fill('সংঘর্ষ'); await page.locator('#activity-subject').fill('বাংলা');
+  await page.locator('#teacherClasses [data-panel-view=routine-view]').click();
+  await page.locator('#teacherRoutine [data-panel-view=routine]').click();
+  await page.locator('#teacherClassFilter').selectOption('দশম শ্রেণি');
+  await page.locator('#teacherRecords [data-records-action=create]').click(); await page.locator('#activity-title').fill('সংঘর্ষ'); await page.locator('#activity-subject').fill('বাংলা');
   await page.locator('#activity-date').fill('2026-10-01'); await page.locator('#activity-time').fill('17:30'); await page.locator('#activity-status').selectOption('published');
   await page.locator('#teacherActivityForm [type=submit]').click(); await expect(page.locator('#teacherSaveError')).toContainText('আরেকটি ক্লাস/পরীক্ষা');
 });
@@ -187,13 +196,19 @@ test('suggestions, subject links, class/group scope, draft filter and escaped co
   await page.locator('#teacherStatusFilter').selectOption('draft'); await expect(page.locator('#teacherRecordList .teaching-card')).toHaveCount(1);
   const student = await studentPage(context, page, { group: 'বিজ্ঞান বিভাগ' }); await student.locator('#studySections [data-study-section=suggestion]').click();
   await expect(student.locator('#learningList .teaching-card')).toHaveCount(1); await expect(student.locator('#learningList img')).toHaveCount(0);
-  await expect(student.locator('.teaching-resource')).toHaveAttribute('href', 'https://example.com/notes');
+  const resourceLinks = student.locator('#learningList .teaching-resource');
+  await expect(resourceLinks).toHaveCount(2);
+  for (const link of await resourceLinks.all()) {
+    await expect(link).toHaveAttribute('href', 'https://example.com/notes');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  }
   await expect(student.locator('#learningList')).not.toContainText('অন্য'); await expect(student.locator('#learningList')).not.toContainText('খসড়া');
   await expect(student.locator('[data-record-action]')).toHaveCount(0);
 });
 
 test('write failure keeps entered work and does not falsely save; corrupt storage fails closed', async ({ page }) => {
   await enter(page); await goAcademic(page); await page.locator('#teacherAcademic [data-panel-view=homework]').click();
+  await page.locator('#teacherRecords [data-records-action=create]').click();
   await page.locator('#activity-title').fill('হারাবে না'); await page.locator('#activity-subject').fill('গণিত');
   await page.evaluate(key => { const real = Storage.prototype.setItem; window.__restoreStorage = () => { Storage.prototype.setItem = real; delete window.__restoreStorage; }; Storage.prototype.setItem = function(k, v) { if (k === key) throw new DOMException('quota', 'QuotaExceededError'); return real.call(this, k, v); }; }, KEY);
   await page.locator('#teacherActivityForm [type=submit]').click(); await expect(page.locator('#teacherSaveError')).toContainText('সংরক্ষণ হয়নি');
@@ -204,6 +219,7 @@ test('write failure keeps entered work and does not falsely save; corrupt storag
   // The session is still valid, so the shell opens — and the data surface
   // refuses instead of inventing rows or silently wiping the bad value.
   await expect(page.locator('#teacherShell')).toBeVisible();
+  await page.locator('.admin-bottom [data-panel-view=home]').click();
   await expect(page.locator('#teacherDataError')).toBeVisible();
   expect(await page.evaluate(key => localStorage.getItem(key), KEY)).toBe('{broken');
 });
@@ -258,7 +274,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
       // ২০২৬-১০-২১: Home is now a single column of full-width hero action cards.
       const actions = document.querySelector('.teacher-home-actions');
       const cards = actions ? [...actions.querySelectorAll('.teacher-action-card')] : [];
-      const singleFullWidth = cards.length === 4 &&
+      const singleFullWidth = cards.length === 3 &&
         cards.every(card => Math.abs(card.getBoundingClientRect().width - actions.getBoundingClientRect().width) < 2);
       return topbarName === null && bell.width > 0 && singleFullWidth && document.documentElement.scrollWidth <= innerWidth;
     });
@@ -277,6 +293,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
     if (viewport.width <= 480) {
       await goAcademic(page);
       await page.locator('#teacherAcademic [data-panel-view=homework]').click();
+      await page.locator('#teacherRecords [data-records-action=create]').click();
       await expect(page.locator('body')).toHaveClass(/admin-modal-open/);
       await page.locator('#activity-title').fill('মোবাইল পরীক্ষা'); await page.locator('#activity-subject').fill('গণিত');
       const submit = page.locator('#teacherActivityForm [type=submit]'); await submit.scrollIntoViewIfNeeded();

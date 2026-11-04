@@ -171,7 +171,7 @@ test('the bottom bar renders one icon + label per permitted tab', () => {
 test('the dashboard grid is generated from the permission model', () => {
   const tiles = ctx.$$('#adminFeatureGrid .admin-feature-tile');
   assert.deepEqual(tiles.map(tile => tile.dataset.panelView), [
-    'students'
+    'students', 'content-lecture-sheets'
   ]);
   for (const tile of tiles) {
     const wrap = tile.querySelector('.admin-feature-icon');

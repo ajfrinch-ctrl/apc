@@ -9,7 +9,9 @@ async function expectOnlyStudentView(page, route) {
   await expect(page.locator(`.view[data-view-panel="${route}"]`)).toBeVisible();
   await expect(page.locator('.view.active')).toHaveCount(1);
   await expect(page.locator('.view:visible')).toHaveCount(1);
-  await expect(page.locator('#studentHeader')).toBeVisible();
+  // Class chat intentionally owns the full viewport and hides shell chrome.
+  if (route === 'class-chat') await expect(page.locator('#studentHeader')).toBeHidden();
+  else await expect(page.locator('#studentHeader')).toBeVisible();
 }
 
 test('bottom navigation and every Student route keep one view and the topbar visible', async ({ page }) => {
@@ -33,6 +35,9 @@ test('bottom navigation and every Student route keep one view and the topbar vis
     await expectOnlyStudentView(page, route);
   }
 
+  // Leave fullscreen chat before checking pending-approval shell chrome.
+  await page.evaluate(async () => (await import('/js/shell.js')).setView('home', { history: 'keep' }));
+  await expect(page.locator('#studentHeader')).toBeVisible();
   // The pending-approval state is still part of the signed-in Student panel;
   // keep the same topbar there while hiding regular navigation/content.
   await page.locator('#appShell').evaluate(shell => shell.classList.add('is-pending'));

@@ -38,7 +38,10 @@ async function assertPinnedAfterScroll(page, selectors, mainSelector, scrollRoot
   const before = await chromeGeometry(page, selectors);
   expect(Math.abs(before.headerTop)).toBeLessThanOrEqual(1);
   expect(Math.abs(before.footerBottom - before.viewportHeight)).toBeLessThanOrEqual(1);
-  expect(['sticky', 'fixed']).toContain(before.headerPosition);
+  // The wide Student shell pins a relative header outside its scrolling main.
+  const isWideStudent = selectors.header === '#studentHeader' && await page.evaluate(() => innerWidth >= 768);
+  const headerPositions = isWideStudent ? ['relative'] : ['sticky', 'fixed'];
+  expect(headerPositions).toContain(before.headerPosition);
   expect(before.footerPosition).toBe('fixed');
 
   if (scrollRoot === 'document') {
@@ -140,7 +143,7 @@ for (const viewport of viewports) {
   });
 }
 
-test('Manager keeps its phone shell and five-item bottom navigation on a wide desktop viewport', async ({ page }) => {
+test('Manager keeps its wide desktop shell and five-item bottom navigation', async ({ page }) => {
   const viewport = { width: 1280, height: 900 };
   await page.setViewportSize(viewport);
   await enterPortal(page, 'manager');
@@ -176,13 +179,13 @@ test('Manager keeps its phone shell and five-item bottom navigation on a wide de
       viewportHeight: innerHeight
     };
   });
-  expect(initial.shell.width).toBe(430);
-  expect(initial.shell.left).toBe(425);
+  expect(initial.shell.width).toBe(viewport.width);
+  expect(initial.shell.left).toBe(0);
   expect(initial.shellDisplay).toBe('flex');
   expect(Math.abs(initial.header.left - initial.shell.left)).toBeLessThanOrEqual(1);
   expect(Math.abs(initial.header.top)).toBeLessThanOrEqual(1);
-  expect(Math.abs(initial.main.left - (initial.shell.left + 1))).toBeLessThanOrEqual(1);
-  expect(Math.abs(initial.main.width - (initial.shell.width - 2))).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.main.left - initial.shell.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.main.width - initial.shell.width)).toBeLessThanOrEqual(1);
   expect(initial.nav.width).toBe(initial.shell.width);
   expect(Math.abs(initial.nav.left - initial.shell.left)).toBeLessThanOrEqual(1);
   expect(Math.abs(initial.nav.bottom - initial.viewportHeight)).toBeLessThanOrEqual(1);
@@ -217,13 +220,13 @@ test('Manager keeps its phone shell and five-item bottom navigation on a wide de
         await expect(page.locator(`.manager-view[data-view-panel="${destination}"]`)).toBeVisible();
         await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
         await expect.poll(() => page.evaluate(() => location.hash)).toBe(`#${destination}`);
-        await page.locator(`.manager-view[data-view-panel="${destination}"] [data-panel-view="more"]`).click();
+        await nav.locator('[data-panel-view="more"]').click();
         await expect(page.locator('.manager-view[data-view-panel="more"]')).toBeVisible();
         await row.click(); // Repeat from the hub: exactly one route/panel remains active.
         await expect(page.locator('.manager-view.active')).toHaveCount(1);
         await expect(page.locator(`.manager-view[data-view-panel="${destination}"]`)).toBeVisible();
         await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
-        await page.locator(`.manager-view[data-view-panel="${destination}"] [data-panel-view="more"]`).click();
+        await nav.locator('[data-panel-view="more"]').click();
         await expect(page.locator('.manager-view[data-view-panel="more"]')).toBeVisible();
       }
     }
@@ -234,7 +237,6 @@ test('Manager keeps its phone shell and five-item bottom navigation on a wide de
   await nav.locator('[data-panel-view="more"]').click();
   await page.locator('#managerMoreHub [data-panel-view="reports"]').click();
   await expect(page.locator('.manager-view.active')).toHaveAttribute('data-view-panel', 'reports');
-  await expect(page.locator('.manager-view[data-view-panel="reports"] [data-panel-view="more"]')).toBeVisible();
   await expect(nav.locator('[aria-current="page"]')).toHaveAttribute('data-panel-view', 'more');
   await page.reload();
   await expect(shell).toBeVisible();

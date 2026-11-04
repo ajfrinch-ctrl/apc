@@ -15,7 +15,8 @@ const LAZY = [
   'js/student-practice.js',
   'js/reports.js',
   'js/exam-pdf.js',
-  'js/staff-directory.js'
+  'js/staff-directory.js',
+  'js/notification-rules.js'
 ];
 
 test('the student boot graph stays inside the first-paint load budget', () => {

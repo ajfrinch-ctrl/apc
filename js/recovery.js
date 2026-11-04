@@ -153,8 +153,12 @@ export function initRecovery({ state }) {
   $('#recoveryForm')?.addEventListener('submit', event => handleVerify(event, state, session));
   $('#recoveryPasswordForm')?.addEventListener('submit', event => handlePasswordChange(event, state, session));
   $('#recoveryBack')?.addEventListener('click', () => resetRecovery(session));
-  $('#forgotPinButton')?.addEventListener('click', () => {
+  const button = $('#forgotPinButton');
+  button?.addEventListener('click', () => {
     resetRecovery(session);
     openModal('recoveryModal');
   });
+  // The auth screen can appear before this lazy module loads. Do not offer a
+  // recovery button until its handler is actually ready.
+  if (button) button.disabled = false;
 }

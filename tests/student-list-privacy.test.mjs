@@ -78,7 +78,8 @@ test('every row names the student, and only the ID waits behind a button', () =>
     const button = revealButton(student.id);
     assert.ok(button, `${student.id} has its own ID reveal`);
     assert.equal(button.getAttribute('aria-expanded'), 'false');
-    assert.equal(button.textContent.trim(), 'আইডি দেখুন');
+    assert.equal(button.closest('.student-row').querySelector('.student-row-detail').hidden, true,
+      'the row starts collapsed');
   }
 });
 
@@ -90,7 +91,7 @@ test('one click reveals that row\'s ID only — names keep showing either way', 
   assert.equal(opened.dataset.studentRevealed, '1', 'the opened row is marked');
   assert.match(opened.querySelector('.audit-id-badge').textContent, /AP-201/, 'the Student ID is shown');
   assert.match(opened.textContent, /রাইসা ইসলাম/, 'the name is still there');
-  assert.equal(hideButton('AP-201').textContent.trim(), 'আইডি লুকান');
+  assert.equal(opened.querySelector('.student-row-detail').hidden, false, 'the selected row expands');
   assert.equal(hideButton('AP-201').getAttribute('aria-expanded'), 'true');
 
   for (const other of ['AP-202', 'AP-203']) {
@@ -186,7 +187,8 @@ test('the pending queue names the applicant up front and hides only mobile + ID'
   assert.ok(item.querySelector('[data-pending-reject="AP-202"]'), 'reject is wired');
 
   const reveal = item.querySelector('[data-pending-reveal]');
-  assert.equal(reveal.textContent.trim(), 'নম্বর ও আইডি দেখুন');
+  assert.equal(reveal.textContent.trim(), 'বিস্তারিত দেখুন');
+  assert.equal(item.querySelector('.apc-pending-item__detail').hidden, true);
   ctx.click(reveal);
   await ctx.flush();
 
@@ -195,7 +197,8 @@ test('the pending queue names the applicant up front and hides only mobile + ID'
   assert.match(opened.textContent, /01912345678/, 'the mobile is readable for a callback');
   assert.match(opened.textContent, /AP-202/, 'and the Student ID');
   assert.match(opened.textContent, /ফারহানা নূর/, 'the name never moved');
-  assert.equal(opened.querySelector('[data-pending-reveal]').textContent.trim(), 'নম্বর ও আইডি লুকান');
+  assert.equal(opened.querySelector('[data-pending-reveal]').textContent.trim(), 'সংক্ষিপ্ত করুন');
+  assert.equal(opened.querySelector('.apc-pending-item__detail').hidden, false);
   assert.ok(opened.querySelector('[data-pending-approve="AP-202"]'), 'approve is still wired');
   assert.ok(opened.querySelector('[data-pending-reject="AP-202"]'), 'reject is still wired');
 });

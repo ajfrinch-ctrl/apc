@@ -41,7 +41,7 @@ test('the two precache sets are disjoint, complete and installed together', () =
 test('a student device never installs a staff page or the studio', () => {
   for (const entry of ['./admin.html', './manager.html', './teacher.html', './payment.html',
     './js/admin.js', './js/teacher.js', './js/manager.js', './js/payment.js',
-    './js/lecture-sheet-studio.js', './vendor/lecture-studio/sdk.js',
+    './js/lecture-sheet-studio.js', './js/panel-capabilities.js', './vendor/lecture-studio/sdk.js',
     './js/exam-manager.js', './css/teacher-panel.css']) {
     assert.ok(STAFF.includes(entry), `${entry} is staff work and belongs in the staff half`);
     assert.ok(!APP.includes(entry), `${entry} must not be forced on a student device`);
@@ -49,7 +49,7 @@ test('a student device never installs a staff page or the studio', () => {
   /* What the student app really needs stays in the student half. */
   for (const entry of ['./student.html', './index.html', './js/main.js', './js/shell.js',
     './vendor/firebase/sdk.js', './vendor/supabase/sdk.js', './css/ui-wallet.css',
-    './js/notice-center.js', './js/course-hub.js', './js/lecture-sheet-pdf.js',
+    './js/notice-center.js', './js/birthday-date.js', './js/course-hub.js', './js/lecture-sheet-pdf.js',
     /* The report builder is shared: js/student-features.js imports js/reports.js,
        which is why the whole report chain stays in the student half. */
     './js/reports.js', './js/report-catalog.js', './js/report-builders.js']) {

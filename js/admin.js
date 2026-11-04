@@ -617,9 +617,8 @@ function renderStudents() {
             </div>
             <div class="student-row-detail" ${revealed ? '' : 'hidden'}>
               <div class="student-meta-line">
-                <span class="audit-id-badge">ID: ${escapeHtml(rowKey)}</span>
+                <span class="audit-id-badge">ID: ${escapeHtml(revealed ? rowKey : PRIVACY_MASK)}</span>
                 ${student.className ? `<span class="badge">${escapeHtml(student.className)}</span>` : ''}
-                ${student.mobile ? `<span class="audit-id-badge" dir="ltr">${escapeHtml(student.mobile)}</span>` : ''}
               </div>
               <div class="student-actions">
                 <button class="mini-btn" type="button" data-action="view" data-id="${escapeHtml(rowKey)}">প্রোফাইল</button>

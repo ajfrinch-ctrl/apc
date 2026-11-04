@@ -5,7 +5,8 @@
   screen.setAttribute('role', 'status');
   screen.setAttribute('aria-label', 'অ্যাপ খুলছে');
   const logo = document.createElement('img');
-  logo.src = 'assets/icons/logo-128.png';
+  // Resolve relative to this script so nested pages use the same brand asset.
+  logo.src = new URL('../assets/icons/logo-128.png', document.currentScript.src).href;
   logo.alt = 'Active Plus Coaching';
   logo.width = logo.height = 144;
   const tagline = document.createElement('p');

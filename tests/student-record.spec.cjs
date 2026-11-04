@@ -20,6 +20,7 @@ for (const [width, height, dark] of [[320, 740], [360, 800], [390, 844], [412, 9
     await expect(page.locator('.launch-screen')).toHaveCount(0);
     const stored = await page.evaluate(() => localStorage.getItem('activePlus.admin.students.v1'));
     if (dark) await page.evaluate(() => document.documentElement.dataset.theme = 'dark');
+    await page.locator('#studentList .student-row-main[data-action="reveal-student"]').click();
     await page.locator('#studentList [data-action="view"]').click();
     await expect(page.locator('.student-record-modal')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);

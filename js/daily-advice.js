@@ -516,20 +516,26 @@ export function createAdviceStore({
 
   async function seedDefaults(role) {
     if (!canManageAdvice(role)) return { ok: false, reason: 'role-required' };
-    let remote = adapter;
-    if (!remote || !await remote.canWrite?.()) {
-      try { remote = await adapterFactory({ allowAnonymous: false }); } catch { remote = null; }
+    try {
+      let remote = adapter;
+      if (!remote || !await remote.canWrite?.()) {
+        remote = await adapterFactory({ allowAnonymous: false });
+      }
+      if (!remote || !await remote.canWrite?.() || typeof remote.seedDefaults !== 'function') {
+        return { ok: false, reason: 'online-role-required' };
+      }
+      const result = await remote.seedDefaults();
+      if (result?.ok) {
+        remoteItems = itemFromRemoteBank(result.bank);
+        remoteLoaded = true;
+        publish('firebase');
+      }
+      return result;
+    } catch {
+      // A failed background initialization must not discard the cached bank or
+      // become an unhandled rejection. The editor can report it and retry later.
+      return { ok: false, reason: 'network-unavailable' };
     }
-    if (!remote || !await remote.canWrite?.() || typeof remote.seedDefaults !== 'function') {
-      return { ok: false, reason: 'online-role-required' };
-    }
-    const result = await remote.seedDefaults();
-    if (result?.ok) {
-      remoteItems = itemFromRemoteBank(result.bank);
-      remoteLoaded = true;
-      publish('firebase');
-    }
-    return result;
   }
 
   function checkDate() {

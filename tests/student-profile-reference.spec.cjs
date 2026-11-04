@@ -1,4 +1,5 @@
 const { test, expect } = require('./fixtures.cjs');
+const { readFile } = require('node:fs/promises');
 const { enterStudentApp } = require('./portal-session.cjs');
 test.use({ serviceWorkers: 'block', reducedMotion: 'reduce' });
 for (const width of [320, 390, 1024]) {
@@ -12,7 +13,7 @@ for (const width of [320, 390, 1024]) {
     await expect(page.locator('#profileUsername')).toHaveText('raisa.islam');
     await expect(page.locator('#profileAttendanceRate')).toHaveText('—');
     await expect(page.locator('#profileInstitution')).toHaveText('—');
-    await expect(page.locator('.bottom-nav')).toBeHidden();
+    await expect(page.locator('.bottom-nav')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator('#profilePhotoInput').setInputFiles({
       name: 'avatar.png', mimeType: 'image/png',
@@ -29,7 +30,9 @@ for (const width of [320, 390, 1024]) {
     await expect(page.locator('#studentIdCardPreview')).toContainText('AP-1024');
     const download = page.waitForEvent('download');
     await page.locator('#studentIdCardDownload').click();
-    expect((await download).suggestedFilename()).toBe('student-id-AP-1024-back.svg');
+    const cardDownload = await download;
+    expect(cardDownload.suggestedFilename()).toBe('student-id-AP-1024-back.png');
+    expect((await readFile(await cardDownload.path())).subarray(0, 8)).toEqual(Buffer.from('89504e470d0a1a0a', 'hex'));
     await page.locator('#studentIdCardFlip').click();
     await expect(page.locator('#studentIdCardPreview')).toContainText('রাইসা');
     await page.locator('#studentIdCardView .pay-back').click();

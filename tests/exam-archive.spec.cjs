@@ -3,15 +3,16 @@
    approves/publishes/unpublishes, the student only ever sees the published
    paper — and on a phone the dashboard table becomes cards. */
 const { test, expect } = require('./fixtures.cjs');
-const { enterPortal, enterStudentApp } = require('./portal-session.cjs');
+const { enterPortal, enterStudentApp, newDevice, syncStorage } = require('./portal-session.cjs');
 
 const EXAM_KEY = 'activePlus.exams.v1';
 const ROSTER_KEY = 'activePlus.admin.students.v1';
 const ASSIGNMENTS_KEY = 'activePlus.manager.teacherAssignments.v1';
 const CLASS = 'দশম শ্রেণি';
-const T0 = new Date('2026-10-01T09:00:00Z');
-const WINDOW_START = new Date('2026-10-01T10:00:00Z');
-const WINDOW_END = new Date('2026-10-01T11:00:00Z');
+// Exam datetime-local inputs are interpreted in Dhaka time (UTC+06:00).
+const T0 = new Date('2026-10-01T03:00:00Z');
+const WINDOW_START = new Date('2026-10-01T04:00:00Z');
+const WINDOW_END = new Date('2026-10-01T05:00:00Z');
 const TEMPLATE = 'প্রশ্ন: বাংলাদেশের রাজধানী কোনটি?\nA: ঢাকা\nB: চট্টগ্রাম\nC: খুলনা\nD: রাজশাহী\nউত্তর: A\n---\nপ্রশ্ন: ৫ + ৩ = কত?\nA: ৬\nB: ৭\nC: ৮\nD: ৯\nউত্তর: C';
 
 test.use({ viewport: { width: 390, height: 844 }, timezoneId: 'UTC' });
@@ -43,21 +44,23 @@ async function teacherWorkspace(page) {
   await enterPortal(page, 'teacher');
   /* One door per screen: the exam workspace opens from the academic hub, the
      same place the teacher's "+ পরীক্ষা" quick action points to. */
-  await page.locator('.admin-bottom [data-panel-view=academic]').click();
-  await page.locator('#teacherAcademic [data-academic-section=exams]').click();
+  await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
+  await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
   return page.locator('#teacherExamWorkspace');
 }
 
-async function managerWorkspace(page) {
+async function managerWorkspace(page, screen = 'upcoming') {
   page.on('dialog', dialog => dialog.accept());
+  await autoDismissAlerts(page);
   await page.clock.setFixedTime(T0);
   await enterPortal(page, 'manager');
   await dismissAlert(page);
   await page.evaluate(({ key, className }) => localStorage.setItem(key, JSON.stringify([
     { id: 'AP-1024', name: 'রাইসা', className, group: '', mobile: '01700000000', guardianMobile: '01800000000', status: 'approved', monthlyFee: 1500 }
   ])), { key: ROSTER_KEY, className: CLASS });
-  await page.locator('.manager-bottom [data-panel-view=academic]').click();
+  await page.locator('.manager-bottom [data-panel-view=academic]').click({ timeout: 10000 });
   await page.locator('#managerAcademicMenu [data-academic-section=exams]').click();
+  await page.locator(`#managerExamHub [data-manager-exam=${screen}]`).click();
   return page.locator('#managerExamWorkspace');
 }
 
@@ -72,6 +75,7 @@ async function author(root, title) {
   await expect(root.locator('[data-parsed-preview]')).toContainText('২টি প্রশ্ন');
   await root.locator('[data-exam-form] [type=submit]').click();
   await expect(root.locator('[data-managed-exam]')).toHaveCount(1);
+  await expect(root).not.toHaveAttribute('aria-busy', 'true');
 }
 
 test('a paper is authored into its own date record and its questions stay closed until asked for', async ({ page }) => {
@@ -101,14 +105,22 @@ test('a paper is authored into its own date record and its questions stay closed
   expect(records.exams[0].template).not.toContain('বাংলাদেশের রাজধানী কোনটি');
 });
 
-test('teacher submits, Manager approves and publishes, the student sees it — unpublish hides it again', async ({ page, context, browser }) => {
+test('teacher submits, Manager approves and publishes, the student sees it — unpublish hides it again', async ({ page, context }) => {
+  test.setTimeout(60000);
+  page.on('dialog', dialog => dialog.accept());
   const root = await teacherWorkspace(page);
   await author(root, 'সাপ্তাহিক পরীক্ষা');
   await root.locator('[data-exam-action=request]').click();
+  await expect(root.locator('[data-exam-error]')).toBeHidden();
   await expect(root.locator('[data-managed-exam] .exam-status')).toHaveClass(/exam-status-warning/);
 
-  const office = await context.newPage();
-  const manager = await managerWorkspace(office);
+  // Staff roles use separate device-bound sessions. Transfer only the shared
+  // exam collection, as sync would, rather than reusing the teacher's session.
+  const officeContext = await newDevice(context);
+  const office = await officeContext.newPage();
+  await office.goto('/demo/offline-roles.html');
+  await syncStorage(page, office, [EXAM_KEY]);
+  const manager = await managerWorkspace(office, 'other');
   await expect(manager.locator('[data-managed-exam]')).toHaveCount(1);
   await expect(manager.locator('[data-exam-action=approve]')).toHaveCount(1);
   await manager.locator('[data-exam-action=approve]').click();
@@ -118,19 +130,22 @@ test('teacher submits, Manager approves and publishes, the student sees it — u
 
   /* The student sits on a device of their own: the published record is the
      only thing that reaches it. */
-  const pupilContext = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'UTC' });
+  const pupilContext = await newDevice(context);
   const pupil = await pupilContext.newPage();
   await autoDismissAlerts(pupil);
   await pupil.clock.setFixedTime(WINDOW_START);
   await enterStudentApp(pupil);
+  await expect(pupil).toHaveURL(/student\.html/);
   const store = () => office.evaluate(key => localStorage.getItem(key), EXAM_KEY);
   const sync = async () => {
     await pupil.evaluate(([key, value]) => localStorage.setItem(key, value), [EXAM_KEY, await store()]);
     await pupil.reload();
+    await expect(pupil).toHaveURL(/student\.html/);
     await dismissAlert(pupil);
     if (!(await pupil.locator('#examsView').isVisible())) {
       await pupil.locator('[data-view=exams]:visible').first().click();
     }
+    await pupil.locator('#examTabs [data-exam-tab=live]').click();
   };
   await sync();
   await expect(pupil.locator('#studentExamWorkspace')).toContainText('সাপ্তাহিক পরীক্ষা');
@@ -146,10 +161,11 @@ test('teacher submits, Manager approves and publishes, the student sees it — u
   expect(records.exams[0].status).toBe('approved');
   expect(records.exams[0].questions).toHaveLength(2);
   await pupilContext.close();
+  await officeContext.close();
 });
 
 test('the Manager adds and deletes questions, duplicates the paper and archives it with everything intact', async ({ page }) => {
-  const manager = await managerWorkspace(page);
+  const manager = await managerWorkspace(page, 'other');
   await author(manager, 'ম্যানেজার পরীক্ষা');
   await manager.locator('[data-exam-action=questions]').click();
   await manager.locator('.exam-question-add summary').click();

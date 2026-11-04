@@ -275,8 +275,8 @@ export function pendingQueueMarkup(items = listPendingRegistrations()) {
         </div>
         <div class="apc-pending-item__detail" ${revealed ? '' : 'hidden'}>
           <div class="apc-pending-item__meta">
-            <span>মোবাইল: <b dir="ltr">${escapeHtml(String(item.mobile || '—'))}</b></span>
-            <span>আইডি: <b dir="ltr">${escapeHtml(String(item.id))}</b></span>
+            <span>মোবাইল: <b dir="ltr">${escapeHtml(revealed ? String(item.mobile || '—') : PRIVACY_MASK)}</b></span>
+            <span>আইডি: <b dir="ltr">${escapeHtml(revealed ? String(item.id) : PRIVACY_MASK)}</b></span>
             <span>তারিখ: ${escapeHtml(item.dateLabel)}</span>
           </div>
           <div class="apc-pending-item__actions">

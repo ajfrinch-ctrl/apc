@@ -158,6 +158,22 @@ test('only Admin/Manager sessions can request edits; remote writes still require
   store.stop();
 });
 
+test('failed background seeding reports network failure and preserves the cached bank', async () => {
+  const storage = memoryStorage();
+  const adapter = {
+    async canWrite() { return true; },
+    async seedDefaults() { throw new Error('network unavailable'); }
+  };
+  const store = createAdviceStore({ storage, autoConnect: false, autoDateRefresh: false, adapterFactory: async () => adapter });
+  const local = await store.save({ text: 'শিখতে থাকো।' }, 'manager', { id: 'ADV-LOCAL' });
+  assert.equal(local.synced, false);
+  const before = store.getSnapshot();
+  assert.deepEqual(await store.seedDefaults('manager'), { ok: false, reason: 'network-unavailable' });
+  assert.deepEqual(store.getSnapshot(), before);
+  assert.equal((await store.seedDefaults('teacher')).reason, 'role-required');
+  store.stop();
+});
+
 test('an active claimed adapter writes the direct keyed schema and clears the local retry queue', async () => {
   const storage = memoryStorage();
   const bank = {};

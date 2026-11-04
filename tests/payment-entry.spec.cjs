@@ -37,6 +37,7 @@ test('a payment goes in from the student search and lands in today\'s collection
   // শিক্ষার্থী → guarded search by name.
   await page.locator('nav.admin-bottom [data-panel-view="students"]').click();
   await expect(page.locator('[data-pay-panel="students"]')).toBeVisible();
+  await page.locator('[data-pay-toggle="student-search"]').click();
   await page.locator('#payStudentSearch').fill(student.name);
   const result = page.locator('#paySearchResults .fee-search-result').first();
   await expect(result).toBeVisible();
@@ -83,6 +84,7 @@ test('a payment goes in from the student search and lands in today\'s collection
   // আজকের আদায় → closing the slip lands on হোম with the entry already listed.
   await page.locator('#payReceiptClose').click();
   await expect(page.locator('[data-pay-panel="home"]')).toBeVisible();
+  await page.locator('[data-pay-toggle="today-list"]').click();
   await expect(page.locator('#payTodayList [data-pay-tx]').first()).toContainText(student.name);
   await expect(page.locator('#payTodayList [data-pay-tx]').first()).toContainText('৭০০');
 });
@@ -93,6 +95,7 @@ test('the desk invents nothing: an empty amount, a one-letter query and a hidden
 
   // One letter is not a query.
   await page.locator('nav.admin-bottom [data-panel-view="students"]').click();
+  await page.locator('[data-pay-toggle="student-search"]').click();
   await page.locator('#payStudentSearch').fill('র');
   await expect(page.locator('#paySearchStatus')).toHaveText('নাম, ID, রোল বা মোবাইল লিখুন।');
   await expect(page.locator('#paySearchResults .fee-search-result')).toHaveCount(0);
