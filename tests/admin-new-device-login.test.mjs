@@ -37,6 +37,7 @@ const cloud = {
   reads: [],
   writes: [],
   failReads: false,
+  failStudentReads: false,
   auth: { currentUser: null, authStateReady: async () => {} }
 };
 
@@ -57,6 +58,9 @@ const transport = {
   get: async path => {
     cloud.reads.push(path);
     if (cloud.failReads) throw Object.assign(new Error('network unreachable'), { code: 'unavailable' });
+    if (cloud.failStudentReads && path.startsWith('activePlusSync/v1/studentAccount')) {
+      throw Object.assign(new Error('unrelated student collection unavailable'), { code: 'unavailable' });
+    }
     return snapshot(path);
   },
   set: async (path, value) => { cloud.writes.push(path); cloud.values.set(path, value); },
@@ -233,6 +237,30 @@ test('device B: a first open shows the Login screen — never "Create Admin Acco
   assert.equal(cloud.values.get(STAFF_PATH).username, ADMIN_ID, 'the cloud account is unchanged');
   assert.equal(cloud.transactions.filter(path => path === STAFF_PATH).length, 1, 'login never creates anything');
   deviceB.window.close();
+});
+
+test('existing Admin signs in on a fresh device even when student records cannot be read', async () => {
+  const page = await openDevice();
+  await page.ready;
+  await page.flush();
+  cloud.failStudentReads = true;
+  const beforeReads = cloud.reads.length;
+  const beforeWrites = cloud.writes.length;
+  try {
+    await submitLogin(page, ADMIN_ID, 'Wrong-password-2026');
+    assert.equal(sessionOf(page), null, 'a wrong password never opens an Admin session');
+    assert.match(page.$('#authMessage').textContent, /সঠিক নয়/);
+    page.$('#authMessage .auth-message-close').click();
+    await submitLogin(page, ADMIN_ID, ADMIN_PASSWORD);
+    assert.ok(sessionOf(page), 'the existing password opens the Admin session');
+    assert.equal(cloud.reads.slice(beforeReads).some(path => path.startsWith('activePlusSync/v1/studentAccount')), false,
+      'a recognised fixed Admin does not depend on unrelated student reads');
+    assert.equal(cloud.writes.length, beforeWrites, 'login makes no cloud writes');
+    assert.equal(cloud.values.get(STAFF_PATH).username, ADMIN_ID);
+  } finally {
+    cloud.failStudentReads = false;
+    page.window.close();
+  }
 });
 
 /* ---- 5. Device C: the same again ----------------------------------------- */

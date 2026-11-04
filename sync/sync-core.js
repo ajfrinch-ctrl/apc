@@ -10,7 +10,7 @@ const implementation = async () => {
   return import('../js/realtime-sync.js');
 };
 
-let staffHydrationFlight = null;
+const staffHydrationFlights = new Map();
 const identityHydrationFlights = new Map();
 let adminStateFlight = null;
 let adminClaimFlight = null;
@@ -22,12 +22,17 @@ function identityFlightKey(options = {}) {
   ]);
 }
 
-function hydrateStaffAccountsOnce(...args) {
-  if (staffHydrationFlight) return staffHydrationFlight;
-  staffHydrationFlight = implementation()
-    .then(m => m.hydrateStaffAccounts(...args))
-    .finally(() => { staffHydrationFlight = null; });
-  return staffHydrationFlight;
+function hydrateStaffAccountsOnce(options = {}) {
+  // A role-specific login read must never be coalesced with a different role
+  // or a full hydration, which could return before its requested role is read.
+  const roles = Array.isArray(options.roles) ? [...new Set(options.roles)].sort() : null;
+  const key = JSON.stringify([Boolean(options.preserveLocalAdmin), roles]);
+  if (staffHydrationFlights.has(key)) return staffHydrationFlights.get(key);
+  const flight = implementation()
+    .then(m => m.hydrateStaffAccounts(options))
+    .finally(() => { staffHydrationFlights.delete(key); });
+  staffHydrationFlights.set(key, flight);
+  return flight;
 }
 
 function hydrateUserIdentifiersOnce(options = {}) {

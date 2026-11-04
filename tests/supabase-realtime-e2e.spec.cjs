@@ -153,6 +153,50 @@ function createMockSupabaseBackend() {
   return { nodes, getSubtree, attachToContext };
 }
 
+test('existing cloud Admin logs in without depending on the student collection', async ({ browser }) => {
+  test.setTimeout(60000);
+  const backend = createMockSupabaseBackend();
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => localStorage.setItem('activePlus.demo.autofill.v1', 'off'));
+  await backend.attachToContext(ctx);
+  await ctx.route('**/vendor/firebase/sdk.js*', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: STUB_SOURCE }));
+  let studentReads = 0;
+  await ctx.route(`${SUPABASE_ORIGIN}/rest/v1/rpc/apc_get_subtree`, async route => {
+    const body = route.request().postDataJSON();
+    if (String(body?.p_path || '').startsWith('activePlusSync/v1/studentAccount')) {
+      studentReads++;
+      return route.fulfill({ status: 503, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"message":"student collection unavailable"}' });
+    }
+    return route.fallback();
+  });
+  const page = await ctx.newPage();
+  try {
+    await page.goto('/demo/offline-roles.html');
+    const envelope = await page.evaluate(async () => {
+      const { hashPassword } = await import('/js/password-hash.js');
+      const { encryptCloudSubtree } = await import('/sync/cloud-payload-crypto.js');
+      return encryptCloudSubtree('activePlusSync/v1/staffAccounts/admin', {
+        username: 'existing.admin.apc', password: await hashPassword('Existing-2026'), status: 'active'
+      });
+    });
+    backend.nodes.set('activePlusSync/v1/staffAccounts/admin', { val: envelope, rev: 10 });
+    await page.goto('/index.html');
+    await expect(page.locator('#loginForm')).toHaveAttribute('data-login-ready', 'true');
+    await page.fill('#loginMobile', 'existing.admin.apc');
+    await page.fill('#loginPin', 'Wrong-2026');
+    await page.click('#loginForm button[type=submit]');
+    await expect(page.locator('#authMessage')).toContainText('সঠিক নয়');
+    expect(studentReads).toBe(0);
+    await page.fill('#loginPin', 'Existing-2026');
+    await page.click('#loginForm button[type=submit]');
+    await expect(page).toHaveURL(/\/admin\.html$/, { timeout: 20000 });
+    await expect(page.locator('#adminShell')).toBeVisible();
+    expect(studentReads).toBe(0);
+  } finally {
+    await ctx.close();
+  }
+});
+
 test('browser portals select Supabase Realtime automatically, reach green status, and sync full-app + E2EE Class Chat', async ({ browser }) => {
   const backend = createMockSupabaseBackend();
 
