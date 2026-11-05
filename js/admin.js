@@ -2237,6 +2237,33 @@ window.addEventListener('apc-sync-updated', event => {
   }
 });
 
+/* Registration records are the source of truth for who applied; the roster is
+   the projection the list renders. A roster row can go missing (a device that
+   once seeded sample rows, or a roster write that never reached the database)
+   while the registration record is intact — so once per Admin session the
+   missing rows are rebuilt from those records. Additive only: no row, review
+   decision or contact detail is ever deleted or overwritten here. */
+let rosterReconcileStarted = false;
+async function reconcileRosterFromRegistrationRecords() {
+  if (rosterReconcileStarted || !navigator.onLine) return;
+  rosterReconcileStarted = true;
+  try {
+    const [{ readStudentAccountRecords }, { mergeAccountRecordsIntoRoster }] = await Promise.all([
+      import('../sync/sync-core.js?v=466'),
+      import('./office-data.js')
+    ]);
+    const result = await readStudentAccountRecords();
+    if (!result?.ok || !Array.isArray(result.accounts) || !result.accounts.length) return;
+    const outcome = mergeAccountRecordsIntoRoster(result.accounts);
+    if (!outcome.added && !outcome.updated) return;
+    state.students = loadRoster();
+    renderAll();
+    console.info('[Active Plus] roster rows restored from registration records:', outcome.added);
+  } catch (error) {
+    console.warn('[Active Plus] roster reconciliation skipped:', error?.message);
+  }
+}
+
 // Every staff login starts at index.html. This page only restores an existing session.
 // One door per panel: no route of ours leaves admin.html for another panel.
 installPanelGuard();
@@ -2257,6 +2284,7 @@ async function initAdminEntry() {
     }
     await enterPanel();
     watchOwnPanelSession('admin');
+    void reconcileRosterFromRegistrationRecords();
   } catch (error) {
     /* A transient failure (a slow cloud read, an optional initializer that
        threw) must NOT cost the Admin their session — the lock card offers a

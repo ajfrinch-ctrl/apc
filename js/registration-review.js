@@ -182,7 +182,7 @@ export async function decideRegistration(studentId, decision, { role, note = '' 
     });
 
     if (LEGACY_CLOUD_ENABLED && typeof navigator !== 'undefined' && navigator.onLine) {
-      import('../sync/sync-core.js?v=465')
+      import('../sync/sync-core.js?v=466')
         .then(bridge => bridge.syncRegistrationDecisionOnline({
           studentId: sid,
           studentRow: student,

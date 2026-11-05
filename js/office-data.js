@@ -83,6 +83,53 @@ export function loadRoster() {
   return mergeAccount(clean).map(row => withClassKey(row));
 }
 
+/**
+ * Rebuild roster rows that a registration record proves exists.
+ *
+ * The account record is the institution's source of truth for who registered;
+ * the roster row is the projection the Admin/Manager list renders. Only missing
+ * rows are added: an existing row keeps its own review decision, edits and
+ * contact details, and no row is ever deleted here.
+ */
+export function mergeAccountRecordsIntoRoster(accounts) {
+  const incomingRows = (Array.isArray(accounts) ? accounts : [])
+    .map(account => accountToRosterStudent(account))
+    .filter(row => row && row.id);
+  if (!incomingRows.length) return { added: 0, updated: 0, total: loadRoster().length };
+  const roster = loadRoster();
+  const byId = new Map(roster.map(row => [String(row.id), row]));
+  let added = 0;
+  let updated = 0;
+  for (const incoming of incomingRows) {
+    const id = String(incoming.id);
+    const current = byId.get(id);
+    if (!current) {
+      byId.set(id, withClassKey(incoming));
+      added += 1;
+      continue;
+    }
+    // A reviewed row wins; the account only fills the gaps it recorded.
+    const merged = {
+      ...incoming,
+      ...current,
+      username: current.username || incoming.username,
+      email: current.email || incoming.email,
+      name: current.name || incoming.name,
+      className: current.className || incoming.className,
+      mobile: current.mobile || incoming.mobile,
+      registeredAt: current.registeredAt || incoming.registeredAt,
+      enrolledAt: current.enrolledAt || incoming.enrolledAt
+    };
+    if (JSON.stringify(withClassKey(merged)) !== JSON.stringify(current)) {
+      byId.set(id, withClassKey(merged));
+      updated += 1;
+    }
+  }
+  const next = [...byId.values()];
+  if (added || updated) saveRoster(next);
+  return { added, updated, total: next.length };
+}
+
 export function saveRoster(students) {
   return writeJSON(ROSTER_KEY, students.map(row => row.monthlyFee == null || row.monthlyFee === '' ? row : { ...row, monthlyFee: taka(row.monthlyFee) }));
 }

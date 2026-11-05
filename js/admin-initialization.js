@@ -33,7 +33,7 @@ function isFastSandboxOrNode() {
    with no internet or a blocked CDN must still open the app normally. Share the
    exact specifier with js/login.js so cold mobile 4G never downloads sync-core
    twice under two query strings. */
-const SYNC_CORE_URL = '../sync/sync-core.js?v=465';
+const SYNC_CORE_URL = '../sync/sync-core.js?v=466';
 const FAST_ENV = isFastSandboxOrNode();
 const STATE_BUDGET_MS = FAST_ENV ? 8000 : 20000;
 const CLAIM_BUDGET_MS = FAST_ENV ? 12000 : 25000;
