@@ -2248,17 +2248,25 @@ async function reconcileRosterFromRegistrationRecords() {
   if (rosterReconcileStarted || !navigator.onLine) return;
   rosterReconcileStarted = true;
   try {
-    const [{ readStudentAccountRecords }, { mergeAccountRecordsIntoRoster }] = await Promise.all([
-      import('../sync/sync-core.js?v=466'),
+    const [{ readStudentAccountRecords }, { mergeAccountRecordsIntoRoster, quarantineShippedSampleRows }] = await Promise.all([
+      import('../sync/sync-core.js?v=468'),
       import('./office-data.js')
     ]);
     const result = await readStudentAccountRecords();
-    if (!result?.ok || !Array.isArray(result.accounts) || !result.accounts.length) return;
-    const outcome = mergeAccountRecordsIntoRoster(result.accounts);
-    if (!outcome.added && !outcome.updated) return;
+    /* Only a verified cloud answer may touch the roster: the shipped sample rows
+       are fixture data, never a student list, so they are backed up on this
+       device and removed before the real rows are restored. */
+    if (!result?.ok) return;
+    const quarantined = quarantineShippedSampleRows();
+    let restored = { added: 0, updated: 0 };
+    if (Array.isArray(result.accounts) && result.accounts.length) {
+      restored = mergeAccountRecordsIntoRoster(result.accounts);
+    }
+    if (!quarantined.removed && !restored.added && !restored.updated) return;
     state.students = loadRoster();
     renderAll();
-    console.info('[Active Plus] roster rows restored from registration records:', outcome.added);
+    if (quarantined.removed) console.info('[Active Plus] sample roster rows quarantined:', quarantined.removed);
+    if (restored.added) console.info('[Active Plus] roster rows restored from registration records:', restored.added);
   } catch (error) {
     console.warn('[Active Plus] roster reconciliation skipped:', error?.message);
   }

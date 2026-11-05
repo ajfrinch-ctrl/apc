@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPage } from './jsdom-harness.mjs';
-import { mergeAccountRecordsIntoRoster, accountToRosterStudent } from '../js/office-data.js';
+import { mergeAccountRecordsIntoRoster, accountToRosterStudent, quarantineShippedSampleRows, SAMPLE_ROW_BACKUP_KEY } from '../js/office-data.js';
 import { KEYS } from '../js/database.js';
 
 const account = (overrides = {}) => ({
@@ -68,4 +68,39 @@ test('an account record without a student id is ignored rather than guessed', ()
   assert.equal(accountToRosterStudent({ username: 'ghost', status: 'approved', student: {} }), null);
   const outcome = mergeAccountRecordsIntoRoster([{ username: 'ghost', status: 'approved', student: {} }]);
   assert.equal(outcome.added, 0);
+});
+
+/* The sample roster shipped in the code is fixture data; when it reaches the
+   shared list it must be backed up on the device and removed, without touching
+   a real student who merely reuses an identifier. */
+test('a shipped sample row is backed up on the device and removed from the list', async () => {
+  const sample = {
+    id: '260810021', name: 'তহমিদ হাসান', mobile: '01811223344', className: 'দশম শ্রেণি', status: 'approved'
+  };
+  const ctx = await loadPage('admin.html', { seed: { [KEYS.students]: JSON.stringify([sample]) } });
+  const outcome = quarantineShippedSampleRows();
+  assert.equal(outcome.removed, 1);
+  assert.deepEqual(JSON.parse(ctx.window.localStorage.getItem(KEYS.students)), []);
+  const backup = JSON.parse(ctx.window.localStorage.getItem(SAMPLE_ROW_BACKUP_KEY));
+  assert.equal(backup[0].rows[0].id, '260810021', 'removal is reversible from this device');
+});
+
+test('a real student who only reuses a sample identifier is untouched', async () => {
+  const real = {
+    id: '260810021', name: 'আসল শিক্ষার্থী', mobile: '01712345678', className: 'দশম শ্রেণি', status: 'approved'
+  };
+  const ctx = await loadPage('admin.html', { seed: { [KEYS.students]: JSON.stringify([real]) } });
+  assert.equal(quarantineShippedSampleRows().removed, 0);
+  assert.equal(JSON.parse(ctx.window.localStorage.getItem(KEYS.students)).length, 1);
+  assert.equal(ctx.window.localStorage.getItem(SAMPLE_ROW_BACKUP_KEY), null);
+});
+
+test('the sample fingerprints stay identical to the design fixture they guard', async () => {
+  const [{ SHIPPED_SAMPLE_ROSTER }, { adminStudents }] = await Promise.all([
+    import('../js/sample-roster-signatures.js'),
+    import('../js/admin-data.js')
+  ]);
+  const shipped = SHIPPED_SAMPLE_ROSTER.map(row => `${row.id}|${row.name}|${row.mobile}`).sort();
+  const fixture = adminStudents.map(row => `${row.id}|${row.name}|${row.mobile}`).sort();
+  assert.deepEqual(shipped, fixture);
 });

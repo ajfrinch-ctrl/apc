@@ -7,6 +7,7 @@ import { KEYS, listDocuments, listDocumentsStrict, replaceDocumentsStrict, remem
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
 import { LOCAL_WRITE_KEY, markLocalSource } from './local-write-mark.js';
 import { withClassKey } from './class-key.js';
+import { SHIPPED_SAMPLE_ROSTER } from './sample-roster-signatures.js';
 
 export const ROSTER_KEY = KEYS.students;
 export const NOTICES_KEY = KEYS.notices;
@@ -83,6 +84,37 @@ export function loadRoster() {
   return mergeAccount(clean).map(row => withClassKey(row));
 }
 
+/* The sample roster shipped in admin-data.js is design/test fixture data. It
+   reached the shared database once (2026-11-04) and appeared to the owner as
+   real students. A stored row is treated as that fixture only when identifier,
+   name AND mobile all match; anything else stays untouched. The removed rows are
+   copied to a device-local backup first, so the cleanup is reversible. */
+export const SAMPLE_ROW_BACKUP_KEY = 'activePlus.roster.sampleQuarantine.v1';
+export function quarantineShippedSampleRows() {
+  const stored = listDocuments('students');
+  const shipped = new Map(SHIPPED_SAMPLE_ROSTER.map(sample => [String(sample.id), sample]));
+  const removed = [];
+  const kept = stored.filter(row => {
+    const sample = shipped.get(String(row?.id || ''));
+    if (!sample) return true;
+    const same = (a, b) => String(a ?? '').trim() === String(b ?? '').trim();
+    if (!same(row.name, sample.name) || !same(row.mobile, sample.mobile)) return true;
+    removed.push(row);
+    return false;
+  });
+  if (!removed.length) return { removed: 0, backedUpAt: '' };
+  const backedUpAt = new Date().toISOString();
+  try {
+    const previous = readJSON(SAMPLE_ROW_BACKUP_KEY, []);
+    writeJSON(SAMPLE_ROW_BACKUP_KEY, [
+      { removedAt: backedUpAt, rows: removed },
+      ...(Array.isArray(previous) ? previous : [])
+    ]);
+  } catch { /* a device with blocked storage keeps its rows rather than losing them blind */ }
+  saveRoster(kept);
+  return { removed: removed.length, backedUpAt };
+}
+
 /**
  * Rebuild roster rows that a registration record proves exists.
  *
@@ -96,7 +128,10 @@ export function mergeAccountRecordsIntoRoster(accounts) {
     .map(account => accountToRosterStudent(account))
     .filter(row => row && row.id);
   if (!incomingRows.length) return { added: 0, updated: 0, total: loadRoster().length };
-  const roster = loadRoster();
+  /* Base the rewrite on the stored rows, not the visible list: rows hidden as
+     shipped samples must stay on the device instead of being deleted by a
+     reconciliation pass. */
+  const roster = listDocuments('students');
   const byId = new Map(roster.map(row => [String(row.id), row]));
   let added = 0;
   let updated = 0;
