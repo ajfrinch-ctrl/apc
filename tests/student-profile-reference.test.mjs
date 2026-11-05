@@ -64,6 +64,26 @@ test('the card keeps one warm identity palette and the app Bengali face', () => 
   assert.match(back, /ব্যবহারের শর্ত/);
 });
 
+test('the card carries the institute\'s own logo, never an invented mark', () => {
+  const logo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+  const withLogo = studentIdCardSVG({ id: '260810021', name: 'রাইসা আক্তার' }, '', 'front', logo);
+  const backWithLogo = studentIdCardSVG({ id: '260810021' }, '', 'back', logo);
+  for (const svg of [withLogo, backWithLogo]) {
+    assert.match(svg, /<image x="4" y="4" width="32" height="32" href="data:image\/png;base64,/);
+  }
+  assert.doesNotMatch(withLogo, /M180 20 158 31/, 'the drawn fallback yields once the real mark is available');
+  const withoutLogo = studentIdCardSVG({ id: '260810021', name: 'রাইসা আক্তার' });
+  assert.match(withoutLogo, /M180 20 158 31/, 'first paint keeps a drawn badge instead of an empty tile');
+  assert.equal(studentIdCardSVG({ id: '1' }, '', 'front', 'javascript:alert(1)').includes('javascript:'), false, 'only image data URIs are accepted');
+});
+
+test('the runtime loads the shipped logo file, not a copy', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../js/student-profile-card.js', import.meta.url), 'utf8');
+  assert.match(source, /const BRAND_MARK = 'assets\/icons\/logo-128\.png'/);
+  assert.match(source, /export function cardLogoDataUri\(\)/);
+});
+
 test('card exports embed the Bengali face so a shared PNG is not rendered in a fallback font', async () => {
   const { readFile } = await import('node:fs/promises');
   const source = await readFile(new URL('../js/student-profile-card.js', import.meta.url), 'utf8');

@@ -102,17 +102,45 @@ const cardDefs = () => `<defs>
   <clipPath id="apcIdCard"><rect width="${CARD_W}" height="${CARD_H}" rx="${CARD_R}"/></clipPath>
 </defs>`;
 
+/* The institute's own mark (assets/icons/logo-128.png) is inlined as a data
+   URI so the card shows the real Active Plus logo in the page, in a rasterised
+   PNG and when shared — an <img> cannot reach the site's icon from inside an
+   SVG. The mortarboard stays as the first-paint fallback until it loads. */
+const BRAND_MARK = 'assets/icons/logo-128.png';
+let cardLogo = '';
+const validLogo = value => /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value || '') && value.length < 120000;
+let cardLogoRequest;
+export function cardLogoDataUri() {
+  if (cardLogo) return Promise.resolve(cardLogo);
+  if (cardLogoRequest) return cardLogoRequest;
+  cardLogoRequest = (async () => {
+    try {
+      const response = await fetch(BRAND_MARK);
+      if (!response.ok) return '';
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      let binary = '';
+      for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+      const dataUri = `data:image/png;base64,${btoa(binary)}`;
+      if (validLogo(dataUri)) cardLogo = dataUri;
+    } catch { /* Keep the drawn fallback. */ }
+    return cardLogo;
+  })();
+  return cardLogoRequest;
+}
+
 const CAP_ART = `<path d="M180 20 158 31l22 11 22-11zM164 38v9c0 4 7 7 16 7s16-3 16-7v-9l-16 8z" fill="${WHITE}"/>`;
-const cardChrome = () => `<rect width="${CARD_W}" height="${CARD_H}" rx="${CARD_R}" fill="${PAPER}"/>
+const brandBadge = logo => validLogo(logo)
+  ? `<g transform="translate(24 26)"><rect width="40" height="40" rx="12" fill="${WHITE}"/>
+      <image x="4" y="4" width="32" height="32" href="${logo}" preserveAspectRatio="xMidYMid meet"/></g>`
+  : `<g transform="translate(24 26)"><rect width="40" height="40" rx="12" fill="${WHITE}" fill-opacity=".16" stroke="${WHITE}" stroke-opacity=".3" stroke-width="1"/>
+      <g transform="translate(3.5 7) scale(.75) translate(-158 -20)">${CAP_ART}</g></g>`;
+const cardChrome = (logo = '') => `<rect width="${CARD_W}" height="${CARD_H}" rx="${CARD_R}" fill="${PAPER}"/>
   <g clip-path="url(#apcIdCard)">
     <rect width="${CARD_W}" height="132" fill="url(#apcIdHead)"/>
     <circle cx="334" cy="8" r="88" fill="${WHITE}" fill-opacity=".055"/>
     <circle cx="296" cy="124" r="44" fill="${WHITE}" fill-opacity=".045"/>
     <rect y="129" width="${CARD_W}" height="3" fill="${BRASS}"/>
-    <g transform="translate(24 26)">
-      <rect width="40" height="40" rx="12" fill="${WHITE}" fill-opacity=".16" stroke="${WHITE}" stroke-opacity=".3" stroke-width="1"/>
-      <g transform="translate(3.5 7) scale(.75) translate(-158 -20)">${CAP_ART}</g>
-    </g>
+    ${brandBadge(logo)}
     ${cardText(76, 44, 'Active Plus Coaching', { size: 14.5, weight: 700, fill: WHITE })}
     ${cardText(76, 61, 'শিখতে থাকো, এগিয়ে যাও', { size: 10.5, weight: 500, fill: WHITE, opacity: .84 })}
     <rect y="${FOOT_Y}" width="${CARD_W}" height="${CARD_H - FOOT_Y}" fill="url(#apcIdFoot)"/>
@@ -130,7 +158,7 @@ const infoRow = (label, value, y) => {
   <path d="M24 ${y + 11}H336" stroke="${HAIR}" stroke-width="1"/>`;
 };
 
-export function studentIdCardSVG(student, photo = '', side = 'front') {
+export function studentIdCardSVG(student, photo = '', side = 'front', logo = '') {
   const name = String(student?.name || student?.nameBn || student?.nameEn || 'শিক্ষার্থী');
   const classLine = [student?.className, student?.group].filter(Boolean).join(' · ') || 'শিক্ষার্থী';
   const studentId = student?.id == null ? '' : String(student.id);
@@ -143,7 +171,7 @@ export function studentIdCardSVG(student, photo = '', side = 'front') {
     const rowTop = 386, rowGap = 28;
     const termsY = rows.length ? rowTop + (rows.length - 1) * rowGap + 30 : 424;
     const idLine = studentId || 'আইডি নেই';
-    body = `${cardChrome()}
+    body = `${cardChrome(logo)}
     <rect x="96" y="140" width="168" height="168" rx="18" fill="${WHITE}" stroke="${HAIR}" stroke-width="1.5"/>
     ${studentId
       ? qrMarkup(student, 106, 150, 148)
@@ -164,7 +192,7 @@ export function studentIdCardSVG(student, photo = '', side = 'front') {
     rows.push(['প্রতিষ্ঠান', student?.institution || 'Active Plus Coaching']);
     const validUntil = student?.validUntil || student?.academicYear || student?.session || '';
     if (validUntil) rows.push(['মেয়াদ', validUntil]);
-    body = `${cardChrome()}
+    body = `${cardChrome(logo)}
     <circle cx="74" cy="196" r="44" fill="${WHITE}"/>
     <circle cx="74" cy="196" r="44" fill="none" stroke="${BRASS}" stroke-width="2.5"/>
     ${hasPhoto
@@ -235,13 +263,17 @@ export function initStudentProfileCard({ getStudent }) {
     finally { event.target.value = ''; }
   });
   let cardSide = 'front';
-  const cardSVG = () => studentIdCardSVG(getStudent(), readPhoto(getStudent()), cardSide);
+  const cardSVG = () => studentIdCardSVG(getStudent(), readPhoto(getStudent()), cardSide, cardLogo);
   function paintCard() {
     const preview = $('#studentIdCardPreview');
     if (preview) preview.innerHTML = cardSVG();
     document.querySelectorAll('[data-id-card-side]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.idCardSide === cardSide)));
     if ($('#studentIdCardFlip')) $('#studentIdCardFlip').textContent = cardSide === 'front' ? 'পেছনে' : 'সামনে';
   }
+  // The mark is fetched once; the card is repainted as soon as it is inlined.
+  void cardLogoDataUri().then(logo => {
+    if (logo && document.querySelector('[data-view-panel="student-id-card"]')?.classList.contains('active')) paintCard();
+  });
   const cardFileNameBase = () => `student-id-${String(getStudent()?.id || 'card').replace(/[^a-zA-Z0-9_-]/g, '_')}-${cardSide}`;
   /* Exports are rasterised from the SVG inside an <img>, where the page's own
      webfont is unavailable: without an embedded face the browser falls back to
@@ -262,6 +294,7 @@ export function initStudentProfileCard({ getStudent }) {
     return embeddedFontCss;
   }
   async function exportCardSVG() {
+    await cardLogoDataUri();
     const svg = cardSVG(), css = await cardFontCss();
     return css ? svg.replace(/<svg([^>]*)>/, `<svg$1><style>${css}</style>`) : svg;
   }
