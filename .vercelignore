@@ -1,21 +1,26 @@
-node_modules
-tests
-functions
-tools
-supabase
-docs
-demo
-playwright-report
-test-results
-firebase.json
-firestore.rules
-firestore.indexes.json
-database.rules.json
-database.rules.v2.draft.json
+# Vercel excludes files with gitignore-style patterns. An unanchored directory
+# name matches that directory at ANY depth, which silently removed the browser
+# SDK bundle at vendor/supabase/sdk.js from production and broke every Supabase
+# call (login showed "admin account could not be verified"). Anchor every
+# backend-only directory to the repository root and keep vendor/** deployed.
+/node_modules
+/tests
+/functions
+/tools
+/supabase
+/docs
+/demo
+/playwright-report
+/test-results
+/firebase.json
+/firestore.rules
+/firestore.indexes.json
+/database.rules.json
+/database.rules.v2.draft.json
 *.md
-AUDIT-*.md
-LIGHTENING-*.md
-.git
-.github
-assets/sky
-assets/fonts/*.ttf
+/AUDIT-*.md
+/LIGHTENING-*.md
+/.git
+/.github
+/assets/sky
+/assets/fonts/*.ttf
