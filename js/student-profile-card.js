@@ -45,13 +45,46 @@ function qrMarkup(student, x, y, box) {
 }
 
 /* ── Card artwork ───────────────────────────────────────────────────────
-   Portrait CR80 proportion (360×570). Pure SVG: no external URLs.
-   Refined from লাইভ প্রিভিউ: gradient head, gold bar, photo ring, QR back.
-   Colours use brand #0e7a55 family — inline for SVG portability (no CSS var).
+   Portrait CR80 proportion (360×570), pure SVG with no external URLs.
+
+   One warm identity palette — deep green header, ivory paper body, brass
+   accents — instead of the earlier green-on-pale-blue mix, so the card reads
+   as a school ID rather than a web widget. Typography is set per element in
+   the app's Noto Sans Bengali face; whitespace is preserved so Bengali
+   clusters keep their shape in the page, in <img> rasterisation and in print.
+
+   Colours and the font stack are inlined: an SVG inside an <img> (the PNG
+   and share exports) cannot read CSS custom properties or page webfonts.
 */
-const CARD_W = 360, CARD_H = 570;
-const INK = '#12372b', MUTED = '#52708a', LINE = '#c3dcf2', BRAND = '#0b6b4a';
-const fitSize = (value, base) => { const n = String(value || '').length; return n > 40 ? base - 3 : n > 30 ? base - 2 : n > 22 ? base - 1 : base; };
+const CARD_W = 360, CARD_H = 570, CARD_R = 24;
+const INK = '#12352a', MUTED = '#6d7c72', HAIR = '#e6dcc7', BRAND = '#0e6b4a';
+const BRASS = '#c9922f', PAPER = '#fbf7ee', WHITE = '#ffffff';
+const CARD_FONT = "'Noto Sans Bengali','Hind Siliguri','Segoe UI',system-ui,-apple-system,sans-serif";
+const FOOT_Y = 510;
+
+const cardText = (x, y, value, { size = 13, weight = 600, fill = INK, anchor = 'start', opacity = 1 } = {}) =>
+  `<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" fill="${fill}"${anchor === 'start' ? '' : ` text-anchor="${anchor}"`}${opacity === 1 ? '' : ` fill-opacity="${opacity}"`} xml:space="preserve">${esc(value)}</text>`;
+
+/* A value has to stay inside its column: shrink once, then elide. Bengali is
+   never condensed with textLength — that distorts the clusters. */
+const textRoom = (value, base, width, perChar = 0.56) => {
+  const length = String(value || '').length;
+  const size = Math.max(10.5, Math.min(base, width / Math.max(6, length * perChar)));
+  return Math.round(size * 10) / 10;
+};
+/* An identifier is the whole point of the card: it shrinks before it is
+   condensed, and it is only condensed (ASCII digits, so shaping is safe)
+   when even the smallest size would overflow. */
+const idFit = (value, width = 272) => {
+  const length = String(value || '').length;
+  const size = length > 30 ? 12.5 : length > 24 ? 14 : length > 18 ? 17 : length > 13 ? 20 : 23;
+  return { size, condense: length * size * 0.62 > width };
+};
+const elide = (value, max) => {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+};
+
 function wrapChars(value, max, lines) {
   const words = String(value || '').split(/\s+/).filter(Boolean), out = [];
   let cur = '';
@@ -59,70 +92,94 @@ function wrapChars(value, max, lines) {
     if (cur && (cur + ' ' + word).length > max) { out.push(cur); cur = word; } else cur = cur ? `${cur} ${word}` : word;
   }
   if (cur) out.push(cur);
-  if (out.length > lines) { out.length = lines; out[lines - 1] = out[lines - 1].slice(0, max - 1) + '…'; }
+  if (out.length > lines) { out.length = lines; out[lines - 1] = out[lines - 1].slice(0, max - 1).trimEnd() + '…'; }
   return out.length ? out : ['—'];
 }
+
 const cardDefs = () => `<defs>
-  <linearGradient id="apcIdHead" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#084f37"/><stop offset=".55" stop-color="#0e7a55"/><stop offset="1" stop-color="#1fb184"/></linearGradient>
-  <linearGradient id="apcIdFoot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#084f37"/><stop offset="1" stop-color="#0e7a55"/></linearGradient>
-  <linearGradient id="apcIdBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef6fd"/><stop offset="1" stop-color="#d9eafa"/></linearGradient>
-  <clipPath id="apcIdCard"><rect width="${CARD_W}" height="${CARD_H}" rx="26"/></clipPath>
+  <linearGradient id="apcIdHead" x1="0" y1="0" x2=".85" y2="1"><stop offset="0" stop-color="#0a4530"/><stop offset=".62" stop-color="${BRAND}"/><stop offset="1" stop-color="#15916a"/></linearGradient>
+  <linearGradient id="apcIdFoot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0a4230"/><stop offset="1" stop-color="#0e6247"/></linearGradient>
+  <clipPath id="apcIdCard"><rect width="${CARD_W}" height="${CARD_H}" rx="${CARD_R}"/></clipPath>
 </defs>`;
-const cardChrome = (title, subtitle) => `<rect width="${CARD_W}" height="${CARD_H}" rx="26" fill="url(#apcIdBody)"/>
+
+const CAP_ART = `<path d="M180 20 158 31l22 11 22-11zM164 38v9c0 4 7 7 16 7s16-3 16-7v-9l-16 8z" fill="${WHITE}"/>`;
+const cardChrome = () => `<rect width="${CARD_W}" height="${CARD_H}" rx="${CARD_R}" fill="${PAPER}"/>
   <g clip-path="url(#apcIdCard)">
-    <path d="M0 0H360V196Q180 238 0 196Z" fill="url(#apcIdHead)"/>
-    <circle cx="318" cy="22" r="74" fill="#ffffff" fill-opacity=".07"/><circle cx="34" cy="176" r="52" fill="#ffffff" fill-opacity=".06"/><circle cx="262" cy="150" r="30" fill="#ffffff" fill-opacity=".05"/>
-    <rect y="524" width="360" height="46" fill="url(#apcIdFoot)"/>
-    <rect y="520" width="360" height="4" fill="#f2b84b"/>
+    <rect width="${CARD_W}" height="132" fill="url(#apcIdHead)"/>
+    <circle cx="334" cy="8" r="88" fill="${WHITE}" fill-opacity=".055"/>
+    <circle cx="296" cy="124" r="44" fill="${WHITE}" fill-opacity=".045"/>
+    <rect y="129" width="${CARD_W}" height="3" fill="${BRASS}"/>
+    <g transform="translate(24 26)">
+      <rect width="40" height="40" rx="12" fill="${WHITE}" fill-opacity=".16" stroke="${WHITE}" stroke-opacity=".3" stroke-width="1"/>
+      <g transform="translate(3.5 7) scale(.75) translate(-158 -20)">${CAP_ART}</g>
+    </g>
+    ${cardText(76, 44, 'Active Plus Coaching', { size: 14.5, weight: 700, fill: WHITE })}
+    ${cardText(76, 61, 'শিখতে থাকো, এগিয়ে যাও', { size: 10.5, weight: 500, fill: WHITE, opacity: .84 })}
+    <rect y="${FOOT_Y}" width="${CARD_W}" height="${CARD_H - FOOT_Y}" fill="url(#apcIdFoot)"/>
+    <rect y="${FOOT_Y - 2}" width="${CARD_W}" height="2" fill="${BRASS}"/>
   </g>
-  <g fill="#ffffff" text-anchor="middle">
-    <path d="M180 20 160 30l20 10 20-10zM166 36v8c0 3 6 6 14 6s14-3 14-6v-8l-14 7z" fill="#ffffff"/>
-    <text x="180" y="68" font-size="17" font-weight="700" letter-spacing=".3">${title}</text>
-    <text x="180" y="86" font-size="11.5" fill-opacity=".88">${subtitle}</text>
-  </g>
-  <text x="180" y="552" text-anchor="middle" font-size="11.5" fill="#ffffff" fill-opacity=".92">Active Plus Coaching · Student Identity Card</text>`;
-const infoRow = (label, value, y, size = 13.5) => `<text x="30" y="${y}" font-size="12" fill="${MUTED}">${esc(label)}</text><text x="330" y="${y}" text-anchor="end" font-size="${fitSize(value, size)}" font-weight="600" fill="${INK}"${String(value || '').length > 44 ? ' textLength="210" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(value || '—')}</text><path d="M30 ${y + 10}h300" stroke="${LINE}"/>`;
+  ${cardText(180, 546, 'Active Plus Coaching · শিক্ষার্থী পরিচয়পত্র', { size: 10.5, weight: 600, fill: WHITE, anchor: 'middle', opacity: .94 })}
+  <rect x=".75" y=".75" width="${CARD_W - 1.5}" height="${CARD_H - 1.5}" rx="${CARD_R - .75}" fill="none" stroke="${HAIR}" stroke-width="1.5"/>`;
+
+/* Label above, value on the same baseline right-aligned, warm hairline under. */
+const infoRow = (label, value, y) => {
+  const text = elide(value || '', 34);
+  const size = textRoom(text, 12.5, 214);
+  return `${cardText(24, y, label, { size: 11, weight: 500, fill: MUTED })}
+  ${cardText(336, y, text, { size, weight: 600, fill: INK, anchor: 'end' })}
+  <path d="M24 ${y + 11}H336" stroke="${HAIR}" stroke-width="1"/>`;
+};
 
 export function studentIdCardSVG(student, photo = '', side = 'front') {
   const name = String(student?.name || student?.nameBn || student?.nameEn || 'শিক্ষার্থী');
-  const classLine = [student?.className, student?.group].filter(Boolean).join(' · ') || 'Student';
+  const classLine = [student?.className, student?.group].filter(Boolean).join(' · ') || 'শিক্ষার্থী';
   const studentId = student?.id == null ? '' : String(student.id);
   let body;
   if (side === 'back') {
-    const address = student?.address ? wrapChars(student.address, 34, 2) : [];
-    body = `${cardChrome('Active Plus Coaching', 'শিখতে থাকো, এগিয়ে যাও')}
-    <rect x="86" y="112" width="188" height="188" rx="20" fill="#ffffff" stroke="${LINE}" stroke-width="1.5"/>
-    ${studentId ? qrMarkup(student, 94, 120, 172) : `<text x="180" y="210" text-anchor="middle" font-size="14" fill="${MUTED}">আইডি নেই</text>`}
-    <text x="180" y="326" text-anchor="middle" font-size="14" font-weight="700" fill="${INK}">${studentId ? 'স্ক্যান করে Student ID দেখুন' : 'আইডি পাওয়া যায়নি'}</text>
-    <text x="180" y="348" text-anchor="middle" font-size="${fitSize(studentId, 12)}" fill="${INK}"${studentId.length > 26 ? ' textLength="280" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(studentId || 'আইডি নেই')}</text>
-    ${student?.guardianMobile ? infoRow('অভিভাবকের মোবাইল', maskedPhone(student.guardianMobile), 376) : ''}
-    ${student?.studentMobile ? infoRow('শিক্ষার্থীর মোবাইল', maskedPhone(student.studentMobile), 410) : ''}
-    ${address.length ? `<text x="30" y="444" font-size="12" fill="${MUTED}">ঠিকানা</text>
-    ${address.map((line, i) => `<text x="330" y="${444 + i * 18}" text-anchor="end" font-size="13" font-weight="600" fill="${INK}">${esc(line)}</text>`).join('')}
-    <path d="M30 ${444 + (address.length - 1) * 18 + 10}h300" stroke="${LINE}"/>` : ''}
-    <rect x="30" y="476" width="300" height="30" rx="10" fill="#ffffff" stroke="${LINE}"/>
-    <text x="180" y="496" text-anchor="middle" font-size="11" fill="${MUTED}">ব্যবহারের শর্ত: শুধু শিক্ষার্থীর জন্য।</text>`;
+    const rows = [];
+    if (student?.guardianMobile) rows.push(['অভিভাবকের মোবাইল', maskedPhone(student.guardianMobile)]);
+    if (student?.studentMobile) rows.push(['শিক্ষার্থীর মোবাইল', maskedPhone(student.studentMobile)]);
+    if (student?.address) rows.push(['ঠিকানা', student.address]);
+    const rowTop = 386, rowGap = 28;
+    const termsY = rows.length ? rowTop + (rows.length - 1) * rowGap + 30 : 424;
+    const idLine = studentId || 'আইডি নেই';
+    body = `${cardChrome()}
+    <rect x="96" y="140" width="168" height="168" rx="18" fill="${WHITE}" stroke="${HAIR}" stroke-width="1.5"/>
+    ${studentId
+      ? qrMarkup(student, 106, 150, 148)
+      : cardText(180, 228, 'আইডি নেই', { size: 13, weight: 600, fill: MUTED, anchor: 'middle' })}
+    ${cardText(180, 338, studentId ? 'স্ক্যান করে পরিচয় যাচাই করুন' : 'আইডি পাওয়া যায়নি', { size: 13, weight: 700, fill: INK, anchor: 'middle' })}
+    ${cardText(180, 359, idLine, { size: textRoom(idLine, 11.5, 260), weight: 600, fill: MUTED, anchor: 'middle' })}
+    ${rows.map(([label, value], index) => infoRow(label, value, rowTop + index * rowGap)).join('')}
+    ${cardText(180, termsY, 'ব্যবহারের শর্ত: শুধু শিক্ষার্থীর জন্য', { size: 10.5, weight: 500, fill: MUTED, anchor: 'middle' })}`;
   } else {
     const hasPhoto = validPhoto(photo);
-    const rollText = student?.roll ? bnb(student.roll) : '';
-    const rows = [['ক্লাস রোল', rollText || '—'], ['প্রতিষ্ঠান', student?.institution || 'Active Plus Coaching']];
+    const nameSize = name.length > 30 ? 15 : name.length > 22 ? 17 : 20;
+    const nameLines = wrapChars(name, nameSize >= 20 ? 15 : nameSize >= 17 ? 18 : 20, 2);
+    const firstBaseline = nameLines.length > 1 ? 181 : 188;
+    const classBaseline = firstBaseline + nameLines.length * 22 + 2;
+    const idText = studentId || 'আইডি নেই';
+    const idFitInfo = idFit(idText);
+    const rows = [['ক্লাস রোল', student?.roll ? bnb(student.roll) : '']];
+    rows.push(['প্রতিষ্ঠান', student?.institution || 'Active Plus Coaching']);
     const validUntil = student?.validUntil || student?.academicYear || student?.session || '';
     if (validUntil) rows.push(['মেয়াদ', validUntil]);
-    body = `${cardChrome('Active Plus Coaching', 'শিখতে থাকো, এগিয়ে যাও')}
-    <circle cx="180" cy="171" r="62" fill="#ffffff"/><circle cx="180" cy="171" r="62" fill="none" stroke="#f2b84b" stroke-width="2.5"/>
+    body = `${cardChrome()}
+    <circle cx="74" cy="196" r="44" fill="${WHITE}"/>
+    <circle cx="74" cy="196" r="44" fill="none" stroke="${BRASS}" stroke-width="2.5"/>
     ${hasPhoto
-      ? `<defs><clipPath id="apcIdPhoto"><circle cx="180" cy="171" r="56"/></clipPath></defs><image x="124" y="115" width="112" height="112" href="${photo}" preserveAspectRatio="xMidYMid slice" clip-path="url(#apcIdPhoto)"/>`
-      : `<circle cx="180" cy="171" r="56" fill="#dcecfa"/><text x="180" y="190" text-anchor="middle" font-size="52" font-weight="700" fill="${BRAND}">${esc(Array.from(name)[0] || '')}</text>`}
-    <text x="180" y="276" text-anchor="middle" font-size="${name.length > 26 ? 19 : name.length > 18 ? 22 : 25}" font-weight="700" fill="${INK}"${name.length > 34 ? ' textLength="320" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(name)}</text>
-    <rect x="70" y="288" width="220" height="28" rx="14" fill="#ffffff" stroke="${LINE}"/>
-    <text x="180" y="307" text-anchor="middle" font-size="${fitSize(classLine, 13.5)}" font-weight="700" fill="${BRAND}"${classLine.length > 36 ? ' textLength="200" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(classLine)}</text>
-    <rect x="30" y="334" width="300" height="64" rx="16" fill="#ffffff" stroke="${LINE}"/>
-    <rect x="30" y="334" width="6" height="64" rx="3" fill="#f2b84b"/>
-    <text x="50" y="357" font-size="10.5" letter-spacing="1.4" fill="${MUTED}">STUDENT ID</text>
-    <text x="50" y="383" font-size="${fitSize(student?.id, 24)}" font-weight="700" fill="${BRAND}"${String(student?.id || '').length > 26 ? ' textLength="260" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(studentId || 'আইডি নেই')}</text>
-    ${rows.map(([label, value], i) => infoRow(label, value, 428 + i * 34)).join('')}`;
+      ? `<defs><clipPath id="apcIdPhoto"><circle cx="74" cy="196" r="39"/></clipPath></defs><image x="35" y="157" width="78" height="78" href="${photo}" preserveAspectRatio="xMidYMid slice" clip-path="url(#apcIdPhoto)"/>`
+      : `<circle cx="74" cy="196" r="39" fill="#e7efe8"/>${cardText(74, 210, Array.from(name)[0] || '', { size: 34, weight: 700, fill: BRAND, anchor: 'middle' })}`}
+    ${nameLines.map((line, index) => cardText(132, firstBaseline + index * 22, line, { size: nameSize, weight: 700, fill: INK })).join('\n    ')}
+    ${cardText(132, classBaseline, elide(classLine, 34), { size: textRoom(classLine, 12, 204), weight: 600, fill: BRAND })}
+    <path d="M24 262H336" stroke="${HAIR}" stroke-width="1"/>
+    <rect x="24" y="274" width="312" height="82" rx="16" fill="${WHITE}" stroke="${HAIR}" stroke-width="1.5"/>
+    <rect x="40" y="296" width="3" height="40" rx="1.5" fill="${BRASS}"/>
+    ${cardText(54, 302, 'শিক্ষার্থী আইডি', { size: 10.5, weight: 600, fill: MUTED })}
+    <text x="54" y="336" font-size="${idFitInfo.size}" font-weight="700" fill="${INK}" xml:space="preserve"${idFitInfo.condense ? ' textLength="272" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(idText)}</text>
+    ${rows.map(([label, value], index) => infoRow(label, value, 392 + index * 34)).join('\n    ')}`;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" role="img" aria-label="ডিজিটাল আইডি কার্ড · ${side === 'back' ? 'পেছনের পাশ' : 'সামনের পাশ'}">${cardDefs()}<g font-family="Noto Sans Bengali, sans-serif">${body}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" role="img" aria-label="ডিজিটাল আইডি কার্ড · ${side === 'back' ? 'পেছনের পাশ' : 'সামনের পাশ'}">${cardDefs()}<g font-family="${CARD_FONT}" xml:space="preserve">${body}</g></svg>`;
 }
 
 export function initStudentProfileCard({ getStudent }) {
@@ -186,32 +243,62 @@ export function initStudentProfileCard({ getStudent }) {
     if ($('#studentIdCardFlip')) $('#studentIdCardFlip').textContent = cardSide === 'front' ? 'পেছনে' : 'সামনে';
   }
   const cardFileNameBase = () => `student-id-${String(getStudent()?.id || 'card').replace(/[^a-zA-Z0-9_-]/g, '_')}-${cardSide}`;
-  function downloadCardSVG() {
+  /* Exports are rasterised from the SVG inside an <img>, where the page's own
+     webfont is unavailable: without an embedded face the browser falls back to
+     a system font and the Bengali text of a shared card looks broken. The
+     subsetted face is fetched once per session and inlined as a data URI. */
+  let embeddedFontCss;
+  async function cardFontCss() {
+    if (embeddedFontCss !== undefined) return embeddedFontCss;
+    embeddedFontCss = '';
+    try {
+      const response = await fetch('assets/fonts/NotoSansBengali-Variable.woff2');
+      if (!response.ok) return embeddedFontCss;
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      let binary = '';
+      for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+      embeddedFontCss = `@font-face{font-family:'Noto Sans Bengali';src:url(data:font/woff2;base64,${btoa(binary)}) format('woff2');font-weight:100 900;font-style:normal;font-display:block}`;
+    } catch { embeddedFontCss = ''; }
+    return embeddedFontCss;
+  }
+  async function exportCardSVG() {
+    const svg = cardSVG(), css = await cardFontCss();
+    return css ? svg.replace(/<svg([^>]*)>/, `<svg$1><style>${css}</style>`) : svg;
+  }
+  async function cardPngBlob(scale = 3) {
+    const url = URL.createObjectURL(new Blob([await exportCardSVG()], { type: 'image/svg+xml;charset=utf-8' }));
+    try {
+      const image = new Image(); image.src = url; await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = CARD_W * scale; canvas.height = CARD_H * scale;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('canvas');
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    } finally { URL.revokeObjectURL(url); }
+  }
+  function saveBlob(blob, extension) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `${cardFileNameBase()}.${extension}`;
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  async function downloadCardSVG() {
     if (!getStudent()?.id) return showFeedback('শিক্ষার্থীর তথ্য পাওয়া যায়নি।');
-    const url = URL.createObjectURL(new Blob([cardSVG()], { type: 'image/svg+xml;charset=utf-8' }));
-    const link = document.createElement('a'); link.href = url; link.download = cardFileNameBase()+'.svg';
-    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saveBlob(new Blob([await exportCardSVG()], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
   }
   async function downloadCardPNG() {
     if (!getStudent()?.id) return showFeedback('শিক্ষার্থীর তথ্য পাওয়া যায়নি।');
     try {
-      const svgText = cardSVG();
-      // Embed font if available for PNG fidelity
-      const fontCss = document.querySelector('link[href*="Noto"]') ? '' : (document.querySelector('style')?.textContent.match(/@font-face\{[^}]*\}/)?.[0] || '');
-      const svgWithStyle = fontCss ? svgText.replace(/(<svg[^>]*>)/,'$1<style>'+fontCss+'</style>') : svgText;
-      const url = URL.createObjectURL(new Blob([svgWithStyle], {type:'image/svg+xml;charset=utf-8'}));
-      const img = new Image(); img.src = url; await img.decode();
-      const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1710;
-      const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('canvas');
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(img,0,0,1080,1710);
-      URL.revokeObjectURL(url);
-      canvas.toBlob(blob => {
-        if (!blob) return showFeedback('PNG তৈরি হয়নি।');
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = cardFileNameBase()+'.png'; a.click();
-        setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-      }, 'image/png');
-    } catch { downloadCardSVG(); }
+      const blob = await cardPngBlob(3);
+      if (!blob) throw new Error('png');
+      saveBlob(blob, 'png');
+    } catch {
+      showFeedback('PNG তৈরি হয়নি — কার্ডটি SVG হিসেবে সংরক্ষণ করা হচ্ছে।');
+      await downloadCardSVG();
+    }
   }
   $('#profileIdCardButton')?.addEventListener('click', () => { cardSide = 'front'; setView('student-id-card'); paintCard(); });
   document.querySelectorAll('[data-id-card-side]').forEach(button => button.addEventListener('click', () => {
@@ -220,25 +307,18 @@ export function initStudentProfileCard({ getStudent }) {
   $('#studentIdCardFlip')?.addEventListener('click', () => { cardSide = cardSide === 'front' ? 'back' : 'front'; paintCard(); });
   // Primary download is PNG (full feature), fallback to SVG
   $('#studentIdCardDownload')?.addEventListener('click', downloadCardPNG);
-  $('#studentIdCardDownload')?.addEventListener('contextmenu', e => { e.preventDefault(); downloadCardSVG(); });
+  $('#studentIdCardDownload')?.addEventListener('contextmenu', event => { event.preventDefault(); void downloadCardSVG(); });
   $('#studentIdCardPrint')?.addEventListener('click', () => window.print());
   $('#studentIdCardShare')?.addEventListener('click', async () => {
     if (!getStudent()?.id) return;
-    // Try PNG share first
     try {
-      const svgText = cardSVG();
-      const url = URL.createObjectURL(new Blob([svgText], {type:'image/svg+xml;charset=utf-8'}));
-      const img = new Image(); img.src = url; await img.decode();
-      const canvas = document.createElement('canvas'); canvas.width=1080; canvas.height=1710;
-      canvas.getContext('2d')?.drawImage(img,0,0,1080,1710);
-      URL.revokeObjectURL(url);
-      const blob = await new Promise(res=>canvas.toBlob(res,'image/png'));
+      const blob = await cardPngBlob(3);
       if (blob) {
-        const file = new File([blob], cardFileNameBase()+'.png', { type: 'image/png' });
-        if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files:[file], title: 'Active Plus · আইডি কার্ড' }); return; }
+        const file = new File([blob], `${cardFileNameBase()}.png`, { type: 'image/png' });
+        if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: 'Active Plus · আইডি কার্ড' }); return; }
       }
-    } catch {}
-    const file = new File([cardSVG()], cardFileNameBase()+'.svg', { type: 'image/svg+xml' });
+    } catch { /* Fall back to the vector file below. */ }
+    const file = new File([await exportCardSVG()], `${cardFileNameBase()}.svg`, { type: 'image/svg+xml' });
     if (!navigator.canShare?.({ files: [file] })) {
       showFeedback('এই ব্রাউজারে ফাইল শেয়ার নেই। কার্ডটি ডাউনলোড করে শেয়ার করুন।'); return;
     }

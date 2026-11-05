@@ -31,7 +31,6 @@
     #emptyRoutine,
     #profileView .more-avatar,
     #myProfileView .profile-photo-wrap,
-    #studentIdCardPreview,
     #studentFeeMount .student-fee-stat,
     #classesView .class-attendance-card
   ):has(> .hc-art) {
@@ -362,23 +361,6 @@
     opacity: .78;
   }
 
-  /* This overlay exists only in the screen preview. The ID download/share
-     helpers serialize their original card SVG, so the moving sheen is absent. */
-  body.student-reference #studentIdCardView #studentIdCardPreview:has(> .hc-art--id-shine) {
-    position: relative;
-    isolation: isolate;
-  }
-  body.student-reference #studentIdCardView #studentIdCardPreview:has(> .hc-art--id-shine) > svg {
-    position: relative;
-    z-index: -2;
-  }
-  body.student-reference #studentIdCardView #studentIdCardPreview > .hc-art--id-shine {
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 1;
-  }
-
   body.student-reference #studentFeeMount .student-fee-stat:has(> .hc-art--fee-coin) {
     padding-right: 62px;
     background-color: var(--hc-deep);
@@ -440,7 +422,6 @@
   body.student-reference .hc-art svg .hc-coin { animation: hc-coin 4s linear infinite; transform-box: fill-box; transform-origin: center; }
   body.student-reference .hc-art svg .hc-mega-pulse { animation: hc-mega-pulse 3.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   body.student-reference .hc-art svg .hc-avatar-ring { animation: hc-avatar-ring 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-  body.student-reference .hc-art svg .hc-id-shine { animation: hc-id-shine 6s ease-in-out infinite; }
   body.student-reference .hc-art svg .hc-steam { animation: hc-steam 3.4s ease-in-out infinite; }
   body.student-reference .hc-art svg .hc-fall { animation: hc-fall 4.2s ease-in infinite; transform-box: fill-box; transform-origin: center; }
   body.student-reference .hc-art svg .hc-flame { animation: hc-flame 2.6s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center top; }
@@ -493,7 +474,7 @@
   body.student-reference .hc-art svg :is(
     .hc-spin, .hc-spin2, .hc-pulse, .hc-float, .hc-tw, .hc-drift, .hc-rise, .hc-bubble,
     .hc-grow, .hc-type, .hc-blink, .hc-sway, .hc-globe, .hc-bob, .hc-hourglass, .hc-coin,
-    .hc-mega-pulse, .hc-avatar-ring, .hc-id-shine, .hc-steam, .hc-fall, .hc-flame,
+    .hc-mega-pulse, .hc-avatar-ring, .hc-steam, .hc-fall, .hc-flame,
     .hc-minute-hand, .hc-live-dot, .hc-check-path:not(.hc-check-drawn)
   ) { animation-play-state: paused; }
   body.student-reference #studentServices .pay-tile-icon svg,
@@ -635,7 +616,6 @@
 @keyframes hc-coin { to { transform: rotateY(360deg); } }
 @keyframes hc-mega-pulse { 0%, 100% { transform: scale(.94); opacity: .58; } 50% { transform: scale(1.04); opacity: 1; } }
 @keyframes hc-avatar-ring { 0%, 100% { transform: scale(.95); opacity: .35; } 50% { transform: scale(1.04); opacity: .86; } }
-@keyframes hc-id-shine { 0% { transform: translateX(-460px); opacity: 0; } 24% { opacity: .2; } 70% { opacity: .14; } 100% { transform: translateX(460px); opacity: 0; } }
 @keyframes hc-steam { 0% { transform: translateY(4px); opacity: .15; } 45% { opacity: .85; } 100% { transform: translateY(-6px); opacity: .1; } }
 @keyframes hc-fall { 0% { transform: translateY(-8px) rotate(0); opacity: .2; } 18% { opacity: .9; } 100% { transform: translateY(64px) rotate(120deg); opacity: .2; } }
 @keyframes hc-flame { from { transform: scaleY(.78); } to { transform: scaleY(1.08); } }
