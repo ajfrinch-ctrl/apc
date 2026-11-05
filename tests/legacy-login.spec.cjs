@@ -15,7 +15,9 @@ for(const role of ['admin','manager','teacher','payment'])test(`stored ${role} l
  },{role,password:PASSWORD});
  await page.reload();
  await page.fill('#loginMobile',id);await page.fill('#loginPin',PASSWORD);await page.click('#loginForm button[type=submit]');
- await expect(page).toHaveURL(new RegExp(`/${role}.html$`),{timeout:15000});
+ // The teacher panel may immediately select its home tab via #home. The
+ // pathname, not the fragment, identifies the panel we actually opened.
+ await expect(page).toHaveURL(url => url.pathname === `/${role}.html`, {timeout:15000});
  await expect(page.locator(role==='payment'?'#payShell':`#${role}Shell`)).toBeVisible();
  expect(await page.evaluate(()=>localStorage.getItem('qa-preserve'))).toBe('unchanged');
 });

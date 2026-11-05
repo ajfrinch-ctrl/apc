@@ -360,3 +360,38 @@ test('an offline device and an unreachable cloud both refuse to create an Admin'
   assert.equal(await readStaffAccount('admin'), null, 'still nothing is stored');
   flaky.window.close();
 });
+
+test('a recovered Admin verification clears only its own stale warning', async () => {
+  cloud.failReads = true;
+  const page = await openDevice();
+  try {
+    await page.ready;
+    await page.waitFor(() => /অ্যাডমিন অ্যাকাউন্ট যাচাই করা যায়নি/.test(page.$('#authMessage')?.textContent || ''));
+    assert.ok(page.$('#firstAdminPanel'), 'first Admin creation stays closed while cloud is unreachable');
+    cloud.failReads = false;
+    page.window.dispatchEvent(new page.window.Event('online'));
+    await page.waitFor(() => !page.$('#firstAdminPanel'));
+    assert.equal(page.$('#authMessage').hidden, true, 'a successful read of the existing Admin clears the obsolete warning');
+  } finally {
+    cloud.failReads = false;
+    page.window.close();
+  }
+});
+
+test('a recovered Admin verification never erases unrelated login feedback', async () => {
+  cloud.failReads = true;
+  const page = await openDevice();
+  try {
+    await page.ready;
+    await page.waitFor(() => /অ্যাডমিন অ্যাকাউন্ট যাচাই করা যায়নি/.test(page.$('#authMessage')?.textContent || ''));
+    const { setAuthMessage } = await import('../js/ui.js');
+    setAuthMessage('ভুল পাসওয়ার্ড');
+    cloud.failReads = false;
+    page.window.dispatchEvent(new page.window.Event('online'));
+    await page.waitFor(() => !page.$('#firstAdminPanel'));
+    assert.match(page.$('#authMessage').textContent, /ভুল পাসওয়ার্ড/, 'current login feedback remains visible');
+  } finally {
+    cloud.failReads = false;
+    page.window.close();
+  }
+});
