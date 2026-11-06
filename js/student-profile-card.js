@@ -257,6 +257,13 @@ export function studentIdCardSVG(student, photo = '', side = 'front', logo = '')
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" role="img" aria-label="ডিজিটাল আইডি কার্ড · ${side === 'back' ? 'পেছনের পাশ' : 'সামনের পাশ'}">${cardDefs()}<g font-family="${CARD_FONT}" xml:space="preserve">${body}</g></svg>`;
 }
 
+/* A printed card has two sides but a screen shows one. The print job therefore
+   carries both faces side by side on a single sheet, each at card size, so the
+   front and the back come out of the same press and can be cut and glued back
+   to back instead of printing twice. */
+export const cardPrintMarkup = (student, photo = '', logo = '') =>
+  ['front', 'back'].map(side => `<div class="student-id-print-face" data-print-side="${side}">${studentIdCardSVG(student, photo, side, logo)}<p class="student-id-print-label">${side === 'front' ? 'সামনের পাশ' : 'পেছনের পাশ'}</p></div>`).join('');
+
 export function initStudentProfileCard({ getStudent }) {
   if (!$('#myProfileView')) return;
   let request = 0;
@@ -388,7 +395,31 @@ export function initStudentProfileCard({ getStudent }) {
   // Primary download is PNG (full feature), fallback to SVG
   $('#studentIdCardDownload')?.addEventListener('click', downloadCardPNG);
   $('#studentIdCardDownload')?.addEventListener('contextmenu', event => { event.preventDefault(); void downloadCardSVG(); });
-  $('#studentIdCardPrint')?.addEventListener('click', () => window.print());
+  /* Both faces, one sheet: the print root is the only thing left on the page
+     while the job runs, and the body class removes it again afterwards. */
+  async function printCardSheet() {
+    const student = getStudent();
+    if (!student?.id) return showFeedback('শিক্ষার্থীর তথ্য পাওয়া যায়নি।');
+    await cardLogoDataUri();
+    try { await document.fonts?.ready; } catch { /* Print with the loaded face anyway. */ }
+    let root = $('#studentIdCardPrintRoot');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'studentIdCardPrintRoot';
+      root.setAttribute('aria-hidden', 'true');
+      document.body.append(root);
+    }
+    root.innerHTML = cardPrintMarkup(student, readPhoto(student), cardLogo);
+    const clear = () => document.body.classList.remove('student-card-printing');
+    document.body.classList.add('student-card-printing');
+    window.addEventListener('afterprint', clear, { once: true });
+    window.setTimeout(() => {
+      window.print();
+      // Browsers that never fire afterprint still get their page back.
+      window.setTimeout(() => { clear(); root.innerHTML = ''; }, 60000);
+    }, 80);
+  }
+  $('#studentIdCardPrint')?.addEventListener('click', printCardSheet);
   $('#studentIdCardShare')?.addEventListener('click', async () => {
     if (!getStudent()?.id) return;
     try {

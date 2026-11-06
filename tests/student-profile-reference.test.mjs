@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { studentIdCardSVG } from '../js/student-profile-card.js';
+import { readFileSync } from 'node:fs';
+import { studentIdCardSVG, cardPrintMarkup } from '../js/student-profile-card.js';
 
 test('ID card uses the exact stored ID, safely escapes text, and has APC branding', () => {
   const svg = studentIdCardSVG({ id: '000000000000000123', name: '<script>alert(1)</script>', className: 'দশম শ্রেণি' });
@@ -152,4 +153,24 @@ test('card exports embed the Bengali face so a shared PNG is not rendered in a f
   assert.match(source, /assets\/fonts\/NotoSansBengali-Variable\.woff2/);
   assert.match(source, /@font-face\{font-family:'Noto Sans Bengali';src:url\(data:font\/woff2;base64,/);
   assert.doesNotMatch(source, /link\[href\*="Noto"\]/, 'the old inline-style guess never found the face');
+});
+
+test('a print job carries both faces on one sheet, not only the visible side', () => {
+  const student = { id: '260810021', name: 'রাইসা আক্তার', className: 'দশম শ্রেণি', group: 'বিজ্ঞান', institution: 'ধানমন্ডি সরকারি উচ্চ বিদ্যালয়' };
+  const markup = cardPrintMarkup(student);
+  assert.equal((markup.match(/class="student-id-print-face"/g) || []).length, 2, 'front and back are both printed');
+  assert.match(markup, /data-print-side="front"[^]*সামনের পাশ/);
+  assert.match(markup, /data-print-side="back"[^]*পেছনের পাশ/);
+  assert.equal((markup.match(/viewBox="0 0 360 570"/g) || []).length, 2, 'each face is a full card');
+  assert.match(markup, /shape-rendering="crispEdges"/, 'the printed back keeps its QR');
+  assert.match(markup, /০১৮১১২২৩৩৪৪|260810021/, 'the printed card keeps the real ID');
+});
+
+test('the print sheet replaces the page instead of printing the app chrome', () => {
+  const css = readFileSync(new URL('../css/ui-features.css', import.meta.url), 'utf8');
+  assert.match(css, /body\.student-card-printing > :not\(#studentIdCardPrintRoot\)\s*\{[^}]*display:\s*none/, 'only the print sheet is left on the page');
+  assert.match(css, /#studentIdCardPrintRoot \.student-id-print-face\s*\{[^}]*width:\s*76mm/, 'both faces print at card size');
+  assert.match(css, /body\.student-card-printing #studentIdCardPrintRoot\s*\{[^}]*display:\s*flex/, 'the two faces sit side by side');
+  assert.doesNotMatch(css, /#studentIdCardView > :not\(#studentIdCardPreview\)/, 'the old one-sided print rule is gone');
+  assert.doesNotMatch(css, /@media print\s*\{\s*body \* \{ visibility: hidden/, 'no unscoped print rule hides every other page');
 });
