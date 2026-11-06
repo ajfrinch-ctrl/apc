@@ -15,9 +15,23 @@ test('ID card uses the exact stored ID, safely escapes text, and has APC brandin
 test('back repeats real ID and omits unavailable details without fabricated placeholders', () => {
   const back = studentIdCardSVG({ id: 'AP-42', guardianMobile: '01712345678' }, '', 'back');
   assert.match(back, /AP-42/);
-  assert.match(back, /017••••••78/);
+  assert.match(back, /০১৭১২৩৪৫৬৭৮/, 'the guardian number is readable in full and in Bangla digits');
+  assert.doesNotMatch(back, /•/, 'no masked digits on the owner\'s own card');
   assert.doesNotMatch(back, /ঠিকানা|—/);
   assert.match(back, /ব্যবহারের শর্ত/);
+});
+
+test('the front names a mobile number, and the QR carries name, ID and class as plain text', async () => {
+  const student = { id: '260810021', name: 'রাইসা আক্তার', className: 'দশম শ্রেণি', group: 'বিজ্ঞান', studentMobile: '01811223344' };
+  const front = studentIdCardSVG(student);
+  assert.match(front, /মোবাইল/);
+  assert.match(front, /০১৮১১২২৩৩৪৪/);
+  const { studentIdQRPayload } = await import('../js/student-profile-card.js');
+  const payload = studentIdQRPayload(student);
+  assert.equal(payload.split('\n').length, 4);
+  assert.match(payload, /^Active Plus Coaching\nনাম: রাইসা আক্তার\nআইডি: 260810021\nশ্রেণি: দশম শ্রেণি · বিজ্ঞান$/);
+  const back = studentIdCardSVG(student, '', 'back');
+  assert.match(back, /shape-rendering="crispEdges"/);
 });
 
 test('missing IDs are not replaced with another number', () => {
@@ -39,7 +53,7 @@ test('portrait layout fits long names and long IDs while keeping the full ID', (
   const id = '000000000000000000000000123456789';
   const svg = studentIdCardSVG({ id, name: 'অত্যন্ত দীর্ঘ শিক্ষার্থীর পূর্ণ নাম যেটি কার্ডে থাকবে', className: 'দশম শ্রেণি' });
   assert.match(svg, new RegExp(id));
-  const idLine = textAt(svg, 54, 336);
+  const idLine = textAt(svg, 54, 344);
   assert.equal(idLine, id, 'the identifier is never shortened, elided or replaced');
   assert.doesNotMatch(idLine, /…/);
   const nameLines = [...svg.matchAll(/<text x="132" y="(\d+)" font-size="([\d.]+)" font-weight="700"[^>]*>([^<]*)<\/text>/g)];
@@ -64,12 +78,25 @@ test('the card keeps one warm identity palette and the app Bengali face', () => 
   assert.match(back, /ব্যবহারের শর্ত/);
 });
 
+test('the header stacks the logo above the institute name above the slogan', () => {
+  const logo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+  const svg = studentIdCardSVG({ id: '1', name: 'ক' }, '', 'front', logo);
+  const badge = svg.indexOf('<image x=');
+  const institute = svg.indexOf('Active Plus Coaching</text>');
+  const slogan = svg.indexOf('শিখতে থাকো, এগিয়ে যাও');
+  assert.ok(badge > -1 && institute > -1 && slogan > -1);
+  assert.ok(badge < institute, 'logo first');
+  assert.ok(institute < slogan, 'then the institute, then the slogan');
+  assert.match(svg, /<text x="180" y="88" font-size="16"[^>]*>Active Plus Coaching</);
+  assert.match(svg, /<text x="180" y="105" font-size="10.5"[^>]*>শিখতে থাকো, এগিয়ে যাও</);
+});
+
 test('the card carries the institute\'s own logo, never an invented mark', () => {
   const logo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
   const withLogo = studentIdCardSVG({ id: '260810021', name: 'রাইসা আক্তার' }, '', 'front', logo);
   const backWithLogo = studentIdCardSVG({ id: '260810021' }, '', 'back', logo);
   for (const svg of [withLogo, backWithLogo]) {
-    assert.match(svg, /<image x="4" y="4" width="32" height="32" href="data:image\/png;base64,/);
+    assert.match(svg, /<image x="\d+(\.\d+)?" y="\d+(\.\d+)?" width="\d+(\.\d+)?" height="\d+(\.\d+)?" href="data:image\/png;base64,/);
   }
   assert.doesNotMatch(withLogo, /M180 20 158 31/, 'the drawn fallback yields once the real mark is available');
   const withoutLogo = studentIdCardSVG({ id: '260810021', name: 'রাইসা আক্তার' });
