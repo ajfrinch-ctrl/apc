@@ -198,13 +198,15 @@ function updateTileBadge(count) {
   });
   const moreRow = document.querySelector('#profileView .notice-board-more-row');
   if (moreRow) moreRow.setAttribute('aria-label', label);
-  const homeButton = document.getElementById('homeNoticeButton');
-  if (homeButton) homeButton.setAttribute('aria-label', label);
+  const homeTile = document.querySelector('#homeView .notice-board-shortcut');
+  if (homeTile) homeTile.setAttribute('aria-label', label);
 }
 
-/** Home preview: compact one-click Home Notice Card + optional #homeNoticeList.
-    Uses the exact same boardItems() reader as the Notice Board so Home, More
-    menu, and Notice Board stay synchronized. */
+/** Home preview: the unread badge on the services tile and the More row, plus
+    the optional #homeNoticeList strip. Uses the exact same boardItems() reader
+    as the Notice Board so Home, More menu, and Notice Board stay synchronized.
+    (The one-click card that used to sit above the hero was removed on the
+    owner's review — Home now keeps only the tile and the menu row.) */
 function paintHomeNotices() {
   const student = (homeGetter || getStudent)() || {};
   const viewer = {
@@ -215,28 +217,6 @@ function paintHomeNotices() {
   const allItems = boardItems(viewer);
   const unreadItems = allItems.filter(item => !itemIsRead(item, viewer.studentId, receipts));
   updateTileBadge(unreadItems.length);
-
-  const homeButton = document.getElementById('homeNoticeButton');
-  const homeTitle = document.getElementById('homeNoticeTitle');
-  const homeMeta = document.getElementById('homeNoticeMeta');
-  if (homeButton && homeTitle && homeMeta) {
-    homeButton.classList.toggle('has-unread', unreadItems.length > 0);
-    if (unreadItems.length > 0) {
-      const topUnread = unreadItems[0];
-      const topTitle = text(topUnread.title) || 'নোটিশ';
-      const topBody = text(topUnread.body);
-      homeTitle.textContent = `নতুন নোটিশ — ${topTitle}`;
-      homeMeta.textContent = unreadItems.length > 1
-        ? `${toBn(unreadItems.length)}টি অপঠিত নোটিশ · এক ক্লিকে সব দেখুন`
-        : (topBody ? (topBody.length > 68 ? `${topBody.slice(0, 65)}…` : topBody) : 'এক ক্লিকে বিস্তারিত পড়ুন');
-    } else if (allItems.length > 0) {
-      homeTitle.textContent = 'নোটিশ বোর্ড';
-      homeMeta.textContent = `সর্বশেষ: ${text(allItems[0].title) || 'নোটিশ'}`;
-    } else {
-      homeTitle.textContent = 'নোটিশ বোর্ড';
-      homeMeta.textContent = 'সর্বশেষ নোটিশ ও জরুরি ঘোষণা দেখুন';
-    }
-  }
 
   const mount = document.getElementById('homeNoticeList');
   if (!mount) return;

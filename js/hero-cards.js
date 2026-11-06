@@ -200,7 +200,6 @@ const ART = {
     `<circle class="hc-avatar-ring" cx="40" cy="40" r="35" fill="none" stroke="#FAC775" stroke-width="2.5"/>` +
     `<circle cx="40" cy="40" r="30" fill="none" stroke="#9FE1CB" stroke-width="1" stroke-opacity=".8"/>`
   ),
-  idShine: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 430" aria-hidden="true" focusable="false"><path class="hc-id-shine" d="M-90 0h68L230 430h-68z" fill="#fff" fill-opacity=".2"/></svg>`,
   feeCoin: svg(
     `<g class="hc-coin"><ellipse cx="40" cy="27" rx="19" ry="11" fill="#FAC775" stroke="#fff" stroke-width="2"/>` +
     `<path d="M21 27v23q0 11 19 11t19-11V27" fill="#FAC775" stroke="#fff" stroke-width="2"/>` +
@@ -399,7 +398,6 @@ function renderArt() {
   decorateUpcomingExamCards();
   mount($('#moreAvatar'), 'avatar-ring', ART.avatarRing, 'hc-art--avatar-ring');
   mount($('#myProfileView .profile-photo-wrap'), 'avatar-ring', ART.avatarRing, 'hc-art--avatar-ring');
-  mount($('#studentIdCardPreview'), 'id-shine', ART.idShine, 'hc-art--id-shine');
 
   const feeSummary = $('#studentFeeMount .student-fee-summary');
   const feeTiles = feeSummary ? [...feeSummary.querySelectorAll('.student-fee-stat')] : [];

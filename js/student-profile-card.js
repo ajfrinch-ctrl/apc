@@ -20,38 +20,114 @@ const bnLocal = v => String(v).replace(/\d/g, d => '০১২৩৪৫৬৭৮�
 const bnb = v => {
   try { return bnLib(v); } catch { return bnLocal(v); }
 };
-const maskedPhone = value => {
-  const digits = String(value || '').replace(/[^0-9০-৯]/g, '');
-  return digits ? `${digits.slice(0, 3)}${'•'.repeat(Math.max(3, digits.length - 5))}${digits.slice(-2)}` : '—';
-};
-
 var v=function(w,x){let s=w,l=j[x],e=null,t=0,c=null,p=[],y={},h=function(r,u){t=s*4+17,e=(function(n){let f=new Array(n);for(let i=0;i<n;i+=1){f[i]=new Array(n);for(let g=0;g<n;g+=1)f[i][g]=null}return f})(t),a(0,0),a(t-7,0),a(0,t-7),D(),P(),I(r,u),s>=7&&E(r),c==null&&(c=Z(s,l,p)),m(c,u)},a=function(r,u){for(let n=-1;n<=7;n+=1)if(!(r+n<=-1||t<=r+n))for(let f=-1;f<=7;f+=1)u+f<=-1||t<=u+f||(0<=n&&n<=6&&(f==0||f==6)||0<=f&&f<=6&&(n==0||n==6)||2<=n&&n<=4&&2<=f&&f<=4?e[r+n][u+f]=!0:e[r+n][u+f]=!1)},_=function(){let r=0,u=0;for(let n=0;n<8;n+=1){h(!0,n);let f=O.getLostPoint(y);(n==0||r>f)&&(r=f,u=n)}return u},P=function(){for(let r=8;r<t-8;r+=1)e[r][6]==null&&(e[r][6]=r%2==0);for(let r=8;r<t-8;r+=1)e[6][r]==null&&(e[6][r]=r%2==0)},D=function(){let r=O.getPatternPosition(s);for(let u=0;u<r.length;u+=1)for(let n=0;n<r.length;n+=1){let f=r[u],i=r[n];if(e[f][i]==null)for(let g=-2;g<=2;g+=1)for(let A=-2;A<=2;A+=1)g==-2||g==2||A==-2||A==2||g==0&&A==0?e[f+g][i+A]=!0:e[f+g][i+A]=!1}},E=function(r){let u=O.getBCHTypeNumber(s);for(let n=0;n<18;n+=1){let f=!r&&(u>>n&1)==1;e[Math.floor(n/3)][n%3+t-8-3]=f}for(let n=0;n<18;n+=1){let f=!r&&(u>>n&1)==1;e[n%3+t-8-3][Math.floor(n/3)]=f}},I=function(r,u){let n=l<<3|u,f=O.getBCHTypeInfo(n);for(let i=0;i<15;i+=1){let g=!r&&(f>>i&1)==1;i<6?e[i][8]=g:i<8?e[i+1][8]=g:e[t-15+i][8]=g}for(let i=0;i<15;i+=1){let g=!r&&(f>>i&1)==1;i<8?e[8][t-i-1]=g:i<9?e[8][15-i-1+1]=g:e[8][15-i-1]=g}e[t-8][8]=!r},m=function(r,u){let n=-1,f=t-1,i=7,g=0,A=O.getMaskFunction(u);for(let B=t-1;B>0;B-=2)for(B==6&&(B-=1);;){for(let M=0;M<2;M+=1)if(e[f][B-M]==null){let T=!1;g<r.length&&(T=(r[g]>>>i&1)==1),A(f,B-M)&&(T=!T),e[f][B-M]=T,i-=1,i==-1&&(g+=1,i=7)}if(f+=n,f<0||t<=f){f-=n,n=-n;break}}},X=function(r,u){let n=0,f=0,i=0,g=new Array(u.length),A=new Array(u.length);for(let b=0;b<u.length;b+=1){let C=u[b].dataCount,L=u[b].totalCount-C;f=Math.max(f,C),i=Math.max(i,L),g[b]=new Array(C);for(let R=0;R<g[b].length;R+=1)g[b][R]=255&r.getBuffer()[R+n];n+=C;let Q=O.getErrorCorrectPolynomial(L),F=K(g[b],Q.getLength()-1).mod(Q);A[b]=new Array(Q.getLength()-1);for(let R=0;R<A[b].length;R+=1){let S=R+F.getLength()-A[b].length;A[b][R]=S>=0?F.getAt(S):0}}let B=0;for(let b=0;b<u.length;b+=1)B+=u[b].totalCount;let M=new Array(B),T=0;for(let b=0;b<f;b+=1)for(let C=0;C<u.length;C+=1)b<g[C].length&&(M[T]=g[C][b],T+=1);for(let b=0;b<i;b+=1)for(let C=0;C<u.length;C+=1)b<A[C].length&&(M[T]=A[C][b],T+=1);return M},Z=function(r,u,n){let f=Y.getRSBlocks(r,u),i=G();for(let A=0;A<n.length;A+=1){let B=n[A];i.put(B.getMode(),4),i.put(B.getLength(),O.getLengthInBits(B.getMode(),r)),B.write(i)}let g=0;for(let A=0;A<f.length;A+=1)g+=f[A].dataCount;if(i.getLengthInBits()>g*8)throw"code length overflow. ("+i.getLengthInBits()+">"+g*8+")";for(i.getLengthInBits()+4<=g*8&&i.put(0,4);i.getLengthInBits()%8!=0;)i.putBit(!1);for(;!(i.getLengthInBits()>=g*8||(i.put(236,8),i.getLengthInBits()>=g*8));)i.put(17,8);return X(i,f)};y.addData=function(r,u){u=u||"Byte";let n=null;switch(u){case"Numeric":n=W(r);break;case"Alphanumeric":n=V(r);break;case"Byte":n=q(r);break;case"Kanji":n=z(r);break;default:throw"mode:"+u}p.push(n),c=null},y.isDark=function(r,u){if(r<0||t<=r||u<0||t<=u)throw r+","+u;return e[r][u]},y.getModuleCount=function(){return t},y.make=function(){if(s<1){let r=1;for(;r<40;r++){let u=Y.getRSBlocks(r,l),n=G();for(let i=0;i<p.length;i++){let g=p[i];n.put(g.getMode(),4),n.put(g.getLength(),O.getLengthInBits(g.getMode(),r)),g.write(n)}let f=0;for(let i=0;i<u.length;i++)f+=u[i].dataCount;if(n.getLengthInBits()<=f*8)break}s=r}h(!1,_())},y.createTableTag=function(r,u){r=r||2,u=typeof u>"u"?r*4:u;let n="";n+='<table style="',n+=" border-width: 0px; border-style: none;",n+=" border-collapse: collapse;",n+=" padding: 0px; margin: "+u+"px;",n+='">',n+="<tbody>";for(let f=0;f<y.getModuleCount();f+=1){n+="<tr>";for(let i=0;i<y.getModuleCount();i+=1)n+='<td style="',n+=" border-width: 0px; border-style: none;",n+=" border-collapse: collapse;",n+=" padding: 0px; margin: 0px;",n+=" width: "+r+"px;",n+=" height: "+r+"px;",n+=" background-color: ",n+=y.isDark(f,i)?"#000000":"#ffffff",n+=";",n+='"/>';n+="</tr>"}return n+="</tbody>",n+="</table>",n},y.createSvgTag=function(r,u,n,f){let i={};typeof arguments[0]=="object"&&(i=arguments[0],r=i.cellSize,u=i.margin,n=i.alt,f=i.title),r=r||2,u=typeof u>"u"?r*4:u,n=typeof n=="string"?{text:n}:n||{},n.text=n.text||null,n.id=n.text?n.id||"qrcode-description":null,f=typeof f=="string"?{text:f}:f||{},f.text=f.text||null,f.id=f.text?f.id||"qrcode-title":null;let g=y.getModuleCount()*r+u*2,A,B,M,T,b="",C;for(C="l"+r+",0 0,"+r+" -"+r+",0 0,-"+r+"z ",b+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',b+=i.scalable?"":' width="'+g+'px" height="'+g+'px"',b+=' viewBox="0 0 '+g+" "+g+'" ',b+=' preserveAspectRatio="xMinYMin meet"',b+=f.text||n.text?' role="img" aria-labelledby="'+U([f.id,n.id].join(" ").trim())+'"':"",b+=">",b+=f.text?'<title id="'+U(f.id)+'">'+U(f.text)+"</title>":"",b+=n.text?'<description id="'+U(n.id)+'">'+U(n.text)+"</description>":"",b+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',b+='<path d="',M=0;M<y.getModuleCount();M+=1)for(T=M*r+u,A=0;A<y.getModuleCount();A+=1)y.isDark(M,A)&&(B=A*r+u,b+="M"+B+","+T+C);return b+='" stroke="transparent" fill="black"/>',b+="</svg>",b},y.createDataURL=function(r,u){r=r||2,u=typeof u>"u"?r*4:u;let n=y.getModuleCount()*r+u*2,f=u,i=n-u;return rt(n,n,function(g,A){if(f<=g&&g<i&&f<=A&&A<i){let B=Math.floor((g-f)/r),M=Math.floor((A-f)/r);return y.isDark(M,B)?0:1}else return 1})},y.createImgTag=function(r,u,n){r=r||2,u=typeof u>"u"?r*4:u;let f=y.getModuleCount()*r+u*2,i="";return i+="<img",i+=' src="',i+=y.createDataURL(r,u),i+='"',i+=' width="',i+=f,i+='"',i+=' height="',i+=f,i+='"',n&&(i+=' alt="',i+=U(n),i+='"'),i+="/>",i};let U=function(r){let u="";for(let n=0;n<r.length;n+=1){let f=r.charAt(n);switch(f){case"<":u+="&lt;";break;case">":u+="&gt;";break;case"&":u+="&amp;";break;case'"':u+="&quot;";break;default:u+=f;break}}return u},$=function(r){r=typeof r>"u"?2:r;let n=y.getModuleCount()*1+r*2,f=r,i=n-r,g,A,B,M,T,b={"\u2588\u2588":"\u2588","\u2588 ":"\u2580"," \u2588":"\u2584","  ":" "},C={"\u2588\u2588":"\u2580","\u2588 ":"\u2580"," \u2588":" ","  ":" "},L="";for(g=0;g<n;g+=2){for(B=Math.floor((g-f)/1),M=Math.floor((g+1-f)/1),A=0;A<n;A+=1)T="\u2588",f<=A&&A<i&&f<=g&&g<i&&y.isDark(B,Math.floor((A-f)/1))&&(T=" "),f<=A&&A<i&&f<=g+1&&g+1<i&&y.isDark(M,Math.floor((A-f)/1))?T+=" ":T+="\u2588",L+=r<1&&g+1>=i?C[T]:b[T];L+=`
 `}return n%2&&r>0?L.substring(0,L.length-n-1)+Array(n+1).join("\u2580"):L.substring(0,L.length-1)};return y.createASCII=function(r,u){if(r=r||1,r<2)return $(u);r-=1,u=typeof u>"u"?r*2:u;let n=y.getModuleCount()*r+u*2,f=u,i=n-u,g,A,B,M,T=Array(r+1).join("\u2588\u2588"),b=Array(r+1).join("  "),C="",L="";for(g=0;g<n;g+=1){for(B=Math.floor((g-f)/r),L="",A=0;A<n;A+=1)M=1,f<=A&&A<i&&f<=g&&g<i&&y.isDark(B,Math.floor((A-f)/r))&&(M=0),L+=M?T:b;for(B=0;B<r;B+=1)C+=L+`
 `}return C.substring(0,C.length-1)},y.renderTo2dContext=function(r,u){u=u||2;let n=y.getModuleCount();for(let f=0;f<n;f++)for(let i=0;i<n;i++)r.fillStyle=y.isDark(f,i)?"black":"white",r.fillRect(i*u,f*u,u,u)},y};v.stringToBytes=function(w){let x=[];for(let d=0;d<w.length;d+=1){let o=w.charCodeAt(d);x.push(o&255)}return x};v.createStringToBytes=function(w,x){let d=(function(){let s=et(w),l=function(){let c=s.read();if(c==-1)throw"eof";return c},e=0,t={};for(;;){let c=s.read();if(c==-1)break;let p=l(),y=l(),h=l(),a=String.fromCharCode(c<<8|p),_=y<<8|h;t[a]=_,e+=1}if(e!=x)throw e+" != "+x;return t})(),o=63;return function(s){let l=[];for(let e=0;e<s.length;e+=1){let t=s.charCodeAt(e);if(t<128)l.push(t);else{let c=d[s.charAt(e)];typeof c=="number"?(c&255)==c?l.push(c):(l.push(c>>>8),l.push(c&255)):l.push(o)}}return l}};var k={MODE_NUMBER:1,MODE_ALPHA_NUM:2,MODE_8BIT_BYTE:4,MODE_KANJI:8},j={L:1,M:0,Q:3,H:2},N={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7},O=(function(){let w=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],x=1335,d=7973,o=21522,s={},l=function(e){let t=0;for(;e!=0;)t+=1,e>>>=1;return t};return s.getBCHTypeInfo=function(e){let t=e<<10;for(;l(t)-l(x)>=0;)t^=x<<l(t)-l(x);return(e<<10|t)^o},s.getBCHTypeNumber=function(e){let t=e<<12;for(;l(t)-l(d)>=0;)t^=d<<l(t)-l(d);return e<<12|t},s.getPatternPosition=function(e){return w[e-1]},s.getMaskFunction=function(e){switch(e){case N.PATTERN000:return function(t,c){return(t+c)%2==0};case N.PATTERN001:return function(t,c){return t%2==0};case N.PATTERN010:return function(t,c){return c%3==0};case N.PATTERN011:return function(t,c){return(t+c)%3==0};case N.PATTERN100:return function(t,c){return(Math.floor(t/2)+Math.floor(c/3))%2==0};case N.PATTERN101:return function(t,c){return t*c%2+t*c%3==0};case N.PATTERN110:return function(t,c){return(t*c%2+t*c%3)%2==0};case N.PATTERN111:return function(t,c){return(t*c%3+(t+c)%2)%2==0};default:throw"bad maskPattern:"+e}},s.getErrorCorrectPolynomial=function(e){let t=K([1],0);for(let c=0;c<e;c+=1)t=t.multiply(K([1,H.gexp(c)],0));return t},s.getLengthInBits=function(e,t){if(1<=t&&t<10)switch(e){case k.MODE_NUMBER:return 10;case k.MODE_ALPHA_NUM:return 9;case k.MODE_8BIT_BYTE:return 8;case k.MODE_KANJI:return 8;default:throw"mode:"+e}else if(t<27)switch(e){case k.MODE_NUMBER:return 12;case k.MODE_ALPHA_NUM:return 11;case k.MODE_8BIT_BYTE:return 16;case k.MODE_KANJI:return 10;default:throw"mode:"+e}else if(t<41)switch(e){case k.MODE_NUMBER:return 14;case k.MODE_ALPHA_NUM:return 13;case k.MODE_8BIT_BYTE:return 16;case k.MODE_KANJI:return 12;default:throw"mode:"+e}else throw"type:"+t},s.getLostPoint=function(e){let t=e.getModuleCount(),c=0;for(let h=0;h<t;h+=1)for(let a=0;a<t;a+=1){let _=0,P=e.isDark(h,a);for(let D=-1;D<=1;D+=1)if(!(h+D<0||t<=h+D))for(let E=-1;E<=1;E+=1)a+E<0||t<=a+E||D==0&&E==0||P==e.isDark(h+D,a+E)&&(_+=1);_>5&&(c+=3+_-5)}for(let h=0;h<t-1;h+=1)for(let a=0;a<t-1;a+=1){let _=0;e.isDark(h,a)&&(_+=1),e.isDark(h+1,a)&&(_+=1),e.isDark(h,a+1)&&(_+=1),e.isDark(h+1,a+1)&&(_+=1),(_==0||_==4)&&(c+=3)}for(let h=0;h<t;h+=1)for(let a=0;a<t-6;a+=1)e.isDark(h,a)&&!e.isDark(h,a+1)&&e.isDark(h,a+2)&&e.isDark(h,a+3)&&e.isDark(h,a+4)&&!e.isDark(h,a+5)&&e.isDark(h,a+6)&&(c+=40);for(let h=0;h<t;h+=1)for(let a=0;a<t-6;a+=1)e.isDark(a,h)&&!e.isDark(a+1,h)&&e.isDark(a+2,h)&&e.isDark(a+3,h)&&e.isDark(a+4,h)&&!e.isDark(a+5,h)&&e.isDark(a+6,h)&&(c+=40);let p=0;for(let h=0;h<t;h+=1)for(let a=0;a<t;a+=1)e.isDark(a,h)&&(p+=1);let y=Math.abs(100*p/t/t-50)/5;return c+=y*10,c},s})(),H=(function(){let w=new Array(256),x=new Array(256);for(let o=0;o<8;o+=1)w[o]=1<<o;for(let o=8;o<256;o+=1)w[o]=w[o-4]^w[o-5]^w[o-6]^w[o-8];for(let o=0;o<255;o+=1)x[w[o]]=o;let d={};return d.glog=function(o){if(o<1)throw"glog("+o+")";return x[o]},d.gexp=function(o){for(;o<0;)o+=255;for(;o>=256;)o-=255;return w[o]},d})(),K=function(w,x){if(typeof w.length>"u")throw w.length+"/"+x;let d=(function(){let s=0;for(;s<w.length&&w[s]==0;)s+=1;let l=new Array(w.length-s+x);for(let e=0;e<w.length-s;e+=1)l[e]=w[e+s];return l})(),o={};return o.getAt=function(s){return d[s]},o.getLength=function(){return d.length},o.multiply=function(s){let l=new Array(o.getLength()+s.getLength()-1);for(let e=0;e<o.getLength();e+=1)for(let t=0;t<s.getLength();t+=1)l[e+t]^=H.gexp(H.glog(o.getAt(e))+H.glog(s.getAt(t)));return K(l,0)},o.mod=function(s){if(o.getLength()-s.getLength()<0)return o;let l=H.glog(o.getAt(0))-H.glog(s.getAt(0)),e=new Array(o.getLength());for(let t=0;t<o.getLength();t+=1)e[t]=o.getAt(t);for(let t=0;t<s.getLength();t+=1)e[t]^=H.gexp(H.glog(s.getAt(t))+l);return K(e,0).mod(s)},o},Y=(function(){let w=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],x=function(s,l){let e={};return e.totalCount=s,e.dataCount=l,e},d={},o=function(s,l){switch(l){case j.L:return w[(s-1)*4+0];case j.M:return w[(s-1)*4+1];case j.Q:return w[(s-1)*4+2];case j.H:return w[(s-1)*4+3];default:return}};return d.getRSBlocks=function(s,l){let e=o(s,l);if(typeof e>"u")throw"bad rs block @ typeNumber:"+s+"/errorCorrectionLevel:"+l;let t=e.length/3,c=[];for(let p=0;p<t;p+=1){let y=e[p*3+0],h=e[p*3+1],a=e[p*3+2];for(let _=0;_<y;_+=1)c.push(x(h,a))}return c},d})(),G=function(){let w=[],x=0,d={};return d.getBuffer=function(){return w},d.getAt=function(o){let s=Math.floor(o/8);return(w[s]>>>7-o%8&1)==1},d.put=function(o,s){for(let l=0;l<s;l+=1)d.putBit((o>>>s-l-1&1)==1)},d.getLengthInBits=function(){return x},d.putBit=function(o){let s=Math.floor(x/8);w.length<=s&&w.push(0),o&&(w[s]|=128>>>x%8),x+=1},d},W=function(w){let x=k.MODE_NUMBER,d=w,o={};o.getMode=function(){return x},o.getLength=function(e){return d.length},o.write=function(e){let t=d,c=0;for(;c+2<t.length;)e.put(s(t.substring(c,c+3)),10),c+=3;c<t.length&&(t.length-c==1?e.put(s(t.substring(c,c+1)),4):t.length-c==2&&e.put(s(t.substring(c,c+2)),7))};let s=function(e){let t=0;for(let c=0;c<e.length;c+=1)t=t*10+l(e.charAt(c));return t},l=function(e){if("0"<=e&&e<="9")return e.charCodeAt(0)-48;throw"illegal char :"+e};return o},V=function(w){let x=k.MODE_ALPHA_NUM,d=w,o={};o.getMode=function(){return x},o.getLength=function(l){return d.length},o.write=function(l){let e=d,t=0;for(;t+1<e.length;)l.put(s(e.charAt(t))*45+s(e.charAt(t+1)),11),t+=2;t<e.length&&l.put(s(e.charAt(t)),6)};let s=function(l){if("0"<=l&&l<="9")return l.charCodeAt(0)-48;if("A"<=l&&l<="Z")return l.charCodeAt(0)-65+10;switch(l){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+l}};return o},q=function(w){let x=k.MODE_8BIT_BYTE,d=w,o=v.stringToBytes(w),s={};return s.getMode=function(){return x},s.getLength=function(l){return o.length},s.write=function(l){for(let e=0;e<o.length;e+=1)l.put(o[e],8)},s},z=function(w){let x=k.MODE_KANJI,d=w,o=v.stringToBytes;(function(e,t){let c=o(e);if(c.length!=2||(c[0]<<8|c[1])!=t)throw"sjis not supported."})("\u53CB",38726);let s=o(w),l={};return l.getMode=function(){return x},l.getLength=function(e){return~~(s.length/2)},l.write=function(e){let t=s,c=0;for(;c+1<t.length;){let p=(255&t[c])<<8|255&t[c+1];if(33088<=p&&p<=40956)p-=33088;else if(57408<=p&&p<=60351)p-=49472;else throw"illegal char at "+(c+1)+"/"+p;p=(p>>>8&255)*192+(p&255),e.put(p,13),c+=2}if(c<t.length)throw"illegal char at "+(c+1)},l},J=function(){let w=[],x={};return x.writeByte=function(d){w.push(d&255)},x.writeShort=function(d){x.writeByte(d),x.writeByte(d>>>8)},x.writeBytes=function(d,o,s){o=o||0,s=s||d.length;for(let l=0;l<s;l+=1)x.writeByte(d[l+o])},x.writeString=function(d){for(let o=0;o<d.length;o+=1)x.writeByte(d.charCodeAt(o))},x.toByteArray=function(){return w},x.toString=function(){let d="";d+="[";for(let o=0;o<w.length;o+=1)o>0&&(d+=","),d+=w[o];return d+="]",d},x},tt=function(){let w=0,x=0,d=0,o="",s={},l=function(t){o+=String.fromCharCode(e(t&63))},e=function(t){if(t<0)throw"n:"+t;if(t<26)return 65+t;if(t<52)return 97+(t-26);if(t<62)return 48+(t-52);if(t==62)return 43;if(t==63)return 47;throw"n:"+t};return s.writeByte=function(t){for(w=w<<8|t&255,x+=8,d+=1;x>=6;)l(w>>>x-6),x-=6},s.flush=function(){if(x>0&&(l(w<<6-x),w=0,x=0),d%3!=0){let t=3-d%3;for(let c=0;c<t;c+=1)o+="="}},s.toString=function(){return o},s},et=function(w){let x=w,d=0,o=0,s=0,l={};l.read=function(){for(;s<8;){if(d>=x.length){if(s==0)return-1;throw"unexpected end of file./"+s}let c=x.charAt(d);if(d+=1,c=="=")return s=0,-1;if(c.match(/^\s$/))continue;o=o<<6|e(c.charCodeAt(0)),s+=6}let t=o>>>s-8&255;return s-=8,t};let e=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(t==43)return 62;if(t==47)return 63;throw"c:"+t};return l},nt=function(w,x){let d=w,o=x,s=new Array(w*x),l={};l.setPixel=function(p,y,h){s[y*d+p]=h},l.write=function(p){p.writeString("GIF87a"),p.writeShort(d),p.writeShort(o),p.writeByte(128),p.writeByte(0),p.writeByte(0),p.writeByte(0),p.writeByte(0),p.writeByte(0),p.writeByte(255),p.writeByte(255),p.writeByte(255),p.writeString(","),p.writeShort(0),p.writeShort(0),p.writeShort(d),p.writeShort(o),p.writeByte(0);let y=2,h=t(y);p.writeByte(y);let a=0;for(;h.length-a>255;)p.writeByte(255),p.writeBytes(h,a,255),a+=255;p.writeByte(h.length-a),p.writeBytes(h,a,h.length-a),p.writeByte(0),p.writeString(";")};let e=function(p){let y=p,h=0,a=0,_={};return _.write=function(P,D){if(P>>>D)throw"length over";for(;h+D>=8;)y.writeByte(255&(P<<h|a)),D-=8-h,P>>>=8-h,a=0,h=0;a=P<<h|a,h=h+D},_.flush=function(){h>0&&y.writeByte(a)},_},t=function(p){let y=1<<p,h=(1<<p)+1,a=p+1,_=c();for(let m=0;m<y;m+=1)_.add(String.fromCharCode(m));_.add(String.fromCharCode(y)),_.add(String.fromCharCode(h));let P=J(),D=e(P);D.write(y,a);let E=0,I=String.fromCharCode(s[E]);for(E+=1;E<s.length;){let m=String.fromCharCode(s[E]);E+=1,_.contains(I+m)?I=I+m:(D.write(_.indexOf(I),a),_.size()<4095&&(_.size()==1<<a&&(a+=1),_.add(I+m)),I=m)}return D.write(_.indexOf(I),a),D.write(h,a),D.flush(),P.toByteArray()},c=function(){let p={},y=0,h={};return h.add=function(a){if(h.contains(a))throw"dup key:"+a;p[a]=y,y+=1},h.size=function(){return y},h.indexOf=function(a){return p[a]},h.contains=function(a){return typeof p[a]<"u"},h};return l},rt=function(w,x,d){let o=nt(w,x);for(let t=0;t<x;t+=1)for(let c=0;c<w;c+=1)o.setPixel(c,t,d(c,t));let s=J();o.write(s);let l=tt(),e=s.toByteArray();for(let t=0;t<e.length;t+=1)l.writeByte(e[t]);return l.flush(),"data:image/gif;base64,"+l},ot=v,st=v.stringToBytes;const qrcode=ot;
 
 
 
-const studentIdQRPayload = student => `Active Plus Coaching | Student ID: ${String(student?.id || '').slice(0, 128)}`;
+/* The QR carries what a guard, a parent or an office desk needs at a glance —
+   the institute, the student's name, the immutable ID, the class, the school or
+   college, the date of birth and the guardian — as plain UTF-8 text, so any
+   camera app shows it without a network round-trip. Empty fields are dropped
+   instead of printing a dash, which keeps the symbol small. */
+const qrDate = value => {
+  const stamp = String(value ?? '').trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(stamp);
+  return bnb(match ? `${match[3]}/${match[2]}/${match[1]}` : stamp).slice(0, 20);
+};
+const qrBytes = text => {
+  try { return new TextEncoder().encode(text).length; } catch { return text.length * 3; }
+};
+/* 440 bytes still fits a 73-module symbol, which decodes at 360px inside the
+   224px QR box; a longer payload would need a symbol the card has no room for.
+   Over-long values are shortened in a fixed order — school, guardian, class,
+   name — and never below a readable stub, so the name keeps its shape longest. */
+const QR_BUDGET = 440;
+const QR_FLOOR = { 'স্কুল / কলেজ': 10, 'অভিভাবক': 10, 'শ্রেণি': 8, 'নাম': 12 };
+export const studentIdQRPayload = student => {
+  const fields = [
+    { label: '', value: 'Active Plus Coaching' },
+    { label: 'নাম', value: String(student?.name || student?.nameBn || student?.nameEn || '—').trim().slice(0, 48) },
+    { label: 'আইডি', value: String(student?.id ?? '').trim().slice(0, 40) },
+    { label: 'শ্রেণি', value: [student?.className, student?.group].filter(Boolean).join(' · ').trim().slice(0, 48) },
+    { label: 'স্কুল / কলেজ', value: String(student?.institution ?? '').trim().slice(0, 48) },
+    { label: 'জন্ম তারিখ', value: qrDate(student?.birthDate) },
+    { label: 'অভিভাবক', value: String(student?.guardianName || student?.fatherName || '').trim().slice(0, 48) },
+  ].filter(field => field.value);
+  const lineText = field => (field.label ? `${field.label}: ${field.value}` : field.value);
+  const total = () => qrBytes(fields.map(lineText).join('\n'));
+  for (const label of Object.keys(QR_FLOOR)) {
+    const field = fields.find(item => item.label === label);
+    if (!field) continue;
+    while (total() > QR_BUDGET && field.value.length > QR_FLOOR[label]) {
+      field.value = `${field.value.slice(0, field.value.length - 3).trimEnd()}…`;
+    }
+  }
+  return fields.map(lineText).join('\n');
+};
+/* qrcode-generator writes bytes with charCodeAt & 255, so the text is handed
+   over as UTF-8 bytes; otherwise every Bengali cluster would be mangled. */
+const utf8Bytes = text => {
+  try {
+    let out = '';
+    for (const byte of new TextEncoder().encode(text)) out += String.fromCharCode(byte);
+    return out;
+  } catch { return text; }
+};
 function qrMarkup(student, x, y, box) {
   try {
-    const qr = qrcode(0, 'M'); qr.addData(studentIdQRPayload(student)); qr.make();
+    const qr = qrcode(0, 'L'); qr.addData(utf8Bytes(studentIdQRPayload(student))); qr.make();
     const count = qr.getModuleCount(), size = count + 8;
     let paths = '';
     for (let yy = 0; yy < count; yy++) for (let xx = 0; xx < count; xx++) {
       if (qr.isDark(yy, xx)) paths += `M${xx + 4},${yy + 4}h1v1h-1z`;
     }
-    return `<svg x="${x}" y="${y}" width="${box}" height="${box}" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="white"/><path d="${paths}" fill="#0a3d2c"/></svg>`;
-  } catch { return `<rect x="${x}" y="${y}" width="${box}" height="${box}" rx="10" fill="#eef6fd" stroke="#c3dcf2"/><text x="${x+box/2}" y="${y+box/2}" text-anchor="middle" font-size="11" fill="#52708a">QR অনুপলব্ধ</text>`; }
+    return `<svg x="${x}" y="${y}" width="${box}" height="${box}" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="white"/><path d="${paths}" fill="#0a3b2a"/></svg>`;
+  } catch { return `<rect x="${x}" y="${y}" width="${box}" height="${box}" rx="10" fill="${PAPER}" stroke="${HAIR}"/><text x="${x+box/2}" y="${y+box/2}" text-anchor="middle" font-size="11" fill="${MUTED}" xml:space="preserve">QR অনুপলব্ধ</text>`; }
 }
 
 /* ── Card artwork ───────────────────────────────────────────────────────
-   Portrait CR80 proportion (360×570). Pure SVG: no external URLs.
-   Refined from লাইভ প্রিভিউ: gradient head, gold bar, photo ring, QR back.
-   Colours use brand #0e7a55 family — inline for SVG portability (no CSS var).
+   Portrait CR80 proportion (360×570), pure SVG with no external URLs.
+
+   One warm identity palette — deep green header, ivory paper body, brass
+   accents — instead of the earlier green-on-pale-blue mix, so the card reads
+   as a school ID rather than a web widget. Typography is set per element in
+   the app's Noto Sans Bengali face; whitespace is preserved so Bengali
+   clusters keep their shape in the page, in <img> rasterisation and in print.
+
+   Colours and the font stack are inlined: an SVG inside an <img> (the PNG
+   and share exports) cannot read CSS custom properties or page webfonts.
 */
-const CARD_W = 360, CARD_H = 570;
-const INK = '#12372b', MUTED = '#52708a', LINE = '#c3dcf2', BRAND = '#0b6b4a';
-const fitSize = (value, base) => { const n = String(value || '').length; return n > 40 ? base - 3 : n > 30 ? base - 2 : n > 22 ? base - 1 : base; };
+const CARD_W = 360, CARD_H = 570, CARD_R = 24;
+const INK = '#12352a', MUTED = '#6d7c72', HAIR = '#e6dcc7', BRAND = '#0e6b4a';
+const BRASS = '#c9922f', PAPER = '#fbf7ee', WHITE = '#ffffff';
+const CARD_FONT = "'Noto Sans Bengali','Hind Siliguri','Segoe UI',system-ui,-apple-system,sans-serif";
+const FOOT_Y = 510;
+
+const cardText = (x, y, value, { size = 13, weight = 600, fill = INK, anchor = 'start', opacity = 1 } = {}) =>
+  `<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" fill="${fill}"${anchor === 'start' ? '' : ` text-anchor="${anchor}"`}${opacity === 1 ? '' : ` fill-opacity="${opacity}"`} xml:space="preserve">${esc(value)}</text>`;
+
+/* A value has to stay inside its column: shrink once, then elide. Bengali is
+   never condensed with textLength — that distorts the clusters. */
+const textRoom = (value, base, width, perChar = 0.56) => {
+  const length = String(value || '').length;
+  const size = Math.max(10.5, Math.min(base, width / Math.max(6, length * perChar)));
+  return Math.round(size * 10) / 10;
+};
+/* An identifier is the whole point of the card: it shrinks before it is
+   condensed, and it is only condensed (ASCII digits, so shaping is safe)
+   when even the smallest size would overflow. */
+const idFit = (value, width = 272) => {
+  const length = String(value || '').length;
+  const size = length > 30 ? 12.5 : length > 24 ? 14 : length > 18 ? 17 : length > 13 ? 20 : 23;
+  return { size, condense: length * size * 0.62 > width };
+};
+const elide = (value, max) => {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+};
+
 function wrapChars(value, max, lines) {
   const words = String(value || '').split(/\s+/).filter(Boolean), out = [];
   let cur = '';
@@ -59,71 +135,134 @@ function wrapChars(value, max, lines) {
     if (cur && (cur + ' ' + word).length > max) { out.push(cur); cur = word; } else cur = cur ? `${cur} ${word}` : word;
   }
   if (cur) out.push(cur);
-  if (out.length > lines) { out.length = lines; out[lines - 1] = out[lines - 1].slice(0, max - 1) + '…'; }
+  if (out.length > lines) { out.length = lines; out[lines - 1] = out[lines - 1].slice(0, max - 1).trimEnd() + '…'; }
   return out.length ? out : ['—'];
 }
-const cardDefs = () => `<defs>
-  <linearGradient id="apcIdHead" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#084f37"/><stop offset=".55" stop-color="#0e7a55"/><stop offset="1" stop-color="#1fb184"/></linearGradient>
-  <linearGradient id="apcIdFoot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#084f37"/><stop offset="1" stop-color="#0e7a55"/></linearGradient>
-  <linearGradient id="apcIdBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef6fd"/><stop offset="1" stop-color="#d9eafa"/></linearGradient>
-  <clipPath id="apcIdCard"><rect width="${CARD_W}" height="${CARD_H}" rx="26"/></clipPath>
-</defs>`;
-const cardChrome = (title, subtitle) => `<rect width="${CARD_W}" height="${CARD_H}" rx="26" fill="url(#apcIdBody)"/>
-  <g clip-path="url(#apcIdCard)">
-    <path d="M0 0H360V196Q180 238 0 196Z" fill="url(#apcIdHead)"/>
-    <circle cx="318" cy="22" r="74" fill="#ffffff" fill-opacity=".07"/><circle cx="34" cy="176" r="52" fill="#ffffff" fill-opacity=".06"/><circle cx="262" cy="150" r="30" fill="#ffffff" fill-opacity=".05"/>
-    <rect y="524" width="360" height="46" fill="url(#apcIdFoot)"/>
-    <rect y="520" width="360" height="4" fill="#f2b84b"/>
-  </g>
-  <g fill="#ffffff" text-anchor="middle">
-    <path d="M180 20 160 30l20 10 20-10zM166 36v8c0 3 6 6 14 6s14-3 14-6v-8l-14 7z" fill="#ffffff"/>
-    <text x="180" y="68" font-size="17" font-weight="700" letter-spacing=".3">${title}</text>
-    <text x="180" y="86" font-size="11.5" fill-opacity=".88">${subtitle}</text>
-  </g>
-  <text x="180" y="552" text-anchor="middle" font-size="11.5" fill="#ffffff" fill-opacity=".92">Active Plus Coaching · Student Identity Card</text>`;
-const infoRow = (label, value, y, size = 13.5) => `<text x="30" y="${y}" font-size="12" fill="${MUTED}">${esc(label)}</text><text x="330" y="${y}" text-anchor="end" font-size="${fitSize(value, size)}" font-weight="600" fill="${INK}"${String(value || '').length > 44 ? ' textLength="210" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(value || '—')}</text><path d="M30 ${y + 10}h300" stroke="${LINE}"/>`;
 
-export function studentIdCardSVG(student, photo = '', side = 'front') {
+const cardDefs = () => `<defs>
+  <linearGradient id="apcIdHead" x1="0" y1="0" x2=".85" y2="1"><stop offset="0" stop-color="#0a4530"/><stop offset=".62" stop-color="${BRAND}"/><stop offset="1" stop-color="#15916a"/></linearGradient>
+  <linearGradient id="apcIdFoot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0a4230"/><stop offset="1" stop-color="#0e6247"/></linearGradient>
+  <clipPath id="apcIdCard"><rect width="${CARD_W}" height="${CARD_H}" rx="${CARD_R}"/></clipPath>
+</defs>`;
+
+/* The institute's own mark (assets/icons/logo-128.png) is inlined as a data
+   URI so the card shows the real Active Plus logo in the page, in a rasterised
+   PNG and when shared — an <img> cannot reach the site's icon from inside an
+   SVG. The mortarboard stays as the first-paint fallback until it loads. */
+const BRAND_MARK = 'assets/icons/logo-128.png';
+let cardLogo = '';
+const validLogo = value => /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value || '') && value.length < 120000;
+let cardLogoRequest;
+export function cardLogoDataUri() {
+  if (cardLogo) return Promise.resolve(cardLogo);
+  if (cardLogoRequest) return cardLogoRequest;
+  cardLogoRequest = (async () => {
+    try {
+      const response = await fetch(BRAND_MARK);
+      if (!response.ok) return '';
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      let binary = '';
+      for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+      const dataUri = `data:image/png;base64,${btoa(binary)}`;
+      if (validLogo(dataUri)) cardLogo = dataUri;
+    } catch { /* Keep the drawn fallback. */ }
+    return cardLogo;
+  })();
+  return cardLogoRequest;
+}
+
+const CAP_ART = `<path d="M180 20 158 31l22 11 22-11zM164 38v9c0 4 7 7 16 7s16-3 16-7v-9l-16 8z" fill="${WHITE}"/>`;
+const brandBadge = (logo, size = 48) => {
+  const x = (CARD_W - size) / 2, y = 14, inset = size * 0.11;
+  return validLogo(logo)
+    ? `<g><rect x="${x}" y="${y}" width="${size}" height="${size}" rx="14" fill="${WHITE}"/>
+      <image x="${x + inset}" y="${y + inset}" width="${size - inset * 2}" height="${size - inset * 2}" href="${logo}" preserveAspectRatio="xMidYMid meet"/></g>`
+    : `<g><rect x="${x}" y="${y}" width="${size}" height="${size}" rx="14" fill="${WHITE}" fill-opacity=".16" stroke="${WHITE}" stroke-opacity=".3" stroke-width="1"/>
+      <g transform="translate(${x + inset * .8} ${y + inset * 1.6}) scale(${(size - inset * 1.6) / 58.7}) translate(-158 -20)">${CAP_ART}</g></g>`;
+};
+const cardChrome = (logo = '') => `<rect width="${CARD_W}" height="${CARD_H}" rx="${CARD_R}" fill="${PAPER}"/>
+  <g clip-path="url(#apcIdCard)">
+    <rect width="${CARD_W}" height="146" fill="url(#apcIdHead)"/>
+    <circle cx="334" cy="6" r="92" fill="${WHITE}" fill-opacity=".05"/>
+    <circle cx="296" cy="132" r="46" fill="${WHITE}" fill-opacity=".04"/>
+    <rect y="143" width="${CARD_W}" height="3" fill="${BRASS}"/>
+    ${brandBadge(logo)}
+    ${cardText(180, 88, 'Active Plus Coaching', { size: 16, weight: 700, fill: WHITE, anchor: 'middle' })}
+    ${cardText(180, 105, 'শিখতে থাকো, এগিয়ে যাও', { size: 10.5, weight: 500, fill: WHITE, anchor: 'middle', opacity: .84 })}
+    <rect y="${FOOT_Y}" width="${CARD_W}" height="${CARD_H - FOOT_Y}" fill="url(#apcIdFoot)"/>
+    <rect y="${FOOT_Y - 2}" width="${CARD_W}" height="2" fill="${BRASS}"/>
+  </g>
+  ${cardText(180, 546, 'Active Plus Coaching · শিক্ষার্থী পরিচয়পত্র', { size: 10.5, weight: 600, fill: WHITE, anchor: 'middle', opacity: .94 })}
+  <rect x=".75" y=".75" width="${CARD_W - 1.5}" height="${CARD_H - 1.5}" rx="${CARD_R - .75}" fill="none" stroke="${HAIR}" stroke-width="1.5"/>`;
+
+/* Label above, value on the same baseline right-aligned, warm hairline under. */
+const infoRow = (label, value, y) => {
+  const text = elide(value || '', 34);
+  const size = textRoom(text, 12.5, 214);
+  return `${cardText(24, y, label, { size: 11, weight: 500, fill: MUTED })}
+  ${cardText(336, y, text, { size, weight: 600, fill: INK, anchor: 'end' })}
+  <path d="M24 ${y + 11}H336" stroke="${HAIR}" stroke-width="1"/>`;
+};
+
+export function studentIdCardSVG(student, photo = '', side = 'front', logo = '') {
   const name = String(student?.name || student?.nameBn || student?.nameEn || 'শিক্ষার্থী');
-  const classLine = [student?.className, student?.group].filter(Boolean).join(' · ') || 'Student';
+  const classLine = [student?.className, student?.group].filter(Boolean).join(' · ') || 'শিক্ষার্থী';
   const studentId = student?.id == null ? '' : String(student.id);
   let body;
   if (side === 'back') {
-    const address = student?.address ? wrapChars(student.address, 34, 2) : [];
-    body = `${cardChrome('Active Plus Coaching', 'শিখতে থাকো, এগিয়ে যাও')}
-    <rect x="86" y="112" width="188" height="188" rx="20" fill="#ffffff" stroke="${LINE}" stroke-width="1.5"/>
-    ${studentId ? qrMarkup(student, 94, 120, 172) : `<text x="180" y="210" text-anchor="middle" font-size="14" fill="${MUTED}">আইডি নেই</text>`}
-    <text x="180" y="326" text-anchor="middle" font-size="14" font-weight="700" fill="${INK}">${studentId ? 'স্ক্যান করে Student ID দেখুন' : 'আইডি পাওয়া যায়নি'}</text>
-    <text x="180" y="348" text-anchor="middle" font-size="${fitSize(studentId, 12)}" fill="${INK}"${studentId.length > 26 ? ' textLength="280" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(studentId || 'আইডি নেই')}</text>
-    ${student?.guardianMobile ? infoRow('অভিভাবকের মোবাইল', maskedPhone(student.guardianMobile), 376) : ''}
-    ${student?.studentMobile ? infoRow('শিক্ষার্থীর মোবাইল', maskedPhone(student.studentMobile), 410) : ''}
-    ${address.length ? `<text x="30" y="444" font-size="12" fill="${MUTED}">ঠিকানা</text>
-    ${address.map((line, i) => `<text x="330" y="${444 + i * 18}" text-anchor="end" font-size="13" font-weight="600" fill="${INK}">${esc(line)}</text>`).join('')}
-    <path d="M30 ${444 + (address.length - 1) * 18 + 10}h300" stroke="${LINE}"/>` : ''}
-    <rect x="30" y="476" width="300" height="30" rx="10" fill="#ffffff" stroke="${LINE}"/>
-    <text x="180" y="496" text-anchor="middle" font-size="11" fill="${MUTED}">ব্যবহারের শর্ত: শুধু শিক্ষার্থীর জন্য।</text>`;
+    const rows = [];
+    if (student?.studentMobile) rows.push(['শিক্ষার্থীর মোবাইল', bnb(student.studentMobile)]);
+    if (student?.guardianMobile) rows.push(['অভিভাবকের মোবাইল', bnb(student.guardianMobile)]);
+    if (student?.address) rows.push(['ঠিকানা', student.address]);
+    const rowTop = 440, rowGap = 22;
+    const idLine = studentId || 'আইডি নেই';
+    body = `${cardChrome(logo)}
+    <rect x="64" y="150" width="232" height="232" rx="20" fill="${WHITE}" stroke="${HAIR}" stroke-width="1.5"/>
+    ${studentId
+      ? qrMarkup(student, 74, 160, 224)
+      : cardText(180, 266, 'আইডি নেই', { size: 13, weight: 600, fill: MUTED, anchor: 'middle' })}
+    ${cardText(180, 402, studentId ? 'স্ক্যান করে শিক্ষার্থীর তথ্য দেখুন' : 'আইডি পাওয়া যায়নি', { size: 12.5, weight: 700, fill: INK, anchor: 'middle' })}
+    ${cardText(180, 419, idLine, { size: textRoom(idLine, 11.5, 260), weight: 600, fill: MUTED, anchor: 'middle' })}
+    ${rows.map(([label, value], index) => infoRow(label, value, rowTop + index * rowGap)).join('')}
+    ${rows.length <= 2 ? cardText(180, rows.length ? rowTop + rows.length * rowGap + 6 : 452, 'ব্যবহারের শর্ত: শুধু শিক্ষার্থীর জন্য', { size: 10.5, weight: 500, fill: MUTED, anchor: 'middle' }) : ''}`;
   } else {
     const hasPhoto = validPhoto(photo);
-    const rollText = student?.roll ? bnb(student.roll) : '';
-    const rows = [['ক্লাস রোল', rollText || '—'], ['প্রতিষ্ঠান', student?.institution || 'Active Plus Coaching']];
+    const nameSize = name.length > 30 ? 15 : name.length > 22 ? 17 : 20;
+    const nameLines = wrapChars(name, nameSize >= 20 ? 15 : nameSize >= 17 ? 18 : 20, 2);
+    const firstBaseline = nameLines.length > 1 ? 188 : 195;
+    const classBaseline = firstBaseline + nameLines.length * 22 + 2;
+    const idText = studentId || 'আইডি নেই';
+    const idFitInfo = idFit(idText);
+    const rows = [['ক্লাস রোল', student?.roll ? bnb(student.roll) : '']];
+    const mobile = student?.studentMobile || student?.guardianMobile || '';
+    if (mobile) rows.push(['মোবাইল', bnb(mobile)]);
+    rows.push(['প্রতিষ্ঠান', student?.institution || 'Active Plus Coaching']);
     const validUntil = student?.validUntil || student?.academicYear || student?.session || '';
     if (validUntil) rows.push(['মেয়াদ', validUntil]);
-    body = `${cardChrome('Active Plus Coaching', 'শিখতে থাকো, এগিয়ে যাও')}
-    <circle cx="180" cy="171" r="62" fill="#ffffff"/><circle cx="180" cy="171" r="62" fill="none" stroke="#f2b84b" stroke-width="2.5"/>
+    body = `${cardChrome(logo)}
+    <circle cx="74" cy="204" r="44" fill="${WHITE}"/>
+    <circle cx="74" cy="204" r="44" fill="none" stroke="${BRASS}" stroke-width="2.5"/>
     ${hasPhoto
-      ? `<defs><clipPath id="apcIdPhoto"><circle cx="180" cy="171" r="56"/></clipPath></defs><image x="124" y="115" width="112" height="112" href="${photo}" preserveAspectRatio="xMidYMid slice" clip-path="url(#apcIdPhoto)"/>`
-      : `<circle cx="180" cy="171" r="56" fill="#dcecfa"/><text x="180" y="190" text-anchor="middle" font-size="52" font-weight="700" fill="${BRAND}">${esc(Array.from(name)[0] || '')}</text>`}
-    <text x="180" y="276" text-anchor="middle" font-size="${name.length > 26 ? 19 : name.length > 18 ? 22 : 25}" font-weight="700" fill="${INK}"${name.length > 34 ? ' textLength="320" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(name)}</text>
-    <rect x="70" y="288" width="220" height="28" rx="14" fill="#ffffff" stroke="${LINE}"/>
-    <text x="180" y="307" text-anchor="middle" font-size="${fitSize(classLine, 13.5)}" font-weight="700" fill="${BRAND}"${classLine.length > 36 ? ' textLength="200" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(classLine)}</text>
-    <rect x="30" y="334" width="300" height="64" rx="16" fill="#ffffff" stroke="${LINE}"/>
-    <rect x="30" y="334" width="6" height="64" rx="3" fill="#f2b84b"/>
-    <text x="50" y="357" font-size="10.5" letter-spacing="1.4" fill="${MUTED}">STUDENT ID</text>
-    <text x="50" y="383" font-size="${fitSize(student?.id, 24)}" font-weight="700" fill="${BRAND}"${String(student?.id || '').length > 26 ? ' textLength="260" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(studentId || 'আইডি নেই')}</text>
-    ${rows.map(([label, value], i) => infoRow(label, value, 428 + i * 34)).join('')}`;
+      ? `<defs><clipPath id="apcIdPhoto"><circle cx="74" cy="204" r="39"/></clipPath></defs><image x="35" y="165" width="78" height="78" href="${photo}" preserveAspectRatio="xMidYMid slice" clip-path="url(#apcIdPhoto)"/>`
+      : `<circle cx="74" cy="204" r="39" fill="#e7efe8"/>${cardText(74, 218, Array.from(name)[0] || '', { size: 34, weight: 700, fill: BRAND, anchor: 'middle' })}`}
+    ${nameLines.map((line, index) => cardText(132, firstBaseline + index * 22, line, { size: nameSize, weight: 700, fill: INK })).join('\n    ')}
+    ${cardText(132, classBaseline, elide(classLine, 34), { size: textRoom(classLine, 12, 204), weight: 600, fill: BRAND })}
+    <path d="M24 270H336" stroke="${HAIR}" stroke-width="1"/>
+    <rect x="24" y="282" width="312" height="82" rx="16" fill="${WHITE}" stroke="${HAIR}" stroke-width="1.5"/>
+    <rect x="40" y="304" width="3" height="40" rx="1.5" fill="${BRASS}"/>
+    ${cardText(54, 310, 'শিক্ষার্থী আইডি', { size: 10.5, weight: 600, fill: MUTED })}
+    <text x="54" y="344" font-size="${idFitInfo.size}" font-weight="700" fill="${INK}" xml:space="preserve"${idFitInfo.condense ? ' textLength="272" lengthAdjust="spacingAndGlyphs"' : ''}>${esc(idText)}</text>
+    ${rows.map(([label, value], index) => infoRow(label, value, 392 + index * 30)).join('\n    ')}`;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" role="img" aria-label="ডিজিটাল আইডি কার্ড · ${side === 'back' ? 'পেছনের পাশ' : 'সামনের পাশ'}">${cardDefs()}<g font-family="Noto Sans Bengali, sans-serif">${body}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" role="img" aria-label="ডিজিটাল আইডি কার্ড · ${side === 'back' ? 'পেছনের পাশ' : 'সামনের পাশ'}">${cardDefs()}<g font-family="${CARD_FONT}" xml:space="preserve">${body}</g></svg>`;
 }
+
+/* A printed card has two sides but a screen shows one. The print job therefore
+   carries both faces side by side on a single sheet, each at card size, so the
+   front and the back come out of the same press and can be cut and glued back
+   to back instead of printing twice. */
+export const cardPrintMarkup = (student, photo = '', logo = '') =>
+  ['front', 'back'].map(side => `<div class="student-id-print-face" data-print-side="${side}">${studentIdCardSVG(student, photo, side, logo)}<p class="student-id-print-label">${side === 'front' ? 'সামনের পাশ' : 'পেছনের পাশ'}</p></div>`).join('');
 
 export function initStudentProfileCard({ getStudent }) {
   if (!$('#myProfileView')) return;
@@ -178,40 +317,75 @@ export function initStudentProfileCard({ getStudent }) {
     finally { event.target.value = ''; }
   });
   let cardSide = 'front';
-  const cardSVG = () => studentIdCardSVG(getStudent(), readPhoto(getStudent()), cardSide);
+  const cardSVG = () => studentIdCardSVG(getStudent(), readPhoto(getStudent()), cardSide, cardLogo);
   function paintCard() {
     const preview = $('#studentIdCardPreview');
     if (preview) preview.innerHTML = cardSVG();
     document.querySelectorAll('[data-id-card-side]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.idCardSide === cardSide)));
     if ($('#studentIdCardFlip')) $('#studentIdCardFlip').textContent = cardSide === 'front' ? 'পেছনে' : 'সামনে';
   }
+  // The mark is fetched once; the card is repainted as soon as it is inlined.
+  void cardLogoDataUri().then(logo => {
+    if (logo && document.querySelector('[data-view-panel="student-id-card"]')?.classList.contains('active')) paintCard();
+  });
   const cardFileNameBase = () => `student-id-${String(getStudent()?.id || 'card').replace(/[^a-zA-Z0-9_-]/g, '_')}-${cardSide}`;
-  function downloadCardSVG() {
+  /* Exports are rasterised from the SVG inside an <img>, where the page's own
+     webfont is unavailable: without an embedded face the browser falls back to
+     a system font and the Bengali text of a shared card looks broken. The
+     subsetted face is fetched once per session and inlined as a data URI. */
+  let embeddedFontCss;
+  async function cardFontCss() {
+    if (embeddedFontCss !== undefined) return embeddedFontCss;
+    embeddedFontCss = '';
+    try {
+      const response = await fetch('assets/fonts/NotoSansBengali-Variable.woff2');
+      if (!response.ok) return embeddedFontCss;
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      let binary = '';
+      for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+      embeddedFontCss = `@font-face{font-family:'Noto Sans Bengali';src:url(data:font/woff2;base64,${btoa(binary)}) format('woff2');font-weight:100 900;font-style:normal;font-display:block}`;
+    } catch { embeddedFontCss = ''; }
+    return embeddedFontCss;
+  }
+  async function exportCardSVG() {
+    await cardLogoDataUri();
+    const svg = cardSVG(), css = await cardFontCss();
+    return css ? svg.replace(/<svg([^>]*)>/, `<svg$1><style>${css}</style>`) : svg;
+  }
+  async function cardPngBlob(scale = 3) {
+    const url = URL.createObjectURL(new Blob([await exportCardSVG()], { type: 'image/svg+xml;charset=utf-8' }));
+    try {
+      const image = new Image(); image.src = url; await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = CARD_W * scale; canvas.height = CARD_H * scale;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('canvas');
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    } finally { URL.revokeObjectURL(url); }
+  }
+  function saveBlob(blob, extension) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `${cardFileNameBase()}.${extension}`;
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  async function downloadCardSVG() {
     if (!getStudent()?.id) return showFeedback('শিক্ষার্থীর তথ্য পাওয়া যায়নি।');
-    const url = URL.createObjectURL(new Blob([cardSVG()], { type: 'image/svg+xml;charset=utf-8' }));
-    const link = document.createElement('a'); link.href = url; link.download = cardFileNameBase()+'.svg';
-    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saveBlob(new Blob([await exportCardSVG()], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
   }
   async function downloadCardPNG() {
     if (!getStudent()?.id) return showFeedback('শিক্ষার্থীর তথ্য পাওয়া যায়নি।');
     try {
-      const svgText = cardSVG();
-      // Embed font if available for PNG fidelity
-      const fontCss = document.querySelector('link[href*="Noto"]') ? '' : (document.querySelector('style')?.textContent.match(/@font-face\{[^}]*\}/)?.[0] || '');
-      const svgWithStyle = fontCss ? svgText.replace(/(<svg[^>]*>)/,'$1<style>'+fontCss+'</style>') : svgText;
-      const url = URL.createObjectURL(new Blob([svgWithStyle], {type:'image/svg+xml;charset=utf-8'}));
-      const img = new Image(); img.src = url; await img.decode();
-      const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1710;
-      const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('canvas');
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(img,0,0,1080,1710);
-      URL.revokeObjectURL(url);
-      canvas.toBlob(blob => {
-        if (!blob) return showFeedback('PNG তৈরি হয়নি।');
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = cardFileNameBase()+'.png'; a.click();
-        setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-      }, 'image/png');
-    } catch { downloadCardSVG(); }
+      const blob = await cardPngBlob(3);
+      if (!blob) throw new Error('png');
+      saveBlob(blob, 'png');
+    } catch {
+      showFeedback('PNG তৈরি হয়নি — কার্ডটি SVG হিসেবে সংরক্ষণ করা হচ্ছে।');
+      await downloadCardSVG();
+    }
   }
   $('#profileIdCardButton')?.addEventListener('click', () => { cardSide = 'front'; setView('student-id-card'); paintCard(); });
   document.querySelectorAll('[data-id-card-side]').forEach(button => button.addEventListener('click', () => {
@@ -220,25 +394,42 @@ export function initStudentProfileCard({ getStudent }) {
   $('#studentIdCardFlip')?.addEventListener('click', () => { cardSide = cardSide === 'front' ? 'back' : 'front'; paintCard(); });
   // Primary download is PNG (full feature), fallback to SVG
   $('#studentIdCardDownload')?.addEventListener('click', downloadCardPNG);
-  $('#studentIdCardDownload')?.addEventListener('contextmenu', e => { e.preventDefault(); downloadCardSVG(); });
-  $('#studentIdCardPrint')?.addEventListener('click', () => window.print());
+  $('#studentIdCardDownload')?.addEventListener('contextmenu', event => { event.preventDefault(); void downloadCardSVG(); });
+  /* Both faces, one sheet: the print root is the only thing left on the page
+     while the job runs, and the body class removes it again afterwards. */
+  async function printCardSheet() {
+    const student = getStudent();
+    if (!student?.id) return showFeedback('শিক্ষার্থীর তথ্য পাওয়া যায়নি।');
+    await cardLogoDataUri();
+    try { await document.fonts?.ready; } catch { /* Print with the loaded face anyway. */ }
+    let root = $('#studentIdCardPrintRoot');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'studentIdCardPrintRoot';
+      root.setAttribute('aria-hidden', 'true');
+      document.body.append(root);
+    }
+    root.innerHTML = cardPrintMarkup(student, readPhoto(student), cardLogo);
+    const clear = () => document.body.classList.remove('student-card-printing');
+    document.body.classList.add('student-card-printing');
+    window.addEventListener('afterprint', clear, { once: true });
+    window.setTimeout(() => {
+      window.print();
+      // Browsers that never fire afterprint still get their page back.
+      window.setTimeout(() => { clear(); root.innerHTML = ''; }, 60000);
+    }, 80);
+  }
+  $('#studentIdCardPrint')?.addEventListener('click', printCardSheet);
   $('#studentIdCardShare')?.addEventListener('click', async () => {
     if (!getStudent()?.id) return;
-    // Try PNG share first
     try {
-      const svgText = cardSVG();
-      const url = URL.createObjectURL(new Blob([svgText], {type:'image/svg+xml;charset=utf-8'}));
-      const img = new Image(); img.src = url; await img.decode();
-      const canvas = document.createElement('canvas'); canvas.width=1080; canvas.height=1710;
-      canvas.getContext('2d')?.drawImage(img,0,0,1080,1710);
-      URL.revokeObjectURL(url);
-      const blob = await new Promise(res=>canvas.toBlob(res,'image/png'));
+      const blob = await cardPngBlob(3);
       if (blob) {
-        const file = new File([blob], cardFileNameBase()+'.png', { type: 'image/png' });
-        if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files:[file], title: 'Active Plus · আইডি কার্ড' }); return; }
+        const file = new File([blob], `${cardFileNameBase()}.png`, { type: 'image/png' });
+        if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: 'Active Plus · আইডি কার্ড' }); return; }
       }
-    } catch {}
-    const file = new File([cardSVG()], cardFileNameBase()+'.svg', { type: 'image/svg+xml' });
+    } catch { /* Fall back to the vector file below. */ }
+    const file = new File([await exportCardSVG()], `${cardFileNameBase()}.svg`, { type: 'image/svg+xml' });
     if (!navigator.canShare?.({ files: [file] })) {
       showFeedback('এই ব্রাউজারে ফাইল শেয়ার নেই। কার্ডটি ডাউনলোড করে শেয়ার করুন।'); return;
     }

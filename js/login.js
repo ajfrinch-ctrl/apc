@@ -18,7 +18,7 @@ import {
 import {
   STAFF_ACCOUNTS, STAFF_USERNAMES, normalizeStaffUsername, authenticateStaff,
   saveStaffSession, hasStaffSession, resolveStaffRoleByUsername, createInitialAdmin,
-  staffAccountRecordExists, clearOrphanedLocalAdmin, activeStaffRoles
+  staffAccountRecordExists, activeStaffRoles
 } from './staff-auth.js';
 import { KEYS, readJSON } from './database.js';
 import { generateLoginId } from './user-id.js';
@@ -224,7 +224,7 @@ async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS
   if (!LEGACY_CLOUD_ENABLED) return cloudPausedResult();
   if (!navigator.onLine) return;
   try {
-    const bridge = await withinBudget(import('../sync/sync-core.js?v=464'), 'online bridge import', budget);
+    const bridge = await withinBudget(import('../sync/sync-core.js?v=474'), 'online bridge import', budget);
     const result = await withinBudget(bridge.hydrateStaffAccounts({
       preserveLocalAdmin: staffAccountRecordExists('admin'),
       ...(roles ? { roles } : {})
@@ -239,12 +239,12 @@ async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS
 }
 
 async function loadSyncBridge(budget = LOGIN_BRIDGE_IMPORT_MS) {
-  return withinBudget(import('../sync/sync-core.js?v=464'), 'online identity import', budget);
+  return withinBudget(import('../sync/sync-core.js?v=474'), 'online identity import', budget);
 }
 
 function warmCloudBridge() {
   if (!LEGACY_CLOUD_ENABLED || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
-  void import('../sync/sync-core.js?v=464').catch(() => {});
+  void import('../sync/sync-core.js?v=474').catch(() => {});
 }
 
 async function hydrateUserIdentifiersOnline(what, identifier = '', password = '', budget = LOGIN_IDENTITY_BUDGET_MS) {
@@ -284,7 +284,7 @@ async function runBackgroundLoginSync() {
   // Sync is deliberately fire-and-forget from the authentication path.
   // A slow/failed cloud bridge must never mutate or gate the login form.
   try {
-    const bridge = await import('../sync/sync-core.js?v=464');
+    const bridge = await import('../sync/sync-core.js?v=474');
     void bridge.startRealtimeSync().catch(error => {
       console.warn('[Active Plus] background login sync unavailable:', error?.message || error);
     });
@@ -914,17 +914,20 @@ async function refreshFirstAdminSetup({ openWhenUninitialized = false } = {}) {
       return { available: false, reason: status.reason };
     }
     clearFirstAdminRetryTimer();
+    // A successful retry supersedes only the earlier verification warning.
+    // Keep any newer login feedback, such as a wrong-password message.
+    if (($('#authMessage .auth-message-text')?.textContent || '').trim() === ADMIN_VERIFY_REQUIRED_MESSAGE) {
+      setAuthMessage('');
+    }
     if (status.initialized) {
       await lockFirstAdminSetup();
       return { available: false, reason: 'cloud-admin' };
     }
-    // Verified: the institution has no Admin account in the cloud yet.
-    if (staffAccountRecordExists('admin') && !hasActiveAdminSession) {
-      clearOrphanedLocalAdmin();
-      renderFirstAdminPreview();
-    }
-    if (($('#authMessage .auth-message-text')?.textContent || '').trim() === ADMIN_VERIFY_REQUIRED_MESSAGE) {
-      setAuthMessage('');
+    // Never destroy a local Admin copy to reconcile an empty cloud response.
+    // An existing (even unreadable) copy closes first-use creation instead.
+    if (staffAccountRecordExists('admin')) {
+      await lockFirstAdminSetup();
+      return { available: false, reason: 'local-admin' };
     }
     firstAdminState.available = true;
     const footnote = $('#firstAdminFootnote');
@@ -975,9 +978,9 @@ async function openFirstAdminSetup() {
     await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
     return;
   }
-  if (staffAccountRecordExists('admin') && !(await hasStaffSession('admin'))) {
-    clearOrphanedLocalAdmin();
-    renderFirstAdminPreview();
+  if (staffAccountRecordExists('admin')) {
+    await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
+    return;
   }
   firstAdminState.available = true;
   switchAuthTab('first-admin');
@@ -1005,8 +1008,9 @@ async function handleFirstAdminSubmit(event) {
     await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
     return;
   }
-  if (staffAccountRecordExists('admin') && !(await hasStaffSession('admin'))) {
-    clearOrphanedLocalAdmin();
+  if (staffAccountRecordExists('admin')) {
+    await closeFirstAdminSetup(ADMIN_EXISTS_MESSAGE);
+    return;
   }
   if (submit) { submit.disabled = true; submit.setAttribute('aria-busy', 'true'); }
   try {

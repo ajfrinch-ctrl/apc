@@ -76,23 +76,9 @@ body.notice-board-detail-open:before{content:"";position:fixed;inset:0;z-index:7
 .notice-board-card-compact.is-unread .notice-board-read-state{color:var(--color-primary);font-weight:600}
 .notice-board-empty{margin:0;padding:var(--space-4);border:1px dashed var(--color-border);border-radius:var(--radius-md);color:var(--color-text-secondary);font-size:var(--font-sm);text-align:center}
 
-/* ---- Home 1-click Notice Card & More Menu Notice Badge -------------------- */
-body.student-reference #homeView .home-notice-banner{width:100%;max-width:none;min-width:0;margin:0}
-.home-notice-card{display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:11px 14px;border:1px solid var(--color-border);border-radius:18px;background:var(--color-surface);color:var(--color-text);text-align:start;cursor:pointer;box-shadow:0 4px 14px color-mix(in srgb,var(--color-text) 5%,transparent);transition:transform .15s ease,border-color .15s ease,background-color .15s ease}
-.home-notice-card:hover{border-color:color-mix(in srgb,var(--color-primary) 42%,var(--color-border))}
-.home-notice-card:active{transform:scale(.99)}
-.home-notice-card.has-unread{border-color:color-mix(in srgb,var(--color-primary) 45%,var(--color-border));background:color-mix(in srgb,var(--color-primary) 7%,var(--color-surface))}
-.home-notice-icon{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:13px;background:color-mix(in srgb,var(--color-warning) 16%,var(--color-surface-muted))}
-.home-notice-icon svg{width:24px;height:24px}
-.home-notice-copy{display:grid;gap:2px;flex:1 1 auto;min-width:0}
-.home-notice-title{font-size:var(--font-sm);font-weight:750;line-height:1.4;color:var(--color-text);word-break:break-word;overflow-wrap:anywhere}
-.home-notice-meta{font-size:var(--font-xs);color:var(--color-text-secondary);line-height:1.45;word-break:break-word;overflow-wrap:anywhere}
-.home-notice-badge,.notice-board-more-badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;flex:none;border-radius:999px;background:var(--color-danger);color:#fff;font-size:11px;font-weight:800;line-height:1}
-.home-notice-badge[hidden],.notice-board-more-badge[hidden]{display:none}
-.home-notice-cta{flex:none;padding:5px 10px;border-radius:999px;background:color-mix(in srgb,var(--color-primary) 12%,var(--color-surface-muted));color:var(--color-primary);font-size:var(--font-xs);font-weight:700;white-space:nowrap}
+/* ---- More Menu Notice Badge ----------------------------------------------
+   The one-click card that used to sit under the hero was removed on the
+   owner's review; Home keeps the services tile and the More row instead. */
+.notice-board-more-badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;flex:none;border-radius:999px;background:var(--color-danger);color:#fff;font-size:11px;font-weight:800;line-height:1}
+.notice-board-more-badge[hidden]{display:none}
 .notice-board-more-row .notice-board-more-badge{margin-inline-start:auto;margin-inline-end:6px}
-@media(max-width:380px){
-  .home-notice-card{gap:10px;padding:10px 12px;border-radius:16px}
-  .home-notice-icon{width:38px;height:38px}
-  .home-notice-cta{padding:4px 8px}
-}

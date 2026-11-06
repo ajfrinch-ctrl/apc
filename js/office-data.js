@@ -7,6 +7,7 @@ import { KEYS, listDocuments, listDocumentsStrict, replaceDocumentsStrict, remem
 import { hasStaffSession, readStaffAccount } from './staff-auth.js';
 import { LOCAL_WRITE_KEY, markLocalSource } from './local-write-mark.js';
 import { withClassKey } from './class-key.js';
+import { SHIPPED_SAMPLE_ROSTER } from './sample-roster-signatures.js';
 
 export const ROSTER_KEY = KEYS.students;
 export const NOTICES_KEY = KEYS.notices;
@@ -81,6 +82,87 @@ export function loadRoster() {
   const clean = saved.map(row => row.monthlyFee == null || row.monthlyFee === '' ? row : { ...row, monthlyFee: taka(row.monthlyFee) });
   if (clean.some((row, index) => row.monthlyFee !== saved[index].monthlyFee)) replaceDocumentsStrict('students', clean);
   return mergeAccount(clean).map(row => withClassKey(row));
+}
+
+/* The sample roster shipped in admin-data.js is design/test fixture data. It
+   reached the shared database once (2026-11-04) and appeared to the owner as
+   real students. A stored row is treated as that fixture only when identifier,
+   name AND mobile all match; anything else stays untouched. The removed rows are
+   copied to a device-local backup first, so the cleanup is reversible. */
+export const SAMPLE_ROW_BACKUP_KEY = 'activePlus.roster.sampleQuarantine.v1';
+export function quarantineShippedSampleRows() {
+  const stored = listDocuments('students');
+  const shipped = new Map(SHIPPED_SAMPLE_ROSTER.map(sample => [String(sample.id), sample]));
+  const removed = [];
+  const kept = stored.filter(row => {
+    const sample = shipped.get(String(row?.id || ''));
+    if (!sample) return true;
+    const same = (a, b) => String(a ?? '').trim() === String(b ?? '').trim();
+    if (!same(row.name, sample.name) || !same(row.mobile, sample.mobile)) return true;
+    removed.push(row);
+    return false;
+  });
+  if (!removed.length) return { removed: 0, backedUpAt: '' };
+  const backedUpAt = new Date().toISOString();
+  try {
+    const previous = readJSON(SAMPLE_ROW_BACKUP_KEY, []);
+    writeJSON(SAMPLE_ROW_BACKUP_KEY, [
+      { removedAt: backedUpAt, rows: removed },
+      ...(Array.isArray(previous) ? previous : [])
+    ]);
+  } catch { /* a device with blocked storage keeps its rows rather than losing them blind */ }
+  saveRoster(kept);
+  return { removed: removed.length, backedUpAt };
+}
+
+/**
+ * Rebuild roster rows that a registration record proves exists.
+ *
+ * The account record is the institution's source of truth for who registered;
+ * the roster row is the projection the Admin/Manager list renders. Only missing
+ * rows are added: an existing row keeps its own review decision, edits and
+ * contact details, and no row is ever deleted here.
+ */
+export function mergeAccountRecordsIntoRoster(accounts) {
+  const incomingRows = (Array.isArray(accounts) ? accounts : [])
+    .map(account => accountToRosterStudent(account))
+    .filter(row => row && row.id);
+  if (!incomingRows.length) return { added: 0, updated: 0, total: loadRoster().length };
+  /* Base the rewrite on the stored rows, not the visible list: rows hidden as
+     shipped samples must stay on the device instead of being deleted by a
+     reconciliation pass. */
+  const roster = listDocuments('students');
+  const byId = new Map(roster.map(row => [String(row.id), row]));
+  let added = 0;
+  let updated = 0;
+  for (const incoming of incomingRows) {
+    const id = String(incoming.id);
+    const current = byId.get(id);
+    if (!current) {
+      byId.set(id, withClassKey(incoming));
+      added += 1;
+      continue;
+    }
+    // A reviewed row wins; the account only fills the gaps it recorded.
+    const merged = {
+      ...incoming,
+      ...current,
+      username: current.username || incoming.username,
+      email: current.email || incoming.email,
+      name: current.name || incoming.name,
+      className: current.className || incoming.className,
+      mobile: current.mobile || incoming.mobile,
+      registeredAt: current.registeredAt || incoming.registeredAt,
+      enrolledAt: current.enrolledAt || incoming.enrolledAt
+    };
+    if (JSON.stringify(withClassKey(merged)) !== JSON.stringify(current)) {
+      byId.set(id, withClassKey(merged));
+      updated += 1;
+    }
+  }
+  const next = [...byId.values()];
+  if (added || updated) saveRoster(next);
+  return { added, updated, total: next.length };
 }
 
 export function saveRoster(students) {

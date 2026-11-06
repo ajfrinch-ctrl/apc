@@ -155,7 +155,7 @@ test('notice detail is a single view and one notice id never paints twice', asyn
   assert.doesNotMatch(source, /'Notice Board'|'Notice খুলুন'|'Read ✓'|'Academic'|'Class'|'Fee'|'Exam'/);
 });
 
-test('Home 1-click Notice Card, More menu priority option, Notification Center alert & direct open', async t => {
+test('Notice Board opens from the Home services tile and the More menu, with unread badges, alert and direct open', async t => {
   const student = { id: 'NB-UX-1', name: 'রাইসা ইসলাম', className: 'দশম শ্রেণি', group: 'বিজ্ঞান বিভাগ' };
   const viewerKey = `student:${student.id}`;
   const { hashPassword } = await import('../js/password-hash.js');
@@ -186,14 +186,17 @@ test('Home 1-click Notice Card, More menu priority option, Notification Center a
   assert.equal(moreButtons[0].dataset.view, 'notice-board');
   assert.match(moreButtons[0].textContent, /নোটিশ বোর্ড/);
 
-  /* 2) Home page has compact 1-click Notice Card (#homeNoticeButton) */
-  const homeCard = ctx.$('#homeView #homeNoticeButton');
-  assert.ok(homeCard, 'Home 1-click notice button exists');
-  assert.equal(homeCard.dataset.view, 'notice-board');
+  /* 2) Home keeps no notice card above the hero: the strip was removed on the
+     owner's review, and the services tile is the one-click way in. */
+  assert.equal(ctx.$('#homeView #homeNoticeButton'), null, 'no notice card above the hero');
+  assert.equal(ctx.$('#homeView .home-notice-banner'), null, 'the banner section is gone from Home');
+  const homeTile = ctx.$('#homeView .notice-board-shortcut');
+  assert.ok(homeTile, 'the services tile still opens the Notice Board');
+  assert.equal(homeTile.dataset.view, 'notice-board');
   assert.equal(ctx.$('#notificationButton .notification-dot').hidden, true, 'no unread notices initially');
 
-  /* Clicking Home Notice Card goes straight to Notice Board in 1 click, and Back returns to Home */
-  ctx.click(homeCard);
+  /* Clicking the Home services tile goes straight to Notice Board in 1 click, and Back returns to Home */
+  ctx.click(homeTile);
   await ctx.flush(4);
   assert.equal(ctx.$('#notice-boardView').hidden, false);
   assert.equal(ctx.$('#notice-boardView .pay-back').dataset.view, 'home');
@@ -240,9 +243,8 @@ test('Home 1-click Notice Card, More menu priority option, Notification Center a
   const dot = ctx.$('#notificationButton .notification-dot');
   assert.equal(dot.hidden, false, 'bell badge appears when unread notice exists');
   assert.equal(dot.textContent, '১');
-  assert.equal(ctx.$('#homeNoticeUnreadBadge').hidden, false);
-  assert.equal(ctx.$('#homeNoticeUnreadBadge').textContent, '১');
-  assert.match(ctx.$('#homeNoticeTitle').textContent, /নতুন নোটিশ — সাপ্তাহিক বন্ধের নোটিশ/);
+  assert.equal(ctx.$('#noticeBoardUnreadBadge').hidden, false, 'the services tile carries the unread count');
+  assert.equal(ctx.$('#noticeBoardUnreadBadge').textContent, '১');
   assert.equal(moreButtons[0].querySelector('[data-notice-unread-badge]').textContent, '১');
 
   /* Dismiss live in-app alert if open so we test clicking from Notification Center (#noticeModal) */
@@ -270,7 +272,6 @@ test('Home 1-click Notice Card, More menu priority option, Notification Center a
 
   /* Unread badges clear across Bell, Home card, More menu and Services tile once opened from Notification Center */
   assert.equal(dot.hidden, true, 'bell badge clears once read');
-  assert.equal(ctx.$('#homeNoticeUnreadBadge').hidden, true);
   assert.equal(ctx.$('#noticeBoardUnreadBadge').hidden, true);
 });
 

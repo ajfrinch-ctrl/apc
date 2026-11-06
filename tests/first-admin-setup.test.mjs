@@ -267,8 +267,8 @@ test('an unverifiable cloud never opens creation and never writes an Admin', asy
   device.window.close();
 });
 
-test('a device with leftover local storage or transient 4G failure shows verification notice, retries automatically, and clears orphaned pre-migration admin records when cloud is uninitialized', async () => {
-  // Fresh uninitialized cloud that fails the FIRST check (simulating cold 4G timeout) then succeeds on retry!
+test('a local Admin record survives a transient failure and an empty cloud response', async () => {
+  // Even an empty cloud answer must never discard an existing local Admin copy.
   const freshCloud = createAdminCloud();
   let calls = 0;
   const origState = freshCloud.state;
@@ -290,12 +290,26 @@ test('a device with leftover local storage or transient 4G failure shows verific
   const { initLogin } = await import('../js/login.js?mobile-4g-retry');
   initLogin({ state: { student: null, account: null }, onAuthenticated: () => {} });
 
-  // Wait for automatic retry (2.5s) to reconcile with uninitialized cloud and open #firstAdminPanel!
-  await page.waitFor(() => page.$('#firstAdminPanel') && page.$('#firstAdminPanel').hidden === false, 8000);
+  // Retry confirms an empty cloud. Preserve both local accounts and fail closed.
+  await page.waitFor(() => calls >= 2 && !page.$('#firstAdminPanel'), 8000);
   await page.flush();
 
-  assert.equal(page.$('#firstAdminFootnote').hidden, false, 'First-Admin option revealed after 4G retry');
-  assert.equal(page.window.localStorage.getItem(STAFF_ACCOUNTS.admin.accountKey), null, 'Stale orphaned pre-migration local admin record purged when cloud is uninitialized');
+  assert.equal(page.$('#firstAdminFootnote'), null, 'an existing local Admin blocks first-use creation');
+  assert.equal(page.window.localStorage.getItem(STAFF_ACCOUNTS.admin.accountKey), JSON.stringify({ username: 'admin.apc', password: 'legacy-v53-password' }));
+  assert.equal(page.window.localStorage.getItem(KEYS.account), JSON.stringify({ mobile: '01700000001', username: 'old.student' }));
   page.window.close();
 });
 
+
+test('direct first-Admin creation preserves an unreadable local Admin record', async () => {
+  const freshCloud = createAdminCloud();
+  setAdminCloud(freshCloud);
+  const raw = JSON.stringify({ _apcEnc: 1, iv: 'unreadable', ct: 'unreadable' });
+  const page = await loadPage('index.html', { seed: { ...DEMO_OFF, [STAFF_ACCOUNTS.admin.accountKey]: raw } });
+  const { createInitialAdmin } = await import('../js/staff-auth.js');
+  const result = await createInitialAdmin({ fullName: 'Test Owner', mobile: '01711223344', password: 'Some-2026', confirmPassword: 'Some-2026' });
+  assert.equal(result.ok, false);
+  assert.equal(page.window.localStorage.getItem(STAFF_ACCOUNTS.admin.accountKey), raw);
+  assert.equal(freshCloud.claims, 0, 'an unreadable existing copy must not create a new Admin');
+  page.window.close();
+});

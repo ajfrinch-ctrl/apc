@@ -2069,6 +2069,35 @@ export async function pollRegistrationFeedOnline() {
   }
 }
 
+/**
+ * Every registration record the institution holds (`studentAccounts/<loginKey>`),
+ * read-only. The shared roster collection is a projection: a device that once
+ * seeded sample rows, or a roster write that never landed, can leave a real
+ * registration without its roster row. Admin/Manager review rebuilds the
+ * missing rows from these records; nothing here writes to the cloud.
+ */
+export async function readStudentAccountRecords() {
+  if (!LEGACY_CLOUD_ENABLED) return { ok: false, reason: 'cloud-paused' };
+  if (!navigator.onLine) return { ok: false, reason: 'offline' };
+  if (!hasReviewerLocalSession()) return { ok: false, reason: 'not-allowed' };
+  try {
+    await ensureCloudAuth();
+    const snapshot = await get(ref(getDatabase(firebaseApp), STUDENTS_ROOT));
+    if (!snapshot.exists()) return { ok: true, accounts: [] };
+    const decoded = decodeRealtimeRecords(snapshot.val() || {});
+    const accounts = Object.entries(decoded)
+      .filter(([, account]) => account && typeof account === 'object')
+      .map(([loginKey, account]) => ({ ...account, loginKey }));
+    return { ok: true, accounts };
+  } catch (error) {
+    // Report the category only — never a record or credential.
+    console.warn('[Active Plus] registration records unavailable:', {
+      code: error?.code || error?.name || 'unknown'
+    });
+    return { ok: false, reason: 'read-failed', error };
+  }
+}
+
 export async function hydrateStaffAccounts({ preserveLocalAdmin = false, roles = null } = {}) {
   if (!navigator.onLine) return { ok: false, reason: 'offline' };
   const requestedRoles = Array.isArray(roles)

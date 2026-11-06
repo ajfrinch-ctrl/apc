@@ -82,6 +82,7 @@ export const SyncService = Object.freeze({
   syncNow: (...args) => implementation().then(m => m.startRealtimeSync(...args)),
   ensureCloudAuth: (...args) => implementation().then(m => m.ensureCloudAuth(...args)),
   hydrateStaffAccounts: (...args) => hydrateStaffAccountsOnce(...args),
+  readStudentAccountRecords: (...args) => implementation().then(m => m.readStudentAccountRecords(...args)),
   firstAdminExistsOnline: (...args) => implementation().then(m => m.firstAdminExistsOnline(...args)),
   adminInitializationState: (...args) => adminInitializationStateOnce(...args),
   claimFirstAdminAccount: (...args) => claimFirstAdminAccountOnce(...args),
@@ -99,6 +100,7 @@ export const SyncService = Object.freeze({
 export const startRealtimeSync = (...args) => implementation().then(m => m.startRealtimeSync(...args));
 export const ensureCloudAuth = (...args) => implementation().then(m => m.ensureCloudAuth(...args));
 export const hydrateStaffAccounts = (...args) => hydrateStaffAccountsOnce(...args);
+export const readStudentAccountRecords = (...args) => implementation().then(m => m.readStudentAccountRecords(...args));
 export const firstAdminExistsOnline = (...args) => implementation().then(m => m.firstAdminExistsOnline(...args));
 export const adminInitializationState = (...args) => adminInitializationStateOnce(...args);
 export const claimFirstAdminAccount = (...args) => claimFirstAdminAccountOnce(...args);
