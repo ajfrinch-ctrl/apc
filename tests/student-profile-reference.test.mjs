@@ -34,6 +34,41 @@ test('the front names a mobile number, and the QR carries name, ID and class as 
   assert.match(back, /shape-rendering="crispEdges"/);
 });
 
+test('the QR also names the school, the date of birth and the guardian', async () => {
+  const { studentIdQRPayload } = await import('../js/student-profile-card.js');
+  const student = {
+    id: '260810021', name: 'রাইসা আক্তার', className: 'দশম শ্রেণি', group: 'বিজ্ঞান',
+    institution: 'ধানমন্ডি সরকারি উচ্চ বিদ্যালয়', birthDate: '2009-08-15', guardianName: 'মোঃ রফিকুল ইসলাম',
+  };
+  const lines = studentIdQRPayload(student).split('\n');
+  assert.deepEqual(lines, [
+    'Active Plus Coaching',
+    'নাম: রাইসা আক্তার',
+    'আইডি: 260810021',
+    'শ্রেণি: দশম শ্রেণি · বিজ্ঞান',
+    'স্কুল / কলেজ: ধানমন্ডি সরকারি উচ্চ বিদ্যালয়',
+    'জন্ম তারিখ: ১৫/০৮/২০০৯',
+    'অভিভাবক: মোঃ রফিকুল ইসলাম',
+  ], 'every stored detail is spelled out in Bangla digits, offline');
+  const withFather = studentIdQRPayload({ id: '1', name: 'ক', className: 'নবম শ্রেণি', fatherName: 'আবুল কালাম' });
+  assert.match(withFather, /অভিভাবক: আবুল কালাম$/, 'the father stands in when no guardian is stored');
+  const blank = studentIdQRPayload({ id: '1', name: 'ক', className: 'নবম শ্রেণি', institution: '', birthDate: '', guardianName: '' });
+  assert.equal(blank.split('\n').length, 4, 'empty fields are dropped instead of printing a dash');
+});
+
+test('the QR payload stays inside the symbol size the card can print', async () => {
+  const { studentIdQRPayload } = await import('../js/student-profile-card.js');
+  const long = {
+    id: '260810021', name: 'মোঃ আব্দুল্লাহ আল মামুন হোসেন চৌধুরী', className: 'দ্বাদশ শ্রেণি', group: 'ব্যবসায় শিক্ষা',
+    institution: 'শহীদ স্মৃতি সরকারি কলেজ, মিরপুর, ঢাকা', birthDate: '2007-01-30', guardianName: 'মোঃ শাহজাহান আলী আহমেদ',
+  };
+  const bytes = new TextEncoder().encode(studentIdQRPayload(long)).length;
+  assert.ok(bytes <= 440, `payload stays within the 73-module budget (was ${bytes})`);
+  assert.match(studentIdQRPayload(long), /আইডি: 260810021/, 'the ID is never shortened');
+  const back = studentIdCardSVG(long, '', 'back');
+  assert.match(back, /width="224" height="224" viewBox="0 0 \d+ \d+"/, 'the QR keeps its large, scannable box');
+});
+
 test('missing IDs are not replaced with another number', () => {
   const svg = studentIdCardSVG({ studentMobile: '01812345678' });
   assert.match(svg, /আইডি নেই/);

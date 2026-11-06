@@ -26,15 +26,46 @@ var v=function(w,x){let s=w,l=j[x],e=null,t=0,c=null,p=[],y={},h=function(r,u){t
 
 
 
-/* The QR carries what a guard or a parent needs at a glance — the institute,
-   the student's name, the immutable ID and the class — as plain UTF-8 text, so
-   any camera app shows it without a network round-trip. */
-export const studentIdQRPayload = student => [
-  'Active Plus Coaching',
-  `নাম: ${String(student?.name || student?.nameBn || student?.nameEn || '—').slice(0, 40)}`,
-  `আইডি: ${String(student?.id ?? '').slice(0, 40)}`,
-  `শ্রেণি: ${[student?.className, student?.group].filter(Boolean).join(' · ') || '—'}`,
-].join('\n');
+/* The QR carries what a guard, a parent or an office desk needs at a glance —
+   the institute, the student's name, the immutable ID, the class, the school or
+   college, the date of birth and the guardian — as plain UTF-8 text, so any
+   camera app shows it without a network round-trip. Empty fields are dropped
+   instead of printing a dash, which keeps the symbol small. */
+const qrDate = value => {
+  const stamp = String(value ?? '').trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(stamp);
+  return bnb(match ? `${match[3]}/${match[2]}/${match[1]}` : stamp).slice(0, 20);
+};
+const qrBytes = text => {
+  try { return new TextEncoder().encode(text).length; } catch { return text.length * 3; }
+};
+/* 440 bytes still fits a 73-module symbol, which decodes at 360px inside the
+   224px QR box; a longer payload would need a symbol the card has no room for.
+   Over-long values are shortened in a fixed order — school, guardian, class,
+   name — and never below a readable stub, so the name keeps its shape longest. */
+const QR_BUDGET = 440;
+const QR_FLOOR = { 'স্কুল / কলেজ': 10, 'অভিভাবক': 10, 'শ্রেণি': 8, 'নাম': 12 };
+export const studentIdQRPayload = student => {
+  const fields = [
+    { label: '', value: 'Active Plus Coaching' },
+    { label: 'নাম', value: String(student?.name || student?.nameBn || student?.nameEn || '—').trim().slice(0, 48) },
+    { label: 'আইডি', value: String(student?.id ?? '').trim().slice(0, 40) },
+    { label: 'শ্রেণি', value: [student?.className, student?.group].filter(Boolean).join(' · ').trim().slice(0, 48) },
+    { label: 'স্কুল / কলেজ', value: String(student?.institution ?? '').trim().slice(0, 48) },
+    { label: 'জন্ম তারিখ', value: qrDate(student?.birthDate) },
+    { label: 'অভিভাবক', value: String(student?.guardianName || student?.fatherName || '').trim().slice(0, 48) },
+  ].filter(field => field.value);
+  const lineText = field => (field.label ? `${field.label}: ${field.value}` : field.value);
+  const total = () => qrBytes(fields.map(lineText).join('\n'));
+  for (const label of Object.keys(QR_FLOOR)) {
+    const field = fields.find(item => item.label === label);
+    if (!field) continue;
+    while (total() > QR_BUDGET && field.value.length > QR_FLOOR[label]) {
+      field.value = `${field.value.slice(0, field.value.length - 3).trimEnd()}…`;
+    }
+  }
+  return fields.map(lineText).join('\n');
+};
 /* qrcode-generator writes bytes with charCodeAt & 255, so the text is handed
    over as UTF-8 bytes; otherwise every Bengali cluster would be mangled. */
 const utf8Bytes = text => {
@@ -183,18 +214,17 @@ export function studentIdCardSVG(student, photo = '', side = 'front', logo = '')
     if (student?.studentMobile) rows.push(['শিক্ষার্থীর মোবাইল', bnb(student.studentMobile)]);
     if (student?.guardianMobile) rows.push(['অভিভাবকের মোবাইল', bnb(student.guardianMobile)]);
     if (student?.address) rows.push(['ঠিকানা', student.address]);
-    const rowTop = 396, rowGap = 28;
-    const termsY = rows.length ? rowTop + (rows.length - 1) * rowGap + 30 : 430;
+    const rowTop = 440, rowGap = 22;
     const idLine = studentId || 'আইডি নেই';
     body = `${cardChrome(logo)}
-    <rect x="86" y="154" width="188" height="188" rx="18" fill="${WHITE}" stroke="${HAIR}" stroke-width="1.5"/>
+    <rect x="64" y="150" width="232" height="232" rx="20" fill="${WHITE}" stroke="${HAIR}" stroke-width="1.5"/>
     ${studentId
-      ? qrMarkup(student, 98, 166, 164)
-      : cardText(180, 250, 'আইডি নেই', { size: 13, weight: 600, fill: MUTED, anchor: 'middle' })}
-    ${cardText(180, 356, studentId ? 'স্ক্যান করে শিক্ষার্থীর তথ্য দেখুন' : 'আইডি পাওয়া যায়নি', { size: 12.5, weight: 700, fill: INK, anchor: 'middle' })}
-    ${cardText(180, 376, idLine, { size: textRoom(idLine, 11.5, 260), weight: 600, fill: MUTED, anchor: 'middle' })}
+      ? qrMarkup(student, 74, 160, 224)
+      : cardText(180, 266, 'আইডি নেই', { size: 13, weight: 600, fill: MUTED, anchor: 'middle' })}
+    ${cardText(180, 402, studentId ? 'স্ক্যান করে শিক্ষার্থীর তথ্য দেখুন' : 'আইডি পাওয়া যায়নি', { size: 12.5, weight: 700, fill: INK, anchor: 'middle' })}
+    ${cardText(180, 419, idLine, { size: textRoom(idLine, 11.5, 260), weight: 600, fill: MUTED, anchor: 'middle' })}
     ${rows.map(([label, value], index) => infoRow(label, value, rowTop + index * rowGap)).join('')}
-    ${cardText(180, termsY, 'ব্যবহারের শর্ত: শুধু শিক্ষার্থীর জন্য', { size: 10.5, weight: 500, fill: MUTED, anchor: 'middle' })}`;
+    ${rows.length <= 2 ? cardText(180, rows.length ? rowTop + rows.length * rowGap + 6 : 452, 'ব্যবহারের শর্ত: শুধু শিক্ষার্থীর জন্য', { size: 10.5, weight: 500, fill: MUTED, anchor: 'middle' }) : ''}`;
   } else {
     const hasPhoto = validPhoto(photo);
     const nameSize = name.length > 30 ? 15 : name.length > 22 ? 17 : 20;
