@@ -120,7 +120,7 @@ test('the release pin is still one number across pages, worker and cache', () =>
   assert.equal(cacheVersion, refreshVersion);
   for (const page of ['index.html', 'student.html', 'admin.html', 'manager.html', 'teacher.html', 'payment.html']) {
     const pins = [...read(page).matchAll(/\?v=(\d+)/g)].map(match => Number(match[1]))
-      .filter(pin => pin !== 379); // the Student hero keeps its documented staging build
+      ; // every pin must equal CACHE_VERSION — the Student hero included
     assert.ok(pins.length >= 10, `${page} is version-pinned`);
     assert.deepEqual([...new Set(pins)], [cacheVersion], `${page} pins every asset to this build`);
   }

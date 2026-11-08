@@ -2249,7 +2249,7 @@ async function reconcileRosterFromRegistrationRecords() {
   rosterReconcileStarted = true;
   try {
     const [{ readStudentAccountRecords }, { mergeAccountRecordsIntoRoster, quarantineShippedSampleRows }] = await Promise.all([
-      import('../sync/sync-core.js?v=474'),
+      import('../sync/sync-core.js?v=475'),
       import('./office-data.js')
     ]);
     const result = await readStudentAccountRecords();

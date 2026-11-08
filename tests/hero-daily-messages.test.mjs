@@ -31,8 +31,31 @@ test('every student hero card keeps its approved message as list head with at le
       `${spec.id}: no duplicate lines in the cycle`);
     for (const line of spec.messages) {
       assert.ok(line.trim().length > 0);
-      assert.ok(line.length <= 120, `${spec.id}: keeps each বাণী to one or two lines`);
+      /* The copy box on a phone is about 52% of the card width, so a long line
+         would be clipped rather than wrapped. Keep every বাণী phone-sized. */
+      assert.ok(line.length <= 72, `${spec.id}: keeps each বাণী within the card's copy box`);
+      assert.doesNotMatch(line, /[A-Za-z]/, `${spec.id}: the advice stays fully Bengali`);
     }
+  }
+});
+
+test('every student hero card carries a full rotation bank, so a line lasts for days', () => {
+  /* Owner request 2026-11-08: the four slides need "আরো উপদেশ" — three lines per card
+     repeated every third day. Each card now rotates a bank of at least a full ten-day
+     stretch, and the four banks stay separate so four different lines share the screen. */
+  const MIN_LINES_PER_CARD = 10;
+  for (const spec of STUDENT_HOME_HERO_SLIDES) {
+    assert.ok(spec.messages.length >= MIN_LINES_PER_CARD,
+      `${spec.id}: at least ${MIN_LINES_PER_CARD} lines so the daily line does not repeat within ten days`);
+    assert.ok(spec.messages.length <= 31, `${spec.id}: the bank stays a month-sized cycle`);
+  }
+  const banks = STUDENT_HOME_HERO_SLIDES.map(spec => spec.messages);
+  const all = banks.flat();
+  assert.equal(new Set(all).size, all.length, 'no line is shared between two cards');
+  for (const bank of banks) {
+    const distinctStarts = new Set(bank.map(line => line.trim().split(/\s+/).slice(0, 3).join(' ')));
+    assert.ok(distinctStarts.size >= Math.ceil(bank.length * 0.7),
+      'the lines open differently, so consecutive days do not read like a repeat');
   }
 });
 
