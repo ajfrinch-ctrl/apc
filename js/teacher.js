@@ -171,7 +171,12 @@ function renderHome() {
     if (section === 'home') {
       el.textContent = pickTeacherAdvice();
     } else if (section === 'records') {
-      el.textContent = pickTeacherSectionAdvice(state.view || 'homework');
+      /* `records` follows the open record view (homework / suggestion / exam /
+         routine). Until one is chosen the card must not borrow the daily home
+         line, so it shows the section's own bank. */
+      el.textContent = ACTIVITY_TYPES[state.view]
+        ? pickTeacherSectionAdvice(state.view)
+        : pickTeacherSectionAdvice('records');
     } else {
       el.textContent = pickTeacherSectionAdvice(section);
     }
@@ -200,7 +205,9 @@ function renderRecords() {
   if (!ACTIVITY_TYPES[state.view]) return;
   $('#teacherRecordsTitle').textContent = ACTIVITY_TYPES[state.view].plural;
   const recordAdvice = $('#teacherRecords [data-teacher-hero-advice="records"]');
-  if (recordAdvice) recordAdvice.textContent = pickTeacherSectionAdvice(state.view || 'homework');
+  if (recordAdvice) {
+    recordAdvice.textContent = pickTeacherSectionAdvice(ACTIVITY_TYPES[state.view] ? state.view : 'records');
+  }
   const status = $('#teacherStatusFilter');
   if (status && status.tagName === 'SELECT') status.value = state.status;
   $('#teacherNewActivity').hidden = state.view === 'exam';

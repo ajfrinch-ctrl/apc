@@ -238,6 +238,13 @@ function resetAdminTogglePanels(scope) {
   });
 }
 
+/* True while an Admin/Manager-authored daily line exists — that line outranks the
+   per-view advice on the Home hero (see openDefaultPrimarySection). */
+function hasCustomAdviceLine() {
+  const items = readAdviceCache()?.items;
+  return Array.isArray(items) && items.length > 0;
+}
+
 function syncAdminHeroCards() {
   const root = document.documentElement;
   const isDark = root.getAttribute('data-theme') === 'dark' || root.classList.contains('dark') || document.body?.classList.contains('dark');
@@ -271,6 +278,18 @@ function syncAdminHeroCards() {
   if (weekdayEl) weekdayEl.textContent = wd ? `${wd} · ` : '';
   const todayEl = $('#adminTodayDate');
   if (todayEl) todayEl.textContent = dateLabel(today);
+  /* The Home advice line follows the view that is open (owner request
+     2026-11-08): the signed-in Admin reads a line about the screen in front of
+     them instead of one permanent sentence. `data-admin-hero-advice` is still
+     honoured when a panel asks for a specific key; a custom line from the daily
+     advice banker always wins, and the dashboard keeps its day-rotating
+     operational seed (see openDefaultPrimarySection). */
+  const activeView = $('.admin-view.active')?.dataset.viewPanel || 'dashboard';
+  const adviceNode = $('#adminHeroAdvice');
+  if (adviceNode && activeView !== 'dashboard' && !hasCustomAdviceLine()) {
+    const line = pickAdminSectionAdvice(activeView);
+    if (line) adviceNode.textContent = line;
+  }
   $$('[data-admin-hero-advice]').forEach(welcomeBox => {
     const key = welcomeBox.dataset.adminHeroAdvice || 'admin-dashboard';
     if (key === 'admin-dashboard') return;
@@ -499,9 +518,13 @@ function renderDashboard() {
     const cacheItems = readAdviceCache()?.items;
     const hasCustomAdvice = Array.isArray(cacheItems) && cacheItems.length;
     if (hasCustomAdvice) {
+      /* An Admin/Manager-authored line is an explicit instruction, so it keeps
+         the Home hero for the whole day — on every view. */
       const picked = pickDailyAdvice(cacheItems, dateKey);
       if (picked?.text) adviceNode.textContent = picked.text;
     } else {
+      /* Otherwise Home shows today's operational prompt, and every other view
+         gets its own section line from syncAdminHeroCards(). */
       const picked = pickAdminOperationalAdvice(dateKey, ADMIN_OPERATIONAL_ADVICE_SEEDS);
       if (picked?.text) adviceNode.textContent = picked.text;
     }
@@ -2249,7 +2272,7 @@ async function reconcileRosterFromRegistrationRecords() {
   rosterReconcileStarted = true;
   try {
     const [{ readStudentAccountRecords }, { mergeAccountRecordsIntoRoster, quarantineShippedSampleRows }] = await Promise.all([
-      import('../sync/sync-core.js?v=475'),
+      import('../sync/sync-core.js?v=476'),
       import('./office-data.js')
     ]);
     const result = await readStudentAccountRecords();
