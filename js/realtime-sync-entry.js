@@ -41,7 +41,7 @@ async function bootRealtimeSync() {
   setSyncStatus('connecting');
   try {
     await assertSyncGuard();
-    const { startRealtimeSync } = await import('../sync/sync-core.js?v=476');
+    const { startRealtimeSync } = await import('../sync/sync-core.js?v=477');
     const result = await startRealtimeSync();
     if (!result?.ok) {
       if (result?.reason !== 'session-ended' && result?.reason !== 'authentication-required') {

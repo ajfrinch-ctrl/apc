@@ -847,3 +847,171 @@
     transition: none !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   হিরো কার্ডের দিনভিত্তিক ডিজাইন (মালিক-নির্দেশ ২০২৬-১১-০৮)
+
+   `js/student-home-daily-hero.js` প্রতিদিন যে স্লাইডটি ফিচার্ড করে, তার id
+   `data-hero-design`-এ বসায় (own-pace / daily-goal / joy-of-learning /
+   daily-tip)। সেই একটি অ্যাট্রিবিউটই কার্ডের সাজ — অ্যাকসেন্ট রঙ, হালকা আভা,
+   বর্ডার ও ছোট অলংকরণ — বদলে দেয়, তাই প্রতিদিন হিরো এক এক রকম দেখায়।
+
+   যা বদলায় না: চারটি ছবি, শিরোনাম, লেখার জায়গা (copy box), অটোপ্লে, তীর ও
+   স্লাইড-ইন্ডিকেটর। স্লাইড হাত দিয়ে বদলালে শুধু বার্তা বদলায় — দিনের সাজ
+   দিনেরই থাকে। ছবির উপরে কোনো লেয়ার বসে না; সাজ বসে কার্ডের নিচের স্তরে
+   (root) ও বাঁ দিকের copy box-এ, ছবি যেখানে নেই সেখানে।
+
+   সব রঙ foundation.css-এর টোকেন থেকে color-mix-এ তৈরি, তাই দিন/রাত দুই থিমেই
+   লেখা AA কনট্রাস্ট (≥ 5.2:1) ধরে রাখে — `tests/hero-daily-design.test.mjs`
+   সেটি হিসাব করে যাচাই করে। */
+
+body.student-reference #homeView .student-home-hero.hero-slider {
+  position: relative;
+  isolation: isolate;
+  transition: border-color 600ms ease, box-shadow 600ms ease;
+}
+body.student-reference #homeView .student-home-hero .hero-slider__slides { z-index: 0; }
+
+/* ১. নিজের ছন্দে — নীল-বেগুনি, নরম ঢেউ */
+body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="own-pace"] {
+  --hero-design-tone: var(--tone-blue);
+  --hero-design-tone-2: var(--tone-violet);
+  --hero-design-wash: 0.16;
+  border-color: color-mix(in srgb, var(--tone-blue) 26%, var(--color-border));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--tone-blue) 14%, transparent), var(--glass-shadow-lift);
+}
+/* ২. আজকের লক্ষ্য — মিন্ট-নীল, লক্ষ্যবিন্দু */
+body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="daily-goal"] {
+  --hero-design-tone: var(--tone-mint);
+  --hero-design-tone-2: var(--tone-blue);
+  --hero-design-wash: 0.15;
+  border-color: color-mix(in srgb, var(--tone-mint) 30%, var(--color-border));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--tone-mint) 16%, transparent), var(--glass-shadow-lift);
+}
+/* ৩. শেখার আনন্দ — অ্যাম্বার-কোরাল, রোদ-বলয় */
+body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="joy-of-learning"] {
+  --hero-design-tone: var(--tone-amber);
+  --hero-design-tone-2: var(--tone-coral);
+  --hero-design-wash: 0.17;
+  border-color: color-mix(in srgb, var(--tone-amber) 32%, var(--color-border));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--tone-amber) 18%, transparent), var(--glass-shadow-lift);
+}
+/* ৪. আজকের পরামর্শ — বেগুনি-রোজ, ঝুলন্ত বিন্দু */
+body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="daily-tip"] {
+  --hero-design-tone: var(--tone-violet);
+  --hero-design-tone-2: var(--tone-rose);
+  --hero-design-wash: 0.16;
+  border-color: color-mix(in srgb, var(--tone-violet) 28%, var(--color-border));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--tone-violet) 15%, transparent), var(--glass-shadow-lift);
+}
+
+/* রাতের থিমে গাঢ় পৃষ্ঠে হালকা আভা কম দেখা যায়, তাই আভাগুলো একটু গাঢ় */
+html[data-theme="dark"] body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="own-pace"] { --hero-design-wash: 0.24; }
+html[data-theme="dark"] body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="daily-goal"] { --hero-design-wash: 0.22; }
+html[data-theme="dark"] body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="joy-of-learning"] { --hero-design-wash: 0.25; }
+html[data-theme="dark"] body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="daily-tip"] { --hero-design-wash: 0.24; }
+
+/* নিচের স্তরে দিনের আভা — কোন স্লাইড সক্রিয় থাকুক, আভাটি এক থাকে */
+body.student-reference #homeView .student-home-hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 95% at 0% 0%, color-mix(in srgb, var(--hero-design-tone, var(--tone-blue)) 30%, transparent) 0%, transparent 62%),
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--hero-design-tone-2, var(--tone-violet)) calc(var(--hero-design-wash, 0.15) * 100%), transparent) 0%,
+      transparent 58%);
+  opacity: 1;
+  transition: background 600ms ease;
+}
+
+/* বাঁ দিকের copy box-এ দিনের হালকা আভা, যাতে লেখা ও সাজ একসঙ্গে পড়া যায়।
+   The copy box is already positioned, so it is the glow's containing block.
+   z-index: -1 keeps the tint behind the text but in front of the slide art. */
+body.student-reference #homeView .student-home-hero .hero-slide__copy::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 6% 0 6% -4%;
+  border-radius: 999px 22px 22px 999px;
+  background: linear-gradient(96deg,
+    color-mix(in srgb, var(--hero-design-tone, var(--tone-blue)) 10%, transparent) 0%,
+    color-mix(in srgb, var(--hero-design-tone-2, var(--tone-violet)) 6%, transparent) 62%,
+    transparent 100%);
+  pointer-events: none;
+  transition: background 600ms ease;
+}
+
+/* অ্যাকসেন্ট: শিরোনামের নিচে একটি ছোট দাগ, কিকার ও লেখার রঙে একই সুর */
+body.student-reference #homeView .student-home-hero .hero-slider__context .pay-portal-kicker {
+  /* ৫৫% দিনের রঙ + ৪৫% লেখার রঙ — রঙ আলাদা বোঝা যায়, আর সবচেয়ে হালকা
+     ক্ষেত্রেও AA (≥ 6.2:1) থাকে; অলংকরণের মাপে নয়, রঙেই দিনের পরিচয়। */
+  color: color-mix(in srgb, var(--hero-design-tone, var(--color-primary)) 55%, var(--color-text));
+  transition: color 600ms ease;
+}
+body.student-reference #homeView .student-home-hero .hero-slide.is-active .hero-slide__copy h2 {
+  position: relative;
+}
+body.student-reference #homeView .student-home-hero .hero-slide.is-active .hero-slide__copy h2::after {
+  content: '';
+  display: block;
+  width: 46px;
+  height: 4px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: linear-gradient(96deg,
+    var(--hero-design-tone, var(--color-primary)) 0%,
+    var(--hero-design-tone-2, var(--tone-violet)) 100%);
+}
+
+/* বাঁ কিনারে দিনের রঙের সরু রেল — কার্ডের সবচেয়ে স্পষ্ট দৈনিক পরিচয়।
+   কার্ডের গায়ে বসে (z-index 7), তাই উপরের তথ্য-পট্টি বা ছবি কিছুই একে ঢাকে না;
+   প্রশস্ততা মাত্র ৬px আর লেখার প্যাডিং ৩০px, তাই কোনো লেখা এর নিচে পড়ে না। */
+body.student-reference #homeView .student-home-hero::after {
+  content: '';
+  position: absolute;
+  z-index: 7;
+  inset: 0 auto 0 0;
+  width: 8px;
+  border-radius: inherit;
+  background: linear-gradient(180deg,
+    var(--hero-design-tone, var(--tone-blue)) 0%,
+    var(--hero-design-tone-2, var(--tone-violet)) 100%);
+  opacity: 1;
+  pointer-events: none;
+  transition: background 600ms ease;
+}
+
+/* উপরের তথ্য-পট্টিও দিনের রঙে হালকা আভা পায় (লেখা অক্ষত থাকে) */
+body.student-reference #homeView .student-home-hero .hero-slider__context {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface) 90%, var(--hero-design-tone, var(--tone-blue))) 0%,
+      color-mix(in srgb, var(--color-surface) 72%, var(--hero-design-tone-2, var(--tone-violet))) 72%,
+      transparent 100%);
+  transition: background 600ms ease;
+}
+
+/* স্লাইড-ইন্ডিকেটরও দিনের রঙে — কোন বিন্দুটি চলছে বোঝা সহজ হয়, আর সাজটা
+   নিচের কন্ট্রোল পর্যন্ত একই সুরে থাকে। ছোট নয়, মাপ বদলায় না। */
+body.student-reference #homeView .student-home-hero .hero-slider__dot.is-active {
+  background: var(--hero-design-tone, var(--color-primary)) !important;
+  border-color: color-mix(in srgb, var(--hero-design-tone, var(--color-primary)) 70%, var(--color-border)) !important;
+}
+body.student-reference #homeView .student-home-hero .hero-slider__dot {
+  transition: background 600ms ease, border-color 600ms ease, width 220ms ease, transform 220ms ease;
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  body.student-reference #homeView .student-home-hero.hero-slider,
+  body.student-reference #homeView .student-home-hero::before,
+  body.student-reference #homeView .student-home-hero::after,
+  body.student-reference #homeView .student-home-hero .hero-slider__context,
+  body.student-reference #homeView .student-home-hero .hero-slide__copy::before,
+  body.student-reference #homeView .student-home-hero .hero-slider__dot {
+    transition: none !important;
+  }
+}
