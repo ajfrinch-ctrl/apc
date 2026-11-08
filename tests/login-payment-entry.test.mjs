@@ -118,16 +118,18 @@ test('admin credentials hand over to the admin panel, wrong ones change nothing'
 test('teacher and payment counter use the same form and reach their own panels', async () => {
   await open();
   await provisionStaff('teacher');
-  await signIn(STAFF_ACCOUNTS.teacher.username, STAFF_TEST_PASSWORD, () => navigated() || ctx.$('#authMessage').textContent.includes('শিক্ষক'));
-  assert.match(ctx.$('#authMessage').textContent, /শিক্ষক প্যানেল/);
+  await signIn(STAFF_ACCOUNTS.teacher.username, STAFF_TEST_PASSWORD, () => navigated());
+  // The per-panel hand-off line moved to the loading screen; the login form keeps
+  // its message box empty on success so it can never look like a warning.
+  assert.equal(ctx.$('#authMessage').textContent, '');
   assert.equal(session('teacher') !== null, true);
   assert.equal(await hasStaffSession('teacher'), true);
   assert.equal(session('admin'), null);
 
   await open();
   await provisionStaff('payment');
-  await signIn(STAFF_ACCOUNTS.payment.username, STAFF_TEST_PASSWORD, () => navigated() || ctx.$('#authMessage').textContent.includes('পেমেন্ট'));
-  assert.match(ctx.$('#authMessage').textContent, /পেমেন্ট রিসিভ প্যানেল/);
+  await signIn(STAFF_ACCOUNTS.payment.username, STAFF_TEST_PASSWORD, () => navigated());
+  assert.equal(ctx.$('#authMessage').textContent, '');
   assert.equal(await hasStaffSession('payment'), true);
   // The counter desk reads this key, so landing there needs no second form.
   assert.equal(session('payment') !== null, true);

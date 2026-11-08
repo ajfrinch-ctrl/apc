@@ -185,7 +185,9 @@ test('login IDs and data created on device A work on device B', async () => {
   /* The Admin ID created on A signs in on B through the real login form. */
   const loginB = await deviceB.run('form-login', { username: adminUsername, pin: ADMIN_PASSWORD });
   assert.equal(loginB.adminSession, true, `the Admin ID ${adminUsername} created on A signs in on B`);
-  assert.match(loginB.message, /নেওয়া হচ্ছে/, 'no credential error on device B');
+  // The hand-off line left the login form (owner request 2026-11-08): the form
+  // now hands the wording to the loading screen and leaves an empty box behind.
+  assert.equal(loginB.message, '', 'no message, and above all no credential error, on device B');
   assert.equal(loginB.navigated, true, 'device B hands over to the admin panel');
 
   /* The Staff Management ID created on A logs in on B. */
@@ -210,7 +212,7 @@ test('login IDs and data created on device A work on device B', async () => {
   /* The student login created on A signs in on B. */
   const studentLogin = await deviceB.run('form-login', { username: 'dolon', pin: '4321' });
   assert.equal(studentLogin.studentSession, true, 'the student login synced from A works on B');
-  assert.match(studentLogin.message, /স্বাগতম|নেওয়া হচ্ছে|/, 'no credential error');
+  assert.doesNotMatch(String(studentLogin.message || ''), /সঠিক নয়|পাওয়া যায়নি|বন্ধ/, 'no credential error');
 
   /* ---- Exams + attempts mirror through the dedicated examDb path ---- */
   assert.equal(SYNC_ROOT(cloud).exams, undefined, 'the broken generic exams node is never created');

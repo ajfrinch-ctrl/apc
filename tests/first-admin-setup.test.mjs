@@ -152,8 +152,11 @@ test('the generated ID signs in as Admin', async () => {
   ctx.type(ctx.$('#loginMobile'), 'rasal.admin.apc');
   ctx.type(ctx.$('#loginPin'), PASSWORD);
   ctx.submit(ctx.$('#loginForm'));
-  await ctx.waitFor(() => ctx.jsdomErrors.some(error => /navigation/i.test(error)) || /এডমিন প্যানেল/.test(message()), 20000);
-  assert.match(message(), /এডমিন প্যানেল/);
+  /* The hand-off wording now belongs to the loading screen (owner request
+     2026-11-08), so the login form is expected to navigate silently and leave no
+     success line behind — the session and the one-shot note are the proof. */
+  await ctx.waitFor(() => ctx.jsdomErrors.some(error => /navigation/i.test(error)), 20000);
+  assert.doesNotMatch(message(), /সঠিক নয়|পাওয়া যায়নি/);
   assert.equal(ctx.window.localStorage.getItem(STAFF_ACCOUNTS.admin.sessionKey) !== null, true);
 });
 
