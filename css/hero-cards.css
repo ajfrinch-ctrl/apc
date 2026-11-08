@@ -781,10 +781,6 @@
     object-fit: contain !important;
     object-position: right center !important;
   }
-  body.student-reference #homeView .student-home-hero .hero-slide::after {
-    display: block;
-    background: linear-gradient(90deg, var(--hero-bg) 0%, color-mix(in srgb, var(--hero-bg) 92%, transparent) 38%, color-mix(in srgb, var(--hero-bg) 66%, transparent) 51%, transparent 72%);
-  }
   body.student-reference #homeView .student-home-hero .hero-slide__copy {
     position: absolute;
     inset: 0 auto 0 0;
@@ -911,38 +907,41 @@ html[data-theme="dark"] body.student-reference #homeView .student-home-hero.stud
 html[data-theme="dark"] body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="joy-of-learning"] { --hero-design-wash: 0.25; }
 html[data-theme="dark"] body.student-reference #homeView .student-home-hero.student-home-hero[data-hero-design="daily-tip"] { --hero-design-wash: 0.24; }
 
-/* নিচের স্তরে দিনের আভা — কোন স্লাইড সক্রিয় থাকুক, আভাটি এক থাকে */
-body.student-reference #homeView .student-home-hero::before {
+/* লেখার পড়ার সুবিধার জন্য যে সাদা/গাঢ় পর্দা ছিল, সেটি ছবির ৭২% পর্যন্ত ঢুকে
+   ছাত্রীর-ছেলের মাথা ও মুখ ধোঁয়াশা করে দিত (মালিকের অভিযোগ, ২০২৬-১১-০৮)।
+   ছবিটি এখন পুরোপুরি পরিষ্কার; পড়ার নিশ্চয়তা আসে লেখার বাক্সের নিজের পর্দা
+   থেকে, যা বাক্সের ৫২% সীমার ভেতরেই থাকে এবং মাথা-মুখের উপর পড়ে না। */
+body.student-reference #homeView .student-home-hero .hero-slide::after {
+  display: none;
+}
+
+/* লেখার বাক্সের নিজের পর্দা — বাঁ প্রান্তে প্রায় পূর্ণ, ডান প্রান্তে মিলিয়ে যায়।
+   বাক্স ৫২% চওড়া ও overflow:hidden, তাই এই পর্দা কখনো ছবির মাথা/মুখে পৌঁছায় না,
+   অথচ দিন/রাত দুই থিমেই লেখা দৃশ্যমান থাকে (দিনে গাঢ় লেখা, রাতে হালকা লেখা —
+   পর্দার রঙ surface + দিনের টোন, তাই কনট্রাস্ট ≥ ১১:১)। */
+body.student-reference #homeView .student-home-hero .hero-slide__copy::before {
   content: '';
   position: absolute;
   z-index: -1;
   inset: 0;
   border-radius: inherit;
-  pointer-events: none;
-  background:
-    radial-gradient(120% 95% at 0% 0%, color-mix(in srgb, var(--hero-design-tone, var(--tone-blue)) 30%, transparent) 0%, transparent 62%),
-    linear-gradient(160deg,
-      color-mix(in srgb, var(--hero-design-tone-2, var(--tone-violet)) calc(var(--hero-design-wash, 0.15) * 100%), transparent) 0%,
-      transparent 58%);
-  opacity: 1;
-  transition: background 600ms ease;
-}
-
-/* বাঁ দিকের copy box-এ দিনের হালকা আভা, যাতে লেখা ও সাজ একসঙ্গে পড়া যায়।
-   The copy box is already positioned, so it is the glow's containing block.
-   z-index: -1 keeps the tint behind the text but in front of the slide art. */
-body.student-reference #homeView .student-home-hero .hero-slide__copy::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: 6% 0 6% -4%;
-  border-radius: 999px 22px 22px 999px;
   background: linear-gradient(96deg,
-    color-mix(in srgb, var(--hero-design-tone, var(--tone-blue)) 10%, transparent) 0%,
-    color-mix(in srgb, var(--hero-design-tone-2, var(--tone-violet)) 6%, transparent) 62%,
+    color-mix(in srgb, var(--color-surface) 94%, var(--hero-design-tone, var(--tone-blue))) 0%,
+    color-mix(in srgb, var(--color-surface) 88%, var(--hero-design-tone-2, var(--tone-violet))) 46%,
+    color-mix(in srgb, var(--color-surface) 70%, transparent) 64%,
+    transparent 74%,
     transparent 100%);
   pointer-events: none;
   transition: background 600ms ease;
+}
+
+/* উদ্ধৃতির লেখক-লাইন ডান দিকে ঠেলে দিলে ছবির মেয়েটির চুল/মাথার উপর এসে বসত
+   (মালিকের অভিযোগ, ২০২৬-১১-০৮)। এখন লেখক-লাইন বাঁ দিকেই থাকে — তথ্য-পট্টির
+   টেক্সট-কলামের নিচে, ছবির একেবারে বাইরে। */
+body.student-reference #homeView .student-home-hero .hero-slider__context .student-home-daily-quote__author {
+  align-self: flex-start;
+  max-width: 100%;
+  text-align: left;
 }
 
 /* অ্যাকসেন্ট: শিরোনামের নিচে একটি ছোট দাগ, কিকার ও লেখার রঙে একই সুর */
@@ -985,13 +984,97 @@ body.student-reference #homeView .student-home-hero::after {
   transition: background 600ms ease;
 }
 
-/* উপরের তথ্য-পট্টিও দিনের রঙে হালকা আভা পায় (লেখা অক্ষত থাকে) */
+/* তথ্য-পট্টি: শুধু উপরের এক তৃতীয়াংশে হালকা পর্দা, যা ছবির মাথা শুরুর আগেই
+   ('transparent 44%') শেষ হয়ে যায়। আগে পট্টির অর্ধেক-স্বচ্ছ পর্দা ছবির উপরে
+   ঢুকে ছেলের-মেয়ের মাথা ধোঁয়াশা করে দিত (মালিকের অভিযোগ, ২০২৬-১১-০৮)। */
 body.student-reference #homeView .student-home-hero .hero-slider__context {
   background:
     linear-gradient(180deg,
-      color-mix(in srgb, var(--color-surface) 90%, var(--hero-design-tone, var(--tone-blue))) 0%,
-      color-mix(in srgb, var(--color-surface) 72%, var(--hero-design-tone-2, var(--tone-violet))) 72%,
+      color-mix(in srgb, var(--color-surface) 94%, var(--hero-design-tone, var(--tone-blue))) 0%,
+      color-mix(in srgb, var(--color-surface) 86%, var(--hero-design-tone-2, var(--tone-violet))) 22%,
+      color-mix(in srgb, var(--color-surface) 55%, transparent) 34%,
+      transparent 44%,
       transparent 100%);
+  transition: background 600ms ease;
+}
+
+/* উদ্ধৃতির লেখক-লাইন ডান দিকে ঠেলে দিলে ছবির মেয়েটির চুল/মাথার উপর এসে বসত
+   (মালিকের অভিযোগ, ২০২৬-১১-০৮)। এখন লেখক-লাইন বাঁ দিকেই থাকে — তথ্য-পট্টির
+   টেক্সট-কলামের নিচে, ছবির একেবারে বাইরে। */
+body.student-reference #homeView .student-home-hero .hero-slider__context .student-home-daily-quote__author {
+  align-self: flex-start;
+  max-width: 100%;
+  text-align: left;
+}
+
+/* অ্যাকসেন্ট: শিরোনামের নিচে একটি ছোট দাগ, কিকার ও লেখার রঙে একই সুর */
+body.student-reference #homeView .student-home-hero .hero-slider__context .pay-portal-kicker {
+  /* ৫৫% দিনের রঙ + ৪৫% লেখার রঙ — রঙ আলাদা বোঝা যায়, আর সবচেয়ে হালকা
+     ক্ষেত্রেও AA (≥ 6.2:1) থাকে; অলংকরণের মাপে নয়, রঙেই দিনের পরিচয়। */
+  color: color-mix(in srgb, var(--hero-design-tone, var(--color-primary)) 55%, var(--color-text));
+  transition: color 600ms ease;
+}
+body.student-reference #homeView .student-home-hero .hero-slide.is-active .hero-slide__copy h2 {
+  position: relative;
+}
+body.student-reference #homeView .student-home-hero .hero-slide.is-active .hero-slide__copy h2::after {
+  content: '';
+  display: block;
+  width: 46px;
+  height: 4px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: linear-gradient(96deg,
+    var(--hero-design-tone, var(--color-primary)) 0%,
+    var(--hero-design-tone-2, var(--tone-violet)) 100%);
+}
+
+/* বাঁ কিনারে দিনের রঙের সরু রেল — কার্ডের সবচেয়ে স্পষ্ট দৈনিক পরিচয়।
+   কার্ডের গায়ে বসে (z-index 7), তাই উপরের তথ্য-পট্টি বা ছবি কিছুই একে ঢাকে না;
+   প্রশস্ততা মাত্র ৬px আর লেখার প্যাডিং ৩০px, তাই কোনো লেখা এর নিচে পড়ে না। */
+body.student-reference #homeView .student-home-hero::after {
+  content: '';
+  position: absolute;
+  z-index: 7;
+  inset: 0 auto 0 0;
+  width: 8px;
+  border-radius: inherit;
+  background: linear-gradient(180deg,
+    var(--hero-design-tone, var(--tone-blue)) 0%,
+    var(--hero-design-tone-2, var(--tone-violet)) 100%);
+  opacity: 1;
+  pointer-events: none;
+  transition: background 600ms ease;
+}
+
+/* তথ্য-পট্টি আঁকা হয় কিকার ও তারিখের কলামের ভেতরে, জায়গা অনুযায়ী (shrink-to-fit) —
+   আগের কোডে পট্টির অর্ধেক-স্বচ্ছ সাদা ব্যাকগ্রাউন্ড ছবির উপরের অংশ ঢেকে দিত,
+   ফলে ছেলের মাথা/মুখ ধোঁয়াশা হয়ে যেত। এখন পট্টির পেছনে কোনো রঙ বসে না; দিনের
+   রঙ শুধু কিকার-তারিখের নিজের আভা ও বাঁ রেল-এ থাকে, ছবি পুরো পরিষ্কার থাকে। */
+body.student-reference #homeView .student-home-hero .hero-slider__context {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface) 94%, var(--hero-design-tone, var(--tone-blue))) 0%,
+      color-mix(in srgb, var(--color-surface) 86%, var(--hero-design-tone-2, var(--tone-violet))) 22%,
+      color-mix(in srgb, var(--color-surface) 55%, transparent) 34%,
+      transparent 44%,
+      transparent 100%);
+}
+body.student-reference #homeView .student-home-hero .hero-slider__context .pay-portal-kicker,
+body.student-reference #homeView .student-home-hero .hero-slider__context [data-home-hero-date] {
+  position: relative;
+  isolation: isolate;
+}
+body.student-reference #homeView .student-home-hero .hero-slider__context .pay-portal-kicker::before,
+body.student-reference #homeView .student-home-hero .hero-slider__context [data-home-hero-date]::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -3px -7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 82%, var(--hero-design-tone-2, var(--tone-violet)));
+  opacity: .5;
+  pointer-events: none;
   transition: background 600ms ease;
 }
 
@@ -1007,10 +1090,10 @@ body.student-reference #homeView .student-home-hero .hero-slider__dot {
 
 @media screen and (prefers-reduced-motion: reduce) {
   body.student-reference #homeView .student-home-hero.hero-slider,
-  body.student-reference #homeView .student-home-hero::before,
   body.student-reference #homeView .student-home-hero::after,
-  body.student-reference #homeView .student-home-hero .hero-slider__context,
   body.student-reference #homeView .student-home-hero .hero-slide__copy::before,
+  body.student-reference #homeView .student-home-hero .hero-slider__context .pay-portal-kicker::before,
+  body.student-reference #homeView .student-home-hero .hero-slider__context [data-home-hero-date]::before,
   body.student-reference #homeView .student-home-hero .hero-slider__dot {
     transition: none !important;
   }

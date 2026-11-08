@@ -154,6 +154,8 @@ test('the daily design text pairs clear AA in both themes', () => {
   }
   assert.match(studentCss, /\.student-home-hero \.hero-slider__context\s*\{[^}]*var\(--hero-design-tone/u,
     'the context strip is tinted from the same token the contrast check models');
+  assert.match(studentCss, /\.student-home-hero \.hero-slide__copy::before\s*\{[^}]*var\(--color-surface\) 94%/u,
+    'the copy-box scrim starts from the theme surface so day and night both keep AA');
   assert.match(studentCss, /\.pay-portal-kicker\s*\{[^}]*55%, var\(--color-text\)/u,
     'the kicker keeps a deep ink mix so every tone stays legible');
 });
@@ -162,4 +164,56 @@ test('the daily design respects reduced motion', () => {
   const reduced = studentCss.slice(studentCss.lastIndexOf('prefers-reduced-motion'));
   assert.match(reduced, /\.student-home-hero\.hero-slider,[\s\S]*?transition:\s*none/u,
     'the card finish does not animate for reduced-motion users');
+});
+
+/* Owner complaint 2026-11-08: the finish veiled the illustration — the children's
+   heads could not be made out under a pale film. The scrims must stay in the text
+   columns and never reach the artwork, and nothing may sit on top of the heads. */
+test('no scrim covers the illustration: the card keeps the faces clear', () => {
+  const ctxs = [];
+  return (async () => {
+    const { ctx, mount, carousel } = await heroFixture(Date.parse('2026-11-11T04:00:00Z'));
+    ctxs.push(ctx);
+    const hero = mount;
+    const rule = (selector) => {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = studentCss.match(new RegExp(escaped + '\\s*\\{([^}]*)\\}', 'u'));
+      assert.ok(match, `${selector} is declared`);
+      return match[1];
+    };
+
+    // The full-card, image-reaching scrim is gone for the Student hero.
+    assert.match(rule('.student-home-hero .hero-slide::after'), /display:\s*none/u,
+      'the Student hero no longer paints a scrim across the artwork');
+
+    // The copy-box scrim fades out inside its own 52% column and is clipped there.
+    const copyScrim = rule('.student-home-hero .hero-slide__copy::before');
+    assert.match(copyScrim, /inset:\s*0;/u, 'the scrim covers only the copy box');
+    assert.match(copyScrim, /transparent 74%/u, 'the scrim finishes before the illustration starts');
+
+    // The top strip tint fades out long before the heads begin (rules in media
+    // queries share the same selector, so the whole sheet is searched).
+    assert.match(studentCss, /\.student-home-hero \.hero-slider__context \{[^}]*transparent 44%/u,
+      'the context tint stops in the top third of the card');
+
+    // Nothing in the markup paints over the illustration area.
+    for (const selector of ['hero-slider__copy', 'student-home-daily-quote', 'pay-portal-kicker', 'hero-slider__date']) {
+      for (const node of mount.querySelectorAll('.' + selector)) {
+        const style = ctx.window.getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        assert.ok(box.right <= ctx.window.innerWidth, `${selector} stays inside the viewport`);
+        assert.ok(!style.filter || style.filter === 'none', `${selector} does not blur its surroundings`);
+        assert.notEqual(style.backdropFilter, 'blur(8px)', `${selector} is not a blurred veil`);
+      }
+    }
+
+    // The quote author sits in the left text column, never over the girl's hair.
+    const author = mount.querySelector('.student-home-daily-quote__author');
+    const copy = mount.querySelector('.hero-slide.is-active .hero-slide__copy');
+    if (author && copy) {
+      assert.ok(author.getBoundingClientRect().right <= copy.getBoundingClientRect().right + 1,
+        'the author line stays within the text column');
+    }
+    carousel.stop();
+  })();
 });

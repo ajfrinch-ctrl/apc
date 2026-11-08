@@ -50,6 +50,11 @@
 // divider, welcome title, and the daily-task prompt); cache pin refresh.
 // v380: Teacher panel door consolidation — creation centred in the কাজ দিন hub, Home tiles open screens only,
 // আরও reduced to reports/settings, and homework uses the shared standard modal; cache pin refresh for the rebuilt teacher assets.
+// v478: Hero illustration fix — the student hero no longer veils the artwork.
+// The image-reaching `.hero-slide::after` scrim is dropped for the Student card,
+// the copy-box scrim now fades out inside its own 52% column, the top strip tint
+// stops in the top third, and the quote author moved into the left text column;
+// the children's heads/faces are fully clear while text keeps its AA contrast.
 // v477: Student Home hero card finishes change every day — the featured slide
 // now lends its own accent, wash, border, left colour rail and dot colour to the
 // whole card (css/hero-cards.css + data-hero-design in
@@ -209,7 +214,7 @@
 //       the staff directory and edits its own profile; the System Owner stays protected.
 // v439: Yellow Pages hides every primary field by default — one click on a card
 //       reveals that card only; a release no longer wipes the panel-hint cache.
-const CACHE_VERSION = 477;
+const CACHE_VERSION = 478;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 /* One cache, two precache sets, one release pin.
 
@@ -349,7 +354,7 @@ const APP_SHELL = [
   './css/app-polish.css',
   './css/student-record.css',
   './css/ui-wallet.css',
-  './css/hero-cards.css' + '?v=477',
+  './css/hero-cards.css' + '?v=478',
   './css/student-home-design.css',
   './sync/cloud-access.js',
   './sync/backend-selection.js',
@@ -486,22 +491,22 @@ const APP_SHELL = [
   './js/student-more.js',
   './js/rich-sanitize.js',
   './js/daily-quote.js',
-  './js/hero-cards.js' + '?v=477',
+  './js/hero-cards.js' + '?v=478',
   './assets/daily-quotes.json',
   './assets/daily-advice.json',
   './js/home-hero.js',
-  './js/home-hero.js' + '?v=477',
+  './js/home-hero.js' + '?v=478',
   './js/home-hero-entry.js',
-  './js/student-home-hero-entry.js' + '?v=477',
-  './js/student-home-daily-hero.js' + '?v=477',
+  './js/student-home-hero-entry.js' + '?v=478',
+  './js/student-home-daily-hero.js' + '?v=478',
   './assets/home-hero/hero-own-pace.webp',
   './assets/home-hero/hero-daily-goal.webp',
   './assets/home-hero/hero-joy-of-learning.webp',
   './assets/home-hero/hero-daily-tip.webp',
-  './assets/student-home-hero/hero-own-pace.webp' + '?v=477',
-  './assets/student-home-hero/hero-daily-goal.webp' + '?v=477',
-  './assets/student-home-hero/hero-joy-of-learning.webp' + '?v=477',
-  './assets/student-home-hero/hero-daily-tip.webp' + '?v=477',
+  './assets/student-home-hero/hero-own-pace.webp' + '?v=478',
+  './assets/student-home-hero/hero-daily-goal.webp' + '?v=478',
+  './assets/student-home-hero/hero-joy-of-learning.webp' + '?v=478',
+  './assets/student-home-hero/hero-daily-tip.webp' + '?v=478',
   './js/exam-archive.js',
   './js/exam-pdf.js',
   './js/material-pdf.js',

@@ -60,8 +60,8 @@ test('Student Home replaces the visible advice card with a private hero while Pa
   const home = studentDocument.querySelector('#homeView');
   const studentHero = home.querySelector('[data-student-home-hero]');
   assert.equal(home.querySelectorAll('[data-home-hero]').length, 1, 'Student has one carousel mount');
-  assert.match(studentHtml, /js\/student-home-hero-entry\.js\?v=477/u, 'Student loads its isolated hero entry');
-  assert.match(studentHtml, /js\/student-home-daily-hero\.js\?v=477/u, 'Student loads its date-based featured-slide selector');
+  assert.match(studentHtml, /js\/student-home-hero-entry\.js\?v=478/u, 'Student loads its isolated hero entry');
+  assert.match(studentHtml, /js\/student-home-daily-hero\.js\?v=478/u, 'Student loads its date-based featured-slide selector');
   assert.doesNotMatch(studentHtml, /js\/home-hero-entry\.js\?v=\d+/u, 'Student does not initialize the Payment carousel entry');
   const topBar = studentDocument.querySelector('#studentHeader');
   const welcome = home.querySelector('.student-home-welcome');
@@ -146,7 +146,7 @@ test('Student-specific hero presents the four approved messages and versioned lo
       'the render is the date-stable pick from this card\'s message list');
     const image = slide.querySelector('img');
     assert.ok(image.alt.trim(), `${id} has meaningful alternative text`);
-    assert.equal(image.getAttribute('src'), `assets/student-home-hero/${imageName}?v=477`);
+    assert.equal(image.getAttribute('src'), `assets/student-home-hero/${imageName}?v=478`);
     assert.equal(image.getAttribute('width'), '1280');
     assert.equal(image.getAttribute('height'), '720');
     assert.equal(image.getAttribute('loading'), index === 0 ? 'eager' : 'lazy');
@@ -267,11 +267,11 @@ test('shared and Student-specific hero files are included in the offline worker 
   const images = ['hero-own-pace.webp', 'hero-daily-goal.webp', 'hero-joy-of-learning.webp', 'hero-daily-tip.webp'];
   for (const image of images) {
     assert.ok(worker.includes(`'./assets/home-hero/${image}'`), `${image} remains available to Payment`);
-    assert.ok(worker.includes(`'./assets/student-home-hero/${image}' + '?v=477'`), `${image} is versioned for Student offline use`);
+    assert.ok(worker.includes(`'./assets/student-home-hero/${image}' + '?v=478'`), `${image} is versioned for Student offline use`);
   }
-  assert.ok(worker.includes("'./js/home-hero.js' + '?v=477'"), 'the Student-compatible slider module is precached');
-  assert.ok(worker.includes("'./js/student-home-hero-entry.js' + '?v=477'"), 'the Student entry is precached');
-  assert.ok(worker.includes("'./js/student-home-daily-hero.js' + '?v=477'"), 'the Student daily selector is precached');
+  assert.ok(worker.includes("'./js/home-hero.js' + '?v=478'"), 'the Student-compatible slider module is precached');
+  assert.ok(worker.includes("'./js/student-home-hero-entry.js' + '?v=478'"), 'the Student entry is precached');
+  assert.ok(worker.includes("'./js/student-home-daily-hero.js' + '?v=478'"), 'the Student daily selector is precached');
 });
 
 test('autoplay advances every five seconds, wraps after four slides, and pauses on hover/press', async () => {
