@@ -314,7 +314,7 @@ class LectureSheet(FPDF):
         if pill_rows:
             y += 1.6
             self._draw_pill_rows(pill_rows, MARGIN + 6, y)
-        self.set_y(banner_y + banner_h + 5.0)
+        self.set_y(banner_y + banner_h + 3.8)
 
     def _pill_rows(self, pills, max_w):
         rows, current, current_w = [], [], 0.0
@@ -420,7 +420,7 @@ class LectureSheet(FPDF):
         self.set_draw_color(209, 250, 229)
         self.set_line_width(0.3)
         self.line(MARGIN + 10.6, y + 9.42, PAGE_W - MARGIN, y + 9.42)
-        self.gap(2.6)
+        self.gap(2.0)
 
     def h3(self, text, size=10.2):
         lines = self.wrapped(text, CONTENT_W - 4, size, bold=True)
@@ -444,7 +444,7 @@ class LectureSheet(FPDF):
             total += h + (0.9 if kind == 'b' else 1.4)
         return prepared, total
 
-    def box(self, lines, title='', variant='green', size=8.9, line_h=4.85, space_after=3.0):
+    def box(self, lines, title='', variant='green', size=8.9, line_h=4.85, space_after=2.4):
         palette = {
             'green': (GREEN_TINT, GREEN_BORDER, GREEN_DEEP),
             'amber': (AMBER_TINT, AMBER_BORDER, AMBER_INK),
