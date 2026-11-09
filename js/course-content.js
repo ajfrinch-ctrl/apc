@@ -103,6 +103,26 @@ export function typeOf(record) {
 export const sectionOf = record => COURSE_TYPES[typeOf(record)].section;
 export const typeLabel = record => COURSE_TYPES[typeOf(record)].label;
 
+/* ---- Attachment links ---------------------------------------------------------
+   A record may point at a file that lives in the repository's `files/` folder
+   (see files/README.md) as well as at an outside https address. A repository
+   link stays same-origin, so one record works on localhost, Firebase Hosting
+   and Vercel without editing the domain, and the bytes never sit in the
+   database. Everything else — other schemes, protocol-relative hosts, paths
+   outside files/ — is still refused. */
+const REPO_FILE_LINK = /^files\/(?!.*(^|\/)\.\.(\/|$))[A-Za-z0-9._~%\-]+\/?([A-Za-z0-9._~%\-]+\/?)*$/i;
+
+/** The href a student may open, or '' when the value is not a safe link. */
+export function attachmentHref(value) {
+  const link = text(value);
+  if (!link) return '';
+  if (/^https?:\/\//i.test(link)) return link;
+  const relative = link.replace(/^\.\//, '');
+  return REPO_FILE_LINK.test(relative) ? `./${relative}` : '';
+}
+
+export const hasAttachment = record => Boolean(attachmentHref(record?.attachmentUrl));
+
 /* ---- Queries ------------------------------------------------------------------ */
 
 /** Only what a student may see: published and not archived. */
@@ -320,8 +340,10 @@ function clean(patch, { records, id, actor }) {
     : sanitizeRichHtml(patch.richContent || '');
   if (description.length > 600) throw new Error('সংক্ষিপ্ত বর্ণনা সর্বোচ্চ ৬০০ অক্ষর।');
   if (!isLectureSheet && content.length > 8000) throw new Error('মূল লেখা সর্বোচ্চ ৮০০০ অক্ষর।');
-  const link = text(patch.attachmentUrl);
-  if (link && !/^https?:\/\//i.test(link)) throw new Error('সংযুক্তি লিংকটি https:// বা http:// দিয়ে দিন।');
+  const link = attachmentHref(patch.attachmentUrl);
+  if (text(patch.attachmentUrl) && !link) {
+    throw new Error('সংযুক্তি লিংকটি https:// দিয়ে শুরু করুন, অথবা সাইটের files/ ফোল্ডারের পথ দিন (যেমন files/lecture-sheets/name.pdf)।');
+  }
   const thumbnail = text(patch.thumbnail);
   if (thumbnail && !/^https?:\/\//i.test(thumbnail) && !thumbnail.startsWith('./') && !thumbnail.startsWith('assets/')) {
     throw new Error('থাম্বনেইল লিংকটি ঠিক নয়।');

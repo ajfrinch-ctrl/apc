@@ -13,7 +13,7 @@
 import { toBanglaNumber as bn } from './ui.js';
 import { setView } from './shell.js';
 import { classByName, subjectsForClass, listChapters } from './academics.js';
-import { listCourseContent, typeOf as courseTypeOf } from './course-content.js';
+import { attachmentHref, listCourseContent, typeOf as courseTypeOf } from './course-content.js';
 import { sanitizeRichHtml, sanitizeLectureHtml } from './rich-sanitize.js';
 import { teachingRepository, publishedForStudent, watchTeachingData } from './teaching-data.js';
 import { courseRepository, courseProgress, watchCourses, COURSES_KEY } from './course-data.js';
@@ -39,13 +39,13 @@ const SUGGESTION_TYPES = Object.freeze({
   important: record => courseTypeOf(record) === 'important_question',
   written: record => courseTypeOf(record) === 'suggestion',
   mcq: record => courseTypeOf(record) === 'mcq',
-  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || /^https?:\/\//i.test(record.attachmentUrl || '')
+  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || Boolean(attachmentHref(record.attachmentUrl))
 });
 const SUGGESTION_SECTIONS = Object.freeze(['suggestion', 'important']);
 const MATERIAL_TYPES = Object.freeze({
   all: () => true,
   note: record => courseTypeOf(record) === 'note',
-  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || (courseTypeOf(record) === 'lesson' && /^https?:\/\//i.test(record.attachmentUrl || '')),
+  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || (courseTypeOf(record) === 'lesson' && Boolean(attachmentHref(record.attachmentUrl))),
   previous_question: record => courseTypeOf(record) === 'previous_question',
   model_test: record => courseTypeOf(record) === 'model_test'
 });
@@ -147,7 +147,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
 
   function contentCard(record) {
     const isSheet = record.isLectureSheet === true;
-    const link = /^https?:\/\//i.test(record.attachmentUrl || '') ? record.attachmentUrl : '';
+    const link = attachmentHref(record.attachmentUrl);
     const body = record.richContent
       ? (isSheet ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
       : esc(text(record.content || record.description || '').slice(0, 600)).replace(/\n/g, '<br>');

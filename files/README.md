@@ -32,15 +32,17 @@ files/
 https://<your-domain>/files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf
 ```
 
-অ্যাপের ফর্মে (নোটিশ, ক্লাস মেটেরিয়াল, লেকচার শিটের সংযুক্তি — `attachmentUrl`)
-**পুরো https লিংকটাই** পেস্ট করুন, কারণ ফর্মটি `/^https?:\/\//` দিয়ে যাচাই করে:
+অ্যাপের সব ফর্মে (লেকচার শিট, ক্লাস মেটেরিয়াল, সংযুক্তি — `attachmentUrl`)
+**আপেক্ষিক পথটাই লিখুন**:
 
 ```
-https://<your-domain>/files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf
+files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf
 ```
 
-নিজের লেখা HTML/লিংকে চাইলে আপেক্ষিক পথও চলবে:
-`./files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf`
+অ্যাপ এটাকে `./files/…` বানিয়ে নিজের ডোমেইন থেকেই খোলে — তাই লিংকে ডোমেইন
+লিখতে হয় না, আর সাইট Firebase Hosting-এ থাকুক বা Vercel-এ, লিংক একই থাকে।
+(`https://…` লিংকও আগের মতোই চলবে; `javascript:`, `//অন্য-ডোমেইন/…` বা
+`files/`-এর বাইরের পথ বাদ পড়বে।)
 
 ## মনে রাখবেন
 

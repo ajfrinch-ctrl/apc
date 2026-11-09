@@ -15,7 +15,7 @@ import { KEYS, readRaw } from './database.js';
 import { iconMarkup } from './icons.js';
 import { sanitizeRichHtml, sanitizeLectureHtml } from './rich-sanitize.js';
 import {
-  COURSE_SECTIONS, COURSE_TYPES, listCourseContent, typeLabel, typeOf
+  COURSE_SECTIONS, COURSE_TYPES, attachmentHref, listCourseContent, typeLabel, typeOf
 } from './course-content.js';
 import { examMatchesClass, examMatchesStudent, examRepository, isStudentVisibleExam, watchExams } from './exam-data.js';
 import { listQuestionsForStudent, questionRowsFromPastExams } from './question-bank.js';
@@ -187,7 +187,7 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
   function contentCard(record) {
     const type = typeOf(record);
     const isSheet = record.isLectureSheet === true;
-    const link = /^https?:\/\//i.test(record.attachmentUrl || '') ? record.attachmentUrl : '';
+    const link = attachmentHref(record.attachmentUrl);
     const body = record.richContent
       ? (isSheet ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
       : esc(record.content || '').replace(/\n/g, '<br>');
@@ -275,8 +275,9 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
       const intro = [chapter.description, chapter.content].filter(Boolean)
         .map(value => '<p>' + esc(value).replace(/\n/g, '<br>') + '</p>').join('');
       const resources = items.filter(item => typeOf(item) !== 'chapter');
-      const attachment = /^https?:\/\//i.test(chapter.attachmentUrl || '')
-        ? '<a class="course-item-link" href="' + esc(chapter.attachmentUrl) + '" target="_blank" rel="noopener noreferrer">অধ্যায়ের সংযুক্তি খুলুন</a>' : '';
+      const chapterLink = attachmentHref(chapter.attachmentUrl);
+      const attachment = chapterLink
+        ? '<a class="course-item-link" href="' + esc(chapterLink) + '" target="_blank" rel="noopener noreferrer">অধ্যায়ের সংযুক্তি খুলুন</a>' : '';
       return shell('<div class="course-reading-intro">' + (intro || '<p>এই অধ্যায়ের জন্য প্রকাশিত পাঠ ও উপকরণ নিচে দেওয়া আছে।</p>') + attachment + '</div>' +
         (resources.length ? '<div class="course-action-items">' + resources.map(contentCard).join('') + '</div>' : empty('এই অধ্যায়ে এখনো কোনো পাঠ প্রকাশিত হয়নি।')));
     }
@@ -284,7 +285,7 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
     if (action === 'notes' || action === 'materials') {
       const records = action === 'notes'
         ? items.filter(item => typeOf(item) === 'note')
-        : items.filter(item => ['video', 'pdf'].includes(typeOf(item)) || item.isLectureSheet === true || /^https?:\/\//i.test(item.attachmentUrl || ''));
+        : items.filter(item => ['video', 'pdf'].includes(typeOf(item)) || item.isLectureSheet === true || Boolean(attachmentHref(item.attachmentUrl)));
       return shell(records.length
         ? '<div class="course-action-items">' + records.map(contentCard).join('') + '</div>'
         : empty(action === 'notes' ? 'এই অধ্যায়ের কোনো ক্লাস নোট এখনো প্রকাশিত হয়নি।' : 'এই অধ্যায়ের কোনো শিক্ষকের উপকরণ এখনো প্রকাশিত হয়নি।'));
