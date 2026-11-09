@@ -96,9 +96,10 @@ test('a Staff Management account signs in and replaces its temporary password', 
   ctx.$('#staffPwNew').value = 'Own-Pass-2026';
   ctx.$('#staffPwConfirm').value = 'Own-Pass-2026';
   ctx.submit(ctx.$('.staff-pw-form'));
-  await ctx.waitFor(() => /শিক্ষক প্যানেল/.test(message()) || navigated());
-
-  assert.match(message(), /শিক্ষক প্যানেল/);
+  /* The panel hand-off wording moved to the loading screen (2026-11-08); the
+     login form now navigates without printing a success line. */
+  await ctx.waitFor(() => navigated());
+  assert.equal(message(), '', 'the login form stays quiet on a successful hand-off');
   assert.equal(session('teacher') !== null, true);
   assert.equal(await hasStaffSession('teacher'), true);
   assert.equal(navigated(), true, 'the login page hands over to teacher.html');
@@ -106,8 +107,16 @@ test('a Staff Management account signs in and replaces its temporary password', 
   assert.equal((await findDirectoryStaffByUsername(STAFF_USERNAME)).mustChangePassword, false);
 
   // Second sign-in with the new password: no dialog, straight to the panel.
-  await signIn(STAFF_USERNAME, 'Own-Pass-2026', () => /শিক্ষক প্যানেল/.test(message()));
+  // jsdom cannot repeat the login.js navigation, so the wait watches the panel
+  // hand-off note the form leaves for the loading screen (the same copy path the
+  // destination panel reads).
+  // A note from the previous step is consumed by the panel; a fresh one is only
+  // written by a successful sign-in, so the wait starts from a clean slate.
+  ctx.window.sessionStorage.removeItem('activePlus.handoff.note.v1');
+  const noteWritten = () => Boolean(ctx.window.sessionStorage.getItem('activePlus.handoff.note.v1'));
+  await signIn(STAFF_USERNAME, 'Own-Pass-2026', () => noteWritten());
   assert.equal(ctx.$('.staff-pw-backdrop'), null);
+  assert.equal(message(), '', 'still no success line on the login form');
   assert.equal(await hasStaffSession('teacher'), true);
 
   // The temporary password no longer works.

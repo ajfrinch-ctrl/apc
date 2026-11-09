@@ -22,6 +22,7 @@ import {
 } from './staff-auth.js';
 import { KEYS, readJSON } from './database.js';
 import { generateLoginId } from './user-id.js';
+import { writeHandoffNote } from './login-handoff.js';
 import { isPasswordRecord } from './password-hash.js';
 
 const STAFF_PANEL = Object.freeze({ admin: 'admin.html', manager: 'manager.html', teacher: 'teacher.html', payment: 'payment.html' });
@@ -136,10 +137,12 @@ async function enterStaffPanel(role, remember, identity = null) {
     setAuthMessage('সেশন সংরক্ষণ করা যায়নি — ব্রাউজারের স্টোরেজ পরীক্ষা করে আবার চেষ্টা করুন।');
     return;
   }
-  const switched = previous.length
-    ? ` — এই ডিভাইসের আগের ${STAFF_LABEL[previous[0]] || 'প্যানেল'} সেশনটি বন্ধ হয়েছে`
-    : '';
-  setAuthMessage(`${STAFF_LABEL[role]}ে নেওয়া হচ্ছে…${switched}`, 'success');
+  /* No success line on the login screen: this document is replaced in the same
+     tick, so nothing painted here would ever be seen. The hand-off wording
+     belongs to the loading screen of the panel being opened, which reads this
+     one-shot note (copy only — never the role authority, which the panel checks
+     through its own session). Owner request 2026-11-08. */
+  writeHandoffNote(role, previous[0] || '');
   window.location.replace(staffPanelPath(role));
 }
 
@@ -224,7 +227,7 @@ async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS
   if (!LEGACY_CLOUD_ENABLED) return cloudPausedResult();
   if (!navigator.onLine) return;
   try {
-    const bridge = await withinBudget(import('../sync/sync-core.js?v=474'), 'online bridge import', budget);
+    const bridge = await withinBudget(import('../sync/sync-core.js?v=480'), 'online bridge import', budget);
     const result = await withinBudget(bridge.hydrateStaffAccounts({
       preserveLocalAdmin: staffAccountRecordExists('admin'),
       ...(roles ? { roles } : {})
@@ -239,12 +242,12 @@ async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS
 }
 
 async function loadSyncBridge(budget = LOGIN_BRIDGE_IMPORT_MS) {
-  return withinBudget(import('../sync/sync-core.js?v=474'), 'online identity import', budget);
+  return withinBudget(import('../sync/sync-core.js?v=480'), 'online identity import', budget);
 }
 
 function warmCloudBridge() {
   if (!LEGACY_CLOUD_ENABLED || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
-  void import('../sync/sync-core.js?v=474').catch(() => {});
+  void import('../sync/sync-core.js?v=480').catch(() => {});
 }
 
 async function hydrateUserIdentifiersOnline(what, identifier = '', password = '', budget = LOGIN_IDENTITY_BUDGET_MS) {
@@ -284,7 +287,7 @@ async function runBackgroundLoginSync() {
   // Sync is deliberately fire-and-forget from the authentication path.
   // A slow/failed cloud bridge must never mutate or gate the login form.
   try {
-    const bridge = await import('../sync/sync-core.js?v=474');
+    const bridge = await import('../sync/sync-core.js?v=480');
     void bridge.startRealtimeSync().catch(error => {
       console.warn('[Active Plus] background login sync unavailable:', error?.message || error);
     });

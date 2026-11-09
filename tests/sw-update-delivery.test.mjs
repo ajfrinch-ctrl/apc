@@ -51,23 +51,14 @@ test('the worker still activates immediately and the app re-checks on return', (
 
 test('every page pin agrees with the build the worker will cache', () => {
   /* Every linked stylesheet/script must carry the release pin (?v=CACHE_VERSION)
-     — one shared pin is the app's invalidation contract. Student's isolated
-     Home hero is a self-contained, unchanged asset group that stays pinned to
-     its staging build (v379); these known CSS/JS paths are exempt even while
-     the established page/worker build advances. The cache-first worker may
-     resolve an older query by pathname, so the exempted files still resolve. */
-  const STUDENT_HERO_STAGING_BUILD = 379;
-  const stagedStudentHeroPaths = new Set([
-    'css/hero-cards.css',
-    'js/hero-cards.js',
-    'js/student-home-hero-entry.js',
-    'js/student-home-daily-hero.js'
-  ]);
+     — one shared pin is the app's invalidation contract. The Student Home hero
+     now grows its advice bank on release, so it shares the page build like any
+     other asset: a stale copy of js/student-home-hero-entry.js would keep the
+     installed app on yesterday's copy. */
   for (const page of ['index.html', 'student.html', 'admin.html', 'manager.html', 'teacher.html', 'payment.html']) {
     const html = read(page);
     let pinned = 0;
     for (const [, path, pin] of html.matchAll(/([^\s"'<>?]+)\?v=(\d+)/g)) {
-      if (page === 'student.html' && Number(pin) === STUDENT_HERO_STAGING_BUILD && stagedStudentHeroPaths.has(path)) continue;
       assert.equal(Number(pin), cacheVersion, `${page} pins an asset to another build`);
       pinned += 1;
     }

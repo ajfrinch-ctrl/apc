@@ -1,8 +1,8 @@
 /* Student-only daily selection for the existing four-slide Home carousel.
    A Dhaka calendar date picks the featured slide; the selection updates again
    at midnight or when a hidden tab becomes visible. */
-import { STUDENT_HOME_HERO_SLIDES } from './student-home-hero-entry.js?v=379';
-import { pickHeroMessage } from './home-hero.js?v=379';
+import { STUDENT_HOME_HERO_SLIDES } from './student-home-hero-entry.js?v=480';
+import { pickHeroMessage } from './home-hero.js?v=480';
 import {
   BUILT_IN_QUOTES, pickQuote, quoteDateKey, quoteDayNumber, readQuoteCache
 } from './daily-quote.js';
@@ -140,6 +140,12 @@ export function initStudentDailyHero(rootOrSelector, options = {}) {
     for (let step = 0; step < forwardSteps; step += 1) nextButton.click();
     root.dataset.dailyHeroDate = dateKey;
     root.dataset.dailyHeroSlide = slides[targetIndex].dataset.heroId || '';
+    /* The featured slide also sets the card's finish: today's slide owns the
+       accent, wash, border and decoration (css/hero-cards.css), so the whole
+       hero looks different each day while the four illustrations and titles
+       stay exactly as approved. Swiping to another slide changes only the
+       message — the day's design belongs to the day. */
+    root.dataset.heroDesign = root.dataset.dailyHeroSlide || '';
     return true;
   }
 

@@ -59,7 +59,7 @@ test('student avatars show the student initials, grapheme-safe', () => {
 });
 
 test('Admin Home keeps its text-only welcome while the other 16 views retain their 3D hero cards', () => {
-  assert.match(html, /<body class="admin-reference">/, 'admin body carries .admin-reference');
+  assert.match(html, /<body class="admin-reference"(?: data-panel="admin")?>/, 'admin body carries .admin-reference');
   const allPanels = ['dashboard', 'staff', 'system', 'migration', 'roles', 'students', 'reports', 'data', 'backup', 'audit', 'security', 'academics', 'settings', 'more', 'profile', 'content', 'advice'];
   for (const panel of allPanels) {
     const chunk = viewOf(panel);
@@ -82,7 +82,7 @@ test('Admin Home keeps its text-only welcome while the other 16 views retain the
 
 test('Payment Counter keeps horizontal toggle action cards but no hero card (removed 2026-10-28)', () => {
   const payHtml = read('payment.html');
-  assert.match(payHtml, /<body class="pay-body payment-reference">/, 'payment body carries .payment-reference');
+  assert.match(payHtml, /<body class="pay-body payment-reference"(?: data-panel="payment")?>/, 'payment body carries .payment-reference');
   for (const panel of ['home', 'students', 'payment', 'reports', 'more']) {
     const start = payHtml.indexOf(`data-pay-panel="${panel}"`);
     const next = payHtml.indexOf('data-pay-panel="', start + 15);

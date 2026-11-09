@@ -50,6 +50,41 @@
 // divider, welcome title, and the daily-task prompt); cache pin refresh.
 // v380: Teacher panel door consolidation — creation centred in the কাজ দিন hub, Home tiles open screens only,
 // আরও reduced to reports/settings, and homework uses the shared standard modal; cache pin refresh for the rebuilt teacher assets.
+// v480: Sign-in hand-off copy moved to the loading screen — the login form used
+// to print "…ে নেওয়া হচ্ছে…" and call location.replace() in the same tick, so the
+// line never painted. It is now a per-panel loading line ("এডমিন প্যানেলে নেওয়া
+// হচ্ছে…" etc., plus the previous-session notice when one really closed), carried
+// across the navigation by a one-shot, copy-only session note. Failure and
+// permission messages stay on the login form. js/login-handoff.js is new.
+// v479: Launch/flash screen fits the screen — on tablets and desktops the login,
+// logout and refresh flash used to draw as a 430px white column with the shell
+// showing either side. The launch and manager boot screens are now full-bleed at
+// every width (the auth form keeps its readable column), still theme-aware,
+// never lingering over the shell. Locked by tests/launch-screen-fit.test.mjs.
+// v478: Hero illustration fix — the student hero no longer veils the artwork.
+// The image-reaching `.hero-slide::after` scrim is dropped for the Student card,
+// the copy-box scrim now fades out inside its own 52% column, the top strip tint
+// stops in the top third, and the quote author moved into the left text column;
+// the children's heads/faces are fully clear while text keeps its AA contrast.
+// v477: Student Home hero card finishes change every day — the featured slide
+// now lends its own accent, wash, border, left colour rail and dot colour to the
+// whole card (css/hero-cards.css + data-hero-design in
+// js/student-home-daily-hero.js). Artwork, titles, copy and navigation are
+// unchanged, staff heroes are untouched, and every finish keeps light/dark AA
+// text contrast. Offline: inline CSS only, no new assets.
+// v476: Hero advice banks repaired — `routine-view` is declared once (its two
+//       colliding banks are merged into six schedule lines instead of the first
+//       three being silently dropped), the teacher `records` and `chat` hero
+//       cards get their own banks (they used to fall back to the generic daily
+//       list), and Admin Home advice now follows the open view (53 view lines)
+//       instead of one permanent sentence. Pin refresh so the unpinned advice
+//       modules reach installed apps.
+// v475: Student Home hero — each of the four slides now carries a longer advice bank
+//       (১১–১২টি লাইন, আগে ৩টি), so the daily line keeps changing for ~১১ দিন per slide
+//       instead of repeating every third day. Copy-only change; titles, slides, artwork
+//       and the date-stable picker are untouched. The Student hero also shares the page
+//       release pin now (it used to sit on the frozen v379 staging build), so an
+//       installed app actually receives the new lines; pin refresh.
 // v379: cross-device notification read receipts; preserve them in the synced settings collection.
 // v378: Student Home reference-match shortcut sizing, violet active tab, and Dhaka-clock greeting/art.
 // v376: staggered Student icon motion, time-of-day greetings, and eased truthful progress.
@@ -190,7 +225,7 @@
 //       the staff directory and edits its own profile; the System Owner stays protected.
 // v439: Yellow Pages hides every primary field by default — one click on a card
 //       reveals that card only; a release no longer wipes the panel-hint cache.
-const CACHE_VERSION = 474;
+const CACHE_VERSION = 480;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 /* One cache, two precache sets, one release pin.
 
@@ -330,7 +365,7 @@ const APP_SHELL = [
   './css/app-polish.css',
   './css/student-record.css',
   './css/ui-wallet.css',
-  './css/hero-cards.css' + '?v=379',
+  './css/hero-cards.css' + '?v=480',
   './css/student-home-design.css',
   './sync/cloud-access.js',
   './sync/backend-selection.js',
@@ -467,22 +502,22 @@ const APP_SHELL = [
   './js/student-more.js',
   './js/rich-sanitize.js',
   './js/daily-quote.js',
-  './js/hero-cards.js' + '?v=379',
+  './js/hero-cards.js' + '?v=480',
   './assets/daily-quotes.json',
   './assets/daily-advice.json',
   './js/home-hero.js',
-  './js/home-hero.js' + '?v=379',
+  './js/home-hero.js' + '?v=480',
   './js/home-hero-entry.js',
-  './js/student-home-hero-entry.js' + '?v=379',
-  './js/student-home-daily-hero.js' + '?v=379',
+  './js/student-home-hero-entry.js' + '?v=480',
+  './js/student-home-daily-hero.js' + '?v=480',
   './assets/home-hero/hero-own-pace.webp',
   './assets/home-hero/hero-daily-goal.webp',
   './assets/home-hero/hero-joy-of-learning.webp',
   './assets/home-hero/hero-daily-tip.webp',
-  './assets/student-home-hero/hero-own-pace.webp' + '?v=379',
-  './assets/student-home-hero/hero-daily-goal.webp' + '?v=379',
-  './assets/student-home-hero/hero-joy-of-learning.webp' + '?v=379',
-  './assets/student-home-hero/hero-daily-tip.webp' + '?v=379',
+  './assets/student-home-hero/hero-own-pace.webp' + '?v=480',
+  './assets/student-home-hero/hero-daily-goal.webp' + '?v=480',
+  './assets/student-home-hero/hero-joy-of-learning.webp' + '?v=480',
+  './assets/student-home-hero/hero-daily-tip.webp' + '?v=480',
   './js/exam-archive.js',
   './js/exam-pdf.js',
   './js/material-pdf.js',
@@ -498,6 +533,7 @@ const APP_SHELL = [
   './js/student-profile-card.js',
   // vendor/qrcode/encoder.js (21 KB) removed from precache — no client import; file kept for future QR feature
   './js/login.js',
+  './js/login-handoff.js',
   './js/staff-auth.js',
   './js/admin-initialization.js',
   './js/database.js',

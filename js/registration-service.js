@@ -109,7 +109,7 @@ async function checkUsernameOnline(username) {
     new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('lookup timed out')), budget); })
   ]).finally(() => clearTimeout(timer));
   try {
-    const bridge = await bounded(import('../sync/sync-core.js?v=474'));
+    const bridge = await bounded(import('../sync/sync-core.js?v=480'));
     return await bounded(bridge.SyncService.usernameTakenOnline(username));
   } catch (error) {
     console.warn('[Active Plus] cloud login-id check unavailable:', error.message);
@@ -125,7 +125,7 @@ async function registerOnlineWithBudget(payload) {
   let timer;
   try {
     const bridge = await Promise.race([
-      import('../sync/sync-core.js?v=474'),
+      import('../sync/sync-core.js?v=480'),
       new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('sync import timed out')), budget); })
     ]).finally(() => clearTimeout(timer));
     return await Promise.race([
@@ -477,7 +477,7 @@ export async function resolveStudentLoginStatus(account, budgetMs = 2500) {
     try {
       await flushPendingLocalRegistrations();
       const bridge = await Promise.race([
-        import('../sync/sync-core.js?v=474'),
+        import('../sync/sync-core.js?v=480'),
         new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('approval import timed out')), budgetMs); })
       ]).finally(() => clearTimeout(timer));
       const refreshed = await Promise.race([

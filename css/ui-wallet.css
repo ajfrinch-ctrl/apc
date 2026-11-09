@@ -911,6 +911,9 @@ label { font-size: 13.5px; font-weight: 600; margin-block: 14px 6px; }
 html[data-theme="dark"] .auth-card { box-shadow: var(--auth-card-shadow); }
 html[data-theme="dark"] .auth-brand img { background: transparent; padding: 0; box-shadow: none; }
 .launch-screen { background: var(--color-surface); }
+/* Sign-in hand-off line: surfaces + a 12% tint of the brand green, which keeps
+   AA text contrast in both themes (the pill is not a scrim over anything). */
+html[data-theme="dark"] .launch-screen .launch-screen__handoff { background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface)); }
 .launch-screen img { width: 112px; height: 112px; }
 
 /* 14 ── Sheets and dialogs: rounded top, a drag handle, stable actions ─────
@@ -3382,16 +3385,26 @@ html[data-theme="dark"] .app-shell .app-topbar { background: var(--pay-hero-a); 
   }
   /* Teacher's visual skin previously set a more-specific 520px canvas. */
   .teacher-reference .teacher-shell { width: min(100%, 430px); max-width: 430px; }
-  .auth-screen, .launch-screen, .manager-boot-screen {
+  /* The launch/boot screens are a full-screen hand-off, not a panel: on a
+     tablet or desktop they used to draw as a 430px white column in the middle
+     of the window while the shell behind them showed at both sides (owner
+     report 2026-11-08), which read as a broken "not fitting" flash. They now
+     cover the whole viewport; their logo/tagline stay optically centred by the
+     shared flex centring. The auth screen keeps its readable 430px measure. */
+  .auth-screen {
     left: 50%; right: auto; width: min(100vw, 430px); max-width: 430px;
     transform: translateX(-50%); border-inline: 1px solid var(--color-border);
+  }
+  .launch-screen, .manager-boot-screen {
+    left: 0; right: 0; width: auto; max-width: none;
+    transform: none; border-inline: 0;
   }
   .auth-screen { padding: max(var(--space-4), env(safe-area-inset-top)) 16px max(var(--space-4), env(safe-area-inset-bottom)); }
   .auth-brand { margin-bottom: 16px; }
   .auth-brand img { width: 60px; height: 60px; }
   .auth-brand h1 { font-size: 21px; }
   .auth-panel.active { padding: 0; }
-  .launch-screen, .manager-boot-screen { inset-block: 0; }
+  .launch-screen, .manager-boot-screen { inset: 0; }
 
   #appStatusSurface {
     width: min(100%, 430px); max-width: 430px; margin-inline: auto;
