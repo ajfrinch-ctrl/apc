@@ -27,3 +27,6 @@ preview/
 
 # Unwired sync foundation removed 2026-10-10 (see PERFORMANCE-AUDIT-2026-10-10.md);
 # kept out of the tree, recoverable from git history.
+
+# Local build output for tools/lecture-sheet-pdf (regenerated on demand)
+/build/

@@ -1,0 +1,151 @@
+# -*- coding: utf-8 -*-
+"""Narration Master Lecture Sheet — sections 5–7 (nearness, special rules, passage)."""
+
+NEARNESS = [
+    {'t': 'h2', 'n': '৫', 'bn': 'দূরত্ব ও সময়সূচক শব্দের পরিবর্তন', 'en': '(Nearness Denoting Words)'},
+    {'t': 'p', 'x': 'Reported Speech-এ নিকটত্ব বোঝানো শব্দগুলো দূরত্ব বোঝানো শব্দে পরিবর্তিত হয়। নিচের তালিকাটি মুখস্থ রাখলে এক নম্বরও হারাবে না —'},
+    {'t': 'table',
+     'head': ['Direct', 'Indirect', 'Direct', 'Indirect'],
+     'widths': [0.2, 0.3, 0.2, 0.3],
+     'rows': [
+         ['This', 'That', 'Now', 'Then'],
+         ['These', 'Those', 'Here', 'There'],
+         ['Ago', 'Before', 'Today', 'That day'],
+         ['Come', 'Go', 'Yesterday', 'The previous day'],
+         ['Thus', 'So', 'Tomorrow', 'The next day / The following day'],
+         ['Hence', 'Thence', 'Last night', 'The previous night'],
+         ['Hither', 'Thither', 'Next week', 'The following week'],
+         ['—', '—', 'Last week', 'The previous week'],
+     ]},
+    {'t': 'practice', 'title': 'অনুশীলন — সময় ও দূরত্বসূচক শব্দ',
+     'items': [
+         'He said, "I am busy now."',
+         'She said, "I bought this pen yesterday."',
+         'Rahim said, "I will go there tomorrow."',
+         'The man said, "I came here five years ago."',
+         'They said, "We are leaving today."',
+         'Kamal said, "These books are mine."',
+         'Rina said, "I will meet you next week."',
+         'He said, "I met him last night."',
+         'She said, "I am standing here."',
+         'The boy said, "I saw him this morning."',
+     ]},
+    {'t': 'answers', 'title': 'উত্তরমালা — Nearness Words',
+     'items': [
+         'He said that he was busy then.',
+         'She said that she had bought that pen the previous day.',
+         'Rahim said that he would go there the next day.',
+         'The man said that he had gone there five years before.',
+         'They said that they were leaving that day.',
+         'Kamal said that those books were his.',
+         'Rina said that she would meet me the following week.',
+         'He said that he had met him the previous night.',
+         'She said that she was standing there.',
+         'The boy said that he had seen him that morning.',
+     ]},
+]
+
+SPECIAL = [
+    {'t': 'h2', 'n': '৬', 'bn': 'বিশেষ ও ব্যতিক্রমী নিয়মাবলী', 'en': '(Special Rules)'},
+    {'t': 'table',
+     'head': ['Direct-এ যা থাকে', 'Indirect-এ যা হবে', 'উদাহরণ'],
+     'widths': [0.28, 0.34, 0.38],
+     'rows': [
+         ['Sir / Madam', 'respectfully / addressing as sir', 'The student respectfully requested the teacher...'],
+         ['Yes', 'replied in the affirmative (and said that)', '...replied in the affirmative that he was.'],
+         ['No', 'replied in the negative', '...replied in the negative that he could not.'],
+         ['By Allah / By God', 'swearing by Allah / swearing by God', 'Swearing by Allah, he said that he was innocent.'],
+         ['Vocative (Addressing)', 'addressing (person) as (title)', 'Addressing them as friends, the speaker requested...'],
+         ['Good morning / Goodbye', 'wished / bade', 'He wished his friend good morning; she bade her friends goodbye.'],
+     ]},
+    {'t': 'practice', 'title': 'অনুশীলন — বিশেষ নিয়ম',
+     'items': [
+         'The student said to the teacher, "Sir, please explain the sum."',
+         'Kamal said to me, "Are you going to market?" I said, "Yes."',
+         'Rina said to Rahim, "No, I cannot help you."',
+         'He said, "By Allah, I am innocent."',
+         'The speaker said, "Friends, listen to my speech."',
+         'He said to his friend, "Good morning, how are you?"',
+         'She said, "Goodbye, my dear friends."',
+         'The boy said to the gentleman, "Sir, can you help me?"',
+         'He said, "Thank you, my friend."',
+         'She said to him, "Happy Birthday to you!"',
+     ]},
+    {'t': 'answers', 'title': 'উত্তরমালা — Special Rules',
+     'items': [
+         'The student respectfully requested the teacher to explain the sum.',
+         'Kamal asked me if I was going to market and I replied in the affirmative that I was.',
+         'Rina replied in the negative and told Rahim that she could not help him.',
+         'Swearing by Allah, he said that he was innocent.',
+         'Addressing them as friends, the speaker requested them to listen to his speech.',
+         'He wished his friend good morning and asked how he was.',
+         'She bade her dear friends goodbye.',
+         'The boy respectfully asked the gentleman if he could help him.',
+         'He thanked his friend.',
+         'She wished him a happy birthday.',
+     ]},
+]
+
+PASSAGE = [
+    {'t': 'h2', 'n': '৭', 'bn': 'মাস্টার প্যাসেজ ন্যারেশন', 'en': '(Passage Narration Guide)'},
+    {'t': 'h3', 'x': 'প্যাসেজ ন্যারেশন সমাধানের ৫টি ধাপ'},
+    {'t': 'bullets', 'items': [
+        '**কথক ও শ্রোতা (Speaker & Listener) চিহ্নিতকরণ:** পুরো প্যাসেজটি অন্তত দুই-তিনবার পড়ে কে কথা বলছে এবং কাকে উদ্দেশ্য করে বলছে তা বের করুন।',
+        '**একই বক্তার পরপর একাধিক উক্তি:** Assertive হলে and said that, added that, further added that, also said that; Interrogative হলে and asked, also asked, further asked।',
+        '**উত্তর প্রদানে Affirmative / Negative:** উত্তরে Yes থাকলে replied in the affirmative and said that এবং No থাকলে replied in the negative and said that লিখতে হয়।',
+        '**অস্পষ্ট সর্বনাম (Ambiguous Pronoun) স্পষ্ট করা:** উভয় পক্ষ একই লিঙ্গের হলে সর্বনামের পরে বন্ধনীতে নামের প্রথম অক্ষর যুক্ত করুন — যেমন (R) for Rahim, (K) for Kamal।',
+        '**সংক্ষিপ্ত কথার পূর্ণ রূপ দেওয়া:** প্যাসেজে আংশিক বাক্য থাকলে (যেমন "Where?" বা "To market.") সেটিকে ইনডাইরেক্ট পূর্ণ বাক্যে রূপান্তর করতে হবে।',
+    ]},
+    {'t': 'h3', 'x': 'বিগত বোর্ড পরীক্ষার সমাধানকৃত উদাহরণ'},
+    {'t': 'box', 'variant': 'paper', 'title': 'উদাহরণ ১  [Dhaka Board]',
+     'lines': [
+         ('p', '**Direct:** "Where are you going tomorrow?" said the teacher to the boy. "I am going to my village, sir," replied the boy. "Why will you go there?" "My mother is ill. I want to see her." "May Allah cure your mother," said the teacher.'),
+         ('p', '**Indirect:** The teacher asked the boy where he (b) was going the next day. The boy respectfully replied that he (b) was going to his (b) village. The teacher again asked why he (b) would go there. The boy replied that his (b) mother was ill and added that he (b) wanted to see her. The teacher prayed that Allah might cure his (b) mother.'),
+     ]},
+    {'t': 'bullets', 'items': [
+        'প্রথম প্রশ্নটি Wh-word Where দিয়ে শুরু হওয়ায় asked... where he was going the next day করা হয়েছে।',
+        'ছাত্রটি উত্তরে sir ব্যবহার করায় respectfully replied that লেখা হয়েছে।',
+        'শিক্ষক দ্বিতীয়বার প্রশ্ন করায় again asked বসেছে।',
+        'ছাত্রটি পরপর দুটি কারণ বলায় প্রথমটির জন্য replied that এবং দ্বিতীয়টির জন্য and added that ব্যবহার করা হয়েছে।',
+        'শিক্ষকের শেষ বাক্যটি Optative (May Allah...) হওয়ায় prayed that Allah might... রূপান্তর করা হয়েছে।',
+    ]},
+    {'t': 'box', 'variant': 'paper', 'title': 'উদাহরণ ২  [Rajshahi Board]',
+     'lines': [
+         ('p', '**Direct:** "Have you finished your homework?" said father to his son. "No, father, I have not finished it yet. I will complete it tonight," said the son. "Do not waste your time in vain," said father.'),
+         ('p', '**Indirect:** Father asked his son if he (s) had finished his (s) homework. Addressing him as father, the son replied in the negative that he (s) had not finished it till then and added that he (s) would complete it that night. Father advised his (s) son not to waste his (s) time in vain.'),
+     ]},
+    {'t': 'bullets', 'items': [
+        'বাবার প্রশ্নটি Auxiliary Verb Have দিয়ে শুরু হওয়ায় asked... if he had finished হয়েছে।',
+        'ছেলে উত্তরে father বলায় Addressing him as father এবং No বলায় replied in the negative that লেখা হয়েছে।',
+        'ছেলেটি পরবর্তীতে আরও একটি বক্তব্য দেওয়ায় and added that যুক্ত করে will → would করা হয়েছে।',
+        'বাবার শেষ কথাটি উপদেশমূলক (Do not...) হওয়ায় advised... not to waste ব্যবহৃত হয়েছে।',
+    ]},
+    {'t': 'practice', 'title': 'অনুশীলন — বোর্ড প্যাসেজ',
+     'items': [
+         'Passage 1: "Why are you putting up the food in your pocket, Sir? Why don\'t you eat?" asked the noble man. "I am doing the right thing. My dress deserves these rich dishes," replied Sheikh Saadi. "I don\'t understand what you mean to say," said the noble man.',
+         'Passage 2: "Will you buy my hair?" asked Della. "I buy hair," said Madame. "Take your hat off and let\'s have a sight at the tonnage of it." "Twenty dollars," said Madame. "Give it to me quick," said Della.',
+     ]},
+    {'t': 'box', 'variant': 'green', 'title': 'উত্তরমালা — Passage Practice',
+     'lines': [
+         ('p', '**Passage 1:** The noble man respectfully asked Sheikh Saadi why he was putting up the food in his pocket and why he didn\'t eat. Sheikh Saadi replied that he was doing the right thing and added that his dress deserved those rich dishes. The noble man said that he didn\'t understand what he meant to say.'),
+         ('p', '**Passage 2:** Della asked Madame if she would buy her hair. Madame replied that she bought hair. She then requested Della to take her hat off and proposed that they should have a sight at the tonnage of it. Madame offered twenty dollars and Della requested her to give it to her quick.'),
+     ]},
+]
+
+CLOSING = [
+    {'t': 'box', 'variant': 'green', 'title': 'অভিনন্দন!',
+     'lines': [
+         ('p', 'আপনি জিরো থেকে ন্যারেশনের সমস্ত নিয়ম, উদাহরণ, টেন্স ও সেন্টেন্স কভারেজ এবং বিগত বোর্ড প্রশ্নের সমাধানসহ প্যাসেজ ন্যারেশন সফলভাবে আয়ত্ত করেছেন। এখন প্রতিদিন অন্তত ১০টি বাক্য Direct থেকে Indirect করুন — ৭ দিনেই এটি আপনার আয়ত্তে চলে আসবে।'),
+     ]},
+    {'t': 'box', 'variant': 'amber', 'title': 'পরীক্ষার আগে শেষ মুহূর্তের চেকলিস্ট',
+     'lines': [
+        ('b', 'Reporting Verb-এর Tense দেখে আগে সিদ্ধান্ত নিন — Present/Future হলে Tense বদলাবে না।'),
+        ('b', 'Person বদলানোর সময় 123/SON সূত্রটি তিন ধাপে প্রয়োগ করুন।'),
+        ('b', 'Interrogative-এ প্রশ্নচিহ্ন উঠে গিয়ে ফুলস্টপ বসেছে কি না যাচাই করুন।'),
+        ('b', 'Nearness Words (now, here, tomorrow, yesterday) প্রতিবার আলাদা করে দেখে নিন।'),
+        ('b', 'প্যাসেজ ন্যারেশনে প্রতিটি বাক্যের Speaker আলাদা করে চিহ্নিত করুন।'),
+     ]},
+    {'t': 'pagebreak'},
+    {'t': 'notes', 'title': 'আমার নোট ও অনুশীলন খাতা'},
+    {'t': 'signature'},
+]
