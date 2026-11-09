@@ -170,3 +170,33 @@ test('every record carries its stable id and an archive is never a delete', asyn
   assert.equal(stored().filter(row => row.id === record.id).length, 1);
   assert.equal(contentById(record.id).title, 'সম্পাদিত নোট');
 });
+
+test('a chapter created on the way to a published sheet is published too, so students get the sheet', async () => {
+  const host = mount();
+  initCourseEditor({ mount: host, role: 'teacher', actor: 'নমুনা শিক্ষক' });
+  await ctx.waitFor(() => ctx.$$(`${host} form select`).length > 0);
+  const form = ctx.$(`${host} form`);
+  ctx.type(ctx.$(`${host} input[name="subject"]`), 'গণিত');
+  const type = form.querySelector('select[name="type"]');
+  type.value = 'pdf';
+  ctx.type(ctx.$(`${host} input[name="chapterName"]`), 'ন্যারেশন');
+  ctx.type(ctx.$(`${host} input[name="title"]`), 'Narration মাস্টার শিট');
+  /* A file committed to files/ is attached by path; the record stores it
+     same-origin so no deployment domain is ever baked into the data. */
+  ctx.type(ctx.$(`${host} input[name="attachmentUrl"]`), 'files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf');
+  form.querySelector('input[name="published"]').checked = true;
+  ctx.submit(form);
+  await ctx.waitFor(() => /সংরক্ষিত হয়েছে/.test(ctx.$(`${host} [data-course-status]`).textContent));
+
+  const classId = classByName('দশম শ্রেণি').id;
+  const subjectId = subjectByName('গণিত').id;
+  const staffView = await listCourseContentForStaff({ classId, subjectId, includeInactive: true }, { role: 'teacher', actor: 'নমুনা শিক্ষক' });
+  const chapter = staffView.find(record => record.type === 'chapter' && record.title === 'ন্যারেশন');
+  assert.ok(chapter, 'the typed chapter name created a chapter record');
+  assert.equal(chapter.published, true, 'a draft chapter would hide every sheet filed under it');
+  const sheet = staffView.find(record => record.id !== chapter.id && record.type === 'pdf');
+  assert.ok(sheet, 'the sheet was saved');
+  assert.equal(sheet.attachmentUrl, './files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf');
+  assert.ok(sheet.published && sheet.active !== false, 'it is live for students');
+  assert.ok(listCourseContent({ classId, subjectId }).some(record => record.id === sheet.id), 'the student read API returns it');
+});

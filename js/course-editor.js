@@ -268,7 +268,9 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
             content: '',
             richContent: '',
             attachmentUrl: '',
-            published: false,
+            /* Created on the way to a published item, so it is published too:
+               a draft chapter hides every sheet filed under it from students. */
+            published: data.get('published') === 'on',
             createdBy: actor,
             active: true
           }, { actor, role });
