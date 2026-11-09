@@ -75,3 +75,14 @@ test('tapping a lecture sheet opens the A4 reader, and its PDF button is still t
   assert.match(ctx.$('#apcStudentLectureReader').textContent, /Narration মাস্টার শিট/);
   assert.ok(ctx.$('#apcStudentLectureReader [data-slr-close]'), 'the reader can be left');
 });
+
+test('the search box narrows the list by title, subject or chapter', () => {
+  const box = ctx.$('#studyMaterialSearch');
+  assert.ok(box, 'উপকরণ has a search box');
+  ctx.type(box, 'Narration');
+  assert.equal(ctx.$$('#studyMaterialsList [data-study-item]').length, 1, 'one title matches');
+  ctx.type(box, 'নেই এমন কিছু');
+  assert.match(ctx.$('#studyMaterialsList').textContent, /কোনো উপকরণ পাওয়া যায়নি/);
+  ctx.type(box, '');
+  assert.equal(ctx.$$('#studyMaterialsList [data-study-item]').length, 2, 'clearing the box restores the list');
+});

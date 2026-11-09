@@ -1376,6 +1376,7 @@ export async function openStudentLectureReaderModal(record) {
           <button type="button" class="ls-ctx-btn" data-slr-nav="prev">◀ আগের</button>
           <span class="ls-page-counter" data-slr-counter>পৃষ্ঠা ১ / ১</span>
           <button type="button" class="ls-ctx-btn" data-slr-nav="next">পরের ▶</button>
+          <span class="ls-swipe-hint" aria-hidden="true">⇠ সোয়াইপ করে পাতা বদলান ⇢</span>
         </div>
         <div class="ls-pagebar-right">
           <div class="ls-zoom-controls">
@@ -1428,9 +1429,49 @@ export async function openStudentLectureReaderModal(record) {
     }
   };
 
+  /* One way to turn a page, whichever input asked for it: the ◀ ▶ buttons, a
+     horizontal swipe on the sheet, or the arrow keys on a keyboard. */
+  const goPage = (target, { smooth = true } = {}) => {
+    curPage = Math.min(totalPages, Math.max(1, Math.trunc(target) || 1));
+    overlay.querySelector(`.ls-preview-page[data-ls-page="${curPage}"]`)
+      ?.scrollIntoView?.({ behavior: smooth ? 'smooth' : 'auto', block: 'start', inline: 'start' });
+    const counter = overlay.querySelector('[data-slr-counter]');
+    if (counter) counter.textContent = `পৃষ্ঠা ${bn(curPage)} / ${bn(totalPages)}`;
+  };
+
+  /* Swipe: a clear horizontal flick on the paper turns the page; a vertical
+     drag still scrolls a long page, which is why the slope is compared. */
+  let touchStart = null;
+  const pagesWrap = overlay.querySelector('[data-slr-pages]');
+  const onTouchStart = event => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touchStart = { x: touch.clientX, y: touch.clientY };
+  };
+  const onTouchEnd = event => {
+    const touch = event.changedTouches?.[0];
+    const start = touchStart;
+    touchStart = null;
+    if (!touch || !start) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+    goPage(curPage + (dx < 0 ? 1 : -1));
+  };
+  pagesWrap?.addEventListener('touchstart', onTouchStart, { passive: true });
+  pagesWrap?.addEventListener('touchend', onTouchEnd, { passive: true });
+
+  const onKey = event => {
+    if (event.key === 'ArrowRight' || event.key === 'PageDown') { goPage(curPage + 1); event.preventDefault(); }
+    else if (event.key === 'ArrowLeft' || event.key === 'PageUp') { goPage(curPage - 1); event.preventDefault(); }
+    else if (event.key === 'Escape') close();
+  };
+  document.addEventListener('keydown', onKey);
+
   const close = () => {
     overlay.remove();
     document.documentElement.classList.remove('apc-lecture-studio-open');
+    document.removeEventListener('keydown', onKey);
   };
 
   overlay.addEventListener('click', async ev => {
@@ -1448,10 +1489,7 @@ export async function openStudentLectureReaderModal(record) {
     }
     const nav = ev.target.closest('[data-slr-nav]');
     if (nav) {
-      curPage = Math.min(totalPages, Math.max(1, curPage + (nav.dataset.slrNav === 'next' ? 1 : -1)));
-      overlay.querySelector(`.ls-preview-page[data-ls-page="${curPage}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-      const counter = overlay.querySelector('[data-slr-counter]');
-      if (counter) counter.textContent = `পৃষ্ঠা ${bn(curPage)} / ${bn(totalPages)}`;
+      goPage(curPage + (nav.dataset.slrNav === 'next' ? 1 : -1));
       return;
     }
     const dl = ev.target.closest('[data-slr-download]');
