@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>অ্যাক্টিভ প্লাস কোচিং — পূর্ণাঙ্গ ম্যানুয়াল (প্রথম খণ্ড)</title>
+<style>
+@font-face { font-family: "Noto Sans Bengali"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("assets/fonts/noto-sans-bengali-bengali-400-normal.woff2") format("woff2"); unicode-range: U+0964-0965, U+0980-09FF; }
+@font-face { font-family: "Noto Sans Bengali"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("assets/fonts/noto-sans-bengali-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+@font-face { font-family: "Noto Sans Bengali"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("assets/fonts/noto-sans-bengali-bengali-600-normal.woff2") format("woff2"); unicode-range: U+0964-0965, U+0980-09FF; }
+@font-face { font-family: "Noto Sans Bengali"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("assets/fonts/noto-sans-bengali-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+@font-face { font-family: "Noto Sans Bengali"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("assets/fonts/noto-sans-bengali-bengali-700-normal.woff2") format("woff2"); unicode-range: U+0964-0965, U+0980-09FF; }
+@font-face { font-family: "Noto Sans Bengali"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("assets/fonts/noto-sans-bengali-latin-700-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+@font-face { font-family: "Noto Serif Bengali"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("assets/fonts/noto-serif-bengali-bengali-700-normal.woff2") format("woff2"); unicode-range: U+0964-0965, U+0980-09FF; }
+
+:root { --green:#0e7a55; --green-deep:#0b5f42; --ink:#17261f; --soft:#3c5449; --amber:#b45309; --red:#b91c1c;
+  --paper:#ffffff; --panel:#f2f7f3; --line:#d8e4dc; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: "Noto Sans Bengali", system-ui, sans-serif; font-size: 10.5pt; line-height: 1.62;
+  color: var(--ink); background: #e8ecea; }
+
+.page { width: 210mm; min-height: 297mm; padding: 18mm 18mm 16mm; background: var(--paper); margin: 0 auto; position: relative; }
+.cover { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding-top: 22mm; }
+.cover .brand { letter-spacing: 0.35em; text-transform: uppercase; color: var(--soft); font-size: 9pt; margin-bottom: 10mm; }
+.cover h1 { font-family: "Noto Serif Bengali", serif; font-size: 31pt; line-height: 1.35; margin: 0 0 4mm; color: var(--green-deep); max-width: 150mm; }
+.cover .tagline { font-size: 13pt; color: var(--soft); margin-bottom: 18mm; }
+.cover .edition { border: 1.5px solid var(--green); color: var(--green-deep); border-radius: 10px; padding: 8mm 12mm; max-width: 120mm; }
+.cover .edition strong { display:block; font-size: 12pt; margin-bottom: 2mm; }
+.cover .edition span { font-size: 9.5pt; color: var(--soft); display:block; }
+.cover .foot { position: absolute; bottom: 12mm; left: 18mm; right: 18mm; border-top: 1px solid var(--line); padding-top: 4mm; font-size: 8.5pt; color: var(--soft); display:flex; justify-content: space-between; }
+
+h1, h2, h3 { color: var(--green-deep); break-after: avoid; }
+h1 { font-family: "Noto Serif Bengali", serif; font-size: 20pt; border-bottom: 3px solid var(--green); padding-bottom: 2mm; }
+h2 { font-size: 13.5pt; margin-top: 7mm; border-left: 4px solid var(--green); padding-left: 3mm; }
+h3 { font-size: 11pt; color: var(--ink); margin-top: 4mm; }
+p, li { margin: 0 0 2.4mm; }
+ul, ol { padding-left: 6mm; }
+code, .code { font-family: ui-monospace, SFMono-Regular, Menlo, "Noto Sans Bengali", monospace; background: #eef3ef; border: 1px solid var(--line); border-radius: 3px; padding: 0 1mm; font-size: 8.5pt; color: var(--green-deep); }
+.kbd { display:inline-block; border: 1px solid #b9cdc1; border-bottom-width: 2px; border-radius: 4px; padding: 0 1.4mm; background: #f6faf7; font-size: 8.5pt; }
+.box { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 3mm 4mm; margin: 4mm 0; break-inside: avoid; }
+.box.warn { border-left: 4px solid var(--amber); background: #fdf6ec; }
+.box.danger { border-left: 4px solid var(--red); background: #fdf0f0; }
+.box.ok { border-left: 4px solid var(--green); background: #eefaf3; }
+.toc { columns: 2; column-gap: 8mm; }
+.toc a { display: block; text-decoration: none; color: var(--ink); padding: 1mm 0; border-bottom: 1px dotted var(--line); break-inside: avoid; }
+.toc a::after { content: leader('.') " " target-counter(attr(href), page); color: var(--soft); }
+.toc .sec { font-weight: 700; }
+.mock { border: 1px solid var(--line); border-radius: 12px; background: #f8faf8; padding: 4mm; margin: 4mm auto; text-align: center; break-inside: avoid; }
+.mock figcaption { font-size: 8.5pt; color: var(--soft); margin-top: 3mm; text-align: center; }
+table { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 4mm 0; break-inside: auto; }
+th, td { border: 1px solid var(--line); padding: 2mm 2.5mm; text-align: left; vertical-align: top; }
+th { background: var(--panel); color: var(--green-deep); }
+tr { break-inside: avoid; }
+.cdot { display: inline-block; width: 2.8mm; height: 2.8mm; border-radius: 50%; background: #16a34a; border: 1px solid #15803d; vertical-align: baseline; }
+.part-tag { display:inline-block; background: var(--green); color:#fff; border-radius: 999px; font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; padding: 1mm 4mm; margin-bottom: 3mm; }
+.map { font-size: 8.6pt; line-height: 1.5; border-left: 4px solid var(--green); background: #f2f7f3; padding: 4mm 5mm; border-radius: 8px; }
+.map ol { margin: 0; }
+.small { font-size: 8.5pt; color: var(--soft); }
+.step { border-left: 3px solid #9cceb4; padding: 1mm 0 1mm 4mm; margin: 0 0 2.4mm; }
+.step b { color: var(--green-deep); }
+.checklist { list-style: none; padding-left: 2mm; }
+.checklist li::before { content: ""; display: inline-block; width: 2.6mm; height: 2.6mm; border: 1.4px solid var(--green); border-radius: 2px; margin-right: 2mm; transform: translateY(0.35mm); }
+
+@page { size: A4; margin: 0 0 15mm 0; }
+@media print {
+  body { background: #fff; font-size: 9.8pt; line-height: 1.56; }
+  p, li { margin-bottom: 2mm; }
+  .map li, .checklist li { margin-bottom: 1.4mm; }
+  .box { margin: 3mm 0; }
+  .page { margin: 0; width: auto; min-height: 0; padding: 13mm 16mm 12mm; break-after: page; box-shadow: none; }
+  .page:last-child { break-after: auto; }
+  .cover { min-height: 267mm; }
+  .mock, .box, table, pre { break-inside: avoid; }
+}
+.page-num::after { counter-increment: page; content: counter(page); }
+</style>
+</head>
+<body>
+
+<!-- ============ কভার ============ -->
+<section class="page cover">
+  <div class="brand">ACTIVE PLUS COACHING</div>
+  <h1>অ্যাক্টিভ প্লাস কোচিং<br>পূর্ণাঙ্গ ম্যানুয়াল</h1>
+  <p class="tagline">শিখতে থাকো, এগিয়ে যাও — প্রতিটি প্যানেলের হাতে-কলমের নির্দেশিকা</p>
+  <div class="edition">
+    <strong>খণ্ড ১ — প্রথম সংস্করণ</strong>
+    <span>Student · Teacher · Manager · Admin · Cash Counter — ব্যবহারবিধি ও মালিকের অপারেশন নোট</span>
+    <span style="margin-top:3mm">সম্পাদনাকারী: অ্যাক্টিভ প্লাস কোচিং · প্রকাশ: ৯ নভেম্বর ২০২৬</span>
+  </div>
+  <div class="foot"><span>অভ্যন্তরীণ প্রশিক্ষণের জন্য</span><span>Active Plus Coaching — সক্রিয় সকল মডিউল</span></div>
+</section>
+
+<!-- ============ সূচিপত্র ============ -->
+<section class="page" id="toc-page">
+<h1>সূচিপত্র</h1>
+<nav class="toc">
+  <a href="#how-to-read" class="sec">নির্দেশিকা কীভাবে পড়া হবে</a>
+  <a href="#bookmap" class="sec">এই বইয়ের গঠন (বইয়ের মানচিত্র)</a>
+  <a href="#part-student" class="sec">অংশ ১ — স্টুডেন্ট ম্যানুয়াল</a>
+  <a href="#s-install">১.১ অ্যাপ ইনস্টল ও সাইন-ইন</a>
+  <a href="#s-home">১.২ হোম স্ক্রিন</a>
+  <a href="#s-study">১.৩ পড়াশোনা — অধ্যায়, উপকরণ, সাজেশন</a>
+  <a href="#s-materials">১.৪ উপকরণ ও সাজেশন বোঝা (এবং ধরা-পড়া সমস্যা)</a>
+  <a href="#s-exams">১.৫ অনলাইন পরীক্ষা (MCQ) ও লিখিত</a>
+  <a href="#s-routine">১.৭ রুটিন ও নোটিশ</a>
+  <a href="#s-profile">১.৮ প্রোফাইল, পাসওয়ার্ড, সেশন</a>
+  <a href="#s-faq">১.৯ দ্রুত সমস্যা → সমাধান ছক</a>
+  <a href="#s-ops">১.১০ মালিকের নোট — স্টুডেন্টের শিট না পাওয়া</a>
+
+  <a href="#part-teacher" class="sec">অংশ ২ — শিক্ষক ম্যানুয়াল</a>
+  <a href="#t-signin">২.১ শিক্ষক সাইন-ইন ও প্রথম পাসওয়ার্ড</a>
+  <a href="#t-home">২.২ শিক্ষক হোম — “কাজ দিন” হাব</a>
+  <a href="#t-assign">২.৩ বাড়ির কাজ ও সাজেশন পোস্ট করা</a>
+  <a href="#t-sheet">২.৪ লেকচার শিট স্টুডিও</a>
+  <a href="#t-publish">২.৫ শিট প্রকাশ — শিক্ষার্থীদের কাছে পৌঁছে দেওয়া</a>
+  <a href="#t-exam">২.৬ অনলাইন পরীক্ষা তৈরি — MCQ ও লিখিত</a>
+  <a href="#t-bank">২.৭ প্রশ্নব্যাংক ব্যবহার ও সমৃদ্ধ করা</a>
+  <a href="#t-faq">২.৮ দ্রুত সমস্যা → সমাধান ছক</a>
+  <a href="#t-ops">২.৯ মালিকের নোট — “শিক্ষক publish করতে পারলেন না”</a>
+
+  <a href="#part-manager" class="sec">অংশ ৩ — ম্যানেজার ম্যানুয়াল (পরবর্তী ধাপ)</a>
+  <a href="#part-admin" class="sec">অংশ ৪ — অ্যাডমিন ম্যানুয়াল (পরবর্তী ধাপ)</a>
+  <a href="#part-counter" class="sec">অংশ ৫ — ক্যাশ কাউন্টার ম্যানুয়াল (পরবর্তী ধাপ)</a>
+  <a href="#part-ops" class="sec">অংশ ৬ — মালিকের অপারেশন রুম (পরবর্তী ধাপ)</a>
+  <a href="#part-appendix" class="sec">পরিশিষ্ট — ত্রুটিনির্ণয় ও পরিভাষা (পরবর্তী ধাপ)</a>
+</nav>
+<p class="small" style="margin-top:6mm">এই খণ্ডটি “প্রথম প্রকাশ” — সব অধ্যায় পরিকল্পনা করে দেখানো আছে; পরে যোগ হওয়া অধ্যায়গুলো একই বইয়ে যুক্ত হবে।</p>
+</section>
+
+<!-- ============ কীভাবে পড়া হবে + bookmap ============ -->
+<section class="page" id="how-to-read">
+<h1>নির্দেশিকা কীভাবে পড়া হবে</h1>
+<p>এই বই Active Plus Coaching-এর পুরো অপারেশন একটি সূত্রে বোঝানোর চেষ্টা করে — <strong>সব কিছু একটাই অ্যাপ, একটাই স্টোর</strong>। এখানে আলাদা আলাদা স্টোর নেই, আলাদা তিনটি অ্যাপ নেই; মাত্র চারটি পাশ: <strong>Student · Teacher · Manager · Admin</strong> (ক্যাশ কাউন্টারটিও আছে)। সবকিছুই একই অ্যাপের ভেতরে রেলে রাখা আছে, আর ক্লাউড সিঙ্ক একবার ব্যর্থ হলে স্ক্রিনে কোনো ব্যাখ্যা ছাড়াই “সবকিছু ঠিক আছে” মনে হবে — তাই প্রতিটি অধ্যায়ের শেষে দেওয়া আছে <strong>“স্ক্রিন ছাড়া বুঝুন”</strong> ছক: কোনো নির্দিষ্ট চিহ্ন দেখে নিশ্চয়তা নিতে পারবেন।</p>
+<div class="box"><strong>প্রতিটি অধ্যায়ে একই চারটি অংশ থাকে:</strong>
+  <ol><li><strong>কী করবেন</strong> — ধাপে-ধাপে কাজের ক্রম (০ থেকে শুরু করা)।</li>
+  <li><strong>কোথায়ে দেখাবেন</strong> — কোন প্যানেলের কোথায় ক্লিক।</li>
+  <li><strong>কী হলে বুঝবেন কাজ সফল হলো</strong> — ফলাফল-সূচক।</li>
+  <li><strong>গোলযোগ হলে</strong> — ত্রুটির ধরন ও করণীয়।</li></ol></div>
+<div class="box warn"><strong>ভাষা:</strong> স্ক্রিনের বাটন, ট্যাক, মেনু সব বাংলায় দেখাবেন; কোড ও টেকনিক্যাল নাম (যেমন <code>v481</code>) ইংরেজিতে। স্ক্রিনশট নয়, সরলীকৃত মডেল ডায়াগ্রাম ব্যবহার করা হয়েছে — সঙ্গে সঙ্গে হাতে হাতে প্রতিভাস পেতে চাইলে ট্যাবলেটে পাশাপাশি অ্যাপটি খুলিয়ে রাখুন।</div>
+<div class="box danger"><strong>গুরুত্বপূর্ণ:</strong> প্রতিটি পাসওয়ার্ড, staff অ্যাকাউন্ট, রোল-নিয়োগ শুধুই Admin/Manager দিক করে ব্যবহার করা যাবে; শিক্ষার্থীর লগইন-পিন একান্তই ছাত্রের নিজের। কোনো স্ক্রিনশট/ব্যাকআপ বাইরে শেয়ার করবেন না।</div>
+
+<h2 id="bookmap">বইয়ের মানচিত্র — এই খণ্ডে ও পরের খণ্ডে কী আছে</h2>
+<div class="map"><ol>
+<li><strong>অংশ ১ — স্টুডেন্ট ম্যানুয়াল</strong> <span class="small">(এই খণ্ডে)</span> অ্যাপ ইনস্টল, সাইন-ইন, হোম, পড়াশোনা, অধ্যায়/শিট পড়া, MCQ দেওয়া, রেজিস্টার, routine, নোটিশ, FAQ, মালিকের নোট।</li>
+<li><strong>অংশ ২ — শিক্ষক ম্যানুয়াল</strong> <span class="small">(এই খণ্ড)</span> সাইন-ইন ও প্রথম পাসওয়ার্ড, “কাজ দিন”, বাড়ির কাজ/সাজেশন, লেকচার শিট স্টুডিও, শিট প্রকাশ ও শিক্ষার্থীদের কাছে পৌঁছে দেওয়া, অনলাইন পরীক্ষা তৈরি, প্রশ্নব্যাংক, FAQ, মালিকের নোট।</li>
+<li><strong>অংশ ৩ — ম্যানেজার ম্যানুয়াল</strong> <span class="small">(পরবর্তী ধাপ)</span> স্টুডেন্ট অনুমোদন, শিক্ষক অ্যাসাইনমেন্ট, পরীক্ষা অনুমোদন ও প্রকাশ, একাডেমিক সেটআপ, রিপোর্ট, সাময়িক সহঃ পরামর্শ, FAQ।</li>
+<li><strong>অংশ ৪ — অ্যাডমিন ম্যানুয়াল</strong> <span class="small">(পরবর্তী ধাপ)</span> Security (staff accounts, roles), Settings, Backup/restore, maintenance mode, notification rules, troubleshooting.</li>
+<li><strong>অংশ ৫ — ক্যাশ কাউন্টার</strong> <span class="small">(পরবর্তী ধাপ)</span> Collect → Verify → Receipt — দৈনিক সংগ্রহ ও জমার ক্রম, রিপোর্ট।</li>
+<li><strong>অংশ ৬ — মালিকের অপারেশন রুম</strong> <span class="small">(পরবর্তী ধাপ)</span> GitHub Pages `main` merge → v-pins; SW reinstall; নিয়মিত ব্যাকআপ; sync rescue playbook (শিট না পৌঁছানোর লগ বুলি); Firebase migration status বক্স।</li>
+<li><strong>পরিশিষ্ট</strong> <span class="small">(পরবর্তী ধাপ)</span> ত্রুটিনির্ণয়ের flowchart, শব্দকোষ (sync, leaf, CAS — সাধারণ ভাষায়), সূত্র/সমগ্রিকা।</li>
+</ol></div>
+</section>
+
+<!-- ============ অংশ ১ — স্টুডেন্ট ============ -->
+<section class="page" id="part-student">
+<span class="part-tag">অংশ ১ · স্টুডেন্ট</span>
+<h1>স্টুডেন্ট ম্যানুয়াল — সম্পূর্ণ ক্রম</h1>
+<p>স্টুডেন্ট অ্যাপের ভিত্তি হলো ছাত্র নিজের দূরত্বে-app-এ নিজের session (<code>active-plus-session-v1</code> + <code>active-plus-account-v1</code>) দিয়ে ঢোকেন; একবার সাইন-ইন করলে “ছাত্রের একান্ত নিজস্ব অ্যাকাউন্ট” — অন্য কারও মোবাইলে লগইন হলেও সে আপনার কারণ — কিন্তু ডেটা নিজের ডিভাইসে cache হয়, তাই <strong>ইন্টারনেট প্রায় সবসময় দরকার</strong>।</p>
+
+<h2 id="s-install">১.১ অ্যাপ ইনস্টল ও সাইন-ইন</h2>
+<div class="step"><b>ধাপ ১ — Chrome দিয়ে ইনস্টল</b>: ছাত্র তার Android ফোনে Chrome-এ <code>https://ajfrinch-ctrl.github.io/apc/</code> খুলবেন। উপরের (তিন ডট) মেনু → <strong>“হোম স্ক্রিনে যোগ করুন”</strong> / <strong>“ইনস্টল করুন”</strong>। এর পর আইকনে ট্যাপ করলে পুরো অ্যাপ খোলে।</div>
+<div class="step"><b>ধাপ ২ — লগইন</b>: প্রথমবার সেই একই লগইন কার্ড — <strong>মোবাইল নম্বর + পিন</strong>। পিন <em>ম্যানেজার/অ্যাডমিন</em> আগে থেকেই দিয়ে থাকে (ব্যক্তিগতভাবে বা নোটিশ করে)।</div>
+<div class="step"><b>ধাপ ৩ — নিজের session</b>: লগইন হওয়া মাত্রই আপনি <code>student.html</code>-এ চলে আসবেন; একবারের পর আবার খুললেও সহজেই আপনি ভেতরে থাকবেন। পাসওয়ার্ড ভুল হলে ম্যানেজারের কাছে গিয়ে রিসেট করান — নিজে বানালে ভুল ব্যাচ পড়ার ঝুঁকি নেই।</div>
+<div class="box ok"><strong>সফলতার চিহ্ন</strong>: নিচের পাঁচটি bottom tab দেখাবেন — <strong>হোম · পড়াশোনা · রুটিন · পরীক্ষা · আরও</strong>। প্রথম tab থেকে নীচে যেতে যেতে স্ক্রিনের উপরে “Active Plus Coaching” লোগো ও ক্যাম্পাস ঠিকানা দেখবেন।</div>
+
+<h2 id="s-home">১.২ হোম স্ক্রিন</h2>
+<figure class="mock">
+<svg width="360" height="210" viewBox="0 0 360 210" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans Bengali">
+  <rect x="0" y="0" width="360" height="44" rx="14" fill="#e8f4ec" stroke="#0e7a55" stroke-width="1.5"/>
+  <text x="16" y="27" font-size="13" font-weight="700" fill="#0b5f42">আসসালামু আলাইকুম </text>
+  <rect x="0" y="56" width="360" height="86" rx="12" fill="#ffffff" stroke="#d8e4dc"/>
+  <rect x="10" y="66" width="70" height="66" rx="10" fill="#0e7a55" opacity="0.12"/>
+  <rect x="30" y="78" width="30" height="40" rx="4" fill="#0e7a55"/>
+  <rect x="38.5" y="74" width="13" height="7" rx="2.5" fill="#0b5f42"/>
+  <rect x="35" y="90" width="20" height="2.4" rx="1.2" fill="#ffffff" opacity="0.9"/>
+  <rect x="35" y="97.5" width="20" height="2.4" rx="1.2" fill="#ffffff" opacity="0.9"/>
+  <rect x="35" y="105" width="13" height="2.4" rx="1.2" fill="#ffffff" opacity="0.9"/>
+  <text x="90" y="80" font-size="11" font-weight="700" fill="#17261f">আজকের কুইজ চলছে!</text>
+  <text x="90" y="97" font-size="9" fill="#3c5449">দশম শ্রেণি · গণিত · ১০টি প্রশ্ন</text>
+  <text x="90" y="114" font-size="9" fill="#0b5f42">শুরু করতে ট্যাপ করুন →</text>
+  <rect x="0" y="152" width="110" height="22" rx="6" fill="#eef3ef"/><text x="12" y="167" font-size="9" fill="#17261f">আজকের রুটিন</text>
+  <rect x="120" y="152" width="110" height="22" rx="6" fill="#eef3ef"/><text x="132" y="167" font-size="9" fill="#17261f">পর্যায়ক্রম</text>
+  <rect x="240" y="152" width="110" height="22" rx="6" fill="#eef3ef"/><text x="252" y="167" font-size="9" fill="#17261f">মেডেল তালিকা</text>
+</svg>
+<figcaption>মডেল হোম স্ক্রিন (Simplified) — আসল স্ক্রিনে Hero card-এ প্রগ্রেস রিং, আজকের রুটিন ও চলমান পরীক্ষার alert থাকে।</figcaption>
+</figure>
+<ul>
+  <li><strong>Hero card</strong> — দিনের মতো বদলায় (পজিশন প্যাক/স্লাইড); প্রতিটি আনশিল্ড-স্লাইডে <em>“তোমার প্রতিদিন দখলের সেরা”</em> ইত্যাদি নির্দেশনা।</li>
+  <li><strong><span class="cdot"></span> সিঙ্ক (উপরের ডান কনর)</strong> — সব সময় একটা রঙ; ছাত্রীদের জন্য লাল/হলুদ হলে ইন্টারনেট তলিয়ে-গেছে অথবা কোনো তথ্য জোছনা হয়নি বোঝান; তাকে একবার অ্যাপ বন্ধ করে খুলতে বলুন।</li>
+</ul>
+
+<h2 id="s-study">১.৩ পড়াশোনা — এক হাবেই সব</h2>
+<p>নিচের মেনু থেকে <strong>পড়াশোনা</strong> ট্যাপ করলে পাঁচটি কার্ড একসাথে আসে (একসাথে ট্যাব-ভিউ নয়?) — আসল ক্রমে:</p>
+<div class="box"><strong>আমার কোর্স</strong> → কোর্স/অধ্যায় ভিত্তি; <strong>বাড়ির কাজ</strong> → শিক্ষক যা দিয়েছেন; <strong>সাজেশন</strong> → সব মিলে একটি; <strong>প্রশ্নব্যাংক</strong> → সন্ধান/প্রশ্ন; <strong>উপকরণ</strong> → শিট/PDF/নোট; <strong>এবং নিচে</strong>: মডেল টেস্ট, অনুশীলন, ফলাফল।</div>
+<h3>অধ্যায় পড়ার ক্রম (Course Hub)</h3>
+<ol>
+  <li>পড়াশোনা → <strong>আমার কোর্স</strong> → আপনার শ্রেণি/বিষয় কার্ড।</li>
+  <li>অধ্যায় তালিকা খুলুন (নামের পাশে অগ্রগতি% দেখতে পাবেন)।</li>
+  <li>অধ্যায় খোলার পর প্রতিটি কন্টেন্টে <strong>অধ্যায় পড়ুন</strong> বাটন — লেকচার শিটটি HTML রিডারে খোলে (MathML সমেত), নিচের <strong>⇩ PDF</strong> ট্যাপ করলে একই শিট PDF হিসেবে ডাউনলোড হয় (কখনও কোনো base64/ফন্ট-এম্বেডেড? ফরম্যাট যাই হোক — ডাউনলোড দেওয়া যাবে)।</li>
+</ol>
+<div class="box warn"><strong>“অধ্যায় পড়ুন” দেখা না গেলে</strong>: দুটি কারণ — (ক) শিটটি <em>প্রকাশিত</em> নয় (শিক্ষক খসড়া হিসেবে রেখেছেন), (খ) শিটের অধ্যায়টি নিজেই <em>প্রকাশিত/সক্রিয়</em> নয়। শিক্ষক/ম্যানেজারকে বলুন — এটা শিক্ষার্থী নিজের দিকে যাচাইগুলো শেষ করেই যেতে হবে।</div>
+
+<h2 id="s-materials">১.৪ উপকরণ ও সাজেশন — বাম পাশের ফিল্টার বোঝা</h2>
+<figure class="mock">
+<svg width="380" height="215" viewBox="0 0 380 215" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans Bengali">
+  <rect x="0" y="0" width="380" height="26" rx="6" fill="#eef3ef"/>
+  <text x="12" y="17" font-size="9.5" fill="#3c5449">উপকরণ · আপনার শ্রেণি</text>
+  <rect x="0" y="34" width="120" height="20" rx="4" fill="#fff" stroke="#d8e4dc"/><text x="8" y="48" font-size="8" fill="#17261f">সব বিষয় ▾</text>
+  <rect x="128" y="34" width="120" height="20" rx="4" fill="#fff" stroke="#d8e4dc"/><text x="136" y="48" font-size="8" fill="#17261f">সব অধ্যায় ▾</text>
+  <rect x="0" y="62" width="380" height="52" rx="10" fill="#ffffff" stroke="#0e7a55" stroke-width="1.6"/>
+  <rect x="8" y="70" width="58" height="16" rx="8" fill="#0e7a55"/><text x="14" y="82" font-size="8" fill="#fff">A4 শিট</text>
+  <text x="8" y="97" font-size="10" font-weight="700" fill="#17261f">লেকচার শিট — বীজগণিতীয় ভগ্নাংশ</text>
+  <text x="8" y="110" font-size="7.5" fill="#3c5449">গণিত · অধ্যায় ৫ · লসাগু ও গসাগু</text>
+  <rect x="0" y="122" width="380" height="44" rx="10" fill="#ffffff" stroke="#d8e4dc"/>
+  <rect x="8" y="140" width="60" height="14" rx="7" fill="#eef3ef"/><text x="12" y="150" font-size="8" fill="#3c5449">PDF</text>
+  <text x="8" y="134" font-size="9.5" font-weight="700" fill="#17261f">গুরুত্বপূর্ণ ১০০ MCQ প্রশ্নোত্তর.pdf</text>
+  <rect x="0" y="176" width="380" height="30" rx="6" fill="#f2f7f3"/>
+  <text x="12" y="194" font-size="9" fill="#3c5449">২টি উপকরণ · দশম শ্রেণি</text>
+</svg>
+<figcaption>মডেল “উপকরণ” শেলফ (Simplified) — উপরে বিষয় ও অধ্যায় ফিল্টার, নিচে একে/পরে শিট কার্ড।</figcaption>
+</figure>
+<h3>দুটি ট্যাব আলাদা — ভাবটা ভিন্ন</h3>
+<table><thead><tr><th>উপকরণ</th><th>সাজেশন</th></tr></thead><tbody>
+<tr><td>সাধারণ শিক্ষণ-উপাদান: A4 লেকচার শিট, PDF, নোট, আগের প্রশ্নোত্তর, মডেল টেস্ট…</td><td>গুরুত্বপূর্ণ প্রশ্ন/সাজেশন/previous year — একদম “পরীক্ষায় এটা নিশ্চয়ই আসবে” ধরনের তালিকা ও সংক্ষিপ্ত উত্তর</td></tr>
+<tr><td>লেচার শিট এখানেই দেখাবেন (সাজেশনে নয়)</td><td>“important_question” ও MCQ এখানে; A4 শিট এখানে <strong>কখনো আসে না</strong></td></tr>
+</tbody></table>
+<div class="box danger"><strong>ফিল্টারে কিছুই না দেখা গেলে প্রথমে যা করবেন:</strong>
+<ol><li>ফিল্টার দুটিই <strong>সব বিষয় · সব অধ্যায়</strong>-এ ফিরিয়ে দিন — শিটগুলো দেখানো হয়ে যায় কিনা দেখুন।</li>
+<li>ভালো করে লক্ষ করুন: আপনার ব্যাচ (যেমন বিজ্ঞান) এর শেয়ার করা শিট মানবিক ব্যাচে যায় না — এটা <em>নিয়ম</em>, বাগ নয়।</li>
+<li>আপনার ফোনের অ্যাপ রিফ্রেশ করুন — পুরনো ভুল সংস্করণ (বিষয়ের ড্রপডাউনে কিছু বাছাই করেও উপকরণ দেখা না যাওয়া) ফিক্স করা হয়েছে ২০২৬-১১-এ।</li></ol>
+</div>
+
+<h2 id="s-exams">১.৫ অনলাইন পরীক্ষা (MCQ) ও লিখিত</h2>
+<h3>MCQ দেওয়ার ক্রম</h3>
+<ol>
+  <li>পরীক্ষা ট্যাব → আপনার জন্য নির্ধারিত পরীক্ষা <strong>(পরীক্ষার কোড দেখে চিনুন)</strong>।</li>
+  <li>শুরুর সময় হলে <strong>পরীক্ষা শুরু করো</strong>; দেরিতে প্রথম প্রবেশ সীমা (যেমন ৫ মিনিট) পার হয়ে গেলে ঢুকতে পারবেন না — সময় শুনে শুনে অংশ নিন।</li>
+  <li>প্রশ্নগুলো একসাথে দেখাবেন; ভুল উত্তরে কাটা নম্বর (যেমন ০.৫) থাকতে পারে; <em>প্রশ্নের ক্রম</em> ও <em>অপশনের ক্রম</em> প্রতিটি শিক্ষার্থীর জন্য আলাদা।</li>
+  <li>প্রতিটি চেষ্টা গণনা করা হয়; প্রতি পরীক্ষায় <strong>একবারই</strong> চেষ্টা দেওয়া যায়। রিফ্রেশ দিলেও জমা-দেওয়া উত্তর ও একই শেষ সময় ফিরে আসবে — আতঙ্কিত হবেন না।</li>
+  <li>সকলের উত্তরপত্র জমা হয়ে গেলেই <strong>ফলাফল নিজে থেকেই প্রকাশিত</strong> হয় — আবার হিসাব না করানো হবে না।</li>
+</ol>
+<h3>লিখিত পরীক্ষা</h3>
+<ul><li>শুরুর সময়ে <strong>প্রশ্নপত্র PDF ডাউনলোড</strong> করুন; ক্লাসে খাতায় উত্তর দিন। বিচারে/নম্বর বসে গেলে ফলাফল সেকশনে দেখাবে।</li></ul>
+<h3>ফলাফল</h3>
+<ul><li><strong>ফলাফল</strong> থেকে নিজের নম্বর ও মেধাক্রম দেখতে পাবেন (প্রকাশিত হলেই)।</li>
+<li>পরীক্ষা শেষে <strong>সঠিক উত্তরসহ PDF</strong> বাটন দেখাবেন — কিন্তু উত্তরপত্র PDF পড়ে পড়তে পারবেন পরীক্ষার পরের দিন পর্যন্ত — বাটন ধার্য অনুযায়ী।</li></ul>
+
+<h2 id="s-routine">১.৭ রুটিন ও নোটিশ</h2>
+<ul>
+  <li><strong>রুটিন</strong>: আপনার ক্লাসের সাপ্তাহিক সময়সূচি; পরিবর্তন করতে হয় ম্যানেজারের হাত দিয়ে।</li>
+  <li><strong>নোটিশ</strong>: নিচে নেভিগেশন → আরও → নোটিশ কার্ড; সব ক্লাসের জন্য বা আপনার বিভাগের জন্য নির্দিষ্ট হতে পারে।</li>
+  <li><strong>চ্যাট</strong> (চালু থাকলে): আপনার ব্যাচের গ্রুপ চ্যাট — শিক্ষক ও শিক্ষার্থী সবাই একসাথে।</li>
+</ul>
+
+<h2 id="s-profile">১.৮ প্রোফাইল, পাসওয়ার্ড, সেশন</h2>
+<ul><li>প্রোফাইলে আপনার নাম, শ্রেণি, ব্যাচ, ID দেখতে পাবেন; তথ্যের পরিবর্তন করতে হলে ম্যানেজারের সাথে যোগাযোগ করুন।</li>
+<li><strong>লগআউট</strong>: আরও → প্রোফাইল → সাবার শেষে লগআউট বাটন; অন্যের ফোনে লগইন করতে হলে অনুগ্রহ করে লগআউট করে দিন।</li>
+<li>পাসওয়ার্ড ভুলে গেলে/হাঁচি দিলে ম্যানেজার রিসেট করতে পারেন।</li>
+<li>পিন/পাসওয়ার্ড কখনো কারো কাছে (শিক্ষক সহ) শেয়ার করবেন না।</li></ul>
+
+<h2 id="s-faq">১.৯ দ্রুত সমস্যা → সমাধান ছক</h2>
+<table>
+<thead><tr><th>লক্ষণ</th><th>কারণ</th><th>যা করবেন</th></tr></thead>
+<tbody>
+<tr><td>অ্যাপ খুললেই সাদা স্ক্রিন</td><td>পুরনো cache/SW</td><td>একবার সম্পূর্ণ বন্ধ করে নতুন করে খুলুন; না হলে ব্রাউজার “উপাত্ত মুছে দিন” ও আবার Chrome-এ ঢুকে <strong>হোম স্ক্রিনে যোগ করুন</strong></td></tr>
+<tr><td>উপকরণে নির্দিষ্ট বিষয় বাছায়ে শূন্য দেখায়</td><td>তুলনা mismatch (পুরনো সংস্করণ)</td><td>ফিল্টারে <strong>সব বিষয়</strong> রাখুন; অ্যাপ রিফ্রেশ করুন; এখন <strong>subjectName</strong>-ভিত্তিক মিল কোথাও ফিরে এসেছে</td></tr>
+<tr><td>পরীক্ষা দেখায় না / ঢুকতে পারছি না</td><td>শুরুর বার পার হয়ে গেছে / ভুল ব্যাচের পরীক্ষা</td><td>পরীক্ষার কোড ও ব্যাচ মিলিয়ে দেখুন; ম্যানেজারকে জিজ্ঞেস করুন</td></tr>
+<tr><td>জমা দিলেও “জমা অপেক্ষমাণ”</td><td>সবার জমার প্রতীক্ষা</td><td>সাধারণ — সবার জমা হলে নিজে প্রকাশিত হবে</td></tr>
+<tr><td>অধ্যায় “প্রতীক”/আলাদা দেখায় না</td><td>অধ্যায় অপ্রকাশিত / শিট অপ্রকাশিত</td><td>শিক্ষক/ম্যানেজারকে বলুন “অধ্যায় ও শিট প্রকাশ করুন”</td></tr>
+<tr><td>অ্যাপে কিছুই আসছে না (রুটিন/নোটিশ/স্টাফ)</td><td>সিঙ্ক ব্যর্থ বা ইন্টারনেট</td><td>উপরের ডান কনর রঙ দেখুন; WiFi/ডাটা টগল করে আবার খুলুন; প্রয়োজনে ফোন রিস্টার্ট</td></tr>
+</tbody></table>
+
+<h2 id="s-ops">১.১০ মালিকের নোট — “আমার ছাত্র শিটটা দেখছে না” ধাপে ধাপে</h2>
+<div class="box"><strong>স্টুডেন্ট স্ক্রিনের দিক থেকে যাচাই (ক্রমানুসারে):</strong>
+<ol class="checklist">
+<li>শিটটি আসলেই <strong>প্রকাশিত</strong> কিনা — শিটের উপরের ট্যাক দেখাম।</li>
+<li>অধ্যায়টি <strong>প্রকাশিত+সক্রিয়</strong> কিনা — অনিশ্চিত হলে শিক্ষককে “আবার প্রকাশ করুন” বলুন (প্রকাশ ত্রুটি এখন স্পষ্ট বাংলায় দেখায়)।</li>
+<li>শিক্ষক/ছাত্র একই ব্যাচে — শিট ব্যাচ-ক্ষেত্র অনুমোদিত; মানবিক ব্যাচ বিজ্ঞান শিট দেখবে না।</li>
+<li>স্টুডেন্ট <strong>উপকরণ</strong> ট্যাব → ফিল্টার <strong>সব বিষয়</strong> → তালিকার নীচে ক “N টি উপকরণ” লাইন দেখুন।</li>
+<li>শিক্ষার্থীর <strong>রুটিন/নোটিশ</strong> ইত্যাদি আসে কিনা — না এলে অভিধান/যন্ত্র সমস্যা; আসলে শুধু শিট সমস্যা নয় বরং release/version সমস্যা।</li>
+<li>অ্যাপ রিফ্রেশ / অন্তর জ্ঞাত সমাধান: ছাত্র ফোনে একবার সম্পূর্ণ বন্ধ → Chrome → অ্যাপ পুনরায় খোলানো (নতুন সংস্করণ (v481+) হলে SW নিজেই আপডেট হয়ে নেবে)।</li>
+</ol></div>
+<p class="small">v481-এর পর থেকে প্রকাশের আগে লেকচার শিট ক্লাউড-বাজেটে ফিট কিনা স্বয়ংক্রিয়ভাবে দেখা হয়; পুরনো “বিশাল শিট সিঙ্ক ব্যর্থ” ঘটনা আর লুকিয়ে থাকতে পারবে না — বদলে স্পষ্ট বাংলায় গি-আকার কমিয়ে পাঠাতে বলা হবে।</p>
+</section>
+
+<!-- ============ অংশ ২ — শিক্ষক ============ -->
+<section class="page" id="part-teacher">
+<span class="part-tag">অংশ ২ · শিক্ষক</span>
+<h1>শিক্ষক ম্যানুয়াল — সম্পূর্ণ ক্রম</h1>
+<p>শিক্ষক পাশ: <code>teacher.html</code>। শিক্ষক যা যা লেখেন — বাড়ির কাজ, সাজেশন, প্রশ্ন, A4 লেকচার শিট, অনলাইন পরীক্ষা — সব একই স্টোরে (<code>courseContent</code> / পরীক্ষার স্টোর) জমা হয়। Admin-এর POST ছাড়াই সেটা শিক্ষার্থীর ফোনে পৌঁছায় — কেবল সঠিক সিঙ্ক সম্পন্ন হলেই।</p>
+
+<h2 id="t-signin">২.১ শিক্ষক সাইন-ইন ও প্রথম পাসওয়ার্ড</h2>
+<div class="step"><b>ধাপ ১</b> — index.html-এ ঢুকে শিক্ষক হিসেবে লগইন করুন (ম্যানেজার/অ্যাডমিন প্রথমে আপনাকে staff অ্যাকাউন্ট করিয়ে দিয়েছেন)।</div>
+<div class="step"><b>ধাপ ২</b> — <em>প্রথমবারের ডিভাইসে</em>, সাইন-ইন হওয়ার পর “পাসওয়ার্ড সেট করুন” যোগ দিয়ে ডায়ালগ দেখাবে — নতুন password লিখে দিন ও নিশ্চিত করুন। (এটা সিকিউরিটির জন্য — ডিভাইস-ভিত্তি ছাড়া teacher role দিয়ে ঢোকা যাবে না)।</div>
+<div class="step"><b>ধাপ ৩</b> — টপবারে নিজের নাম দেখুন; ঠিক নয় তো লগ-আউট করে সঠিক অ্যাকাউন্টে লগইন।</div>
+<div class="box ok"><strong>কতটা অ্যাক্সেস পাবেন</strong>: যে শ্রেণি ও বিষয়ে Manager আপনাকে <em>অ্যাসাইন</em> করেছেন — কেবল ওইখানেই শিট/কনটেন্ট সেভ, সাজেশন, পরীক্ষা, পড়ুন। অন্য শ্রেণি/বিষয় চেষ্টা করলে “অ্যাসাইনমেন্টে নেই” দেখাবেন — স্বাভাবিক আচরণ।</div>
+
+<h2 id="t-home">২.২ শিক্ষক হোম — “কাজ দিন” হাব</h2>
+<figure class="mock">
+<svg width="380" height="205" viewBox="0 0 380 205" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans Bengali">
+  <rect x="0" y="0" width="380" height="40" rx="12" fill="#e8f4ec" stroke="#0e7a55"/>
+  <text x="14" y="17" font-size="10" font-weight="700" fill="#0b5f42">দশম শ্রেণি · গণিত</text>
+  <text x="14" y="32" font-size="8" fill="#3c5449">ম্যানেজার অ্যাসাইনমেন্ট: দশম · গণিত · বিজ্ঞান বিভাগ</text>
+  <rect x="0" y="54" width="180" height="60" rx="10" fill="#0e7a55"/><text x="16" y="80" font-size="11" font-weight="700" fill="#fff">কাজ দিন</text><text x="16" y="98" font-size="8" fill="#dff3e8">বাড়ির কাজ · সাজেশন · প্রশ্ন</text>
+  <rect x="194" y="54" width="180" height="60" rx="10" fill="#eef3ef" stroke="#0e7a55"/><text x="206" y="80" font-size="11" font-weight="700" fill="#0b5f42">পরীক্ষা</text><text x="206" y="98" font-size="8" fill="#3c5449">MCQ + written</text>
+  <rect x="0" y="126" width="180" height="60" rx="10" fill="#eef3ef" stroke="#0e7a55"/><text x="16" y="152" font-size="11" font-weight="700" fill="#0b5f42">লেকচার শিট</text><text x="16" y="170" font-size="8" fill="#3c5449">স্টুডিও থেকে শিট + PDF</text>
+  <rect x="194" y="126" width="180" height="60" rx="10" fill="#eef3ef" stroke="#0e7a55"/><text x="206" y="152" font-size="11" font-weight="700" fill="#0b5f42">রিপোর্ট</text><text x="206" y="170" font-size="8" fill="#3c5449">উপস্থিতি/ফলাফল PDF</text>
+</svg>
+<figcaption>মডেল শিক্ষক হোম — আসল হোমে “কাজ দিন” বড় একশন কার্ড, পাশে পরীক্ষা/প্রতিবেদন কার্ড; নীচে রুটিন/আরও।</figcaption>
+</figure>
+
+<h2 id="t-assign">২.৩ বাড়ির কাজ ও সাজেশন পোস্ট করা</h2>
+<ol>
+  <li>হোম → <strong>কাজ দিন</strong> → <strong>বাড়ির কাজ</strong> (বা <strong>সাজেশন</strong>) ট্যাপ করুন।</li>
+  <li>শ্রেণি → বিষয় → ব্যাচ (প্রযোজ্য হলে) নির্বাচন; শিত/প্রশ্ন/নির্দেশ যোগ; সামগ্রী লিংক (ঐচ্ছিক) দিন।</li>
+  <li><strong>পোস্ট করুন</strong> — শিক্ষার্থীরা তৎক্ষণাৎ “বাড়ির কাজ” ট্যাবে দেখবেন (ইন্টারনেট থাকলে)।</li>
+</ol>
+<div class="box warn"><strong>শিট ভুল শ্রেণিতে চলে গেলে</strong>: চেষ্টা কাজ না → post edit করলে তবেই পরিবর্তন হবে; শিক্ষার্থী আগে-ই ডাউনলোড করে ফেলে থাকলে সেটার দায় আপনার না — ভুল দিকপালন স্থায়ী থাকবে না করতে চাইলে সেরা থামুন ম্যানেজারকে বলে delete/রাবিশ করিয়ে নিন।</div>
+
+<h2 id="t-sheet">২.৪ লেকচার শিট স্টুডিও</h2>
+<div class="step"><b>খুলুন</b> — আমার “পরীক্ষা/লেকচার শিট” সেকশনে → <strong>লেকচার শিট স্টুডিও</strong>। টিএস দুই কলাম: বাম দিকে কন্টেন্ট এডিটর (সপ্তর-গ্রুপ: heading, table, image, equation, page-break), ডানদিকে A4 লাইভ প্রিভিউ।</div>
+<div class="step"><b>ছবি</b>: ছবির সংখ্যা সর্বোচ্চ <strong>১২টি</strong>; প্রতিটি ছবি কমিপ্রেস হয়ে ডাটা-URI হিসেবে ভেতরে থাকে। খুবই বড় ছবি (৩-৪ MB) অবশ্যই প্রকাশ-সীমা পার করবে (নিচের ৪টি রঙের বাক্স)।</div>
+<div class="step"><b>স্মৃতি</b>: অটো-সেভ সক্রিয়; একবার ভুল করতে পারলে <strong>পূর্বের সংস্করণ</strong> (docVersion / history) থেকে আনুন।</div>
+<div class="step"><b>PDF</b>: প্রিভিউ → <em>“পিডিএফ”</em> বাটন; ফাইল নাম সবসময় স্পষ্ট অর্থপূর্ণ (বিষয়-শ্রেণি-টপিক-তারিখ)।</div>
+
+<h2 id="t-publish">২.৫ শিট প্রকাশ — শিক্ষার্থীদের কাছে পৌঁছে দেওয়া</h2>
+<div class="box danger"><strong>প্রকাশ ≠ শিক্ষার্থী প্যানেলে দেখা</strong>। প্রকাশ মানে আপনার ডিভাইসে লিখে রাখা; সব শিক্ষার্থীর কাছে <em>ক্লাউড সিঙ্ক হলে</em> পৌঁছে যায় — কেবল ততক্ষণেই শিট অনলাইন হয়। <em>সবচেয়ে সরল করে এক লাইন — কোনো একটি ধাপের সিঙ্ক একবারের জন্যও সফল না হলে শিক্ষার্থীরা শিট দেখতে পায় না।</em></div>
+<ol>
+  <li>শিট তৈরি শেষ → <strong>প্রকাশ করুন</strong> (হার্ডওয়্যার নয় — শুধু একটি ট্যাপ)।</li>
+  <li><strong>এখন থেকে শিট নিজে থেকেই শিক্ষার্থীদের “উপকরণ”-এ দেখানোর চেষ্টা করবে</strong> — কোনও “পাঠাও” বাটন নেই।</li>
+  <li>নিশ্চিত করুন শিটের পাতা/অধ্যায় <strong>সঠিক (প্রকাশিত)</strong>-এ যাচ্ছে — প্রকাশ এখন অন্যথায় স্পষ্ট কারণ দিয়ে মানা করবে (“ছবির আকার/সংখ্যা কমিয়ে দিন”, “অধ্যায় প্রকাশিত নয়” ইত্যাদি)।</li>
+  <li>পুরনো সংস্করণের history প্রকাশের মুহূর্তে প্রয়োজনে স্বয়ংক্রিয়ভাবে ছাঁটাই হয়ে যায় — এতে শিটের বর্তমান অবস্থা অক্ষত থাকে।</li>
+</ol>
+<div class="box ok"><strong>যত বড় শিট তত আকার-সীমা</strong>: “plain JSON ≈ ৩৬০ KB”-সংখ্যক বেশি হলে প্রকাশ <em>থামানো হবে</em>। তাই: একটি শিটে ৫-৬টি বড় ছবির পরই আপডেটের মুখোমুখি হবেন; তাই সহজ উপায় — বড় ছবির আকার/সংখ্যা কমান, তারপর আবার প্রকাশ করুন।</div>
+
+<h2 id="t-exam">২.৬ অনলাইন পরীক্ষা তৈরি — MCQ ও লিখিত</h2>
+<h3>MCQ পরীক্ষা</h3>
+<ol>
+  <li>পরীক্ষা → <strong>দ্রুত MCQ পরীক্ষা</strong> বাটন (৩-৫ ট্যাপে নিজের কুইজ চালু করুন)।</li>
+  <li>ধাপ ১: নাম, শ্রেণি, বিষয়; ধাপ ২: সময় ও প্রশ্ন (পেস্ট/প্রশ্নব্যাংক/একটা করে); ধাপ ৩: ব্যাচ/বিভাগ, কাটার নম্বর, পাসের নম্বর, দেরিতে প্রবেশ — সব এখানে; শেষে <strong>খসড়া সংরক্ষণ</strong>।</li>
+  <li>খসড়া শেষ → <strong>“অনুমোদনের জন্য পাঠান”</strong> চেপে দেন → এখন Manager-ই “অনুমোদন” বা “প্রকাশ” চাপবেন। শিক্ষার্থীরা কেবল <code>প্রকাশিত</code> অবস্থায় দেখবেন — এবং তারও পূর্বে একবারও দেখার সুযোগ নেই।</li>
+  <li>দ্রুত কুইজের শুরুর সময় ডিফল্টেই <em>এখনই</em> থেকে ২০ মিনিট ও প্রথম entry ৫ মিনিট দেরি করা যায়। প্রয়োজনে শুরুর তারিখ ও মেয়াদ যেকোনো সময় করা যায়; শিক্ষার্থী যাতে রিফ্রেশ করেও হারানো সময় ফেরত না পায় তা স্মরণে রাখুন।</li>
+</ol>
+<h3>লিখিত / সৃজনশীল</h3>
+<ul><li><strong>নতুন পরীক্ষা তৈরি করুন</strong> (লিখন) — শিক্ষার্থী PDF নেয় ও খাতায় উত্তর দেয়; তারপর ক্লাসের নম্বর বসিয়ে “নম্বর প্রকাশ করুন”। এ জন্যে সংশ্লিষ্ট স্বাধীন পরিক্ষা-তোষিকা ।</li></ul>
+<div class="box warn"><strong>একটি সাধারণ ভুল</strong>: শিক্ষক MCQ “সংরক্ষণ” করে দুইদিন ধরে অপেক্ষা করেন যে Manager লাইভ করবেন — অনেকেই কুইজ তৈরি করে বসেন আর মনে করেন “স্বতঃ প্রকাশ হয়ে যাবে” — না। ম্যানেজারকে আগেভাগে বলুন: “আগামীকাল ১০টায় গণিত কুইজ লাইভ করুন” — তিনি নিজের প্যানেল থেকে অনুমোদন ও প্রকাশ করবেন।</div>
+
+<h2 id="t-bank">২.৭ প্রশ্নব্যাংক ব্যবহার ও সমৃদ্ধ করা</h2>
+<ul>
+  <li>প্রশ্ন → <strong>MCQ যোগ করুন</strong> — শ্রেণি, বিষয়, অধ্যায়, ধরণ (MCQ/সংক্ষিপ্ত/লিখিত) দিয়ে প্রশ্ন সেভ করুন; একই প্রশ্ন পরীক্ষা-র সময়ে “ব্যাংক থেকে” টেমপ্লেটে এক জায়গায় যুক্ত হয়ে যাবে।</li>
+  <li>একবার শুদ্ধ করে সেভ করা প্রশ্নগুলো ব্যাংকই থাকবে — আপনি নিজে চাইলে অন্য ব্যাচে/পরের পরীক্ষায়ও সেগুলোই reuse করতে পারবেন।</li>
+  <li>Bank-এ থাকা প্রশ্নগুলো শিক্ষার্থীদের দেখা যায় না — এগুলো কেবল আপনার/Manager-এর লেখার কাজ; সরাসরি প্রকাশ হয় না।</li>
+</ul>
+
+<h2 id="t-faq">২.৮ দ্রুত সমস্যা → সমাধান ছক</h2>
+<table>
+<thead><tr><th>লক্ষণ</th><th>কারণ</th><th>যা করবেন</th></tr></thead>
+<tbody>
+<tr><td>অধ্যায়/বিষয় লিস্টে আছে না (আমার অ্যাসাইনমেন্ট)</td><td>Manager আগে অ্যাসাইন করেনি</td><td>ম্যানেজারকে বলুন “ঐ ক্লাস ও বিষয় যোগ করুন”; টেকনিক্যাল flat standard আছে</td></tr>
+<tr><td>শিক্ষার্থী গ্রুপ মিলিয়ে</td><td>দল মিলবে না (গ্রুপ – batch key)</td><td>গ্রুপ দিন “বিজ্ঞান”/ “বিজ্ঞান বিভাগ” — সাধারণ রূপ (suffix ব্যাচ ছাঁটা হয়)</td></tr>
+<tr><td>শিট প্রকাশ হচ্ছে না / বার্তা স্পষ্ট নয়</td><td>আকার সীমা (ছবি/টেক্সট)</td><td>ছবির আকার বা সংখ্যা কমান; শিট খসড়া সেভ করলে history নিজে থেকেই ছাঁটাই হয়</td></tr>
+<tr><td>শিট প্রকাশ হয়েছে কিন্তু শিক্ষার্থীরা পায়নি</td><td>ক্লাউড সিঙ্ক অসম্পূর্ণ</td><td>উপরে টপবারে ইন্টারনেট-লাইন লাল/হলুদ কিনা দেখুন; শিক্ষার্থীকে অ্যাপ একবার রিফ্রেশ করতে বলুন; তবুও না এলে খসড়া লগ চলে, ম্যানেজারকে জানান</td></tr>
+<tr><td>পরীক্ষা “অনুমোদনের অপেক্ষায়” দীর্ঘদিন</td><td>Manager-কে না জানানো হয়েছে</td><td>Manager-কে courtte; হয়ত আমি আগে আপনি “প্রকাশ” চেয়ে নিয়েছেন</td></tr>
+</tbody></table>
+
+<h2 id="t-ops">২.৯ মালিকের নোট — “শিক্ষক publish করতে পারলেন না” ধাপে ধাপে</h2>
+<div class="box"><strong>শিক্ষক পরীক্ষা প্রকাশ করতে ব্যর্থ হলে</strong> ক্রমানুসারে:
+<ol class="checklist">
+<li>স্ক্রিনশট চাইুন — <em>বার্তা কী দেখায়?</em> (Messenger/WhatsApp screenshot যথেষ্ট)।</li>
+<li>“সঠিক ক্লাস/ব্যাচ/বিষয় আপনার অ্যাসাইনমেন্টে নেই” হলে → Admin → ক্লাসের অ্যাসাইনমেন্ট ঠিক করুন।</li>
+<li>“কোনো বিষয় নেই খুঁজে পাওয়া গেল না” হলে → Admin → চালু বিষয় ঠিক করুন (কাস্টমাইজড বিষয় চালু হয়নি)।</li>
+<li>“শিটের আকার ক্লাউড সিঙ্কের নিরাপদ সীমা অতিক্রম…” হলে → ছবি কমান — শিট খসড়া সংস্করণ নিজে-ই history ছাটাই করে।</li>
+<li>পরীক্ষাটি “<code>প্রকাশিত</code>” না-হলে শিক্ষার্থীরা কখনোই দেখবে না — Manager-কে গিয়ে “প্রকাশ” বাটন চাপতে অনুরোধ করুন।</li>
+</ol></div>
+<p class="small">নিয়ন্ত্রক নোট: plan আছে — প্রতিটি নতুন স্ক্রিন বা অন্তত প্রতিটি নতুন পরিষেবা ভার্সনে এই বইয়ের সংশ্লিষ্ট অধ্যায় আপডেট হবে।</p>
+</section>
+</body>
+</html>
