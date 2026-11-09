@@ -14,7 +14,6 @@ import { toBanglaNumber as bn } from './ui.js';
 import { setView } from './shell.js';
 import { classByName, subjectsForClass, listChapters } from './academics.js';
 import { attachmentHref, listCourseContent, typeOf as courseTypeOf } from './course-content.js';
-import { sanitizeRichHtml, sanitizeLectureHtml } from './rich-sanitize.js';
 import { teachingRepository, publishedForStudent, watchTeachingData } from './teaching-data.js';
 import { courseRepository, courseProgress, watchCourses, COURSES_KEY } from './course-data.js';
 import { listQuestionsForStudent, questionRowsFromPastExams, QUESTION_TYPES } from './question-bank.js';
@@ -145,24 +144,28 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     return text(record.chapterName) || chapterTitles.get(record.chapterId) || '';
   }
 
+  /* A list is a list: type, title, subject • chapter, and one action. The
+     lecture/note itself opens in the app (see openStudentMaterialReader), never
+     as a wall of text inside the card — the same rule as the Learning Hub. */
   function contentCard(record) {
     const isSheet = record.isLectureSheet === true;
     const link = attachmentHref(record.attachmentUrl);
-    const body = record.richContent
-      ? (isSheet ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
-      : esc(text(record.content || record.description || '').slice(0, 600)).replace(/\n/g, '<br>');
-    const sheetActions = isSheet
-      ? `<div class="ls-student-sheet-actions">
-          <button type="button" class="ls-card-btn" data-student-lecture-reader="${esc(record.id)}">📖 A4 প্রিভিউ ও প্রিন্ট</button>
-          <button type="button" class="ls-card-btn ls-card-btn-primary" data-student-lecture-pdf="${esc(record.id)}">⬇ A4 PDF ডাউনলোড</button>
-        </div>`
-      : '';
-    return `<article class="course-item${isSheet ? ' ls-student-sheet-card' : ''}" data-study-item="${esc(record.id)}">
-      <header class="course-item-head"><span class="course-item-type">${esc(isSheet ? 'A4 লেকচার শিট' : record.type === 'pdf' ? 'PDF' : record.type === 'important_question' ? 'গুরুত্বপূর্ণ প্রশ্ন' : record.type === 'model_test' ? 'মডেল টেস্ট' : record.type === 'previous_question' ? 'পূর্বের প্রশ্ন' : record.type === 'mcq' ? 'MCQ' : 'নোট')}</span>
-        <div><h3>${esc(record.title)}</h3><small>${esc([text(record.subject) || '', chapterOf(record), text(record.topic)].filter(Boolean).join(' • '))}</small></div></header>
-      ${body ? `<div class="course-item-body course-rich-reading${isSheet ? ' ls-student-sheet-body' : ''}">${body}</div>` : ''}
-      ${sheetActions}
-      ${link ? `<a class="course-item-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer">ফাইল খুলুন <svg class="resource-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
+    const kind = isSheet ? 'A4 লেকচার শিট'
+      : record.type === 'pdf' ? 'PDF'
+        : record.type === 'important_question' ? 'গুরুত্বপূর্ণ প্রশ্ন'
+          : record.type === 'model_test' ? 'মডেল টেস্ট'
+            : record.type === 'previous_question' ? 'পূর্বের প্রশ্ন'
+              : record.type === 'mcq' ? 'MCQ' : 'নোট';
+    const meta = [text(record.subject) || '', chapterOf(record), text(record.topic)].filter(Boolean).join(' • ');
+    return `<article class="course-item ls-material-row${isSheet ? ' ls-student-sheet-card' : ''}" data-study-item="${esc(record.id)}" data-study-open="${esc(record.id)}">
+      <header class="course-item-head"><span class="course-item-type">${esc(kind)}</span>
+        <div><h3>${esc(record.title)}</h3>${meta ? `<small>${esc(meta)}</small>` : ''}</div>
+        <span class="ls-row-chevron" aria-hidden="true">›</span></header>
+      <div class="ls-student-sheet-actions">
+        <button type="button" class="ls-card-btn ls-card-btn-primary" data-study-open-btn="${esc(record.id)}">📖 পড়ুন</button>
+        ${isSheet ? `<button type="button" class="ls-card-btn" data-student-lecture-pdf="${esc(record.id)}">⬇ A4 PDF</button>` : ''}
+        ${link ? `<a class="ls-card-btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer">ফাইল খুলুন</a>` : ''}
+      </div>
     </article>`;
   }
 
@@ -579,11 +582,12 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     renderMaterials();
   });
 
-  const handleLectureSheetClick = async event => {
+  const handleMaterialOpen = async event => {
+    if (event.target.closest('a')) return; // a real file link keeps working
     const pdfBtn = event.target.closest('[data-student-lecture-pdf]');
-    const readerBtn = event.target.closest('[data-student-lecture-reader]');
-    if (!pdfBtn && !readerBtn) return;
-    const targetId = pdfBtn ? pdfBtn.dataset.studentLecturePdf : readerBtn.dataset.studentLectureReader;
+    const openCard = event.target.closest('[data-study-open]');
+    const targetId = pdfBtn ? pdfBtn.dataset.studentLecturePdf : openCard?.dataset.studyOpen;
+    if (!targetId) return;
     const allowed = [...materialRecords, ...suggestionRecords].find(item => item.id === targetId);
     if (!allowed || allowed.published !== true || allowed.active === false) return;
     const cur = student();
@@ -593,8 +597,14 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       subjectName: text(allowed.subject) || ''
     };
     const mod = await import('./lecture-sheet-pdf.js');
-    if (readerBtn) {
-      await mod.openStudentLectureReaderModal(enriched);
+    if (!pdfBtn) {
+      /* Reading happens in the app. A material with nothing to read (a bare
+         attachment) falls back to the file itself. */
+      const opened = await mod.openStudentMaterialReader(enriched);
+      if (!opened) {
+        const href = attachmentHref(allowed.attachmentUrl);
+        if (href) window.open(href, '_blank', 'noopener');
+      }
       return;
     }
     const orig = pdfBtn.textContent;
@@ -611,8 +621,8 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     pdfBtn.disabled = false;
     pdfBtn.textContent = orig;
   };
-  $(SELECTORS.materials.list)?.addEventListener('click', handleLectureSheetClick);
-  $(SELECTORS.suggestion.list)?.addEventListener('click', handleLectureSheetClick);
+  $(SELECTORS.materials.list)?.addEventListener('click', handleMaterialOpen);
+  $(SELECTORS.suggestion.list)?.addEventListener('click', handleMaterialOpen);
 
   const onSelect = (select, apply) => select?.addEventListener('change', () => { apply(select.value); });
   onSelect($(SELECTORS.bank.subject), value => { bankSubject = value; bankChapter = ''; fillFilters(); renderBank(); });

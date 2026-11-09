@@ -88,7 +88,10 @@ test('only the student’s class and published content ever reach the DOM', () =
   assert.doesNotMatch(root.textContent, /আর্কাইভ অধ্যায়ের পুরোনো নোট/, 'content of an archived chapter never appears loose in the course');
   ctx.click(ctx.$('#courseHub [data-course-chapter-toggle]'));
   assert.match(ctx.$('#courseHub').textContent, /পাঠ ১\.১/, 'opening a chapter lists its published content');
-  assert.equal(ctx.$$('#courseHub .course-item-body').length >= 1, true);
+  /* The list stays a list: no lesson text is poured into the card, only the
+     title and its reading action. */
+  assert.equal(ctx.$$('#courseHub .course-item-body').length, 0);
+  assert.ok(ctx.$('#courseHub [data-course-open]'), 'a material row can be opened');
 });
 
 test('a student can search inside the subject and switch sections', () => {
@@ -150,7 +153,16 @@ test('each chapter exposes the nine focused actions and published chapter conten
   assert.deepEqual(buttons.map(button => button.textContent.trim()), COURSE_CHAPTER_ACTIONS.map(item => item.label));
 
   ctx.click(ctx.$('#courseHub [data-course-chapter-action="read"]'));
-  assert.match(ctx.$('#courseHub').textContent, /পাঠের লেখা/);
+  assert.match(ctx.$('#courseHub').textContent, /পাঠ ১\.১/);
+  assert.doesNotMatch(ctx.$('#courseHub').textContent, /পাঠের লেখা/, 'the lesson text is not printed inside the list');
+  /* Tapping the row reads it in the app, in the same shell as a lecture sheet. */
+  const lessonRow = ctx.$$('#courseHub [data-course-open]').find(row => /পাঠ ১\.১/.test(row.textContent));
+  assert.ok(lessonRow, 'the lesson has its own row');
+  ctx.click(lessonRow);
+  await ctx.waitFor(() => ctx.$('#apcStudentMaterialReader'));
+  assert.match(ctx.$('#apcStudentMaterialReader').textContent, /পাঠের লেখা/);
+  ctx.click(ctx.$('#apcStudentMaterialReader [data-smr-close]'));
+  assert.equal(ctx.$('#apcStudentMaterialReader'), null, 'the reader closes again');
   ctx.click(ctx.$('#courseHub [data-course-action-close]'));
   ctx.click(ctx.$('#courseHub [data-course-chapter-action="notes"]'));
   assert.match(ctx.$('#courseHub').textContent, /Class Note/);

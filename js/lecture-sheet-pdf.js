@@ -17,7 +17,7 @@ import { toBanglaNumber as bn } from './ui.js';
 import { escapeHtml } from './sanitize.js';
 import { BRAND_NAME, BRAND_TAGLINE, brandLogoLargeSrc, loadWatermark, drawWatermark } from './brand.js';
 import { normalizeLecturePageSettings, sanitizeLectureDocJson } from './course-content.js';
-import { isSafeLectureImageSrc } from './rich-sanitize.js';
+import { isSafeLectureImageSrc, sanitizeLectureHtml, sanitizeRichHtml } from './rich-sanitize.js';
 import { buildLecturePdfFilename } from './lecture-sheet-store.js';
 
 export const A4_DIMENSIONS = Object.freeze({
@@ -1469,5 +1469,64 @@ export async function openStudentLectureReaderModal(record) {
   });
 
   await paintPages();
+  return { overlay, close };
+}
+
+/* A published material opens INSIDE the app: the list in উপকরণ stays a list of
+   titles, and reading happens on a full-screen sheet. A lecture sheet
+   keeps the A4 reader (docJson → paginated pages); a note or lesson, which only
+   has HTML, gets the same shell with a readable sheet instead of a wall of text
+   inside the card. The caller may also just hand over the record; an attachment
+   link is the card's own business. */
+export async function openStudentMaterialReader(record = {}) {
+  if (!record || typeof document === 'undefined') return null;
+  const doc = record.docJson;
+  const sheetDoc = Boolean(doc && typeof doc === 'object' && doc.type === 'doc' && Array.isArray(doc.content)
+    && doc.content.some(node => node && (node.type !== 'paragraph'
+      || (Array.isArray(node.content) && node.content.length))));
+  if (sheetDoc) return openStudentLectureReaderModal(record);
+
+  const bodyHtml = record.richContent
+    ? (record.isLectureSheet === true ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
+    : escapeHtml(String(record.content || record.description || '')).replace(/\n/g, '<br>');
+  if (!String(bodyHtml).replace(/<[^>]*>/g, '').trim()) return null;
+
+  document.getElementById('apcStudentMaterialReader')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'apcStudentMaterialReader';
+  overlay.className = 'ls-studio-overlay apc-material-reader';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', record.title || 'উপকরণ পাঠ');
+  const meta = [record.className, record.subjectName || record.subject, record.chapterName, record.topic]
+    .filter(Boolean).join(' • ');
+  overlay.innerHTML = `
+    <div class="ls-studio-shell">
+      <header class="ls-topbar">
+        <div class="ls-topbar-start">
+          <button type="button" class="ls-btn" data-smr-close>← ফিরে যান</button>
+          <div class="ls-title-wrap">
+            <strong style="font-size:15px">${escapeHtml(record.title || 'উপকরণ')}</strong>
+            ${meta ? `<small style="color:var(--color-text-secondary);font-size:12px">${escapeHtml(meta)}</small>` : ''}
+          </div>
+        </div>
+      </header>
+      <main class="ls-workspace">
+        <article class="ls-material-sheet course-rich-reading">${bodyHtml}</article>
+      </main>
+    </div>`;
+
+  const close = () => {
+    overlay.remove();
+    document.documentElement.classList.remove('apc-lecture-studio-open');
+    document.removeEventListener('keydown', onKey);
+  };
+  const onKey = event => { if (event.key === 'Escape') close(); };
+  overlay.addEventListener('click', event => {
+    if (event.target.closest('[data-smr-close]')) close();
+  });
+  document.addEventListener('keydown', onKey);
+  document.documentElement.classList.add('apc-lecture-studio-open');
+  document.body.appendChild(overlay);
   return { overlay, close };
 }
