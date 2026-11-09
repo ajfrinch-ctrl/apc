@@ -30,3 +30,7 @@ preview/
 
 # Local build output for tools/lecture-sheet-pdf (regenerated on demand)
 /build/
+
+# Python bytecode from tools/lecture-sheet-pdf
+__pycache__/
+*.pyc
