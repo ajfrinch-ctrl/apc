@@ -184,8 +184,12 @@ function observedPairs() {
     if (!Array.isArray(rows)) continue;
     for (const row of rows) {
       const className = text(row?.className);
+      /* An assignment's `subject` field is a readable MIRROR of `subjects`
+         ("গণিত, রসায়ন"), not a second subject: adopting it seeded a single
+         subject whose name was the whole list (and every picker offered it).
+         The mirror only counts when a legacy row has no list at all. */
       const subjects = source.kind === 'assignment'
-        ? [row?.subject, ...(Array.isArray(row?.subjects) ? row.subjects : [])]
+        ? (Array.isArray(row?.subjects) && row.subjects.length ? row.subjects : [row?.subject])
         : [row?.subject];
       for (const subject of subjects) {
         if (className && text(subject)) pairs.push({ className, subject: text(subject) });

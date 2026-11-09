@@ -25,7 +25,7 @@ import { matchesStudentQuery } from './student-search.js';
 import { registerServiceWorker } from './service-worker.js';
 import { initFixedShell } from './fixed-shell.js';
 import { initExamManager } from './exam-manager.js';
-import { listTeacherAssignments, saveTeacherAssignment, deleteTeacherAssignment, deleteAssignmentSubject, selectableSubjects, TEACHER_ASSIGNMENTS_KEY } from './teacher-assignments.js';
+import { listTeacherAssignments, saveTeacherAssignment, deleteTeacherAssignment, deleteAssignmentSubject, selectableSubjects, assignEverything, TEACHER_ASSIGNMENTS_KEY } from './teacher-assignments.js';
 import { listStaff } from './staff-directory.js';
 import { normalizeClassId, normalizeSectionId } from './class-key.js';
 import { listClasses } from './academics.js';
@@ -1359,10 +1359,37 @@ $('#managerTeacherAssignmentForm').addEventListener('submit', async event => {
     form.reset(); await renderTeachers(); await loadOperationalData(); toast(wasEditing ? 'শিক্ষকের দায়িত্ব হালনাগাদ হয়েছে' : 'শিক্ষকের দায়িত্ব সংরক্ষণ হয়েছে।');
   } catch (error) { toast(error.message || 'Assignment সংরক্ষণ হয়নি।', true); }
 });
-$('#managerTeacherAssignmentForm').addEventListener('click', event => {
-  if (!event.target.closest('[data-manager-action="cancel-assignment-edit"]')) return;
-  editingAssignmentId = '';
-  renderTeachers();
+$('#managerTeacherAssignmentForm').addEventListener('click', async event => {
+  if (event.target.closest('[data-manager-action="cancel-assignment-edit"]')) {
+    editingAssignmentId = '';
+    renderTeachers();
+    return;
+  }
+  if (!event.target.closest('[data-manager-action="assign-everything"]')) return;
+  /* One click instead of one row per class: every class in Academic Setup, with
+     every subject the class runs, for the Teacher chosen above. Ordinary rows
+     are written, so each one stays editable or removable afterwards. */
+  const form = $('#managerTeacherAssignmentForm');
+  if (!form) return;
+  if (!(await managerGuard())) return toast('Manager session যাচাই হয়নি।', true);
+  const teacherUsername = String(form.elements.teacherUsername.value || '');
+  const chosen = form.elements.teacherUsername.selectedOptions?.[0]?.textContent || teacherUsername;
+  const classes = listClasses().map(item => item.name);
+  if (!teacherUsername) return toast('আগে কোন শিক্ষককে দেবেন তা বেছে নিন।', true);
+  if (!classes.length) return toast('Academic Setup-এ এখনো কোনো শ্রেণি নেই।', true);
+  if (!window.confirm(`${chosen.trim()}-কে ${bn(classes.length)}টি শ্রেণির সব বিষয় দেওয়া হবে। এগিয়ে যাবেন?`)) return;
+  try {
+    const result = await assignEverything({ teacherUsername, classes });
+    await renderTeachers();
+    await loadOperationalData();
+    const parts = [`${bn(result.assigned.length)}টি শ্রেণিতে সব বিষয় দেওয়া হয়েছে`];
+    if (result.skipped.length) parts.push(`${bn(result.skipped.length)}টি শ্রেণিতে বিষয় নেই`);
+    if (result.failed.length) parts.push(`${bn(result.failed.length)}টি ব্যর্থ`);
+    toast(parts.join(' • '), result.failed.length > 0);
+    if (result.failed.length) console.warn('[Active Plus] bulk assignment failures:', result.failed);
+  } catch (error) {
+    toast(error.message || 'সব বিষয় দেওয়া যায়নি।', true);
+  }
 });
 $('#managerTeacherList').addEventListener('click', async event => {
   const editButton = event.target.closest('[data-manager-action="edit-teacher-assignment"]');
