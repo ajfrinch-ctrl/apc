@@ -401,9 +401,9 @@ export async function ensureLectureChapter({
     const existingById = records.find(r => r.id === wantedId && typeOf(r) === 'chapter' && r.active !== false);
     if (existingById) {
       if (publishChapter && existingById.published !== true) {
-        try {
-          await setContentPublished(existingById.id, true, { role, actor });
-        } catch { /* teacher may link an existing chapter created by manager */ }
+        // Never swallow: an unpublished parent chapter makes the whole sheet
+        // invisible to students even though it says published.
+        await setContentPublished(existingById.id, true, { role, actor });
       }
       return { chapterId: existingById.id, chapterName: existingById.title };
     }
@@ -421,9 +421,9 @@ export async function ensureLectureChapter({
   );
   if (matchByTitle) {
     if (publishChapter && matchByTitle.published !== true) {
-      try {
-        await setContentPublished(matchByTitle.id, true, { role, actor });
-      } catch { /* keep existing chapter */ }
+      // Never swallow: an unpublished parent chapter makes the whole sheet
+      // invisible to students even though it says published.
+      await setContentPublished(matchByTitle.id, true, { role, actor });
     }
     return { chapterId: matchByTitle.id, chapterName: matchByTitle.title };
   }
@@ -634,7 +634,8 @@ export async function setLectureSheetLifecycle(id, action, { role = '', actor = 
     if (current.chapterId) {
       const chap = contentById(current.chapterId);
       if (chap && chap.published !== true) {
-        try { await setContentPublished(chap.id, true, { role, actor }); } catch { /* ignore */ }
+        // Never swallow: without the parent chapter, students see nothing.
+        await setContentPublished(chap.id, true, { role, actor });
       }
     }
     saved = await setContentPublished(id, true, { role, actor });
