@@ -7,7 +7,7 @@ Usage:
     .venv/bin/python tools/lecture-sheet-pdf/build.py
 
 Output:
-    docs/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf
+    files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import content_b as B  # noqa: E402
 import content_c as C  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
-OUT_DIR = os.path.join(REPO, 'docs', 'lecture-sheets')
+OUT_DIR = os.path.join(REPO, 'files', 'lecture-sheets')
 OUT_PDF = os.path.join(OUT_DIR, 'Narration_Master_Lecture_Sheet_ActivePlus.pdf')
 
 # Glyph substitutions for characters the bundled Bengali face does not carry.

@@ -12,7 +12,9 @@ from the Active Plus studio (`js/lecture-sheet-pdf.js`):
 | Colour system | brand green `#0e7a55`, tinted info/warning boxes, `#eef6f2` table heads |
 | Typography | bundled `NotoSansBengali-Variable.woff2`/`.ttf` (OFL) shaped through HarfBuzz |
 
-Output: `docs/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf`
+Output: `files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf`
+(public URL: `/files/lecture-sheets/Narration_Master_Lecture_Sheet_ActivePlus.pdf` —
+see `files/README.md` for the repository-wide file convention)
 (18 pages, A4, vector text, ~180 KB).
 
 ## Run
