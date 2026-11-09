@@ -29,67 +29,10 @@ export const COURSE_CONTENT_KEY = KEYS.courseContent;
 export const COURSE_VERSION = 1;
 export const MAX_CONTENT = 4000;
 
-/* ---- Cloud leaf budget ---------------------------------------------------
-   The sync transport (js/realtime-sync.js → js/sync-collections.js) mirrors
-   every record as ONE row/leaf (`{ _syncKind: 'record', record }`) into
-   Supabase `apc_sync_nodes`, which enforces `octet_length(val::text) <= 512 KiB`.
-   One oversized lecture-sheet leaf aborts the WHOLE `courseContent` sync for
-   every device — students then never receive even the smallest published
-   note, and the admin only gets a red topbar border with no message. Keep a
-   plain-JSON byte budget (UTF-8, not JS string length) with room for the
-   AES-GCM envelope + base64url expansion, and drop the oldest history
-   snapshots before refusing the write. */
-export const SYNC_LEAF_SAFE_BYTES = 360 * 1024;
-const syncLeafEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
-
-/** UTF-8 byte size of the exact leaf the cloud expects to store. */
-export function syncLeafBytes(record) {
-  try {
-    const json = JSON.stringify({ _syncKind: 'record', record });
-    if (syncLeafEncoder) return syncLeafEncoder.encode(json).length;
-    return json.length;
-  } catch { return 0; }
-}
-
-function trimHistoryToFit(record) {
-  const fits = value => syncLeafBytes(value) <= SYNC_LEAF_SAFE_BYTES;
-  if (fits(record)) return { record, fits: true };
-  if (!Array.isArray(record.history) || !record.history.length) {
-    return { record, fits: false };
-  }
-  // History is stored newest-first — drop the oldest snapshots until the
-  // record fits the cloud leaf again.
-  const history = [...record.history];
-  let next = record;
-  while (history.length) {
-    history.pop();
-    next = { ...next, history: [...history] };
-    if (fits(next)) return { record: next, fits: true };
-  }
-  next = { ...next, history: [] };
-  return { record: next, fits: fits(next) };
-}
-
-/** Best-effort: drop oldest history snapshots until the record fits the
- *  cloud leaf budget. Never throws. */
-export function trimSyncLeafHistory(record) {
-  if (!record || typeof record !== 'object') return record;
-  return trimHistoryToFit(record).record;
-}
-
-/** Hard guarantee for publish/save: the record must fit the cloud leaf
- *  budget, or the student side will never receive it (the whole collection
- *  fails its atomic merge). Trims history first; throws with an actionable
- *  Bangla message when still too big. */
-export function ensureSyncLeafBudget(record) {
-  if (!record || typeof record !== 'object') return record;
-  const { record: trimmed, fits } = trimHistoryToFit(record);
-  if (fits && syncLeafBytes(trimmed) <= SYNC_LEAF_SAFE_BYTES) return trimmed;
-  throw Object.assign(
-    new Error('কনটেন্ট/লেকচার শিটের আকার ক্লাউড সিঙ্কের নিরাপদ সীমা অতিক্রম করেছে — ছবির আকার/সংখ্যা বা টেক্সটের পরিমাণ কমিয়ে আবার চেষ্টা করুন।'),
-    { code: 'LEAF_TOO_BIG' }
-  );
-}
+/* Leaf-budget helpers live in js/sync-leaf-budget.js (shared with the sync
+   payload builder); they are re-exported here so existing imports keep working. */
+export { SYNC_LEAF_SAFE_BYTES, syncLeafBytes, trimSyncLeafHistory, ensureSyncLeafBudget } from './sync-leaf-budget.js';
+import { trimSyncLeafHistory, ensureSyncLeafBudget } from './sync-leaf-budget.js';
 
 /** Every kind of content the library can hold. `section` groups the tabs a
     student sees, `exam`/`result` reuse the existing Examination and Result

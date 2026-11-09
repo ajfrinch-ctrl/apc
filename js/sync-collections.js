@@ -1,5 +1,6 @@
 /* Preserve each local collection's schema while mirroring stable record IDs.
    Exams use their dedicated bridge; these adapters cover generic outbox data. */
+import { trimSyncLeafHistory } from './sync-leaf-budget.js';
 const DAYS = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu'];
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const safeRows = value => Array.isArray(value) ? value.filter(item => item && typeof item.id === 'string' && item.id) : [];
@@ -46,9 +47,14 @@ export function collectionPayload(collection, value) {
       updatedAt: value.updatedAt || maxRecordTime(records),
       createdBy: value.createdBy || 'SYNC'
     });
+    /* A legacy record whose history alone blows the cloud leaf budget used to
+       abort the WHOLE courseContent CAS — no student ever received anything.
+       Shed history on the cloud-bound copy only (in place copies are never
+       mutated); a record still over budget with no history cannot be shipped,
+       and the publish path refuses to create one from now on. */
     return Object.fromEntries([
       ['__metadata', meta],
-      ...records.map(record => [record.id, { _syncKind: 'record', record }])
+      ...records.map(record => [record.id, { _syncKind: 'record', record: trimSyncLeafHistory(record) }])
     ]);
   }
   if (collection === 'questionBank') {

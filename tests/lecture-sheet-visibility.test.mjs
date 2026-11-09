@@ -194,3 +194,24 @@ test('a batch-scoped sheet stays on its own batch for another student in the UI'
   const shelf = ctx.window.document.querySelector('#studyMaterialsList')?.innerHTML || '';
   assert.doesNotMatch(shelf, new RegExp(PUBLISHED_TITLE), 'মানবিক বিভাগ student does not see the বিজ্ঞান বিভাগ sheet');
 });
+
+test('the sync payload itself sheds an oversized legacy record instead of aborting the whole courseContent sync', async () => {
+  const { collectionPayload } = await import('../js/sync-collections.js');
+  const now = new Date().toISOString();
+  const snap = version => ({
+    version, savedAt: now, savedBy: 'admin', title: 'স্ন্যাপশট', subtitle: '', topic: '', status: 'published',
+    pageSettings: {}, docJson: docOf('x'.repeat(150000)), richContent: '', content: ''
+  });
+  const giant = {
+    id: 'CONTENT-9010', classId: 'cls', subjectId: 'sub', type: 'lesson',
+    title: 'পুরনো বিশাল শিট', isLectureSheet: true, published: true, active: true,
+    docJson: docOf('বাংলা'), richContent: '', content: '', updatedAt: now,
+    history: [snap(5), snap(4), snap(3), snap(2)]
+  };
+  const local = { version: 1, updatedAt: now, createdBy: 'admin.apc', records: [giant] };
+  const payload = collectionPayload('courseContent', local);
+  const shipped = payload['CONTENT-9010'].record;
+  assert.ok(syncLeafBytes(shipped) <= SYNC_LEAF_SAFE_BYTES, 'the cloud-bound leaf after shedding fits the budget');
+  assert.ok(shipped.history.length < giant.history.length, 'oldest snapshots were dropped for the cloud copy');
+  assert.equal(giant.history.length, 4, 'the local record is never mutated by the payload builder');
+});

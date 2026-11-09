@@ -504,6 +504,7 @@ const APP_SHELL = [
   './js/exam-core.js',
   './js/question-bank.js',
   './js/course-content.js',
+  './js/sync-leaf-budget.js',
   './js/course-data.js',
   './js/course-hub.js',
   './js/student-study-sections.js',
