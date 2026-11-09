@@ -302,8 +302,8 @@ export function initCourseEditor({ mount, role = 'teacher', actor = '', toast = 
       const isPublished = data.get('published') === 'on';
       const contentType = String(data.get('type') || 'lesson');
       toast(isPublished && ['note', 'lesson'].includes(contentType)
-        ? 'লেকচার শিট প্রকাশিত — উপকরণে শিক্ষার্থীরা পড়তে পারবে'
-        : isPublished ? 'কনটেন্ট প্রকাশিত হয়েছে।' : 'কনটেন্ট খসড়া হিসেবে সংরক্ষিত হয়েছে।');
+        ? 'লেকচার শিট প্রকাশিত — সিঙ্ক হলেই উপকরণে শিক্ষার্থীরা পড়তে পারবে'
+        : isPublished ? 'কনটেন্ট প্রকাশিত হয়েছে — সিঙ্ক হলেই শিক্ষার্থীরা দেখতে পাবে।' : 'কনটেন্ট খসড়া হিসেবে সংরক্ষিত হয়েছে।');
       paint();
       announce();
     } catch (error) {

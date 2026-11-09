@@ -57,6 +57,8 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&a
 const norm = value => text(value).normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
 const num = value => bn(value);
 const chapterLabel = record => text(record.chapterName) || '';
+// Course-library records carry `subjectName`; teaching activities carry `subject`.
+const subjectNameOf = record => text(record.subjectName || record.subject);
 
 // Summaries use percentages so papers with different total marks are comparable.
 export function summarizeStudyResults(rows) {
@@ -159,7 +161,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       : '';
     return `<article class="course-item${isSheet ? ' ls-student-sheet-card' : ''}" data-study-item="${esc(record.id)}">
       <header class="course-item-head"><span class="course-item-type">${esc(isSheet ? 'A4 লেকচার শিট' : record.type === 'pdf' ? 'PDF' : record.type === 'important_question' ? 'গুরুত্বপূর্ণ প্রশ্ন' : record.type === 'model_test' ? 'মডেল টেস্ট' : record.type === 'previous_question' ? 'পূর্বের প্রশ্ন' : record.type === 'mcq' ? 'MCQ' : 'নোট')}</span>
-        <div><h3>${esc(record.title)}</h3><small>${esc([text(record.subject) || '', chapterOf(record), text(record.topic)].filter(Boolean).join(' • '))}</small></div></header>
+        <div><h3>${esc(record.title)}</h3><small>${esc([subjectNameOf(record), chapterOf(record), text(record.topic)].filter(Boolean).join(' • '))}</small></div></header>
       ${body ? `<div class="course-item-body course-rich-reading${isSheet ? ' ls-student-sheet-body' : ''}">${body}</div>` : ''}
       ${sheetActions}
       ${link ? `<a class="course-item-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer">ফাইল খুলুন <svg class="resource-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
@@ -243,7 +245,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     const chapterName = suggestionChapter;
     const rows = suggestionRecords.filter(record => {
       if (suggestionTypes.size && ![...suggestionTypes].some(key => SUGGESTION_TYPES[key]?.(record))) return false;
-      if (suggestionSubject && text(record.subject) !== suggestionSubject) return false;
+      if (suggestionSubject && subjectNameOf(record) !== suggestionSubject) return false;
       if (chapterName && !(norm(chapterOf(record)) === norm(chapterName) || record.chapterId === chapterName)) return false;
       return true;
     });
@@ -260,7 +262,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     const chapterName = materialChapter;
     const rows = materialRecords.filter(record => {
       if (!(MATERIAL_TYPES[materialType] || MATERIAL_TYPES.all)(record)) return false;
-      if (materialSubject && text(record.subject) !== materialSubject) return false;
+      if (materialSubject && subjectNameOf(record) !== materialSubject) return false;
       if (chapterName && !(norm(chapterOf(record)) === norm(chapterName) || record.chapterId === chapterName)) return false;
       return true;
     });

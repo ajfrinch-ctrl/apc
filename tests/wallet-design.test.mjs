@@ -259,11 +259,11 @@ test('wallet assets and entry versions ship together in the offline shell', () =
     const links = [...read(name + '.html').matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match => match[1]);
     assert.ok(links.some(href => href.startsWith('css/ui-wallet.css?')), `${name} must link the wallet skin`);
     if (name === 'student') {
-      assert.ok(links.includes('css/hero-cards.css?v=480'), 'Student hero CSS uses the approved v478 asset pin');
-      assert.ok(appShell.includes("'./css/hero-cards.css' + '?v=480'"), 'the offline shell uses the same Student hero CSS pin');
+      assert.ok(links.includes('css/hero-cards.css?v=481'), 'Student hero CSS uses the approved v478 asset pin');
+      assert.ok(appShell.includes("'./css/hero-cards.css' + '?v=481'"), 'the offline shell uses the same Student hero CSS pin');
     }
     for (const href of links) {
-      if (name === 'student' && href === 'css/hero-cards.css?v=480') continue;
+      if (name === 'student' && href === 'css/hero-cards.css?v=481') continue;
       assert.match(href, new RegExp(`\\?v=${version}$`), `${name}: ${href} is not pinned to CACHE_VERSION`);
     }
   }
