@@ -29,6 +29,33 @@ export const COURSE_CONTENT_KEY = KEYS.courseContent;
 export const COURSE_VERSION = 1;
 export const MAX_CONTENT = 4000;
 
+/* How large one record may be before the cloud can no longer store it.
+
+   Supabase keeps each record in one row whose JSON is capped at 524,288 bytes
+   (the CHECK constraint on apc_sync_nodes.val). The row holds AES-GCM
+   ciphertext: base64url expands 3 plaintext bytes to 4 characters, so a
+   plaintext record of ~393 KB is the true ceiling. We stop at 380 KB — a ~3%
+   margin for the envelope and for the page-settings/history fields that ride
+   along — and say so in Bangla, because the alternative is a save that looks
+   successful and a lecture that never reaches the student. */
+export const MAX_COURSE_PLAINTEXT_BYTES = 380000;
+export const COURSE_TOO_LARGE = 'COURSE_TOO_LARGE';
+
+function plainByteLength(value) {
+  try {
+    const json = JSON.stringify(value);
+    if (typeof json !== 'string') return 0;
+    if (typeof TextEncoder === 'function') return new TextEncoder().encode(json).length;
+    return json.length;
+  } catch {
+    return 0;
+  }
+}
+
+function kilo(bytes) {
+  return Math.max(1, Math.round(bytes / 1024));
+}
+
 /** Every kind of content the library can hold. `section` groups the tabs a
     student sees, `exam`/`result` reuse the existing Examination and Result
     modules instead of a second exam system. */
@@ -527,6 +554,17 @@ export async function saveCourseRecord(patch = {}, { actor = '', role = '', expe
       }
       if (parent.group && !record.group) record.group = parent.group;
       if (parent.group && groupKey(parent.group) !== groupKey(record.group)) throw new Error('কনটেন্টের batch/group তার chapter-এর সঙ্গে মিলতে হবে।');
+    }
+    const recordBytes = plainByteLength(record);
+    if (recordBytes > MAX_COURSE_PLAINTEXT_BYTES) {
+      throw Object.assign(
+        new Error(
+          `এই কনটেন্টটি সিঙ্কের সীমার বেশি বড় (${kilo(recordBytes)} KB, সর্বোচ্চ ${kilo(MAX_COURSE_PLAINTEXT_BYTES)} KB)। `
+          + 'লেখাটি ছোট করে ভাগ করুন, অথবা বড় অংশটি PDF করে files/ ফোল্ডার থেকে সংযুক্ত করুন — '
+          + 'ফাইল রিপোজিটরিতে থাকলে ডাটাবেজে জায়গা নেয় না।'
+        ),
+        { code: COURSE_TOO_LARGE, bytes: recordBytes, limit: MAX_COURSE_PLAINTEXT_BYTES }
+      );
     }
     const records = existing
       ? store.records.map(item => (text(item.id) === existingId ? record : item))

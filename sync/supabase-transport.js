@@ -686,6 +686,40 @@ export async function get(node) {
   return makeSnapshot(norm, res.value, res.exists);
 }
 
+// One sync row may hold at most 524,288 bytes of JSON: the CHECK constraint on
+// public.apc_sync_nodes.val (supabase/migrations/20261024000001_active_plus_realtime_sync.sql).
+// Postgres rejects anything larger, and before this guard the rejection reached
+// the teacher as an unnamed network failure while the local record looked saved.
+// Measure the encrypted payload itself — that is the value the constraint sees —
+// and refuse locally with an error the callers can explain.
+export const MAX_NODE_PAYLOAD_BYTES = 524288;
+export const PAYLOAD_TOO_LARGE = 'payload-too-large';
+
+function payloadByteLength(payload) {
+  try {
+    const json = JSON.stringify(payload);
+    if (typeof json !== 'string') return 0;
+    if (typeof TextEncoder === 'function') return new TextEncoder().encode(json).length;
+    return json.length;
+  } catch {
+    return 0;
+  }
+}
+
+export function assertPayloadWithinLimit(normPath, payload) {
+  if (payload === null || payload === undefined) return payload;
+  const bytes = payloadByteLength(payload);
+  if (bytes <= MAX_NODE_PAYLOAD_BYTES) return payload;
+  const err = new Error(
+    `Supabase sync node ${normPath} is ${bytes} bytes; the database accepts at most ${MAX_NODE_PAYLOAD_BYTES}.`
+  );
+  err.code = PAYLOAD_TOO_LARGE;
+  err.path = normPath;
+  err.bytes = bytes;
+  err.limit = MAX_NODE_PAYLOAD_BYTES;
+  throw err;
+}
+
 export async function set(node, value) {
   const norm = cleanPath(node?.path ?? node);
   if (!isBrowserOnline()) {
@@ -699,6 +733,7 @@ export async function set(node, value) {
   const payload = (value === undefined || value === null)
     ? null
     : await encryptCloudSubtree(norm, value, { serverOffsetMs });
+  assertPayloadWithinLimit(norm, payload);
   const { data, error } = await supabase.rpc('apc_set_subtree', {
     p_path: norm,
     p_value: payload
@@ -751,6 +786,8 @@ export async function runTransaction(node, updateFn) {
           prevPlainByPath: state.plainByPath,
           prevCipherByPath: state.cipherByPath
         });
+
+    assertPayloadWithinLimit(norm, encryptedNext);
 
     const { data, error } = await supabase.rpc('apc_cas_subtree', {
       p_path: norm,
