@@ -17,7 +17,7 @@ import { toBanglaNumber as bn } from './ui.js';
 import { escapeHtml } from './sanitize.js';
 import { BRAND_NAME, BRAND_TAGLINE, brandLogoLargeSrc, loadWatermark, drawWatermark } from './brand.js';
 import { normalizeLecturePageSettings, sanitizeLectureDocJson } from './course-content.js';
-import { isSafeLectureImageSrc } from './rich-sanitize.js';
+import { isSafeLectureImageSrc, sanitizeLectureHtml, sanitizeRichHtml } from './rich-sanitize.js';
 import { buildLecturePdfFilename } from './lecture-sheet-store.js';
 
 export const A4_DIMENSIONS = Object.freeze({
@@ -1376,6 +1376,7 @@ export async function openStudentLectureReaderModal(record) {
           <button type="button" class="ls-ctx-btn" data-slr-nav="prev">◀ আগের</button>
           <span class="ls-page-counter" data-slr-counter>পৃষ্ঠা ১ / ১</span>
           <button type="button" class="ls-ctx-btn" data-slr-nav="next">পরের ▶</button>
+          <span class="ls-swipe-hint" aria-hidden="true">⇠ সোয়াইপ করে পাতা বদলান ⇢</span>
         </div>
         <div class="ls-pagebar-right">
           <div class="ls-zoom-controls">
@@ -1428,9 +1429,49 @@ export async function openStudentLectureReaderModal(record) {
     }
   };
 
+  /* One way to turn a page, whichever input asked for it: the ◀ ▶ buttons, a
+     horizontal swipe on the sheet, or the arrow keys on a keyboard. */
+  const goPage = (target, { smooth = true } = {}) => {
+    curPage = Math.min(totalPages, Math.max(1, Math.trunc(target) || 1));
+    overlay.querySelector(`.ls-preview-page[data-ls-page="${curPage}"]`)
+      ?.scrollIntoView?.({ behavior: smooth ? 'smooth' : 'auto', block: 'start', inline: 'start' });
+    const counter = overlay.querySelector('[data-slr-counter]');
+    if (counter) counter.textContent = `পৃষ্ঠা ${bn(curPage)} / ${bn(totalPages)}`;
+  };
+
+  /* Swipe: a clear horizontal flick on the paper turns the page; a vertical
+     drag still scrolls a long page, which is why the slope is compared. */
+  let touchStart = null;
+  const pagesWrap = overlay.querySelector('[data-slr-pages]');
+  const onTouchStart = event => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touchStart = { x: touch.clientX, y: touch.clientY };
+  };
+  const onTouchEnd = event => {
+    const touch = event.changedTouches?.[0];
+    const start = touchStart;
+    touchStart = null;
+    if (!touch || !start) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+    goPage(curPage + (dx < 0 ? 1 : -1));
+  };
+  pagesWrap?.addEventListener('touchstart', onTouchStart, { passive: true });
+  pagesWrap?.addEventListener('touchend', onTouchEnd, { passive: true });
+
+  const onKey = event => {
+    if (event.key === 'ArrowRight' || event.key === 'PageDown') { goPage(curPage + 1); event.preventDefault(); }
+    else if (event.key === 'ArrowLeft' || event.key === 'PageUp') { goPage(curPage - 1); event.preventDefault(); }
+    else if (event.key === 'Escape') close();
+  };
+  document.addEventListener('keydown', onKey);
+
   const close = () => {
     overlay.remove();
     document.documentElement.classList.remove('apc-lecture-studio-open');
+    document.removeEventListener('keydown', onKey);
   };
 
   overlay.addEventListener('click', async ev => {
@@ -1448,10 +1489,7 @@ export async function openStudentLectureReaderModal(record) {
     }
     const nav = ev.target.closest('[data-slr-nav]');
     if (nav) {
-      curPage = Math.min(totalPages, Math.max(1, curPage + (nav.dataset.slrNav === 'next' ? 1 : -1)));
-      overlay.querySelector(`.ls-preview-page[data-ls-page="${curPage}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-      const counter = overlay.querySelector('[data-slr-counter]');
-      if (counter) counter.textContent = `পৃষ্ঠা ${bn(curPage)} / ${bn(totalPages)}`;
+      goPage(curPage + (nav.dataset.slrNav === 'next' ? 1 : -1));
       return;
     }
     const dl = ev.target.closest('[data-slr-download]');
@@ -1469,5 +1507,64 @@ export async function openStudentLectureReaderModal(record) {
   });
 
   await paintPages();
+  return { overlay, close };
+}
+
+/* A published material opens INSIDE the app: the list in উপকরণ stays a list of
+   titles, and reading happens on a full-screen sheet. A lecture sheet
+   keeps the A4 reader (docJson → paginated pages); a note or lesson, which only
+   has HTML, gets the same shell with a readable sheet instead of a wall of text
+   inside the card. The caller may also just hand over the record; an attachment
+   link is the card's own business. */
+export async function openStudentMaterialReader(record = {}) {
+  if (!record || typeof document === 'undefined') return null;
+  const doc = record.docJson;
+  const sheetDoc = Boolean(doc && typeof doc === 'object' && doc.type === 'doc' && Array.isArray(doc.content)
+    && doc.content.some(node => node && (node.type !== 'paragraph'
+      || (Array.isArray(node.content) && node.content.length))));
+  if (sheetDoc) return openStudentLectureReaderModal(record);
+
+  const bodyHtml = record.richContent
+    ? (record.isLectureSheet === true ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
+    : escapeHtml(String(record.content || record.description || '')).replace(/\n/g, '<br>');
+  if (!String(bodyHtml).replace(/<[^>]*>/g, '').trim()) return null;
+
+  document.getElementById('apcStudentMaterialReader')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'apcStudentMaterialReader';
+  overlay.className = 'ls-studio-overlay apc-material-reader';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', record.title || 'উপকরণ পাঠ');
+  const meta = [record.className, record.subjectName || record.subject, record.chapterName, record.topic]
+    .filter(Boolean).join(' • ');
+  overlay.innerHTML = `
+    <div class="ls-studio-shell">
+      <header class="ls-topbar">
+        <div class="ls-topbar-start">
+          <button type="button" class="ls-btn" data-smr-close>← ফিরে যান</button>
+          <div class="ls-title-wrap">
+            <strong style="font-size:15px">${escapeHtml(record.title || 'উপকরণ')}</strong>
+            ${meta ? `<small style="color:var(--color-text-secondary);font-size:12px">${escapeHtml(meta)}</small>` : ''}
+          </div>
+        </div>
+      </header>
+      <main class="ls-workspace">
+        <article class="ls-material-sheet course-rich-reading">${bodyHtml}</article>
+      </main>
+    </div>`;
+
+  const close = () => {
+    overlay.remove();
+    document.documentElement.classList.remove('apc-lecture-studio-open');
+    document.removeEventListener('keydown', onKey);
+  };
+  const onKey = event => { if (event.key === 'Escape') close(); };
+  overlay.addEventListener('click', event => {
+    if (event.target.closest('[data-smr-close]')) close();
+  });
+  document.addEventListener('keydown', onKey);
+  document.documentElement.classList.add('apc-lecture-studio-open');
+  document.body.appendChild(overlay);
   return { overlay, close };
 }

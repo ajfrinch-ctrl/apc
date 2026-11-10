@@ -13,8 +13,7 @@
 import { toBanglaNumber as bn } from './ui.js';
 import { setView } from './shell.js';
 import { classByName, subjectsForClass, listChapters } from './academics.js';
-import { listCourseContent, typeOf as courseTypeOf } from './course-content.js';
-import { sanitizeRichHtml, sanitizeLectureHtml } from './rich-sanitize.js';
+import { attachmentHref, listCourseContent, typeOf as courseTypeOf } from './course-content.js';
 import { teachingRepository, publishedForStudent, watchTeachingData } from './teaching-data.js';
 import { courseRepository, courseProgress, watchCourses, COURSES_KEY } from './course-data.js';
 import { listQuestionsForStudent, questionRowsFromPastExams, QUESTION_TYPES } from './question-bank.js';
@@ -24,8 +23,8 @@ import { downloadExamPDF } from './exam-pdf.js';
 const SELECTORS = {
   bar: '#studySections',
   bank: { subject: '#studyBankSubject', chapter: '#studyBankChapter', list: '#studyBankList', count: '#studyBankCount', error: '#studyBankError' },
-  suggestion: { subject: '#studySuggestionSubject', chapter: '#studySuggestionChapter', list: '#studySuggestionList', count: '#studySuggestionCount', error: '#studySuggestionError' },
-  materials: { subject: '#studyMaterialSubject', chapter: '#studyMaterialChapter', list: '#studyMaterialsList', count: '#studyMaterialsCount', error: '#studyMaterialsError' }
+  suggestion: { subject: '#studySuggestionSubject', chapter: '#studySuggestionChapter', list: '#studySuggestionList', count: '#studySuggestionCount', error: '#studySuggestionError', search: '#studySuggestionSearch' },
+  materials: { subject: '#studyMaterialSubject', chapter: '#studyMaterialChapter', list: '#studyMaterialsList', count: '#studyMaterialsCount', error: '#studyMaterialsError', search: '#studyMaterialSearch' }
 };
 const SECTIONS = Object.freeze(['courses', 'homework', 'suggestion', 'bank', 'materials', 'model-test', 'practice', 'results', 'other']);
 const SECTION_VIEWS = Object.freeze({
@@ -39,13 +38,13 @@ const SUGGESTION_TYPES = Object.freeze({
   important: record => courseTypeOf(record) === 'important_question',
   written: record => courseTypeOf(record) === 'suggestion',
   mcq: record => courseTypeOf(record) === 'mcq',
-  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || /^https?:\/\//i.test(record.attachmentUrl || '')
+  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || Boolean(attachmentHref(record.attachmentUrl))
 });
 const SUGGESTION_SECTIONS = Object.freeze(['suggestion', 'important']);
 const MATERIAL_TYPES = Object.freeze({
   all: () => true,
   note: record => courseTypeOf(record) === 'note',
-  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || (courseTypeOf(record) === 'lesson' && /^https?:\/\//i.test(record.attachmentUrl || '')),
+  pdf: record => courseTypeOf(record) === 'pdf' || record.isLectureSheet === true || (courseTypeOf(record) === 'lesson' && Boolean(attachmentHref(record.attachmentUrl))),
   previous_question: record => courseTypeOf(record) === 'previous_question',
   model_test: record => courseTypeOf(record) === 'model_test'
 });
@@ -82,9 +81,9 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   let bankSubject = '', bankChapter = '', bankRows = [], bankPapers = [], bankReady = false, bankError = '';
   let bankPdfBusy = false;
   let suggestionTypes = new Set();
-  let suggestionSubject = '', suggestionChapter = '', suggestionRecords = [], suggestionReady = false, suggestionError = '';
+  let suggestionSubject = '', suggestionChapter = '', suggestionQuery = '', suggestionRecords = [], suggestionReady = false, suggestionError = '';
   let materialType = 'all';
-  let materialSubject = '', materialChapter = '', materialRecords = [], materialReady = false, materialError = '';
+  let materialSubject = '', materialChapter = '', materialQuery = '', materialRecords = [], materialReady = false, materialError = '';
   let chapterTitles = new Map();
   let request = 0;
 
@@ -145,24 +144,31 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     return text(record.chapterName) || chapterTitles.get(record.chapterId) || '';
   }
 
+  /* A list is a list: one slim line per material — kind, title, subject •
+     chapter, and its actions. The material itself opens in the app (see
+     openStudentMaterialReader), never as a wall of text inside the row. */
   function contentCard(record) {
     const isSheet = record.isLectureSheet === true;
-    const link = /^https?:\/\//i.test(record.attachmentUrl || '') ? record.attachmentUrl : '';
-    const body = record.richContent
-      ? (isSheet ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
-      : esc(text(record.content || record.description || '').slice(0, 600)).replace(/\n/g, '<br>');
-    const sheetActions = isSheet
-      ? `<div class="ls-student-sheet-actions">
-          <button type="button" class="ls-card-btn" data-student-lecture-reader="${esc(record.id)}">📖 A4 প্রিভিউ ও প্রিন্ট</button>
-          <button type="button" class="ls-card-btn ls-card-btn-primary" data-student-lecture-pdf="${esc(record.id)}">⬇ A4 PDF ডাউনলোড</button>
-        </div>`
-      : '';
-    return `<article class="course-item${isSheet ? ' ls-student-sheet-card' : ''}" data-study-item="${esc(record.id)}">
-      <header class="course-item-head"><span class="course-item-type">${esc(isSheet ? 'A4 লেকচার শিট' : record.type === 'pdf' ? 'PDF' : record.type === 'important_question' ? 'গুরুত্বপূর্ণ প্রশ্ন' : record.type === 'model_test' ? 'মডেল টেস্ট' : record.type === 'previous_question' ? 'পূর্বের প্রশ্ন' : record.type === 'mcq' ? 'MCQ' : 'নোট')}</span>
-        <div><h3>${esc(record.title)}</h3><small>${esc([text(record.subject) || '', chapterOf(record), text(record.topic)].filter(Boolean).join(' • '))}</small></div></header>
-      ${body ? `<div class="course-item-body course-rich-reading${isSheet ? ' ls-student-sheet-body' : ''}">${body}</div>` : ''}
-      ${sheetActions}
-      ${link ? `<a class="course-item-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer">ফাইল খুলুন <svg class="resource-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
+    const link = attachmentHref(record.attachmentUrl);
+    const canRead = isSheet || Boolean(record.richContent || record.content);
+    const kind = isSheet ? 'শিট'
+      : record.type === 'pdf' ? 'PDF'
+        : record.type === 'important_question' ? 'প্রশ্ন'
+          : record.type === 'model_test' ? 'টেস্ট'
+            : record.type === 'previous_question' ? 'বোর্ড'
+              : record.type === 'mcq' ? 'MCQ' : 'নোট';
+    const meta = [text(record.subject) || '', chapterOf(record)].filter(Boolean).join(' • ');
+    return `<article class="course-item ls-material-row${isSheet ? ' ls-student-sheet-card' : ''}" data-study-item="${esc(record.id)}" data-study-open="${esc(record.id)}">
+      <span class="ls-row-kind">${esc(kind)}</span>
+      <span class="ls-row-main">
+        <strong class="ls-row-title">${esc(record.title)}</strong>
+        ${meta ? `<small class="ls-row-meta">${esc(meta)}</small>` : ''}
+      </span>
+      <span class="ls-row-actions">
+        ${canRead ? `<button type="button" class="ls-row-btn ls-row-btn-primary" data-study-open-btn="${esc(record.id)}">পড়ুন</button>` : ''}
+        ${isSheet ? `<button type="button" class="ls-row-btn" data-student-lecture-pdf="${esc(record.id)}" aria-label="A4 PDF ডাউনলোড">PDF</button>` : ''}
+        ${link ? `<a class="ls-row-btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer" aria-label="ফাইল খুলুন">ফাইল</a>` : ''}
+      </span>
     </article>`;
   }
 
@@ -237,6 +243,16 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     if (count) count.textContent = `${num(rows.length)}টি প্রশ্ন • ${num(papers.length)}টি PDF • ${text(student().className) || 'শ্রেণি'}`;
   }
 
+  /* One search box per section, over what a student can actually see on the
+     row: title, subject, chapter, topic and the short description. */
+  function matchesQuery(record, query) {
+    const needle = norm(query);
+    if (!needle) return true;
+    const haystack = [record.title, record.subject, chapterOf(record), record.topic, record.subtitle, record.description]
+      .filter(Boolean).join(' ');
+    return norm(haystack).includes(needle);
+  }
+
   function renderSuggestion() {
     const list = $(SELECTORS.suggestion.list);
     if (!list) return;
@@ -245,11 +261,15 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       if (suggestionTypes.size && ![...suggestionTypes].some(key => SUGGESTION_TYPES[key]?.(record))) return false;
       if (suggestionSubject && text(record.subject) !== suggestionSubject) return false;
       if (chapterName && !(norm(chapterOf(record)) === norm(chapterName) || record.chapterId === chapterName)) return false;
+      if (!matchesQuery(record, suggestionQuery)) return false;
       return true;
     });
+    const suggestionEmpty = suggestionQuery
+      ? `“${esc(suggestionQuery)}” দিয়ে কোনো সাজেশন পাওয়া যায়নি।`
+      : 'এই ফিল্টারে কোনো সাজেশন পাওয়া যায়নি। শিক্ষক যোগ করলে এখানে দেখা যাবে।';
     list.innerHTML = !suggestionReady
       ? '<p class="teacher-empty">সাজেশন লোড হচ্ছে…</p>'
-      : rows.length ? rows.map(contentCard).join('') : `<p class="teacher-empty">${suggestionError || 'এই ফিল্টারে কোনো সাজেশন পাওয়া যায়নি। শিক্ষক যোগ করলে এখানে দেখা যাবে।'}</p>`;
+      : rows.length ? rows.map(contentCard).join('') : `<p class="teacher-empty">${suggestionError || suggestionEmpty}</p>`;
     const count = $(SELECTORS.suggestion.count);
     if (count) count.textContent = `${num(rows.length)}টি সাজেশন • ${text(student().className) || 'শ্রেণি'}`;
   }
@@ -262,11 +282,15 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       if (!(MATERIAL_TYPES[materialType] || MATERIAL_TYPES.all)(record)) return false;
       if (materialSubject && text(record.subject) !== materialSubject) return false;
       if (chapterName && !(norm(chapterOf(record)) === norm(chapterName) || record.chapterId === chapterName)) return false;
+      if (!matchesQuery(record, materialQuery)) return false;
       return true;
     });
+    const materialEmpty = materialQuery
+      ? `“${esc(materialQuery)}” দিয়ে কোনো উপকরণ পাওয়া যায়নি।`
+      : 'এই ফিল্টারে কোনো উপকরণ পাওয়া যায়নি।';
     list.innerHTML = !materialReady
       ? '<p class="teacher-empty">উপকরণ লোড হচ্ছে…</p>'
-      : rows.length ? rows.map(contentCard).join('') : `<p class="teacher-empty">${materialError || 'এই ফিল্টারে কোনো উপকরণ পাওয়া যায়নি।'}</p>`;
+      : rows.length ? rows.map(contentCard).join('') : `<p class="teacher-empty">${materialError || materialEmpty}</p>`;
     const count = $(SELECTORS.materials.count);
     if (count) count.textContent = `${num(rows.length)}টি উপকরণ • ${text(student().className) || 'শ্রেণি'}`;
   }
@@ -579,11 +603,12 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     renderMaterials();
   });
 
-  const handleLectureSheetClick = async event => {
+  const handleMaterialOpen = async event => {
+    if (event.target.closest('a')) return; // a real file link keeps working
     const pdfBtn = event.target.closest('[data-student-lecture-pdf]');
-    const readerBtn = event.target.closest('[data-student-lecture-reader]');
-    if (!pdfBtn && !readerBtn) return;
-    const targetId = pdfBtn ? pdfBtn.dataset.studentLecturePdf : readerBtn.dataset.studentLectureReader;
+    const openCard = event.target.closest('[data-study-open]');
+    const targetId = pdfBtn ? pdfBtn.dataset.studentLecturePdf : openCard?.dataset.studyOpen;
+    if (!targetId) return;
     const allowed = [...materialRecords, ...suggestionRecords].find(item => item.id === targetId);
     if (!allowed || allowed.published !== true || allowed.active === false) return;
     const cur = student();
@@ -593,8 +618,14 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
       subjectName: text(allowed.subject) || ''
     };
     const mod = await import('./lecture-sheet-pdf.js');
-    if (readerBtn) {
-      await mod.openStudentLectureReaderModal(enriched);
+    if (!pdfBtn) {
+      /* Reading happens in the app. A material with nothing to read (a bare
+         attachment) falls back to the file itself. */
+      const opened = await mod.openStudentMaterialReader(enriched);
+      if (!opened) {
+        const href = attachmentHref(allowed.attachmentUrl);
+        if (href) window.open(href, '_blank', 'noopener');
+      }
       return;
     }
     const orig = pdfBtn.textContent;
@@ -611,8 +642,8 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     pdfBtn.disabled = false;
     pdfBtn.textContent = orig;
   };
-  $(SELECTORS.materials.list)?.addEventListener('click', handleLectureSheetClick);
-  $(SELECTORS.suggestion.list)?.addEventListener('click', handleLectureSheetClick);
+  $(SELECTORS.materials.list)?.addEventListener('click', handleMaterialOpen);
+  $(SELECTORS.suggestion.list)?.addEventListener('click', handleMaterialOpen);
 
   const onSelect = (select, apply) => select?.addEventListener('change', () => { apply(select.value); });
   onSelect($(SELECTORS.bank.subject), value => { bankSubject = value; bankChapter = ''; fillFilters(); renderBank(); });
@@ -621,6 +652,8 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   onSelect($(SELECTORS.suggestion.chapter), value => { suggestionChapter = value; renderSuggestion(); });
   onSelect($(SELECTORS.materials.subject), value => { materialSubject = value; materialChapter = ''; fillFilters(); renderMaterials(); });
   onSelect($(SELECTORS.materials.chapter), value => { materialChapter = value; renderMaterials(); });
+  $(SELECTORS.materials.search)?.addEventListener('input', event => { materialQuery = event.target.value; renderMaterials(); });
+  $(SELECTORS.suggestion.search)?.addEventListener('input', event => { suggestionQuery = event.target.value; renderSuggestion(); });
 
   watchCourses(() => void refresh());
   window.addEventListener('apc-course-updated', () => void refresh());

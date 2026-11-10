@@ -13,9 +13,8 @@
 import { classByName, listChapters as listAcademicChapters, subjectsForClass } from './academics.js';
 import { KEYS, readRaw } from './database.js';
 import { iconMarkup } from './icons.js';
-import { sanitizeRichHtml, sanitizeLectureHtml } from './rich-sanitize.js';
 import {
-  COURSE_SECTIONS, COURSE_TYPES, listCourseContent, typeLabel, typeOf
+  COURSE_SECTIONS, COURSE_TYPES, attachmentHref, listCourseContent, typeLabel, typeOf
 } from './course-content.js';
 import { examMatchesClass, examMatchesStudent, examRepository, isStudentVisibleExam, watchExams } from './exam-data.js';
 import { listQuestionsForStudent, questionRowsFromPastExams } from './question-bank.js';
@@ -184,35 +183,29 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
 
   /* ---- cards ---------------------------------------------------------------- */
 
+  /* A list is a list: one slim line per material — kind, title, topic, and
+     its actions. Tapping it opens the material inside the app (A4 reader for a
+     lecture sheet, reading sheet for a note/lesson). */
   function contentCard(record) {
     const type = typeOf(record);
     const isSheet = record.isLectureSheet === true;
-    const link = /^https?:\/\//i.test(record.attachmentUrl || '') ? record.attachmentUrl : '';
-    const body = record.richContent
-      ? (isSheet ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))
-      : esc(record.content || '').replace(/\n/g, '<br>');
-    const sheetActions = isSheet
-      ? '<div class="ls-student-sheet-actions">' +
-          '<button type="button" class="ls-card-btn" data-student-lecture-reader="' + esc(record.id) + '">📖 A4 প্রিভিউ ও প্রিন্ট</button>' +
-          '<button type="button" class="ls-card-btn ls-card-btn-primary" data-student-lecture-pdf="' + esc(record.id) + '">⬇ A4 PDF ডাউনলোড</button>' +
-        '</div>'
-      : '';
-    return '<article class="course-item' + (isSheet ? ' ls-student-sheet-card' : '') + '" data-course-item="' + esc(record.id) + '">' +
-        '<header class="course-item-head">' +
-          '<span class="course-item-icon" aria-hidden="true">' + iconMarkup(COURSE_TYPES[type].icon) + '</span>' +
-          '<div><small class="course-item-type">' + esc(typeLabel(record)) + (isSheet ? ' • A4 লেকচার শিট' : '') + (record.topic ? ' • ' + esc(record.topic) : '') + '</small>' +
-          '<h4>' + esc(record.title) + '</h4></div>' +
-        '</header>' +
-        (record.subtitle ? '<p class="course-item-desc">' + esc(record.subtitle) + '</p>' : '') +
-        (record.description ? '<p class="course-item-desc">' + esc(record.description) + '</p>' : '') +
-        (body ? '<div class="course-item-body course-rich-reading' + (isSheet ? ' ls-student-sheet-body' : '') + '">' + body + '</div>' : '') +
-        sheetActions +
-        (link
-          ? '<a class="course-item-link" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' +
-              (type === 'video' ? 'ভিডিও দেখুন' : type === 'pdf' ? 'PDF খুলুন' : 'সংযুক্তি খুলুন') +
-              ' <svg class="resource-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></a>'
-          : '') +
-        '<small class="course-item-when">' + esc(whenText(record.updatedAt || record.createdAt)) + '</small>' +
+    const link = attachmentHref(record.attachmentUrl);
+    const canRead = isSheet || Boolean(record.richContent || record.content);
+    const meta = [record.subtitle, record.topic].filter(Boolean).map(value => esc(value)).join(' • ');
+    return '<article class="course-item ls-material-row' + (isSheet ? ' ls-student-sheet-card' : '') + '" data-course-item="' + esc(record.id) + '" data-course-open="' + esc(record.id) + '">' +
+        '<span class="ls-row-icon" aria-hidden="true">' + iconMarkup(COURSE_TYPES[type].icon) + '</span>' +
+        '<span class="ls-row-main">' +
+          '<strong class="ls-row-title">' + esc(record.title) + '</strong>' +
+          '<small class="ls-row-meta">' + esc(typeLabel(record)) + (isSheet ? ' • A4 লেকচার শিট' : '') + (meta ? ' • ' + meta : '') + '</small>' +
+        '</span>' +
+        '<span class="ls-row-actions">' +
+          (canRead ? '<button type="button" class="ls-row-btn ls-row-btn-primary" data-course-read="' + esc(record.id) + '">পড়ুন</button>' : '') +
+          (isSheet ? '<button type="button" class="ls-row-btn" data-student-lecture-pdf="' + esc(record.id) + '" aria-label="A4 PDF ডাউনলোড">PDF</button>' : '') +
+          (link
+            ? '<a class="ls-row-btn" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer" aria-label="' +
+                (type === 'video' ? 'ভিডিও দেখুন' : type === 'pdf' ? 'PDF খুলুন' : 'সংযুক্তি খুলুন') + '">ফাইল</a>'
+            : '') +
+        '</span>' +
       '</article>';
   }
 
@@ -275,8 +268,9 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
       const intro = [chapter.description, chapter.content].filter(Boolean)
         .map(value => '<p>' + esc(value).replace(/\n/g, '<br>') + '</p>').join('');
       const resources = items.filter(item => typeOf(item) !== 'chapter');
-      const attachment = /^https?:\/\//i.test(chapter.attachmentUrl || '')
-        ? '<a class="course-item-link" href="' + esc(chapter.attachmentUrl) + '" target="_blank" rel="noopener noreferrer">অধ্যায়ের সংযুক্তি খুলুন</a>' : '';
+      const chapterLink = attachmentHref(chapter.attachmentUrl);
+      const attachment = chapterLink
+        ? '<a class="course-item-link" href="' + esc(chapterLink) + '" target="_blank" rel="noopener noreferrer">অধ্যায়ের সংযুক্তি খুলুন</a>' : '';
       return shell('<div class="course-reading-intro">' + (intro || '<p>এই অধ্যায়ের জন্য প্রকাশিত পাঠ ও উপকরণ নিচে দেওয়া আছে।</p>') + attachment + '</div>' +
         (resources.length ? '<div class="course-action-items">' + resources.map(contentCard).join('') + '</div>' : empty('এই অধ্যায়ে এখনো কোনো পাঠ প্রকাশিত হয়নি।')));
     }
@@ -284,7 +278,7 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
     if (action === 'notes' || action === 'materials') {
       const records = action === 'notes'
         ? items.filter(item => typeOf(item) === 'note')
-        : items.filter(item => ['video', 'pdf'].includes(typeOf(item)) || item.isLectureSheet === true || /^https?:\/\//i.test(item.attachmentUrl || ''));
+        : items.filter(item => ['video', 'pdf'].includes(typeOf(item)) || item.isLectureSheet === true || Boolean(attachmentHref(item.attachmentUrl)));
       return shell(records.length
         ? '<div class="course-action-items">' + records.map(contentCard).join('') + '</div>'
         : empty(action === 'notes' ? 'এই অধ্যায়ের কোনো ক্লাস নোট এখনো প্রকাশিত হয়নি।' : 'এই অধ্যায়ের কোনো শিক্ষকের উপকরণ এখনো প্রকাশিত হয়নি।'));
@@ -524,18 +518,26 @@ export function initCourseHub({ getStudent, onAction = () => {} } = {}) {
       pdfBtn.textContent = orig;
       return;
     }
-    const readerBtn = event.target.closest('[data-student-lecture-reader]');
-    if (readerBtn) {
+    /* Tapping a card — or its পড়ুন button — opens the material in the app: the
+       A4 reader for a lecture sheet, a reading sheet for a note or lesson. A
+       material with nothing to read falls back to its own attachment. */
+    const openCard = event.target.closest('[data-course-open]');
+    if (openCard) {
+      if (event.target.closest('a')) return; // the file link behaves like a link
       const sub = selectedSubject();
-      const allowed = recordsFor(sub).find(item => item.id === readerBtn.dataset.studentLectureReader);
+      const allowed = recordsFor(sub).find(item => item.id === openCard.dataset.courseOpen);
       if (!allowed || allowed.published !== true || allowed.active === false) return;
       const cur = student();
       const mod = await import('./lecture-sheet-pdf.js');
-      await mod.openStudentLectureReaderModal({
+      const opened = await mod.openStudentMaterialReader({
         ...allowed,
         className: cur.className || '',
         subjectName: sub?.name || ''
       });
+      if (!opened) {
+        const href = attachmentHref(allowed.attachmentUrl);
+        if (href) window.open(href, '_blank', 'noopener');
+      }
       return;
     }
     const subjectButton = event.target.closest('[data-course-subject]');

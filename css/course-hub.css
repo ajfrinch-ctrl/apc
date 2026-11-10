@@ -1398,6 +1398,211 @@ html[data-theme="dark"] .ls-workspace {
   margin-top: 6px;
 }
 
+/* A material row is one slim line, not a page: the reading happens in the
+   reader. Dark is the first-class surface here — light is the fallback. */
+.learning-search {
+  flex: 1 1 240px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.learning-search::placeholder { color: var(--color-text-secondary); }
+
+.learning-search:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.55);
+  outline-offset: 1px;
+}
+
+.ls-material-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.ls-material-row + .ls-material-row { margin-top: 8px; }
+
+.ls-material-row:active { transform: scale(0.997); }
+
+.ls-row-icon {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+}
+
+.ls-row-icon img,
+.ls-row-icon svg { width: 26px; height: 26px; }
+
+.ls-row-kind {
+  flex: 0 0 auto;
+  min-width: 40px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.2px;
+}
+
+.ls-row-main {
+  display: block;
+  min-width: 0;
+}
+
+.ls-row-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.45;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ls-row-meta {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ls-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.ls-row-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ls-row-btn-primary {
+  background: #0e7a55;
+  border-color: #0e7a55;
+  color: #ffffff;
+}
+
+/* Dark is designed first: the row, its chips and its buttons are read on a
+   dark surface, and light mode keeps the same geometry. */
+html[data-theme="dark"] .ls-material-row {
+  background: #131a22;
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+html[data-theme="dark"] .ls-row-kind {
+  background: rgba(16, 185, 129, 0.13);
+  color: #6ee7b7;
+}
+
+html[data-theme="dark"] .ls-row-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+}
+
+html[data-theme="dark"] .ls-row-btn-primary {
+  background: #10b981;
+  border-color: #10b981;
+  color: #04231a;
+}
+
+html[data-theme="dark"] .learning-search {
+  background: #131a22;
+  border-color: rgba(255, 255, 255, 0.09);
+  color: #e5e7eb;
+}
+
+/* Reading sheet for a note or lesson (the A4 reader keeps its own surfaces). */
+.ls-material-sheet {
+  width: min(820px, 100%);
+  margin: 0 auto;
+  padding: clamp(16px, 3vw, 30px) clamp(14px, 3.4vw, 34px) clamp(24px, 4vw, 40px);
+  border-radius: 14px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  line-height: 1.95;
+  font-size: 16px;
+}
+
+.ls-material-sheet > :first-child { margin-top: 0; }
+.ls-material-sheet h1,
+.ls-material-sheet h2,
+.ls-material-sheet h3,
+.ls-material-sheet h4 { color: #065f46; line-height: 1.5; }
+.ls-material-sheet img { max-width: 100%; height: auto; border-radius: 10px; }
+.ls-material-sheet table { width: 100%; border-collapse: collapse; }
+.ls-material-sheet th,
+.ls-material-sheet td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+.ls-material-sheet blockquote {
+  margin: 12px 0;
+  padding: 8px 14px;
+  border-left: 4px solid #0e7a55;
+  background: #ecfdf5;
+  border-radius: 0 8px 8px 0;
+}
+
+html[data-theme="dark"] .ls-material-sheet {
+  background: #111827;
+  color: #e5e7eb;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="dark"] .ls-material-sheet h1,
+html[data-theme="dark"] .ls-material-sheet h2,
+html[data-theme="dark"] .ls-material-sheet h3,
+html[data-theme="dark"] .ls-material-sheet h4 { color: #6ee7b7; }
+
+html[data-theme="dark"] .ls-material-sheet th,
+html[data-theme="dark"] .ls-material-sheet td { border-color: rgba(255, 255, 255, 0.12); }
+
+html[data-theme="dark"] .ls-material-sheet blockquote { background: #0f2a22; }
+
+/* The A4 reader says how to turn a page, but only where a finger can. */
+.ls-swipe-hint { display: none; }
+
+@media (pointer: coarse) {
+  .ls-swipe-hint {
+    display: inline;
+    margin-left: 8px;
+    font-size: 11.5px;
+    color: var(--color-text-secondary);
+  }
+}
+
 .ls-student-sheet-body {
   padding: 14px;
   border-radius: 10px;

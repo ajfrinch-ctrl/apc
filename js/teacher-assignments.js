@@ -231,6 +231,34 @@ export function selectableSubjects(className, { includeLegacy = [] } = {}) {
 }
 
 /**
+ * Hand one Teacher the whole school: every class in the Admin's Academic Setup,
+ * carrying every subject that class runs. It writes ordinary rows — one per
+ * class, exactly like a hand-made assignment — so each of them stays editable
+ * or removable in the Manager list afterwards. Classes with no enabled subject
+ * are reported as skipped instead of silently creating empty rows.
+ *
+ * @returns {Promise<{assigned: string[], skipped: string[], failed: {className: string, message: string}[]}>}
+ */
+export async function assignEverything({ teacherUsername = '', classes } = {}) {
+  await requireManagerSession();
+  const wanted = [...new Set((Array.isArray(classes) ? classes : enabledClasses)
+    .map(value => String(value ?? '').normalize('NFC').trim())
+    .filter(Boolean))];
+  const result = { assigned: [], skipped: [], failed: [] };
+  for (const className of wanted) {
+    const subjects = selectableSubjects(className);
+    if (!subjects.length) { result.skipped.push(className); continue; }
+    try {
+      await saveTeacherAssignment({ className, group: '', subjects, teacherUsername });
+      result.assigned.push(className);
+    } catch (error) {
+      result.failed.push({ className, message: String(error?.message || '') });
+    }
+  }
+  return result;
+}
+
+/**
  * Save (or replace) one Teacher + Class + Batch assignment with any number of
  * subjects. `subject` (single string) is still accepted for older callers.
  */
