@@ -179,7 +179,7 @@ function paint() {
 
     '<div class="profile-section"><p class="eyebrow">শব্দ ও প্রিভিউ</p>' +
       '<div class="settings-list">' +
-        toggleRow('noticeSoundToggle', 'নোটিফিকেশনের শব্দ', 'নতুন নোটিফিকেশন এলে ছোট একটি টোন বাজবে।', settings.sound, off, 'bell', 'mint') +
+        toggleRow('noticeSoundToggle', 'নোটিফিকেশনের শব্দ', 'নতুন নোটিফিকেশন এলে শব্দ চালু থাকবে। ডিভাইসের mute ও browser permission প্রযোজ্য।', true, true, 'bell', 'mint') +
         '<button type="button" class="settings-row-button" data-notice-preview>' +
           '<span class="settings-copy"><strong>প্রিভিউ দেখুন</strong><small>একটি নমুনা নোটিফিকেশন কার্ড দেখুন</small></span>' +
           '<span class="notice-history-tag">প্রিভিউ</span>' +
@@ -195,7 +195,7 @@ function paint() {
 
     '<div class="profile-section"><p class="eyebrow">ইতিহাস</p>' +
       '<div class="notice-history-list">' + historyRows(records) + '</div>' +
-      '<p class="form-note">পুরোনো নোটিফিকেশন কখনো মুছে যায় না — এখানে সবসময় দেখা যাবে।</p>' +
+      '<button type="button" class="settings-row-button" data-notice-open-history><span class="settings-copy"><strong>সম্পূর্ণ হিস্টোরি দেখুন</strong><small>৩০ দিন পর আর্কাইভ হবে; ডিভাইসের সংরক্ষণ সীমা প্রযোজ্য</small></span><span class="notice-history-tag">খুলুন</span></button>' +
     '</div>';
 }
 
@@ -238,8 +238,7 @@ export function initNotificationSettings({ mount } = {}) {
     const patch = {
       noticeMasterToggle: { enabled: input.checked },
       noticeBackgroundToggle: { background: input.checked },
-      noticeInAppToggle: { inApp: input.checked },
-      noticeSoundToggle: { sound: input.checked }
+      noticeInAppToggle: { inApp: input.checked }
     }[input.id];
     if (!patch) return;
     const next = api?.saveSettings
@@ -270,6 +269,13 @@ export function initNotificationSettings({ mount } = {}) {
     if (event.target.closest('[data-notice-preview]')) {
       if (typeof api?.preview === 'function') api.preview();
       else if (typeof window.apcNoticeCenter?.showPreview === 'function') window.apcNoticeCenter.showPreview();
+      return;
+    }
+    if (event.target.closest('[data-notice-open-history]')) {
+      try {
+        const historyModule = await import('./notification-history.js');
+        historyModule.mountNotificationHistory(api)?.open();
+      } catch { /* the bell History entry remains available */ }
       return;
     }
     if (event.target.closest('[data-notice-read-all-settings]')) {

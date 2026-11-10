@@ -57,6 +57,10 @@ test('"পেমেন্ট দেখুন" closes the inbox and opens হি�
   assert.ok(open);
   ctx.click(open);
   await ctx.flush();
+  const detail = ctx.$('[data-apc-notice-detail-sheet="payment-review:TX-9"]');
+  assert.ok(detail, 'the notification first opens its context detail');
+  ctx.click(detail.querySelector('[data-apc-notice-detail-action]'));
+  await ctx.flush();
   assert.equal(activeView(), 'finance');
   assert.equal(financeSegment(), 'approval', 'the approval queue is the open segment');
   assert.equal(inboxOpen(), false, 'the bell list is closed');
@@ -82,8 +86,12 @@ test('a paper from the teacher opens the Examination view', async () => {
   ctx.click(ctx.$('#notificationButton'));
   await ctx.flush();
   const open = ctx.$('button[data-apc-notice-open^="exam-review:EX-1:"]');
-  assert.equal(open?.textContent, 'পরীক্ষা দেখুন');
+  assert.equal(open?.textContent, 'বিস্তারিত দেখুন');
   ctx.click(open);
+  await ctx.flush();
+  const detail = ctx.$('[data-apc-notice-detail-sheet^="exam-review:EX-1:"]');
+  assert.ok(detail, 'exam review opens its context detail first');
+  ctx.click(detail.querySelector('[data-apc-notice-detail-action]'));
   await ctx.flush();
   assert.equal(activeView(), 'exams');
   assert.equal(inboxOpen(), false);
@@ -101,6 +109,8 @@ test('the in-app card: a new entry appears on it, and tapping it opens the appro
   await ctx.waitFor(() => ctx.$('#apcInAppAlert') && !ctx.$('#apcInAppAlert').hidden, 3000);
   assert.match(ctx.$('#apcInAppAlert').textContent, /করিম হাসান/);
   ctx.click(ctx.$('#apcInAppAlert [data-apc-alert-open="payment-review:TX-10"]'));
+  await ctx.waitFor(() => Boolean(ctx.$('[data-apc-notice-detail-sheet="payment-review:TX-10"]')), 3000);
+  ctx.click(ctx.$('[data-apc-notice-detail-action]'));
   await ctx.waitFor(() => activeView() === 'finance' && financeSegment() === 'approval', 3000);
   await ctx.waitFor(() => ctx.$('#managerCashList [data-manager-action="approve-payment"][data-id="TX-10"]'), 5000);
   assert.equal(ctx.$('#apcInAppAlert').hidden, true);

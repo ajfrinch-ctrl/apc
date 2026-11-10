@@ -29,6 +29,7 @@ import {
   getUnreadClassChatSummary,
   mountClassChatHead
 } from '../js/class-chat.js';
+import { notificationFeed } from '../js/notification-rules.js';
 import { createSimulator } from './rtdb-rules-sim.mjs';
 
 let activeDom = null;
@@ -63,6 +64,35 @@ const pendingStudent = { id: 'STU-10-P', name: 'অপেক্ষমাণ শ�
 const teacherActor = { id: 'TCH-01', name: 'সাইফুল স্যার', role: 'teacher', status: 'active' };
 const managerActor = { id: 'MGR-01', name: 'কামরুল ম্যানেজার', role: 'manager', status: 'active' };
 const adminActor = { id: 'ADM-01', name: 'প্রধান এডমিন', role: 'admin', status: 'active' };
+
+test('unread class chat messages enter the chat notification category with room-level RBAC', () => {
+  resetStorage(ROSTER);
+  const class10 = sendClassMessage({
+    className: 'দশম শ্রেণি', text: 'দশম শ্রেণির নতুন বার্তা', actor: teacherActor
+  });
+  sendClassMessage({
+    className: 'নবম শ্রেণি', text: 'নবম শ্রেণির ব্যক্তিগত বার্তা', actor: teacherActor
+  });
+  const studentSummary = getUnreadClassChatSummary(studentRaisa);
+  assert.equal(studentSummary.totalUnread, 1);
+  assert.equal(studentSummary.unreadMessages.length, 1);
+  assert.equal(studentSummary.unreadMessages[0].id, class10.id);
+  assert.equal(studentSummary.unreadMessages[0].classId, 'দশম শ্রেণি');
+
+  const studentFeed = notificationFeed({
+    viewer: { kind: 'student', role: 'student', id: studentRaisa.id, status: 'approved', className: studentRaisa.className },
+    chatMessages: studentSummary.unreadMessages
+  });
+  assert.equal(studentFeed.length, 1);
+  assert.equal(studentFeed[0].kind, 'chat');
+  assert.equal(studentFeed[0].category, 'chat');
+  assert.equal(studentFeed[0].sourceId, class10.id);
+  assert.equal(studentFeed[0].target, 'class-chat');
+
+  const staffSummary = getUnreadClassChatSummary(managerActor);
+  assert.equal(staffSummary.totalUnread, 2, 'Manager can see unread messages across authorized class rooms');
+  assert.equal(staffSummary.unreadMessages.length, 2);
+});
 
 test('1. Same-class approved students can chat, reply with quoted thread, and toggle quick reactions', () => {
   resetStorage(ROSTER);

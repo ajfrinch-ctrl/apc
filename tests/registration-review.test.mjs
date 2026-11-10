@@ -124,6 +124,9 @@ test('tapping the item in the inbox opens the review and clears it', async () =>
   const open = ctx.$('button[data-apc-notice-open="registration:s260930002-ijkl"]');
   assert.ok(open, 'the item offers review');
   ctx.click(open);
+  const detail = ctx.$('[data-apc-notice-detail-sheet="registration:s260930002-ijkl"]');
+  assert.ok(detail, 'registration opens its context detail first');
+  ctx.click(detail.querySelector('[data-apc-notice-detail-action]'));
   await ctx.waitFor(() => Boolean(dialog()));
   assert.equal(modal.hidden, true, 'the list steps aside');
   assert.match(dialog().textContent, /s260930002-ijkl/);
