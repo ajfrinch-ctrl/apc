@@ -22,7 +22,7 @@
     "@supabase/supabase-js": "^2.118.0",
     "@tiptap/core": "^3.32.2",
     "@tiptap/extension-color": "^3.32.2",
-    "@tiptap/extension-highlight": "^3.32.2",
+    "@tiptap/extension-highlight": "^3.33.0",
     "@tiptap/extension-image": "^3.32.2",
     "@tiptap/extension-placeholder": "^3.32.2",
     "@tiptap/extension-subscript": "^3.32.2",
