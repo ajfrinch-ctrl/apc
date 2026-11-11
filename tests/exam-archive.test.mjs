@@ -1,7 +1,7 @@
 /* Date-wise examination workflow (school request, 2026-10-02):
    questions live in per-date records with their own status, the archive
-   filters by date/range/class/subject/name/status, and only the Manager moves
-   a paper through Draft → Review → Approved → Published → Completed → Archived.
+   filters by date/range/class/subject/name/status, and Admin/Manager move a
+   paper through Draft → Review → Approved → Published → Completed → Archived.
    This file drives the real repository (js/exam-data.js) with a fake clock and
    storage; the two UI files drive teacher.html and manager.html. */
 import test from 'node:test';
@@ -32,10 +32,11 @@ function setup() {
     [ROSTER_KEY, JSON.stringify(adminStudents)],
     [TEACHER_ASSIGNMENTS_KEY, JSON.stringify(assignments)],
     [STAFF_ACCOUNTS.teacher.accountKey, JSON.stringify({ role: 'teacher', username: 'teacher.apc', fullName: 'Test Teacher', status: 'active' })],
+    [STAFF_ACCOUNTS.admin.accountKey, JSON.stringify({ role: 'admin', username: 'admin.apc', fullName: 'Test Admin', status: 'active' })],
     [STAFF_ACCOUNTS.manager.accountKey, JSON.stringify({ role: 'manager', username: 'manager.apc', fullName: 'Test Manager', status: 'active' })],
     [STORAGE_KEYS.account, JSON.stringify({ status: 'active', student: one })]
   ]);
-  const sessions = new Map([[STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1'], [STORAGE_KEYS.session, '1']]);
+  const sessions = new Map([[STAFF_ACCOUNTS.admin.sessionKey, '1'], [STAFF_ACCOUNTS.teacher.sessionKey, '1'], [STAFF_ACCOUNTS.manager.sessionKey, '1'], [STORAGE_KEYS.session, '1']]);
   clock = start - 3600000;
   Date.now = () => clock;
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
@@ -119,7 +120,7 @@ test('upcoming exams only count windows that are still open, soonest first', () 
 });
 
 test('permissions decide who sees and moves a paper at each status', () => {
-  const teacher = { role: 'teacher', id: TEACHER_ACTOR.id }, manager = MANAGER_ACTOR;
+  const teacher = { role: 'teacher', id: TEACHER_ACTOR.id }, manager = MANAGER_ACTOR, admin = ADMIN_ACTOR;
   const own = { id: 'E1', teacherId: TEACHER_ACTOR.id, status: 'draft', type: 'written', startAt: Date.now() + 3600000, endAt: Date.now() + 7200000 };
   const published = { ...own, status: 'published' };
   assert.equal(examPermissions(teacher, own).edit, true);
@@ -132,7 +133,12 @@ test('permissions decide who sees and moves a paper at each status', () => {
   assert.equal(examPermissions(manager, { ...published, status: 'archived' }).restore, true);
   assert.equal(examPermissions(manager, { ...published, status: 'published' }, { openAttempts: 1 }).unpublish, false);
   assert.equal(examPermissions(teacher, { ...own, teacherId: 'OTHER' }).questions, false, 'another teacher’s paper stays private');
-  assert.equal(examPermissions({ role: 'admin', id: 'ADMIN' }, published).publish, false, 'the admin panel reads, it does not publish');
+  assert.equal(examPermissions(admin, own).request, true, 'Admin can submit an authored exam for review');
+  assert.equal(examPermissions(admin, own).approve, true, 'Admin can approve a submitted exam');
+  assert.equal(examPermissions(admin, own).publish, true, 'Admin can publish an approved exam');
+  assert.equal(examPermissions(admin, published).unpublish, true, 'Admin can withdraw publication safely');
+  assert.equal(examPermissions(admin, { ...published, status: 'archived' }).restore, true);
+  assert.equal(examPermissions(admin, own).edit, true, 'Admin has full control of academic exam records');
 });
 
 /* ---------- the workflow through the repository ---------------------------- */
@@ -177,6 +183,41 @@ test('draft → review → approved → published → completed → archived →
   assert.equal(stored(env).exams.length, 1, 'not one record was written twice');
 });
 
+test('Admin can create, approve, publish, reject and retire exams with a verified Admin session', async () => {
+  const env = setup();
+  let db = await repo.saveDraft(fields({ startAt: start, endAt: end }), ADMIN_ACTOR);
+  const id = db.exams[0].id;
+  assert.equal(find(db, id).createdByRole, 'admin');
+
+  db = await repo.requestApproval(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).status, 'pending');
+  db = await repo.approve(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).status, 'approved');
+  assert.equal(find(db, id).approvedBy, 'Test Admin');
+
+  db = await repo.publish(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).status, 'published');
+  assert.equal(find(db, id).publishedBy, 'Test Admin');
+
+  clock = end + 1000;
+  db = await repo.complete(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).status, 'completed');
+  db = await repo.publishResults(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).resultsPublished, true, 'Admin can publish the final results');
+  db = await repo.archive(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).status, 'archived');
+  db = await repo.restore(id, ADMIN_ACTOR);
+  assert.equal(find(db, id).status, 'completed');
+
+  let pending = await repo.saveDraft(fields({ title: 'সংশোধনের জন্য পরীক্ষা', startAt: start + 86400000, endAt: end + 86400000 }), MANAGER_ACTOR);
+  const rejectedId = pending.exams[0].id;
+  await repo.requestApproval(rejectedId, MANAGER_ACTOR);
+  pending = await repo.reject(rejectedId, 'প্রশ্নের নির্দেশনা সংশোধন করুন', ADMIN_ACTOR);
+  assert.equal(find(pending, rejectedId).status, 'rejected');
+  assert.equal(find(pending, rejectedId).reviewNote, 'প্রশ্নের নির্দেশনা সংশোধন করুন');
+  assert.equal(stored(env).exams.length, 2, 'Admin decisions keep both exam records intact');
+});
+
 test('a teacher cannot approve, publish, unpublish, archive or delete a published paper', async () => {
   setup();
   const id = await publishVia();
@@ -185,8 +226,7 @@ test('a teacher cannot approve, publish, unpublish, archive or delete a publishe
     [() => repo.publish(id, TEACHER_ACTOR), /ম্যানেজার/],
     [() => repo.unpublish(id, TEACHER_ACTOR), /ম্যানেজার/],
     [() => repo.archive(id, TEACHER_ACTOR), /ম্যানেজার/],
-    [() => repo.complete(id, TEACHER_ACTOR), /ম্যানেজার/],
-    [() => repo.review(id, 'reject', { note: 'x' }, ADMIN_ACTOR), /ম্যানেজার/]
+    [() => repo.complete(id, TEACHER_ACTOR), /ম্যানেজার/]
   ]) await assert.rejects(call, pattern);
   await assert.rejects(repo.deleteExam(id, TEACHER_ACTOR), /প্রকাশনা বাতিল|আর্কাইভ/);
 });

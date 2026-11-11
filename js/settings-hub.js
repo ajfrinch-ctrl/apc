@@ -304,38 +304,24 @@ function paintGroupHub(root) {
   });
   let nav = root.querySelector('[data-settings-groups]');
   if (!nav) {
-    const isTeacher = root.dataset.settingsHub === 'teacher';
-    const isManager = root.dataset.settingsHub === 'manager';
-    const isPayment = root.dataset.settingsHub === 'payment';
-    const isActionCardHub = isTeacher || isManager || isPayment;
-    nav = element('nav', isActionCardHub ? 'teacher-home-actions settings-group-grid' : 'pay-grid is-2 settings-group-grid');
+    nav = element('nav', 'teacher-home-actions settings-group-grid');
     nav.dataset.settingsGroups = 'true';
     nav.setAttribute('aria-label', 'সেটিংস গ্রুপ');
     SETTINGS_GROUPS.forEach(group => {
       const button = document.createElement('button');
       button.type = 'button';
+      button.className = 'teacher-action-card';
       button.dataset.settingsOpen = group.key;
-      if (isActionCardHub) {
-        button.className = `teacher-action-card${group.key === 'notification' ? ' is-accent' : ''}`;
-        const body = element('span', 'teacher-action-body');
-        const titleEl = element('span', 'teacher-action-title pay-tile-label', group.label);
-        if (isManager || isPayment) {
-          titleEl.dataset.actionSub = GROUP_SUBTITLES[group.key] || '';
-          body.append(titleEl);
-        } else {
-          body.append(titleEl, element('span', 'teacher-action-sub', GROUP_SUBTITLES[group.key] || ''));
-        }
-        const iconHost = element('span', 'teacher-action-art pay-tile-icon');
-        iconHost.setAttribute('aria-hidden', 'true');
-        iconHost.append(iconElement(GROUP_ICONS[group.key] || 'settings', 'apc-icon-svg'));
-        button.append(body, iconHost);
-      } else {
-        button.className = 'pay-tile';
-        const iconHost = element('span', 'pay-tile-icon');
-        iconHost.setAttribute('aria-hidden', 'true');
-        iconHost.append(iconElement(GROUP_ICONS[group.key] || 'settings', 'apc-icon-svg'));
-        button.append(iconHost, element('span', 'pay-tile-label', group.label));
-      }
+      button.setAttribute('aria-expanded', 'false');
+      const body = element('span', 'teacher-action-body');
+      body.append(
+        element('span', 'teacher-action-title pay-tile-label', group.label),
+        element('span', 'teacher-action-sub', GROUP_SUBTITLES[group.key] || '')
+      );
+      const iconHost = element('span', 'teacher-action-art pay-tile-icon');
+      iconHost.setAttribute('aria-hidden', 'true');
+      iconHost.append(iconElement(GROUP_ICONS[group.key] || 'settings', 'apc-icon-svg'));
+      button.append(body, iconHost);
       nav.append(button);
     });
     root.prepend(nav);
@@ -355,14 +341,14 @@ function paintGroupHub(root) {
     const open = event.target.closest('[data-settings-open]');
     if (open) {
       const targetKey = open.dataset.settingsOpen || '';
+      const activeSection = [...root.querySelectorAll('[data-settings-group]')]
+        .find(section => !section.hidden);
+      const nextKey = activeSection?.dataset.settingsGroup === targetKey ? '' : targetKey;
       if (root.__apcNavigateSettingsGroup) {
-        root.__apcNavigateSettingsGroup(targetKey);
+        root.__apcNavigateSettingsGroup(nextKey);
         return;
       }
-      const targetSection = root.querySelector(`[data-settings-group="${targetKey}"]`);
-      const alreadyOpen = Boolean(targetSection && !targetSection.hidden);
-      const canToggleClose = root.dataset.settingsHub === 'teacher' || root.dataset.settingsHub === 'manager' || root.dataset.settingsHub === 'admin' || root.dataset.settingsHub === 'payment';
-      showGroup(canToggleClose && alreadyOpen ? '' : targetKey);
+      showGroup(nextKey);
       return;
     }
     if (event.target.closest('[data-settings-hub-back]')) {

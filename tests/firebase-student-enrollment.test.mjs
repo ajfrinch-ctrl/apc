@@ -148,10 +148,22 @@ test('Manager approval atomically links both profiles and immutable audit before
   await assert.rejects(env.review({ uid: 'stu-1', decision: 'rejected', note: 'No' }), EnrollmentError);
 });
 
+test('Admin can approve a verified pending Student through the same server-owned transaction', async () => {
+  const env = sandbox();
+  await env.register();
+  const adminCaller = { ...manager(), uid: 'admin-1', token: { ...manager().token, role: 'admin' } };
+  const result = await env.review({ uid: 'stu-1', decision: 'approved', note: '' }, adminCaller);
+  assert.equal(result.ok, true);
+  assert.equal(env.docs.get('students/stu-1').status, 'approved');
+  assert.equal(env.docs.get('users/stu-1').status, 'approved');
+  assert.equal(env.docs.get('studentApprovals/stu-1').reviewedBy, 'admin-1');
+  assert.equal(env.users.get('stu-1').customClaims.status, 'approved');
+});
+
 test('rejection requires a reason; other roles and mismatched Auth/index/profile cannot approve', async () => {
   const env = sandbox();
   await env.register();
-  for (const caller of [applicant(), { ...manager(), token: { ...manager().token, role: 'admin' } },
+  for (const caller of [applicant(), { ...manager(), token: { ...manager().token, role: 'teacher' } },
     { ...manager(), token: { ...manager().token, mustChangePassword: true } }]) {
     await assert.rejects(env.review(undefined, caller), EnrollmentError);
   }

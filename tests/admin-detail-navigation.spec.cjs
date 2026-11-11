@@ -11,7 +11,7 @@ const groups = [
   ['roles', 'system', ['roles-admin', 'roles-manager', 'roles-teacher', 'roles-payment', 'roles-student']],
   ['security', 'system', ['security-owner', 'security-password', 'security-protected', 'security-boundaries']],
   ['settings', 'system', ['settings-branding', 'settings-classes', 'settings-broadcast', 'settings-maintenance']],
-  ['academics', 'system', ['academics-add', 'academics-subjects', 'academics-mapping']],
+  ['academics', 'academics', ['academics-add', 'academics-subjects', 'academics-mapping']],
   ['migration', 'system', ['migration-teacher', 'migration-student']],
   ['profile', 'more', ['profile-account', 'profile-notification', 'profile-app', 'profile-security', 'profile-data']]
 ];
@@ -47,10 +47,14 @@ async function start(page) {
 }
 
 async function openHub(page, parent, seat) {
-  await page.locator(`.admin-bottom [data-panel-view="${seat}"]`).click();
-  if (seat === 'system') {
+  if (seat === 'academics') {
+    await page.locator('.admin-bottom [data-panel-view="academics"]').click();
+  } else if (seat === 'system') {
+    await page.locator('.admin-bottom [data-panel-view="more"]').click();
+    await page.locator('#adminMoreMenu [data-panel-view="system"]').click();
     await page.locator(`#adminSystemMenu [data-panel-view="${parent}"]`).click();
   } else {
+    await page.locator(`.admin-bottom [data-panel-view="${seat}"]`).click();
     const moreTarget = parent === 'backup' || parent === 'audit' ? 'data' : parent;
     await page.locator(`#adminMoreMenu [data-panel-view="${moreTarget}"]`).click();
     if (parent === 'backup' || parent === 'audit') await panel(page, 'data').locator(`[data-panel-view="${parent}"]`).click();
@@ -111,8 +115,10 @@ async function checkDetailLayout(page, view, width) {
     return {
       visible, overflow, docWidth: document.documentElement.scrollWidth,
       root: rect(root), back: rect(back), title: rect(root.querySelector('h1')),
-      mainBottom: rect(document.querySelector('#adminMain')).bottom,
-      chatTop: chat ? rect(chat).top : null
+      coveredControls: chat ? [...root.querySelectorAll('button,input,select,textarea')].filter(el => {
+        const a = el.getBoundingClientRect(), b = chat.getBoundingClientRect();
+        return a.width && a.height && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      }).map(el => `${el.tagName.toLowerCase()}#${el.id}`) : []
     };
   }, view);
   expect(layout.visible, `${view} only visible view`).toEqual([view]);
@@ -123,9 +129,7 @@ async function checkDetailLayout(page, view, width) {
   expect(layout.back.width, `${view} Back width`).toBeGreaterThanOrEqual(44);
   expect(layout.back.height, `${view} Back height`).toBeGreaterThanOrEqual(44);
   expect(layout.back.right, `${view} heading does not overlap Back`).toBeLessThanOrEqual(layout.title.left + 1);
-  if (layout.chatTop !== null) {
-    expect(layout.mainBottom, `${view} chat shortcut does not cover detail controls`).toBeLessThanOrEqual(layout.chatTop + 1);
-  }
+  expect(layout.coveredControls, `${view} chat shortcut does not cover visible controls`).toEqual([]);
   const inputs = view === 'backup-export'
     ? ['#backupExportPassphrase', '#backupExportPassphraseConfirm']
     : view === 'backup-restore' ? ['#backupRestorePassphrase', '#backupFileInput'] : [];
@@ -151,7 +155,8 @@ for (const width of [360, 390, 1280]) {
       for (const view of children) {
         await openChild(page, parent, view);
         await expect(page).toHaveURL(new RegExp(`#${view}$`));
-        await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', seat);
+        const expectedSeat = view === 'audit-exam' ? 'academics' : seat === 'system' ? 'more' : seat;
+        await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', expectedSeat);
         await expect(panel(page, view).locator(feature[view])).toBeVisible();
         await checkDetailLayout(page, view, width);
         if (['data-danger', 'profile-account', 'migration-teacher'].includes(view)) {

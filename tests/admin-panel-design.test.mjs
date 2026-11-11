@@ -26,7 +26,7 @@ test('every remaining Admin view opens with a subtitle under its title', () => {
 
 test('hub rows end in a chevron icon, never a text arrow, and the audit view uses the svg back button', () => {
   assert.doesNotMatch(html, /<span aria-hidden="true">→<\/span>/, 'no text arrows in hub rows');
-  assert.equal((html.match(/admin-menu-arrow/g) || []).length, 10, 'system, data, More hub rows (incl. the new নোটিশ ও কনটেন্ট row) carry the arrow slot');
+  assert.equal((html.match(/admin-menu-arrow/g) || []).length, 12, 'all system, data and More hub rows carry the shared arrow slot');
   const audit = viewOf('audit');
   assert.match(audit, /data-icon="back"/, 'the audit back button is the shared svg');
   assert.doesNotMatch(audit, />←<\/button>/, 'no text back arrow');
@@ -66,8 +66,8 @@ test('Admin Home keeps its text-only welcome while the other 16 views retain the
     // Hero cards removed from Admin Panel (2026-10-27): no panel loads the large 3D illustration
     assert.doesNotMatch(chunk, /teacher-hero-scene|data-admin-hero-art|data-hero-card=/,
       `${panel} no longer loads the large 3D illustration (hero card removed)`);
-    // Date pill / glint / hero advice were part of the hero card and are also removed
-    assert.doesNotMatch(chunk, /teacher-hero-scene|teacher-hero-date-pill|teacher-hero-glint|data-admin-hero-advice=/,
+    // Shared staff home retains its text/date header; illustration and glint remain absent.
+    assert.doesNotMatch(chunk, /teacher-hero-scene|teacher-hero-glint|data-admin-hero-advice=/,
       `${panel} has no hero artwork remnants`);
   }
   const actionCardCount = (html.match(/teacher-action-card/g) || []).length;

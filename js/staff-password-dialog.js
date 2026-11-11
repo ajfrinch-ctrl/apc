@@ -73,12 +73,22 @@ function trapTab(overlay, event) {
  * (a new password is mandatory before the panel opens). `onDone` runs after
  * the password is stored; the caller then saves the session and enters.
  */
-export function openStaffPasswordDialog({ role, mode = 'change', onDone, onCancel, onSubmit }) {
+export function openStaffPasswordDialog({ role, mode = 'change', onDone, onCancel, onSubmit, container = null }) {
   closeStaffPasswordDialog();
   const overlay = buildDom(role, mode);
-  document.body.append(overlay);
-  document.body.classList.add('modal-open');
-  const state = { role, mode, onDone, onCancel, onSubmit, overlay };
+  const pageMount = typeof container === 'string' ? document.querySelector(container) : container;
+  const pageMode = Boolean(pageMount);
+  if (pageMode) {
+    overlay.classList.add('staff-pw-page');
+    const card = overlay.querySelector('.staff-pw-card');
+    card?.removeAttribute('role');
+    card?.removeAttribute('aria-modal');
+    pageMount.append(overlay);
+  } else {
+    document.body.append(overlay);
+    document.body.classList.add('modal-open');
+  }
+  const state = { role, mode, onDone, onCancel, onSubmit, overlay, pageMode };
   openDialog = state;
 
   const form = overlay.querySelector('.staff-pw-form');
@@ -150,6 +160,6 @@ export function openStaffPasswordDialog({ role, mode = 'change', onDone, onCance
 export function closeStaffPasswordDialog() {
   if (!openDialog) return;
   openDialog.overlay.remove();
-  document.body.classList.remove('modal-open');
+  if (!openDialog.pageMode) document.body.classList.remove('modal-open');
   openDialog = null;
 }

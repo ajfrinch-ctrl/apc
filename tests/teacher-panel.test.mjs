@@ -12,7 +12,7 @@ import { enabledClasses } from '../js/config.js';
 import { TEACHER_ASSIGNMENTS_KEY } from '../js/teacher-assignments.js';
 import { STAFF_ACCOUNTS, updateStaffProfile } from '../js/staff-auth.js';
 import { openStaffPanel } from './staff-harness.mjs';
-import { pickTeacherAdvice } from '../js/teacher-daily-advice.js';
+import { pickStaffSectionAdvice } from '../js/staff-daily-advice.js';
 
 /* Bangla literals from different files can carry precomposed or decomposed
    nukta forms (ড়/য়) — compare in one normalization, like the architecture
@@ -79,7 +79,7 @@ test('the welcome hero shows the teacher name from the staff profile, never the 
   assert.equal($('.teacher-hero-greet'), null, 'the greeting wrapper is removed');
   assert.equal($('.teacher-hero-sub'), null, 'the panel subline is removed');
   assert.equal($('#teacherHeroGlint'), null, 'the day/night glint is gone with the hero card');
-  assert.equal($('.teacher-hero-warm').textContent, pickTeacherAdvice(), 'the warm line shows today’s rotating advice');
+  assert.equal($('.teacher-hero-warm').textContent, pickStaffSectionAdvice('home'), 'the warm line shows the shared staff daily advice');
   assert.ok($('.teacher-hero-warm').textContent.trim().length > 0, 'the daily advice is never blank');
   assert.equal($('#teacherIdentityBadge'), null, 'the role/id sub-card was removed from the hero by owner request');
   assert.equal($('.app-topbar .teacher-header-name'), null, 'the name stays out of the topbar');
@@ -285,7 +285,7 @@ test('the student roster surface is fully removed while student data keeps feedi
   assert.equal($('#teacherStudentList'), null);
   assert.equal($$('.admin-bottom [data-panel-view="students"]').length, 0, 'no students nav seat');
   assert.equal($$('[data-student-detail], [data-guardian-student]').length, 0, 'list-only actions are gone');
-  assert.equal($$('.admin-bottom-item').length, 4, 'four bottom seats remain');
+  assert.equal($$('.staff-bottom-nav > .admin-bottom-item').length, 5, 'the shared five-seat navigation remains');
 });
 
 test('attendance marking from the উপস্থিতি ক্লাস tab clears its pending line when all present is saved', async () => {
@@ -410,7 +410,7 @@ test('the grid doors open their own screens and the routine lives on one screen'
   await settle();
   /* ২০২৬-১১-০১: নম্বর এন্ট্রি হোম-চিপ নয় — পরীক্ষা সিটের ভেতরে, যেখানে
      পরীক্ষার সব লেন থাকে; সেখান থেকে রেকর্ডসের টাইপ-ট্যাব সব কার্যক্রম দেখায়। */
-  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
+  ctx.click($('#teacherHome [data-panel-view="online-exams"]'));
   await settle();
   assert.equal($('#teacherOnlineExams').hidden, false, 'পরীক্ষা সিট');
   ctx.click($('#teacherOnlineExams [data-panel-view="exam"]'));
@@ -527,7 +527,7 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
     'ক্লাস nav seat never displays two badges simultaneously');
 
   // Verify পরীক্ষা note uses ম্যানেজার and question bank placeholder is in Bengali
-  ctx.click($('.admin-bottom [data-panel-view="online-exams"]'));
+  ctx.click($('#teacherHome [data-panel-view="online-exams"]'));
   await settle();
   assert.doesNotMatch($('#teacherOnlineExams > .teacher-local-note').textContent, /\bManager\b/);
   assert.match($('#teacherOnlineExams > .teacher-local-note').textContent, /ম্যানেজার/);

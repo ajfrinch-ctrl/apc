@@ -62,6 +62,20 @@ async function enterPortal(page, role, panel = role) {
   return page;
 }
 
+
+/** The Teacher's exam workspace is a home shortcut that shares the Academic seat. */
+async function openTeacherExams(page) {
+  const workspace = page.locator('#teacherOnlineExams');
+  if (await workspace.isVisible()) return;
+  const shortcut = page.locator('#teacherHome [data-panel-view="online-exams"]');
+  if (await shortcut.isVisible()) {
+    await shortcut.click();
+    return;
+  }
+  await page.locator('.admin-bottom [data-staff-tab="home"]').click();
+  await page.locator('#teacherHome [data-panel-view="online-exams"]').click();
+}
+
 /** Sign a student in on the shared card and open the student app. */
 async function enterStudentApp(page, { id = 'AP-1024', name = 'রাইসা', className = 'দশম শ্রেণি', group = '', waitForNetworkIdle = true } = {}) {
   const account = {
@@ -127,4 +141,4 @@ async function syncStorage(fromPage, toPage, keys) {
   return Object.keys(payload).length;
 }
 
-module.exports = { enterPortal, enterStudentApp, seed, newDevice, syncStorage, E2E_PASSWORD, ROLE_USERNAMES };
+module.exports = { enterPortal, enterStudentApp, openTeacherExams, seed, newDevice, syncStorage, E2E_PASSWORD, ROLE_USERNAMES };

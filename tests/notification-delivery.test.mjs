@@ -17,7 +17,7 @@ const oldNotice = {
 };
 const freshNotice = {
   id: 'N1', title: 'আজকের ঘোষণা', body: 'বিকেল ৩টায় ক্লাস বন্ধ।', audience: 'শিক্ষার্থী ও অভিভাবক',
-  status: 'published', date: '২৯ সেপ্টেম্বর', createdAt: '2026-09-29T06:00:00.000Z'
+  status: 'published', date: 'আজ', createdAt: new Date(Date.now() - 60_000).toISOString()
 };
 
 let ctx;
@@ -78,7 +78,7 @@ test('the same notice is never announced twice', async () => {
 
 test('the person who typed a notice is not notified about their own work', async () => {
   const { saveNotices } = await import('../js/office-data.js');
-  const written = { ...freshNotice, id: 'N2', title: 'নিজের লেখা নোটিশ', createdAt: '2026-09-29T07:00:00.000Z' };
+  const written = { ...freshNotice, id: 'N2', title: 'নিজের লেখা নোটিশ', createdAt: new Date(Date.now() - 30_000).toISOString() };
   saveNotices([written, freshNotice, oldNotice]);
   controller.refresh();
   await ctx.flush();
@@ -89,7 +89,7 @@ test('the person who typed a notice is not notified about their own work', async
 test('with permission blocked the list still records what arrived', async () => {
   ctx.window.Notification.permission = 'denied';
   const store = ctx.window.localStorage;
-  const blocked = { ...freshNotice, id: 'N3', title: 'অনুমতি ছাড়া নোটিশ', createdAt: '2026-09-29T08:00:00.000Z' };
+  const blocked = { ...freshNotice, id: 'N3', title: 'অনুমতি ছাড়া নোটিশ', createdAt: new Date(Date.now() - 20_000).toISOString() };
   store.setItem(KEYS.notices, JSON.stringify([blocked, freshNotice, oldNotice]));
   controller.refresh();
   await ctx.flush();

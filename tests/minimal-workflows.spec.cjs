@@ -1,5 +1,5 @@
 const {test,expect}=require('./fixtures.cjs');
-const {enterPortal}=require('./portal-session.cjs');
+const {enterPortal,openTeacherExams}=require('./portal-session.cjs');
 const fs=require('node:fs/promises');
 const {readFileSync}=require('node:fs');
 test.use({viewport:{width:390,height:844}});
@@ -40,7 +40,7 @@ test('report: 60 real rows paginate, download PDF, empty filter opens preview',a
 test('teacher: all 30 MCQ templates render, apply and copy without changing academic engine',async({page,context})=>{
  await context.grantPermissions(['clipboard-read','clipboard-write']);
  await page.addInitScript(()=>localStorage.setItem('activePlus.manager.teacherAssignments.v1',JSON.stringify([{id:'QA-AS',teacherUsername:'teacher.apc',teacherName:'QA Teacher',className:'দশম শ্রেণি',group:'',subject:'গণিত'}])));
- await enterPortal(page,'teacher');await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
+ await enterPortal(page,'teacher');await openTeacherExams(page);
  await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
  await page.locator('[data-exam-action=new-mcq]').click();
  await expect(page.locator('[data-template-index] option')).toHaveCount(30);

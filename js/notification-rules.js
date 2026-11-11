@@ -525,7 +525,7 @@ export function paymentRejectedItems(transactions, viewer) {
 }
 
 export function examReviewItems(examDb, viewer) {
-  if (viewer?.kind !== 'staff' || text(viewer.role) !== 'manager' || !isObject(examDb)) return [];
+  if (viewer?.kind !== 'staff' || !['admin', 'manager'].includes(text(viewer.role)) || !isObject(examDb)) return [];
   return (Array.isArray(examDb.exams) ? examDb.exams : [])
     .filter(exam => isObject(exam) && text(exam.id) && exam.status === 'pending')
     .map(exam => ({
@@ -534,8 +534,37 @@ export function examReviewItems(examDb, viewer) {
       source: 'exams', sourceId: text(exam.id), kind: 'exam-review', actionable: true,
       title: 'পরীক্ষা অনুমোদনের অপেক্ষায়',
       body: `${examName(exam)} · ${text(exam.className) || ''}${text(exam.teacherName) ? ` · ${text(exam.teacherName)}` : ''}${Number(exam.startAt) ? ` · শুরু ${bnWhen(exam.startAt)}` : ''}`,
-      at: Number(exam.submittedAt) || Number(exam.updatedAt) || 0, target: 'exams', audience: 'ম্যানেজার'
+      at: Number(exam.submittedAt) || Number(exam.updatedAt) || 0, target: viewer.role === 'admin' ? 'audit-exam' : 'exams', audience: 'Admin/Manager'
     }));
+}
+
+export function staffExamItems(examDb, viewer) {
+  if (viewer?.kind !== 'staff' || !['admin', 'manager'].includes(text(viewer.role)) || !isObject(examDb)) return [];
+  const target = viewer.role === 'admin' ? 'audit-exam' : 'exams';
+  const audience = 'Admin/Manager';
+  const items = [];
+  for (const exam of Array.isArray(examDb.exams) ? examDb.exams : []) {
+    if (!isObject(exam) || !text(exam.id)) continue;
+    if (exam.status === 'published' && Number(exam.publishedAt)) {
+      items.push({
+        key: `exam-published:${text(exam.id)}:${Number(exam.publishedAt)}`,
+        source: 'exams', sourceId: text(exam.id), kind: 'exam-published', actionable: true, action: 'open', actionLabel: 'পরীক্ষা দেখুন',
+        title: 'পরীক্ষা প্রকাশিত হয়েছে',
+        body: `${examName(exam)}${Number(exam.startAt) ? ` · শুরু ${bnWhen(exam.startAt)}` : ''}`,
+        at: Number(exam.publishedAt), target, audience
+      });
+    }
+    if (exam.resultsPublished === true && Number(exam.resultsPublishedAt)) {
+      items.push({
+        key: `result-published:${text(exam.id)}:${Number(exam.resultsPublishedAt)}`,
+        source: 'exams', sourceId: text(exam.id), kind: 'result-published', actionable: true, action: 'open', actionLabel: 'ফলাফল দেখুন',
+        title: 'পরীক্ষার ফলাফল প্রকাশিত হয়েছে',
+        body: examName(exam),
+        at: Number(exam.resultsPublishedAt), target, audience
+      });
+    }
+  }
+  return items;
 }
 
 export function teacherExamItems(examDb, viewer) {
@@ -569,7 +598,35 @@ export function sortNewestFirst(items) {
   return [...items].sort((left, right) => (right.at || 0) - (left.at || 0));
 }
 
-export function notificationFeed({ notices = [], config = null, examDb = null, teachingDb = null, viewer = null, now = nowEpoch(), localWrites = null, students = null, registrationNotifications = null, transactions = null, cleared = null } = {}) {
+function classChatItems(messages = []) {
+  const list = Array.isArray(messages) ? messages.slice(-100) : [];
+  return list.map(message => {
+    const id = text(message?.id);
+    const classId = text(message?.classId);
+    if (!id || !classId) return null;
+    const sender = text(message?.senderName) || 'একজন সদস্য';
+    const body = text(message?.text).slice(0, 140);
+    const stamp = Number(message?.ts) || Date.parse(text(message?.createdAt) || '') || 0;
+    return {
+      key: `chat:${id}`,
+      source: 'classChat',
+      sourceId: id,
+      kind: 'chat',
+      category: 'chat',
+      title: `নতুন বার্তা · ${sender}`,
+      body: body ? `${classId} · ${body}` : `${classId} শ্রেণির চ্যাটে নতুন বার্তা`,
+      at: stamp,
+      target: 'class-chat',
+      targetId: text(message?.roomKey) || classId,
+      action: 'open-chat',
+      actionLabel: 'চ্যাট খুলুন',
+      audience: classId,
+      roomKey: text(message?.roomKey)
+    };
+  }).filter(Boolean);
+}
+
+export function notificationFeed({ notices = [], config = null, examDb = null, teachingDb = null, viewer = null, now = nowEpoch(), localWrites = null, students = null, registrationNotifications = null, transactions = null, chatMessages = [], cleared = null } = {}) {
   const items = [];
   const broadcast = broadcastItem(config);
   if (broadcast) items.push(broadcast);
@@ -582,6 +639,7 @@ export function notificationFeed({ notices = [], config = null, examDb = null, t
     if (!prev || (item.at || 0) >= (prev.at || 0)) latestNotices.set(item.sourceId, item);
   }
   items.push(...latestNotices.values());
+  items.push(...classChatItems(chatMessages));
   items.push(...examItems(examDb, viewer, now));
   items.push(...homeworkItems(teachingDb, viewer, now));
   items.push(...registrationItems(students, viewer, registrationNotifications));
@@ -591,6 +649,7 @@ export function notificationFeed({ notices = [], config = null, examDb = null, t
   items.push(...paymentReviewItems(transactions, viewer));
   items.push(...paymentRejectedItems(transactions, viewer));
   items.push(...examReviewItems(examDb, viewer));
+  items.push(...staffExamItems(examDb, viewer));
   items.push(...teacherExamItems(examDb, viewer));
   items.push(...birthdayItems(viewer, now));
   items.push(...birthdayTodayStaffItems(students, viewer, now));

@@ -35,7 +35,7 @@ async function enterStudents(page) {
   const alertClose = page.locator('#apcAlertBackdrop [data-apc-alert-close]').first();
   await alertClose.waitFor({ state: 'visible', timeout: 1500 }).catch(() => {});
   if (await alertClose.isVisible().catch(() => false)) await alertClose.click();
-  await page.locator('.manager-bottom [data-panel-view="students"]').click();
+  await page.locator('.admin-bottom [data-panel-view="students"]').click();
   await expect(page.locator('.manager-view[data-view-panel="students"]')).toBeVisible();
   await page.locator('.manager-view[data-view-panel="students"] [data-student-scope="all"]').click();
   await expect(page.locator('#managerPendingBadge')).toHaveText('১ অপেক্ষমাণ');
@@ -84,7 +84,7 @@ for (const viewport of viewportCases) {
     await inactive.locator('.manager-student-details-toggle').click();
     await expect(inactive.locator('.manager-student-details')).toBeHidden();
     await expect(pending.locator('.manager-student-head')).toContainText('পেন্ডিং শিক্ষার্থী');
-    await expect(pending.locator('.manager-student-head')).toContainText('S-PENDING');
+    await expect(pending).toHaveAttribute('data-manager-student', 'S-PENDING');
     await expect(pending.locator('.manager-student-head')).toContainText('অপেক্ষমাণ');
     await expect(pending.locator('.manager-student-head')).not.toContainText('নবম শ্রেণি');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -101,7 +101,7 @@ for (const viewport of viewportCases) {
     await approved.locator('.manager-student-details-toggle').click();
     await expect(pendingDetails).toBeHidden();
     await expect(approvedDetails).toBeVisible();
-    await expect(approvedDetails.locator('.manager-student-detail-group')).toHaveCount(3);
+    await expect(approvedDetails.locator('.manager-student-detail-group')).toHaveCount(4);
     const editTone = await approved.locator('[data-manager-action="edit-student"]').evaluate(element => getComputedStyle(element).backgroundColor);
     const profileTone = await approved.locator('[data-manager-action="view-student"]').evaluate(element => getComputedStyle(element).backgroundColor);
     expect(editTone).not.toBe(profileTone);
@@ -136,8 +136,8 @@ for (const viewport of viewportCases) {
     // A fresh visit and a refresh both return the accordion to its compact state.
     await pending.locator('.manager-student-details-toggle').click();
     await expect(pendingDetails).toBeVisible();
-    await page.locator('.manager-bottom [data-panel-view="dashboard"]').click();
-    await page.locator('.manager-bottom [data-panel-view="students"]').click();
+    await page.locator('.admin-bottom [data-panel-view="dashboard"]').click();
+    await page.locator('.admin-bottom [data-panel-view="students"]').click();
     await expect(page.locator('.manager-view.active')).toHaveAttribute('data-view-panel', 'students');
     await page.locator('.manager-view[data-view-panel="students"] [data-student-scope="all"]').click();
     await expect(page.locator('.manager-student-details[hidden]')).toHaveCount(7);
@@ -146,13 +146,13 @@ for (const viewport of viewportCases) {
     await page.reload();
     await expect(page.locator('#managerShell')).toBeVisible();
     await expect(page.locator('.manager-view[data-view-panel="students"]')).toBeVisible();
-    await expect(page.locator('.manager-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'students');
+    await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', 'students');
     await page.locator('.manager-view[data-view-panel="students"] [data-student-scope="all"]').click();
     await expect(page.locator('.manager-student-details[hidden]')).toHaveCount(7);
 
     const topbar = page.locator('.manager-shell > .app-topbar');
     const topbarY = (await topbar.boundingBox()).y;
-    const bottom = page.locator('.manager-bottom');
+    const bottom = page.locator('.admin-bottom');
     expect(await bottom.evaluate(element => getComputedStyle(element).position)).toBe('fixed');
     const bottomBox = await bottom.boundingBox();
     expect(bottomBox.y + bottomBox.height).toBeGreaterThanOrEqual(viewport.height - 1);

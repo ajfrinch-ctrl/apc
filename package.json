@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "test:e2e:local": "node tools/e2e-run.mjs",
     "rehearse:cutover": "node --import ./tests/node-test-setup.mjs --test --test-force-exit tests/v2-cutover-rehearsal.test.mjs tests/rtdb-v2-draft-rules.test.mjs tests/teacher-assignment-migration.test.mjs tests/v2-roster-migration.test.mjs tests/question-bank-v2-policy.test.mjs tests/question-bank-v2-projection.test.mjs tests/notices-v2-policy.test.mjs tests/notices-v2-projection.test.mjs tests/admin-v2-migration.test.mjs",
-    "build:qrcode": "node tools/build-qrcode.mjs"
+    "build:qrcode": "node tools/build-qrcode.mjs",
+    "build:vercel-observability": "node tools/build-vercel-observability.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.12",
@@ -41,5 +42,9 @@
     "katex": "^0.18.2",
     "qrcode-generator": "2.0.4",
     "tailwindcss": "^4.3.3"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
+    "@vercel/analytics": "^2.0.1"
   }
 }

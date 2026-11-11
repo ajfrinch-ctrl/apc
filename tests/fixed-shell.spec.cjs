@@ -103,7 +103,7 @@ for (const viewport of viewports) {
     await enterPortal(page, 'manager');
     const selectors = { header: '#managerShell > .app-topbar', footer: '#managerShell > .admin-bottom' };
     const main = '#managerMain';
-    const tab = page.locator('.manager-bottom [data-panel-view="finance"]');
+    const tab = page.locator('.admin-bottom [data-panel-view="finance"]');
     await tab.click();
     await expect(tab).toHaveAttribute('aria-current', 'page');
     await expect.poll(() => tab.evaluate(button => getComputedStyle(button).backgroundColor))
@@ -148,13 +148,13 @@ test('Manager keeps its wide desktop shell and five-item bottom navigation', asy
   await page.setViewportSize(viewport);
   await enterPortal(page, 'manager');
   const shell = page.locator('#managerShell');
-  const nav = page.locator('#managerShell > .manager-bottom');
+  const nav = page.locator('#managerShell > .admin-bottom');
   const main = page.locator('#managerMain');
   await expect(shell).toBeVisible();
   await expect(nav).toBeVisible();
 
   const expected = [
-    ['dashboard', 'হোম'], ['students', 'শিক্ষার্থী'], ['academic', 'একাডেমিক'],
+    ['dashboard', 'হোম'], ['students', 'কাজ'], ['academic', 'একাডেমিক'],
     ['finance', 'হিসাব'], ['more', 'আরও']
   ];
   const actual = await nav.locator('button[data-panel-view]').evaluateAll(buttons =>
@@ -164,7 +164,7 @@ test('Manager keeps its wide desktop shell and five-item bottom navigation', asy
   const initial = await page.evaluate(() => {
     const shell = document.querySelector('#managerShell');
     const header = shell.querySelector(':scope > .app-topbar');
-    const nav = shell.querySelector(':scope > .manager-bottom');
+    const nav = shell.querySelector(':scope > .admin-bottom');
     const main = document.querySelector('#managerMain');
     const rect = element => {
       const { top, right, bottom, left, width, height } = element.getBoundingClientRect();
@@ -192,7 +192,7 @@ test('Manager keeps its wide desktop shell and five-item bottom navigation', asy
   expect(['sticky', 'relative']).toContain(initial.headerPosition);
   expect(initial.navPosition).toBe('fixed');
   expect(initial.navDirection).toBe('row');
-  expect(await page.locator('.manager-bottom').evaluate(el => getComputedStyle(el).display)).toBe('flex');
+  expect(await page.locator('.admin-bottom').evaluate(el => getComputedStyle(el).display)).toBe('flex');
 
   const initialHistoryLength = await page.evaluate(() => history.length);
   for (const [view] of expected) {
@@ -250,7 +250,7 @@ test('Manager keeps its wide desktop shell and five-item bottom navigation', asy
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   const afterScroll = await page.evaluate(() => {
     const header = document.querySelector('#managerShell > .app-topbar');
-    const nav = document.querySelector('#managerShell > .manager-bottom');
+    const nav = document.querySelector('#managerShell > .admin-bottom');
     const rect = element => {
       const { top, right, bottom, left } = element.getBoundingClientRect();
       return { top, right, bottom, left };

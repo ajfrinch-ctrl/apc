@@ -1707,3 +1707,38 @@ html[data-theme="dark"] .ls-material-sheet blockquote { background: #0f2a22; }
 .staff-card-summary-line { gap: 6px; }
 .staff-card-identity { min-width: 0; overflow-wrap: anywhere; }
 
+
+/* Student PDF read view: full-screen shell with the browser's PDF renderer so
+   what the learner reads is the same PDF artifact as the download action. */
+.apc-student-pdf-reader .ls-title-wrap strong { overflow-wrap: anywhere; }
+.apc-student-pdf-reader .apc-student-pdf-stage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px;
+  background: var(--color-bg);
+}
+.apc-student-pdf-reader [data-spdf-frame] {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #e9edf2;
+}
+.apc-student-pdf-reader [data-spdf-frame][hidden] { display: none; }
+.apc-student-pdf-reader .apc-student-pdf-status,
+.apc-student-pdf-reader .apc-student-pdf-hint {
+  margin: 8px auto;
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-size: 13px;
+}
+.apc-student-pdf-reader [data-spdf-retry] { align-self: center; min-height: 44px; }
+@media (max-width: 600px) {
+  .apc-student-pdf-reader .ls-topbar { padding: 8px; gap: 6px; }
+  .apc-student-pdf-reader .ls-topbar-actions .ls-btn { min-height: 44px; padding-inline: 9px; }
+  .apc-student-pdf-reader .apc-student-pdf-stage { padding: 4px; }
+}

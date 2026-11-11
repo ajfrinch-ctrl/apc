@@ -14,10 +14,11 @@ import { readStaffAccount } from './staff-auth.js';
 import { initAppearance } from './appearance.js';
 import { mountSettingsHub, resetSettingsHub } from './settings-hub.js';
 import { applyPanelCapabilities } from './panel-capabilities.js';
+import { bindStaffNavigation, syncStaffNavigation } from './staff-navigation.js';
 import { mountStaffAccountGroup } from './staff-account-forms.js';
 import { mountProfileSelfEdit } from './staff-self-edit.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
-import { pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { initOrgInfo } from './org-info.js';
 export { PAYMENT_USER_ID };
 
@@ -56,7 +57,7 @@ function syncCounterHeading() {
   $$('[data-pay-hero-advice]').forEach(box => {
     const key = box.dataset.payHeroAdvice || 'finance';
     const p = box.querySelector('.teacher-hero-advice');
-    const line = pickTeacherSectionAdvice(key);
+    const line = pickStaffSectionAdvice(key);
     if (p && line) p.textContent = line;
   });
 }
@@ -76,17 +77,14 @@ function showCounterView(view) {
   });
   $('#payReportsCard').hidden=target!=='reports';
   $('#counterViewTitle').textContent=COUNTER_VIEW_TITLES[target];
-  document.querySelectorAll('.admin-bottom [data-panel-view]').forEach(seat=>{
-    const active=seat.dataset.panelView===target;
-    seat.classList.toggle('active',active);
-    if(active)seat.setAttribute('aria-current','page');else seat.removeAttribute('aria-current');
-  });
+  syncStaffNavigation('payment', target);
   // The counter's More surface is its Settings hub; every return starts at the
   // group menu instead of retaining a previous subsection.
   if(target==='more') resetSettingsHub('#payMorePanel');
   syncCounterHeading();
   return true;
 }
+bindStaffNavigation({ role: 'payment', onNavigate: route => showCounterView(route) });
 const money = value => `৳${bn(Number(value || 0).toLocaleString('en-US'))}`;
 const status = tx => tx.status === 'pending' ? 'অনুমোদন বাকি' : tx.status === 'rejected' ? 'বাতিল' : 'অনুমোদিত';
 function toast(message, tone='info') {
@@ -217,6 +215,16 @@ document.addEventListener('click',event=>{
     }
     return;
   }
+  if(event.target.closest('#payClosingShortcut')) {
+    if(showCounterView('reports')) {
+      const repPanel = $('#payReportsPanel');
+      const repBtn = $('[data-pay-toggle="reports-builder"]');
+      if (repPanel) repPanel.dataset.payOpen = 'reports-builder';
+      if (repBtn) { repBtn.classList.add('is-open'); repBtn.setAttribute('aria-expanded', 'true'); }
+      reports.preset('cash.closing');
+    }
+    return;
+  }
   const seat=event.target.closest('[data-panel-view]');
   if(seat) {
     if(seat.dataset.gateBlocked === '1' || seat.dataset.homeBlocked === '1') return;
@@ -227,16 +235,6 @@ document.addEventListener('click',event=>{
       const stuBtn = $('[data-pay-toggle="student-search"]');
       if (stuPanel) stuPanel.dataset.payOpen = 'student-search';
       if (stuBtn) { stuBtn.classList.add('is-open'); stuBtn.setAttribute('aria-expanded', 'true'); }
-    }
-    return;
-  }
-  if(event.target.closest('#payClosingShortcut')) {
-    if(showCounterView('reports')) {
-      const repPanel = $('#payReportsPanel');
-      const repBtn = $('[data-pay-toggle="reports-builder"]');
-      if (repPanel) repPanel.dataset.payOpen = 'reports-builder';
-      if (repBtn) { repBtn.classList.add('is-open'); repBtn.setAttribute('aria-expanded', 'true'); }
-      reports.preset('cash.closing');
     }
     return;
   }
@@ -412,4 +410,6 @@ hasPaymentSession().then(async valid=>{
   applyPanelCapabilities({ role: 'payment', homeRoot: $('#payCounterHome'), routes: COUNTER_VIEWS });
   configureForm(); showCounterView('home'); await refreshToday();
   window.dispatchEvent(new Event('apc-session-ready'));
+  void import('./notifications.js').then(({ initNotifications }) => initNotifications())
+    .catch(error => console.warn('[Active Plus] Payment notification centre unavailable:', error?.name || 'unknown'));
 });

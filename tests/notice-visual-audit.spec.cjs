@@ -43,7 +43,11 @@ for(const theme of ['light','dark']) for(const width of [320,390,1024]) {
   await modal.locator('[data-apc-notice-filter="all"]').click();
   await expect(modal.locator('[data-apc-notice-filter="all"]')).toHaveAttribute('aria-selected','true');
   await modal.locator('[data-apc-notice-filter="unread"]').click();
-  await modal.locator('.notice-action').first().click();expect(await page.evaluate(()=>window.auditOpened)).toBe(1);
+  await modal.locator('.notice-action').first().click();
+  await expect(modal.locator('[data-apc-notice-detail-sheet]')).toBeVisible();
+  expect(await page.evaluate(()=>window.auditOpened)).toBe(0);
+  await modal.locator('[data-apc-notice-detail-action]').click();
+  expect(await page.evaluate(()=>window.auditOpened)).toBe(1);
   await page.evaluate(()=>window.auditCenter.open());
   await modal.locator('[data-apc-notice-read-all]').click();
   await expect(modal.locator('[data-apc-notice-read-all]')).toBeHidden();

@@ -473,7 +473,7 @@ test('workflow 8b — a Manager-written notice carries its class scope and stays
     importPanel: () => import('../js/manager.js'),
     shellId: 'managerShell'
   });
-  manager.click(manager.$('.manager-bottom [data-panel-view="academic"]'));
+  manager.click(manager.$('.staff-bottom-nav [data-panel-view="academic"]'));
   await manager.flush(6);
   assert.equal(manager.$('[data-view-panel="academic"]').hidden, false, 'একাডেমিক is the hub');
   manager.click(manager.$('#managerAcademicMenu [data-academic-section="notice"]'));

@@ -4,7 +4,7 @@
  *             started · fee confirmed   (plus the existing notices, urgent
  *             broadcast, new exam, result)
  *   Manager : new registration · fee entry to approve · paper to approve
- *   Admin   : new registration
+ *   Admin   : new registration · pending/published exam and result updates
  *   Teacher : paper returned with reason · paper published
  *   Payment : entry rejected with reason                                      */
 import test from 'node:test';
@@ -132,8 +132,8 @@ test('each person’s feed contains only their own kinds', () => {
   };
   const kinds = viewer => [...new Set(notificationFeed({ ...data, viewer }).map(item => item.kind))].sort();
   assert.deepEqual(kinds(student), ['approved', 'exam', 'exam-live', 'payment']);
-  assert.deepEqual(kinds(staff('admin')), ['registration']);
-  assert.deepEqual(kinds(staff('manager')), ['exam-review', 'payment-review', 'registration']);
+  assert.deepEqual(kinds(staff('admin')), ['exam-published', 'exam-review', 'registration']);
+  assert.deepEqual(kinds(staff('manager')), ['exam-published', 'exam-review', 'payment-review', 'registration']);
   assert.deepEqual(kinds(staff('teacher')), ['exam-approved', 'exam-returned']);
   assert.deepEqual(kinds(staff('payment')), ['payment-rejected']);
 });

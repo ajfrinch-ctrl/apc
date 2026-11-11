@@ -71,6 +71,7 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    continue;
   }
   const old=new JSDOM(readCheckpoint(page)).window.document;
+  if(page==='payment') old.querySelector('#payClosingShortcut')?.setAttribute('data-panel-view','reports');
   /* The teacher's existing "পরীক্ষা নিন" hint now targets the explicit online-exams route;
      both routes resolve to the same panel, but notifications and task links use online-exams. */
   if(page==='teacher') old.querySelector('.admin-bottom [data-panel-view="exam"]')?.setAttribute('data-panel-view','online-exams');
@@ -87,8 +88,8 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    const retiredChat = control => control.id === 'classChatTopbarButton'
     || control.id === 'managerChangePassword'
     || control['data-panel-view'] === 'class-chat';
-   const currentRoutes=new Set(now.filter(control=>control.id!=='managerFinanceApprovalLink').map(control=>JSON.stringify(control)));
-   for(const control of controls(old).filter(c=>c.id!=='managerFinanceApprovalLink'&&!retiredChat(c)))assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
+   const currentControls=now.filter(control=>control.id!=='managerFinanceApprovalLink');
+   for(const control of controls(old).filter(c=>c.id!=='managerFinanceApprovalLink'&&!retiredChat(c)))assert.ok(currentControls.some(actual=>Object.entries(control).every(([key,value])=>actual[key]===value)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
    const adviceRoute=page==='manager'?'data-panel-view':'data-panel-view';
    assert.ok(now.some(control=>control[adviceRoute]==='advice'),'daily advice remains reachable from More');
   }else if(page==='teacher'){
@@ -104,10 +105,10 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
    const retired = control => control['data-panel-view'] === 'students'
     || control.id === 'teacherChangePassword'
     || (typeof control.id === 'string' && control.id.startsWith('teacherStudent'));
-   const currentRoutes=new Set(now.map(control=>JSON.stringify(control)));
+   const currentControls=now;
    for(const control of controls(old)){
     if(retired(control)) continue;
-    assert.ok(currentRoutes.has(JSON.stringify(control)),`teacher keeps existing route/control ${JSON.stringify(control)}`);
+    assert.ok(currentControls.some(actual=>Object.entries(control).every(([key,value])=>actual[key]===value)),`teacher keeps existing route/control ${JSON.stringify(control)}`);
    }
   }else {
    /* ২০২৬-১১-০২: কাউন্টার এখন নিজের প্রোফাইল স্ক্রিন পেয়েছে (Admin/Teacher/
@@ -118,8 +119,15 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
       carries it — the same one-form rule as the other three panels. */
    const retired = control => control.id === 'payMoreLogout';
    const currentRoutes=new Set(now.map(control=>JSON.stringify(control)));
-   for(const control of controls(old).filter(before=>!retired(before))) assert.ok(currentRoutes.has(JSON.stringify(control)),`${page} keeps existing route/control ${JSON.stringify(control)}`);
-   assert.ok(currentRoutes.has(JSON.stringify({ 'data-panel-view': 'profile' })),
+   for(const control of controls(old).filter(before=>!retired(before))) {
+    const preserved = currentRoutes.has(JSON.stringify(control))
+      || (Object.keys(control).length === 1 && control['data-panel-view']
+        && now.some(actual => actual['data-panel-view'] === control['data-panel-view']));
+    assert.ok(preserved,`${page} keeps existing route/control ${JSON.stringify(control)}`);
+   }
+   assert.ok(now.some(control => control['data-panel-view'] === 'reports'),
+    'the counter keeps its route to the closing/report view');
+   assert.ok(now.some(control => control['data-panel-view'] === 'profile'),
     'the counter keeps one door to its own profile (its own screen, like the other three panels)');
   }
  }

@@ -195,7 +195,12 @@ test('Mobile (375x812) Manager Studio zero-overflow + Student Panel online Lectu
   await pupil.goto('/demo/offline-roles.html');
   await syncStorage(page, pupil, ['activePlus.courseContent.v1']);
   const studentErrors = [];
-  pupil.on('pageerror', error => studentErrors.push(error.message));
+  pupil.on('pageerror', error => {
+    // Chromium's built-in PDF document is an opaque-origin frame; it can report
+    // its own denied localStorage access without an error in the student app.
+    if (/Failed to read the 'localStorage' property from 'Window'/.test(error.message)) return;
+    studentErrors.push(error.message);
+  });
 
   await enterStudentApp(pupil, {
     id: 'AP-1024',
@@ -212,14 +217,18 @@ test('Mobile (375x812) Manager Studio zero-overflow + Student Panel online Lectu
   await pupil.locator('#courseHub [data-course-chapter-toggle]').first().click();
   await pupil.locator('#courseHub [data-course-chapter-action="read"]').first().click();
 
-  await expect(pupil.locator('#courseHub .ls-student-sheet-card')).toContainText('মোবাইল লেকচার শিট — সেট ও ফাংশন');
-  await expect(pupil.locator('#courseHub .ls-student-sheet-body')).toContainText('সংযোগ সেট ও ছেদ সেটের বিস্তারিত উদাহরণ');
+  const studentSheet = pupil.locator('#courseHub .ls-student-sheet-card');
+  await expect(studentSheet).toContainText('মোবাইল লেকচার শিট — সেট ও ফাংশন');
 
-  // Open Full-Screen A4 Student Reader & close
-  await pupil.locator('#courseHub [data-student-lecture-reader]').first().click();
-  await expect(pupil.locator('#apcStudentLectureReader')).toBeVisible();
-  await pupil.locator('#apcStudentLectureReader [data-slr-close]').click();
-  await expect(pupil.locator('#apcStudentLectureReader')).toBeHidden();
+  // The published card opens its content in the full-screen A4 reader; the
+  // course hub intentionally shows metadata only, not a duplicate body preview.
+  await studentSheet.locator('[data-course-read]').click();
+  const studentPdfReader = pupil.locator('#apcStudentPdfReader');
+  await expect(studentPdfReader).toBeVisible();
+  await expect(studentPdfReader.locator('iframe[data-spdf-frame]')).toHaveAttribute('src', /^blob:/);
+  await expect(studentPdfReader.locator('[data-spdf-download]')).toBeVisible();
+  await studentPdfReader.locator('[data-spdf-close]').click();
+  await expect(studentPdfReader).toBeHidden();
 
   // Trigger Student On-Demand PDF Download
   const [studentDownload] = await Promise.all([

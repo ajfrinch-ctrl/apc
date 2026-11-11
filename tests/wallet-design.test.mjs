@@ -139,14 +139,15 @@ test('secondary screens have accessible home/back controls and staff hub rows ha
       assert.ok(button.querySelector('svg'));
     }
   }
-  /* Admin: hub panels removed (2026-10-28 refactor) — every main screen returns home; only detail sub-views return to parent hub. */
+  /* Admin uses the shared five-seat navigation: primary screens return Home;
+     nested detail pages retain their explicit parent route. */
   const adminDocument = doc('admin');
   const adminBacks = [...adminDocument.querySelectorAll('.pay-back')];
   const mainBacks = adminBacks.filter(button => !button.closest('[data-parent-view]'))
     .map(button => button.getAttribute('data-admin-back') || button.getAttribute('data-panel-view'));
   assert.equal(mainBacks.length, 16);
   const backupBack = adminDocument.querySelector('[data-view-panel="backup"] .pay-back');
-  assert.equal(backupBack.dataset.adminBack, 'data', 'backup returns to the data screen');
+  assert.equal(backupBack.dataset.adminBack, 'data', 'backup returns to its parent Data hub');
   assert.equal(mainBacks.filter(parent => parent === 'data').length, 1);
   assert.equal(mainBacks.filter(parent => parent === 'dashboard').length, 15);
   const detailBacks = adminBacks.filter(button => button.closest('[data-parent-view]'));
@@ -230,8 +231,11 @@ test('notification settings live inside a hidden view, never floating outside th
 
 test('counter keeps only its job surfaces, not wallet dashboard extras', () => {
   const document = doc('payment');
-  const seats = [...document.querySelectorAll('.admin-bottom [data-panel-view]')].map(seat => seat.dataset.panelView);
-  assert.deepEqual(seats, ['home', 'students', 'payment', 'reports', 'more'], 'one seat per step of the counter job');
+  const seats = [...document.querySelectorAll('.staff-bottom-nav > .admin-bottom-item')];
+  assert.equal(seats.length, 5, 'the counter keeps the shared five-seat navigation');
+  assert.deepEqual(seats.map(seat => seat.dataset.staffTab), ['home', 'work', 'academic', 'finance', 'more']);
+  assert.deepEqual(seats.filter(seat => seat.dataset.panelView).map(seat => seat.dataset.panelView), ['home', 'students', 'payment', 'more']);
+  assert.equal(seats[2].disabled, true, 'Academic stays visible but disabled for the counter role');
   /* ২০২৬-১১-০২: پنج job seat অপরিবর্তিত; কাউন্টারের নিজের প্রোফাইল এখন আলাদা
      স্ক্রিন (পঞ্চম সিটের নিচে নয়) — চার স্টাফ প্যানেলের একই প্রোফাইল নিয়ম। */
   assert.deepEqual([...document.querySelectorAll('[data-pay-panel]')].map(panel => panel.dataset.payPanel),
@@ -259,11 +263,11 @@ test('wallet assets and entry versions ship together in the offline shell', () =
     const links = [...read(name + '.html').matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match => match[1]);
     assert.ok(links.some(href => href.startsWith('css/ui-wallet.css?')), `${name} must link the wallet skin`);
     if (name === 'student') {
-      assert.ok(links.includes('css/hero-cards.css?v=480'), 'Student hero CSS uses the approved v478 asset pin');
-      assert.ok(appShell.includes("'./css/hero-cards.css' + '?v=480'"), 'the offline shell uses the same Student hero CSS pin');
+      assert.ok(links.includes('css/hero-cards.css?v=481'), 'Student hero CSS uses the approved v478 asset pin');
+      assert.ok(appShell.includes("'./css/hero-cards.css' + '?v=481'"), 'the offline shell uses the same Student hero CSS pin');
     }
     for (const href of links) {
-      if (name === 'student' && href === 'css/hero-cards.css?v=480') continue;
+      if (name === 'student' && href === 'css/hero-cards.css?v=481') continue;
       assert.match(href, new RegExp(`\\?v=${version}$`), `${name}: ${href} is not pinned to CACHE_VERSION`);
     }
   }

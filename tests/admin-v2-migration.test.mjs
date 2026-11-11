@@ -195,7 +195,7 @@ test('the migration console lives in the সিস্টেম hub, opens by has
   // The hash route opens the view and the সিস্টেম seat stays active.
   ctx.window.location.hash = '#migration';
   await ctx.waitFor(() => ctx.$('.admin-view[data-view-panel="migration"]').classList.contains('active'));
-  assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'system');
+  assert.equal(ctx.$('.staff-bottom-nav [aria-current="page"]').dataset.panelView, 'more', 'System is a More destination in the shared five-tab shell');
 
   // The console mounted inside the view with both tools (renderAll may lag a
   // beat behind the navigation, so wait for the mount itself).

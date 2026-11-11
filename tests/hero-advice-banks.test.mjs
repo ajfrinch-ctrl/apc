@@ -107,7 +107,7 @@ test('Admin Home advice follows the open view, without needing an HTML attribute
   assert.match(adminJs, /function hasCustomAdviceLine\(\)/, 'a custom authored line keeps precedence');
   /* The panel-design rule stays: Admin Home is text-only, no hero card remnants. */
   assert.doesNotMatch(adminHtml, /data-admin-hero-advice=/, 'admin.html stays free of the removed hero attribute');
-  assert.match(adminHtml, /<p class="admin-view-sub" id="adminHeroAdvice">/, 'the hero line node is the dashboard one');
+  assert.match(adminHtml, /<p class="(?:admin-view-sub|teacher-hero-advice)" id="adminHeroAdvice">/, 'the shared staff header owns the dashboard advice line');
 });
 
 test('every Admin view with a hero header has an advice line', async () => {

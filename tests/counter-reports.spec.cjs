@@ -17,7 +17,7 @@ async function prepare(page,scene={width:390,theme:'light'}) {
  },{person:PERSON,date:DATE});
  await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');await expect(page.locator('.launch-screen')).toHaveCount(0);
 }
-async function reports(page) {await page.locator('.admin-bottom [data-panel-view="reports"]').click();await page.locator('[data-pay-toggle=reports-builder]').click();await expect(page.locator('#payReportsCard')).toBeVisible();}
+async function reports(page) {await page.locator('.admin-bottom [data-panel-view=home]').click();await page.locator('#payClosingShortcut').click();await expect(page.locator('#payReportsCard')).toBeVisible();}
 /* The identity-only search lives in the শিক্ষার্থী seat of the five-seat shell. */
 async function studentsSeat(page) {await page.locator('.admin-bottom [data-panel-view="students"]').click();await expect(page.locator('#payStudentsPanel')).toBeVisible();await page.locator('[data-pay-toggle=student-search]').click();}
 for(const scene of [{width:320,theme:'dark'},{width:390,theme:'light'},{width:1280,theme:'light'}]) {

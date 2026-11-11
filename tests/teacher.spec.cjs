@@ -1,5 +1,5 @@
 const { test, expect } = require('./fixtures.cjs');
-const { enterPortal, enterStudentApp, newDevice, syncStorage } = require('./portal-session.cjs');
+const { openTeacherExams, enterPortal, enterStudentApp, newDevice, syncStorage } = require('./portal-session.cjs');
 const KEY = 'activePlus.teaching.v1';
 const STUDENT_SHARED_KEYS = [
   'activePlus.teaching.v1', 'activePlus.exams.v1', 'activePlus.admin.routine.v1',
@@ -115,7 +115,7 @@ test('the Teacher home homework hero opens the reused create form directly', asy
 test('exam drafts must use Manager approval workflow; legacy marks are read-only', async ({ page, context }) => {
   await page.clock.setFixedTime(new Date('2026-10-01T09:00:00Z'));
   await enter(page);
-  await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
+  await openTeacherExams(page);
   await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
   await page.locator('#teacherExamWorkspace [data-exam-action=new-mcq]').click();
   await expect(page.locator('#teacherExamWorkspace [data-exam-form]')).toBeVisible();
@@ -279,7 +279,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
       return topbarName === null && bell.width > 0 && singleFullWidth && document.documentElement.scrollWidth <= innerWidth;
     });
     expect(responsiveHeader).toBe(true);
-    await expect(page.locator('.admin-bottom-item')).toHaveCount(4);
+    await expect(page.locator('.admin-bottom-item')).toHaveCount(5);
     // The clean home no longer hosts a recent-work feed.
     await expect(page.locator('#teacherRecent')).toHaveCount(0);
     await page.locator('#teacherMain').evaluate(el => { el.scrollTop = el.scrollHeight; });
@@ -373,7 +373,7 @@ test('concurrent teacher tabs preserve both saves and immediately refresh each o
   // Home heroes are create-first, so records open via the নম্বর এন্ট্রি chip
   // and the suggestion type tab.
   for (const p of [page, other]) {
-    await p.locator('.admin-bottom [data-panel-view=online-exams]').click();
+    await openTeacherExams(p);
     await p.locator('#teacherOnlineExams [data-panel-view=exam]').click();
     await p.locator('.teacher-type-tabs [data-type-tab=suggestion]').click();
     await expect(p.locator('#teacherRecordList .teaching-card')).toHaveCount(2);

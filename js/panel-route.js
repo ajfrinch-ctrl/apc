@@ -35,7 +35,9 @@ export function pushRoute(name, state) {
     reopens the panel's default tab so the URL and the visible view never
     disagree; unknown hashes are refused by the caller's route guard. */
 export function onRouteChange(handler) {
-  window.addEventListener('hashchange', () => {
-    handler(routeName());
-  });
+  const dispatch = () => handler(routeName());
+  // pushState itself does not emit hashchange; history traversal of a pushed
+  // route emits popstate. Listen to both so deep links and Back/Forward agree.
+  window.addEventListener('hashchange', dispatch);
+  window.addEventListener('popstate', dispatch);
 }

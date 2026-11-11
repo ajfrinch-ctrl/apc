@@ -18,6 +18,8 @@
 
 import { ADMIN_BOTTOM_NAV, ADMIN_SYSTEM_NAV, ADMIN_DATA_NAV, ADMIN_MORE_NAV, ADMIN_FEATURE_TILES, enforceCapabilities } from './admin-permissions.js';
 import { iconElement, paintIcon } from './icons.js';
+import { staffTabForRoute } from './staff-navigation.js';
+import { selectReport } from './reports.js';
 
 /* The bottom bar and the "More" menu use the same icon language, so a section
    looks identical wherever it appears. */
@@ -45,6 +47,7 @@ function renderBottomBar(bar, entries, onNavigate) {
     button.type = 'button';
     button.className = 'admin-bottom-item';
     button.dataset.panelView = entry.view;
+    button.dataset.staffTab = staffTabForRoute('admin', entry.view);
     if (entry.capability) button.dataset.adminCap = entry.capability;
 
     // Fixed container: the icon can never grow past it, so it can never
@@ -140,7 +143,24 @@ function renderFeatureGrid(container, entries, onNavigate) {
     label.dataset.actionSub = entry.sub || entry.hint || 'নতুন ও অপেক্ষমাণ শিক্ষার্থীদের নিবন্ধন আবেদন যাচাই ও অনুমোদন করুন';
 
     tile.append(iconWrap, label);
-    tile.addEventListener('click', () => onNavigate(entry.view, tile));
+    tile.addEventListener('click', () => {
+      /* Finance is a summary/report door, never a cash-collection shortcut. Set
+         the fee report before navigation so ReportCenter retains it on refresh. */
+      if (entry.action === 'finance-summary') {
+        selectReport(document.querySelector('#adminReports'), 'fee.monthly');
+      }
+      onNavigate(entry.view, tile);
+      if (entry.action === 'notifications') {
+        void import('./notifications.js').then(({ initNotifications }) => {
+          initNotifications();
+          document.querySelector('#notificationButton')?.click();
+        }).catch(error => console.warn('[Active Plus] notification shortcut unavailable:', error?.name || 'unknown'));
+      }
+      if (entry.action === 'finance-summary') {
+        const toggle = document.querySelector('[data-admin-section-toggle="reports-builder"]');
+        if (toggle?.getAttribute('aria-expanded') !== 'true') toggle?.click();
+      }
+    });
     container.append(tile);
     return tile;
   });
