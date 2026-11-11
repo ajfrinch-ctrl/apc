@@ -1239,7 +1239,7 @@ async function canvasToJpegBytes(canvas) {
   return out;
 }
 
-export async function generateLecturePdfBlob(record = {}, { onProgress = null } = {}) {
+async function buildLecturePdfBlob(record = {}, { onProgress = null } = {}) {
   const startedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   if (typeof onProgress === 'function') onProgress({ stage: 'layout', currentPage: 0, totalPages: 0 });
 
@@ -1299,6 +1299,34 @@ export async function generateLecturePdfBlob(record = {}, { onProgress = null } 
     elapsedMs,
     layout
   };
+}
+
+// A one-document cache guarantees that reading a lecture sheet and pressing
+// its separate download action consume the same generated PDF Blob. The full
+// serialized record is the key, so edits invalidate the cached artifact.
+let cachedLecturePdfKey = '';
+let cachedLecturePdfResult = null;
+const pendingLecturePdfs = new Map();
+export async function generateLecturePdfBlob(record = {}, options = {}) {
+  let key = '';
+  try { key = JSON.stringify(record); } catch { key = ''; }
+  if (key && cachedLecturePdfKey === key && cachedLecturePdfResult) {
+    options.onProgress?.({ stage: 'complete', currentPage: cachedLecturePdfResult.totalPages, totalPages: cachedLecturePdfResult.totalPages });
+    return cachedLecturePdfResult;
+  }
+  if (key && pendingLecturePdfs.has(key)) return pendingLecturePdfs.get(key);
+
+  const generation = buildLecturePdfBlob(record, options);
+  if (!key) return generation;
+  pendingLecturePdfs.set(key, generation);
+  try {
+    const result = await generation;
+    cachedLecturePdfKey = key;
+    cachedLecturePdfResult = result;
+    return result;
+  } finally {
+    pendingLecturePdfs.delete(key);
+  }
 }
 
 export function triggerPdfDownload(blob, filename) {

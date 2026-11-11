@@ -227,10 +227,16 @@ test('Mobile (375x812) Manager Studio zero-overflow + Student Panel online Lectu
   await expect(studentPdfReader).toBeVisible();
   await expect(studentPdfReader.locator('iframe[data-spdf-frame]')).toHaveAttribute('src', /^blob:/);
   await expect(studentPdfReader.locator('[data-spdf-download]')).toBeVisible();
+  const [readerDownload] = await Promise.all([
+    pupil.waitForEvent('download'),
+    studentPdfReader.locator('[data-spdf-download]').click()
+  ]);
+  const readPdfBytes = fs.readFileSync(await readerDownload.path());
   await studentPdfReader.locator('[data-spdf-close]').click();
   await expect(studentPdfReader).toBeHidden();
 
-  // Trigger Student On-Demand PDF Download
+  // The list's separate PDF action must download the exact same PDF artifact
+  // that the student just read, not a differently paginated second rendering.
   const [studentDownload] = await Promise.all([
     pupil.waitForEvent('download'),
     pupil.locator('#courseHub [data-student-lecture-pdf]').first().click()
@@ -238,6 +244,7 @@ test('Mobile (375x812) Manager Studio zero-overflow + Student Panel online Lectu
   expect(studentDownload.suggestedFilename()).toMatch(/^[A-Za-z0-9_.-]+\.pdf$/);
   const stuPdfBytes = fs.readFileSync(await studentDownload.path());
   expect(stuPdfBytes.subarray(0, 8).toString('latin1')).toBe('%PDF-1.4');
+  expect(stuPdfBytes.equals(readPdfBytes)).toBe(true);
 
   expect(studentErrors).toEqual([]);
   expect(errors).toEqual([]);
