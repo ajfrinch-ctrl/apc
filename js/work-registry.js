@@ -71,7 +71,7 @@ export const FIELD_LABELS = Object.freeze({
   class: 'শ্রেণি', subject: 'বিষয়', group: 'বিভাগ / ব্যাচ', students: 'নির্দিষ্ট শিক্ষার্থী',
   title: 'শিরোনাম', details: 'বিবরণ', date: 'তারিখ', time: 'সময়', duration: 'সময়কাল (মিনিট)',
   totalMarks: 'পূর্ণমান', chapter: 'অধ্যায়', questionType: 'প্রশ্নের ধরন', question: 'প্রশ্ন',
-  options: 'অপশन', answer: 'সঠিক উত্তর', explanation: 'ব্যাখ্যা', attachment: 'সংযুক্তি (লিংক)',
+  options: 'অপশন', answer: 'সঠিক উত্তর', explanation: 'ব্যাখ্যা', attachment: 'সংযুক্তি (লিংক)',
   target: 'কোন শ্রেণি/শিক্ষার্থী পাবে', priority: 'গুরুত্ব', exam: 'পরীক্ষা', marks: 'নম্বর',
   room: 'রুম / স্থান', content: 'বিষয়বস্তু', link: 'সহায়ক লিংক', practiceSet: 'প্র্যাকটিস সেট'
 });
