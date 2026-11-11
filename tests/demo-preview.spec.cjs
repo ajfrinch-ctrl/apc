@@ -76,9 +76,9 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 844, height: 390 }
   test(`the teacher activity form fits the mobile layout at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await enterPortal(page, 'teacher');
-    // ২০২৬-১১-০১: the home door opens the full records page; the page's own
-    // create card opens the shared activity form on top of it.
-    await page.locator('#teacherHome [data-panel-view=homework]').click();
+    // ২০২৬-১১-১১: the records page keeps its own route; the page's own create
+    // card opens the shared activity form on top of it.
+    await page.evaluate(() => { window.location.hash = '#homework'; });
     await page.locator('#teacherRecords [data-records-action=create]').click();
     await expect(page.locator('#teacherActivityForm')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

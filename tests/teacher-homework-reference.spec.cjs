@@ -13,7 +13,9 @@ for (const width of [320, 390, 1024]) {
        Homework uses the same standard modal/sheet as every other teacher
        dialog: scrim-backed card, app chrome stays visible behind it, and no
        fullscreen takeover or cloned bottom navigation. */
-    await page.locator('#teacherHome [data-panel-view="homework"]').click();
+    /* ২০২৬-১১-১১: বাড়ির কাজের দরজা এখন কেন্দ্রীয় কাজ-প্যানেলে; রেকর্ডস
+       পেজটি নিজের রুটেই খোলে এবং সেখান থেকেই কম্পোজার শুরু হয়। */
+    await page.evaluate(() => { window.location.hash = '#homework'; });
     await expect(page.locator('#teacherRecords')).toBeVisible();
     await page.locator('#teacherRecords [data-records-action="create"]').click();
     await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
@@ -37,8 +39,7 @@ for (const width of [320, 390, 1024]) {
     expect(saved.status).toBe('published');
     expect(saved.subject).toBe('গণিত');
     expect(saved.resourceURL).toBe('https://github.com/ajfrinch-ctrl/apc');
-    await page.locator('.admin-bottom [data-panel-view="home"]').click();
-    await page.locator('#teacherHome [data-panel-view="homework"]').click();
+    await page.evaluate(() => { window.location.hash = '#homework'; });
     await page.locator('#teacherRecords [data-records-action="create"]').click();
     await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
     await page.locator('#teacherModalClose').click();

@@ -26,7 +26,7 @@ const homeGrid = {
    keep a pay-back-to-home round trip, so the router shortcut test scopes to them. */
 const homeShortcuts = {
   manager: '.manager-view[data-view-panel="dashboard"] nav[aria-label="দ্রুত অ্যাক্সেস"] > button[data-panel-view]',
-  teacher: '#teacherHome [data-panel-view="routine-view"], #teacherHome [data-panel-view="homework"]'
+  teacher: '#teacherHome [data-panel-view="routine-view"]'
 };
 const navCount = { student: 5, admin: 5, manager: 5, teacher: 5, payment: 5 };
 const shell = { student: '#appShell', admin: '#adminShell', manager: '#managerShell', teacher: '#teacherShell', payment: '#payShell' };
@@ -104,10 +104,9 @@ for (const role of ['manager', 'teacher']) test(`${role} service shortcuts and b
   const targetHome = role === 'manager' ? 'dashboard' : 'home';
   const shortcuts = page.locator(homeShortcuts[role]);
   const routes = await shortcuts.evaluateAll((buttons, attribute) => buttons.map(button => button.getAttribute(attribute)), attribute);
-  // 2026-10-21: the teacher Home is create-first (heroes open forms/MCQ/modals),
-  // so only its two pure screen doors — read-only routine and materials — take
-  // the pay-back round trip; the other portals keep their previous counts.
-  const expectedShortcuts = role === 'manager' ? 10 : role === 'teacher' ? 2 : 7;
+  // 2026-11-11: the teacher Home is work-centric, so its only pure screen door is
+  // the read-only routine; work creation happens in the central work panel.
+  const expectedShortcuts = role === 'manager' ? 10 : role === 'teacher' ? 1 : 7;
   expect(routes).toHaveLength(expectedShortcuts);
   for (let index = 0; index < routes.length; index++) {
     const route = routes[index];

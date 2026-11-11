@@ -88,19 +88,11 @@
       <p id="teacherAssignmentNotice" class="finance-error" role="status" hidden>এখনো কোনো ক্লাস অ্যাসাইন করা হয়নি — আপনার অ্যাকাউন্টে কোনো ক্লাস বা বিষয় যুক্ত হয়নি। অ্যাসাইন হলে এখানেই দেখা যাবে; কর্তৃপক্ষ সঙ্গে যোগাযোগ করুন।</p>
         <!-- একাডেমিক কার্যক্রম এখন ক্লাসের বাইরে নিজস্ব ফিচার (মালিকের নির্দেশ ২০২৬-১০-২১):
              বাড়ির কাজ, সাজেশন, প্রশ্ন, পরীক্ষা, উপকরণ ও নোটিশ — সব এক জায়গায়। -->
-        <button class="teacher-academic-hub" type="button" data-panel-view="academic" aria-label="একাডেমিক কার্যক্রম খুলুন — বাড়ির কাজ, সাজেশন, প্রশ্নব্যাংক, পরীক্ষা, উপকরণ ও নোটিশ">
-          <span class="teacher-academic-hub-icon" aria-hidden="true"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="book" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/book.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+        <button class="teacher-academic-hub teacher-work-primary" type="button" data-panel-view="work-new" aria-label="নতুন কাজ তৈরি করুন — শ্রেণி ও বিষয় বেছে নিয়ে বাড়ির কাজ, নোট, পরীক্ষা বা নোটিশ তৈরি করুন">
+          <span class="teacher-academic-hub-icon" aria-hidden="true"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="assignment" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/assignment.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
           <span class="teacher-academic-hub-body">
-            <span class="teacher-academic-hub-title">একাডেমিক কার্যক্রম</span>
-            <span class="teacher-academic-hub-sub">বাড়ির কাজ, সাজেশন, প্রশ্ন, পরীক্ষা, উপকরণ ও নোটিশ</span>
-          </span>
-          <span class="teacher-academic-hub-chevron" aria-hidden="true"></span>
-        </button>
-        <button class="panel-hub-card" type="button" data-panel-entry="chat" data-panel-view="class-chat" aria-label="শ্রেণি চ্যাট খুলুন — শ্রেণিভিত্তিক আলোচনা">
-          <span class="teacher-academic-hub-icon" aria-hidden="true"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="chat" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/chat.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          <span class="teacher-academic-hub-body">
-            <span class="teacher-academic-hub-title">শ্রেণি চ্যাট</span>
-            <span class="teacher-academic-hub-sub">শ্রেণিভিত্তিক প্রশ্নোত্তর ও শিক্ষার্থীদের সঙ্গে যোগাযোগ</span>
+            <span class="teacher-academic-hub-title">নতুন কাজ তৈরি করুন</span>
+            <span class="teacher-academic-hub-sub">শ্রেণি ও বিষয় বেছে নিন — বাড়ির কাজ, নোট, পরীক্ষা, নোটিশ</span>
           </span>
           <span class="teacher-academic-hub-chevron" aria-hidden="true"></span>
         </button>
@@ -112,29 +104,29 @@
            (setView + #hash); হোম থেকে সরাসরি কোনো ফর্ম-মডেল খোলে না — তৈরি হয়
            গন্তব্য স্ক্রিনের নিজস্ব বাটন থেকে। বাড়ির কাজ / সাজেশন / উপকরণ /
            নোটিশ / লেকচার শিট — সব একাডেমিক হাবে। -->
-      <nav class="teacher-home-actions staff-home-action-grid" aria-label="দ্রুত কাজ">
-          <button class="teacher-action-card" type="button" data-panel-view="homework" aria-label="বাড়ির কাজ — তালিকা, নতুন কাজ ও জমার অগ্রগতি">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">বাড়ির কাজ</span>
-              <span class="teacher-action-sub">নতুন কাজ দিন, তালিকা ও জমার অগ্রগতি দেখুন</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="assignment" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/assignment.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-          <button class="teacher-action-card is-accent" type="button" data-panel-view="online-exams" aria-label="পরীক্ষা — নতুন পরীক্ষা, প্রশ্নব্যাংক ও ফলাফল">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">পরীক্ষা</span>
-              <span class="teacher-action-sub">নতুন পরীক্ষা, প্রশ্নব্যাংক ও ফলাফল — এক জায়গায়</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="mcq" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/mcq.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-          <button class="teacher-action-card" type="button" data-panel-view="routine-view" aria-label="ক্লাস রুটিন দেখুন — আজকের ও সপ্তাহের রুটিন">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">ক্লাস রুটিন</span>
-              <span class="teacher-action-sub">আজকের ও সপ্তাহের রুটিন দেখুন</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="calendar" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/calendar.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-        </nav>
+      <nav class="teacher-home-actions staff-home-action-grid" aria-label="আপনার কাজ">
+            <button class="teacher-action-card" type="button" data-panel-view="work-published" aria-label="আমার প্রকাশিত কাজ — খসড়া, অনুমোদনের অপেক্ষায় ও প্রকাশিত — সম্পাদনা করুন">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">আমার প্রকাশিত কাজ</span>
+                <span class="teacher-action-sub">খসড়া, অনুমোদনের অপেক্ষায় ও প্রকাশিত — সম্পাদনা করুন</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="assignment" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/assignment.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+            <button class="teacher-action-card" type="button" data-panel-view="work-activity" aria-label="শিক্ষার্থীদের কার্যক্রম — বাড়ির কাজ জমা, উপস্থিতি ও পরীক্ষার অংশগ্রহণ">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">শিক্ষার্থীদের কার্যক্রম</span>
+                <span class="teacher-action-sub">বাড়ির কাজ জমা, উপস্থিতি ও পরীক্ষার অংশগ্রহণ</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="user" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/user.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+            <button class="teacher-action-card" type="button" data-panel-view="routine-view" aria-label="আজকের ক্লাস ও রুটিন — আজকের ও সপ্তাহের রুটিন দেখুন">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">আজকের ক্লাস ও রুটিন</span>
+                <span class="teacher-action-sub">আজকের ও সপ্তাহের রুটিন দেখুন</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="calendar" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/calendar.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+          </nav>
       </section>
       <section id="teacherRecords" class="teacher-view" data-records-open="1" aria-labelledby="teacherRecordsTitle" hidden>
         <div class="home-dashboard-intro teacher-home-intro panel-compact-head" data-home-intro data-hero-mode="day">
@@ -198,57 +190,38 @@
           </div>
         </div>
         <p class="teacher-local-note" id="teacherAcademicScope" hidden></p>
-        <nav class="teacher-home-actions teacher-academic-actions" aria-label="একাডেমিক কার্যক্রম">
-          <button class="teacher-action-card is-accent" type="button" data-panel-view="homework" aria-label="বাড়ির কাজ — নতুন কাজ তৈরি, তালিকা ও শিক্ষার্থীদের জমার অগ্রগতি">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">বাড়ির কাজ <span class="academic-count" data-academic-count="homework" aria-hidden="true"></span></span>
-              <span class="teacher-action-sub">নতুন কাজ তৈরি, সংরক্ষিত তালিকা ও জমার অগ্রগতি — এক স্ক্রিনে</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="assignment" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/assignment.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-          <button class="teacher-action-card" type="button" data-panel-view="suggestion" aria-label="সাজেশন — তালিকা ও নতুন অধ্যায়ভিত্তিক সাজেশন প্রকাশ">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">সাজেশন <span class="academic-count" data-academic-count="suggestion" aria-hidden="true"></span></span>
-              <span class="teacher-action-sub">নতুন সাজেশন প্রকাশ ও সংরক্ষিত সাজেশনের তালিকা</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="suggestion" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/suggestion.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-          <button class="teacher-action-card" type="button" data-academic-section="bank" aria-label="প্রশ্ন বানান — প্রশ্নব্যাংকে নতুন MCQ ও সৃজনশীল প্রশ্ন তৈরি ও সংরক্ষণ করুন">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">প্রশ্ন বানান <span class="academic-count" data-academic-count="bank" aria-hidden="true"></span></span>
-              <span class="teacher-action-sub">প্রশ্নব্যাংকে নতুন MCQ ও সৃজনশীল প্রশ্ন তৈরি ও সংরক্ষণ করুন</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="mcq" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/mcq.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-          <button class="teacher-action-card" type="button" data-panel-view="lecture-sheets" aria-label="লেকচার শিট স্টুডিও — ফুল-স্ক্রিন A4 এডিটরে লেকচার শিট তৈরি, সম্পাদনা, PDF ডাউনলোড ও প্রকাশ করুন" data-panel-entry="lecture" data-cap="content.lecture-sheets">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">লেকচার শিট স্টুডিও <span class="academic-count" data-academic-count="lecture-sheets" aria-hidden="true"></span></span>
-              <span class="teacher-action-sub">A4 এডিটরে লেকচার শিট তৈরি, PDF ও শিক্ষার্থীদের জন্য প্রকাশ</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="book" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/book.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-          <button class="teacher-action-card" type="button" data-panel-view="courses" aria-label="উপকরণ দিন — শ্রেণি ও অধ্যায়ভিত্তিক লেকচার শিট, নোট ও পিডিএফ যুক্ত করুন">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">উপকরণ দিন <span class="academic-count" data-academic-count="materials" aria-hidden="true"></span></span>
-              <span class="teacher-action-sub">শ্রেণি ও অধ্যায়ভিত্তিক লেকচার শিট, নোট ও পিডিএফ যুক্ত করুন</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="materials" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/materials.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-          <button class="teacher-action-card" type="button" data-academic-section="exams" aria-label="পরীক্ষা বানান — নতুন অনলাইন MCQ ও লিখিত পরীক্ষার খসড়া তৈরি করুন">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">পরীক্ষা বানান <span class="academic-count" data-academic-count="exams" aria-hidden="true"></span></span>
-              <span class="teacher-action-sub">নতুন অনলাইন MCQ ও লিখিত পরীক্ষার খসড়া তৈরি করুন</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="exam" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/exam.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-          <button class="teacher-action-card" type="button" data-panel-view="notice" aria-label="নোটিশ বোর্ড — নতুন নোটিশ লিখুন, প্রকাশিত ও খসড়া নোটিশ দেখুন" data-panel-entry="notice">
-            <span class="teacher-action-body">
-              <span class="teacher-action-title">নোটিশ বোর্ড <span class="academic-count" data-academic-count="notice" aria-hidden="true"></span></span>
-              <span class="teacher-action-sub">নতুন নোটিশ লিখুন, প্রকাশিত ও খসড়া নোটিশ দেখুন</span>
-            </span>
-            <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="notice" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/notice.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
-          </button>
-        </nav>
+        <p class="teacher-local-note">নতুন কাজ তৈরি হয় <strong>কাজ</strong> প্যানেল থেকে — শ্রেণি ও বিষয় বেছে নিয়ে এক জায়গায়। এখানে শুধু আগের কাজ, উপকরণ ও রিপোর্ট দেখুন।</p>
+          <button class="admin-btn primary" type="button" data-panel-view="work-new" aria-label="কাজ প্যানেলে গিয়ে নতুন কাজ তৈরি করুন">কাজ প্যানেলে যান →</button>
+          <nav class="teacher-home-actions teacher-academic-actions" aria-label="একাডেমিক রিসোর্স">
+            <button class="teacher-action-card" type="button" data-panel-view="online-exams" aria-label="প্রশ্নব্যাংক ও পরীক্ষা — প্রশ্ন, পরীক্ষা, অনুমোদন ও ফলাফল">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">প্রশ্নব্যাংক ও পরীক্ষা</span>
+                <span class="teacher-action-sub">প্রশ্ন, পরীক্ষা, অনুমোদন ও ফলাফল</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="mcq" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/mcq.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+            <button class="teacher-action-card" type="button" data-panel-view="lecture-sheets" data-panel-entry="lecture" data-cap="content.lecture-sheets" aria-label="লেকচার শিট ও উপকরণ — A4 শিট, নোট ও পিডিএফ দেখুন">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">লেকচার শিট ও উপকরণ</span>
+                <span class="teacher-action-sub">A4 শিট, নোট ও পিডিএফ দেখুন</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="materials" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/materials.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+            <button class="teacher-action-card" type="button" data-panel-view="reports" data-panel-entry="report" aria-label="ফলাফল ও রিপোর্ট — শ্রেণিভিত্তিক উপস্থিতি, নম্বর ও জমার রিপোর্ট">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">ফলাফল ও রিপোর্ট</span>
+                <span class="teacher-action-sub">শ্রেণিভিত্তিক উপস্থিতি, নম্বর ও জমার রিপোর্ট</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="reports" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/reports.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+            <button class="teacher-action-card" type="button" data-panel-view="routine-view" aria-label="ক্লাস রুটিন — আজকের ও সপ্তাহের রুটিন">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">ক্লাস রুটিন</span>
+                <span class="teacher-action-sub">আজকের ও সপ্তাহের রুটিন</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="calendar" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/calendar.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+          </nav>
       </section>
       <section id="teacherNotice" class="teacher-view" data-notice-open="1" aria-labelledby="teacherNoticeTitle" hidden>
         <div class="home-dashboard-intro teacher-home-intro panel-compact-head" data-home-intro data-hero-mode="day">
@@ -299,6 +272,32 @@
               <p class="teacher-hero-advice m-0 max-w-[34ch] text-[13px] font-medium leading-[1.6]" data-teacher-hero-advice="more">আপনার প্রোফাইল, পাসওয়ার্ড, রিপোর্ট ও অ্যাপ সেটিংস এখান থেকে সহজেই পরিচালনা ও হালনাগাদ করুন।</p>
             </div>
           </div>
+        </div>
+        <div class="teacher-menu-group">
+          <h2 class="teacher-menu-group-title">একাডেমিক ও শ্রেণি</h2>
+          <nav class="teacher-home-actions teacher-more-actions" aria-label="একাডেমিক ও শ্রেণি">
+            <button class="teacher-action-card" type="button" data-panel-view="academic" aria-label="একাডেমিক কার্যক্রম — প্রশ্নব্যাংক, উপকরণ, রিপোর্ট ও রুটিন">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">একাডেমিক কার্যক্রম</span>
+                <span class="teacher-action-sub">প্রশ্নব্যাংক, উপকরণ, রিপোর্ট ও রুটিন</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="book" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/book.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+            <button class="teacher-action-card" type="button" data-panel-view="class-chat" data-panel-entry="chat" aria-label="শ্রেণি চ্যাট — শ্রেণিভিত্তিক প্রশ্নোত্তর ও যোগাযোগ">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">শ্রেণি চ্যাট</span>
+                <span class="teacher-action-sub">শ্রেণিভিত্তিক প্রশ্নোত্তর ও যোগাযোগ</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="chat" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/chat.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+            <button class="teacher-action-card" type="button" data-panel-view="notice" data-panel-entry="notice" aria-label="নোটিশ বোর্ড — প্রকাশিত ও খসড়া নোটিশ দেখুন, নতুন নোটিশ লিখুন">
+              <span class="teacher-action-body">
+                <span class="teacher-action-title">নোটিশ বোর্ড</span>
+                <span class="teacher-action-sub">প্রকাশিত ও খসড়া নোটিশ দেখুন ও সম্পাদনা করুন</span>
+              </span>
+              <span class="teacher-action-art"><svg class="apc-color-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="notice" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="color"><image href="assets/icons/ai-3d/notice.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span>
+            </button>
+          </nav>
         </div>
         <div class="teacher-menu-group">
           <h2 class="teacher-menu-group-title">রিপোর্ট ও সেটিংস</h2>

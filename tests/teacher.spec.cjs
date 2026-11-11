@@ -26,12 +26,10 @@ async function enter(page) {
   await page.reload();
   await expect(page.locator('#teacherShell')).toBeVisible();
 }
-async function goAcademic(page) {
-  await page.locator('.admin-bottom [data-panel-view=home]').click();
-  await expect(page.locator('#teacherHome')).toBeVisible();
-  // ২০২৬-১০-২১: একাডেমিক কার্যক্রম is its own Home feature card (out of ক্লাস).
-  await page.locator('#teacherHome .teacher-academic-hub').click();
-  await expect(page.locator('#teacherAcademic')).toBeVisible();
+/* কাজ তৈরির একমাত্র পথ কেন্দ্রীয় কাজ-প্যানেল; তৈরি-পেজগুলো নিজের রুটেই খোলে। */
+async function openRecords(page, type) {
+  await page.evaluate(hash => { window.location.hash = hash; }, `#${type}`);
+  await expect(page.locator('#teacherRecords')).toBeVisible();
 }
 async function create(page, type, title, overrides = {}) {
   if (type === 'routine') {
@@ -41,9 +39,8 @@ async function create(page, type, title, overrides = {}) {
     await page.locator('#teacherClassFilter').selectOption('দশম শ্রেণি');
     await page.locator('#teacherRecords [data-records-action=create]').click();
   } else {
-    await goAcademic(page);
-    // Academic actions open the records screen; its create card opens the editor.
-    await page.locator(`#teacherAcademic [data-panel-view=${type}]`).click();
+    // The records screen opens by its own route; its create card opens the editor.
+    await openRecords(page, type);
     await page.locator('#teacherRecords [data-records-action=create]').click();
   }
   await page.locator('#activity-title').fill(title);
@@ -96,11 +93,11 @@ async function seed(page, activities) {
   }, activities);
 }
 
-test('the Teacher home homework hero opens the reused create form directly', async ({ page }) => {
+test('the records route opens the reused homework create form directly', async ({ page }) => {
   await enter(page);
   await expect(page.locator('#teacherClassFilter option').first()).toHaveText('সব নির্ধারিত শ্রেণি');
-  // Home shortcuts open the records page; long forms use an addressable detail page, not a modal over the list.
-  await page.locator('#teacherHome [data-panel-view=homework]').click();
+  // The records route opens the page; long forms use an addressable detail page, not a modal over the list.
+  await openRecords(page, 'homework');
   await page.locator('#teacherRecords [data-records-action=create]').click();
   await expect(page.locator('#teacherDetailView')).toBeVisible();
   await expect(page.locator('#teacherDetailTitle')).toContainText('নতুন');
@@ -155,8 +152,7 @@ test('homework student self-report is visible to teacher, review is visible to s
   await syncStorage(student, page, [KEY]);
   await page.reload();
   await expect(page.locator('#teacherShell')).toBeVisible();
-  await goAcademic(page);
-  await page.locator('#teacherAcademic [data-panel-view=homework]').click();
+  await openRecords(page, 'homework');
   await page.locator('#teacherClassFilter').selectOption('দশম শ্রেণি');
   const activityId = await card.getAttribute('data-activity-id');
   await card.click();
@@ -213,7 +209,7 @@ test('suggestions, subject links, class/group scope, draft filter and escaped co
 });
 
 test('write failure keeps entered work and does not falsely save; corrupt storage fails closed', async ({ page }) => {
-  await enter(page); await goAcademic(page); await page.locator('#teacherAcademic [data-panel-view=homework]').click();
+  await enter(page); await openRecords(page, 'homework');
   await page.locator('#teacherRecords [data-records-action=create]').click();
   await page.locator('#activity-title').fill('হারাবে না'); await page.locator('#activity-subject').fill('গণিত');
   await page.evaluate(key => { const real = Storage.prototype.setItem; window.__restoreStorage = () => { Storage.prototype.setItem = real; delete window.__restoreStorage; }; Storage.prototype.setItem = function(k, v) { if (k === key) throw new DOMException('quota', 'QuotaExceededError'); return real.call(this, k, v); }; }, KEY);
@@ -297,8 +293,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
     });
     expect(layout.ok, JSON.stringify(layout)).toBe(true);
     if (viewport.width <= 480) {
-      await goAcademic(page);
-      await page.locator('#teacherAcademic [data-panel-view=homework]').click();
+      await openRecords(page, 'homework');
       await page.locator('#teacherRecords [data-records-action=create]').click();
       await expect(page.locator('#teacherDetailView')).toBeVisible();
       await expect(page.locator('body')).not.toHaveClass(/admin-modal-open/);

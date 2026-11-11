@@ -102,13 +102,30 @@ test('icon refresh preserves control routes, IDs and action attributes from appr
       still exist (subset rule, the same one Manager/Admin use). */
    /* ২০২৬-১১-০২: পাসওয়ার্ড বদলের আলাদা রো/বাটন বিলুপ্ত — এখন সেটিংসের
       অ্যাকাউন্ট গ্রুপে ইনলাইন ফর্ম (`#teacherPasswordForm`)। */
+   /* ২০২৬-১১-১১ (মালিক-নির্দেশ): হোম ও একাডেমিক হাবের কাজ-তৈরির দরজা সরানো
+      হয়েছে — কন্ট্রোলগুলো markup থেকে গেছে, কিন্তু রুটগুলো বেঁচে আছে, তাই
+      আলাদা ভাবে রুট-টেবিলে তাদের উপস্থিতি যাচাই করা হয় (নিচে)। */
+   const movedRoutes = new Set(['homework', 'suggestion', 'courses', 'online-exams', 'academic', 'class-chat', 'notice']);
+   const movedDoor = control => Object.keys(control).length === 1
+    && movedRoutes.has(control['data-panel-view']);
    const retired = control => control['data-panel-view'] === 'students'
     || control.id === 'teacherChangePassword'
+    || movedDoor(control)
     || (typeof control.id === 'string' && control.id.startsWith('teacherStudent'));
    const currentControls=now;
    for(const control of controls(old)){
     if(retired(control)) continue;
     assert.ok(currentControls.some(actual=>Object.entries(control).every(([key,value])=>actual[key]===value)),`teacher keeps existing route/control ${JSON.stringify(control)}`);
+   }
+   /* The moved home/hub doors lost their buttons, never their routes: each one
+      must still be a first-class teacher view (deep links and Manager links). */
+   const teacherSource = readFileSync('js/teacher.js','utf8');
+   const routeTable = teacherSource.slice(teacherSource.indexOf('const TEACHER_VIEWS'), teacherSource.indexOf('const TEACHER_VIEWS') + 900);
+   for(const route of movedRoutes){
+    const explicit=routeTable.includes(`'${route}'`);
+    /* homework/suggestion are activity types, expanded into the route table. */
+    const viaActivity=['homework','suggestion'].includes(route)&&routeTable.includes('Object.keys(ACTIVITY_TYPES)');
+    assert.ok(explicit||viaActivity,`teacher route ${route} survives the layout change`);
    }
   }else {
    /* ২০২৬-১১-০২: কাউন্টার এখন নিজের প্রোফাইল স্ক্রিন পেয়েছে (Admin/Teacher/

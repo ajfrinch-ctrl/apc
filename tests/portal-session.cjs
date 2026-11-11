@@ -63,17 +63,15 @@ async function enterPortal(page, role, panel = role) {
 }
 
 
-/** The Teacher's exam workspace is a home shortcut that shares the Academic seat. */
+/** The Teacher's exam workspace has its own route and shares the Academic seat. */
 async function openTeacherExams(page) {
   const workspace = page.locator('#teacherOnlineExams');
   if (await workspace.isVisible()) return;
-  const shortcut = page.locator('#teacherHome [data-panel-view="online-exams"]');
-  if (await shortcut.isVisible()) {
-    await shortcut.click();
-    return;
-  }
-  await page.locator('.admin-bottom [data-staff-tab="home"]').click();
-  await page.locator('#teacherHome [data-panel-view="online-exams"]').click();
+  await page.evaluate(() => { window.location.hash = '#online-exams'; });
+  if (await workspace.isVisible()) return;
+  const hub = page.locator('#teacherMore [data-panel-view="academic"], .admin-bottom [data-panel-view="academic"]');
+  await hub.first().click();
+  await page.locator('#teacherAcademic [data-panel-view="online-exams"]').click();
 }
 
 /** Sign a student in on the shared card and open the student app. */

@@ -28,15 +28,33 @@ route, no broken deep link):
 ```
 Teacher Panel
 │
-├── হোম            → unchanged five-door launcher
-├── কাজ (#classes) → কেন্দ্রীয় Work Management          ← new centre
+├── হোম            → কাজ-কেন্দ্রিক লঞ্চার                 ← redesigned 2026-11-11
+│     ├── নতুন কাজ তৈরি করুন        (#work-new)            one primary entry
+│     ├── আমার প্রকাশিত কাজ         (#work-published)
+│     ├── শিক্ষার্থীদের কার্যক্রম     (#work-activity)
+│     ├── আজকের ক্লাস ও রুটিন        (#routine-view, read-only)
+│     └── আজকের ক্লাসের সারাংশ (আগের মতোই)
+├── কাজ (#classes) → কেন্দ্রীয় Work Management            ← the centre
 │     ├── নতুন কাজ                 (#work-new)
 │     ├── আমার প্রকাশিত কাজ        (#work-published)
 │     ├── শিক্ষার্থীদের কার্যক্রম    (#work-activity)
 │     └── আমার ক্লাস               (default, existing class list + routine door)
-├── একাডেমিক       → existing hub + every legacy door
-└── আরও
+├── একাডেমিক       → resource hub only (no creation doors)
+│     └── কাজ প্যানেলে যান · প্রশ্নব্যাংক/পরীক্ষা · লেকচার শিট · রিপোর্ট · রুটিন
+└── আরও            → একাডেমিক ও শ্রেণি (একাডেমিক হাব · শ্রেণি চ্যাট)
+                      + রিপোর্ট, প্রোফাইল, সেটিংস
 ```
+
+**Navigation decision (owner, 2026-11-11).** Both duplicates were removed:
+* Home's two feature-hub cards and three old shortcuts are replaced by one
+  primary work entry plus three work cards; the old five-door launcher is gone.
+* The Academic hub no longer creates anything — its seven creation doors were
+  removed. It keeps one door to the work panel and four resource doors.
+* The Academic hub and class chat moved into **আরও**, so Home is the single
+  work entry point and no case has two creation paths.
+* Every legacy route stays alive (`#homework`, `#suggestion`, `#notice`,
+  `#online-exams`, `#courses`, …): old bookmarks, deep links and the Manager's
+  cross-links keep working; only the *buttons* moved.
 
 Why not a new tab/route name: `staff-navigation.js` maps the five staff seats to
 existing panel routes, and `teacher.html`'s nav contract, deep links and tests
@@ -83,6 +101,9 @@ giving the feature its own three deep links (`#work-new`,
 * Default pane = **আমার ক্লাস**, so the existing class list and the
   routine door keep their original position and the panel's documented
   behaviour is unchanged on arrival.
+* Arriving from Home's "নতুন কাজ তৈরি করুন" opens the **নতুন কাজ** pane
+  (`#work-new`); Home's other two cards open their own panes. A data refresh
+  never moves the teacher to another pane.
 * The create entry is a full-width card, always first, always visible.
 * Tabs are real `role="tablist"` / `role="tabpanel"` pairs, each with a count.
 * Panes are removed from the focus order when hidden (`[hidden]`
@@ -135,7 +156,24 @@ category → feature → scope → preview.
 * Practice: an explicit, honest note that practice attempts live on the
   student device and are not visible to staff (audit M3) — no fake panel.
 
-### 3.5 আমার ক্লাস
+### 3.5 হোম, একাডেমিক ও আরও (2026-11-11 পুনর্বিন্যাস)
+
+| Screen | Now | Rules |
+|---|---|---|
+| **হোম** | এক প্রধান দরজা “নতুন কাজ তৈরি করুন” (`#work-new`) + তিনটি সংক্ষিপ্ত কার্ড (প্রকাশিত কাজ, শিক্ষার্থী কার্যক্রম, আজকের ক্লাস/রুটিন) + আজকের ক্লাসের সারাংশ | কোনো তৈরি-ফর্ম হোমে খোলে না; একাডেমিক হাব ও শ্রেণি চ্যাট হোমে নেই |
+| **একাডেমিক** | “কাজ প্যানেলে যান” + চারটি রিসোর্স দরজা (প্রশ্নব্যাংক/পরীক্ষা, লেকচার শিট ও উপকরণ, ফলাফল ও রিপোর্ট, রুটিন) | কাজ তৈরির দরজা শূন্য; আগের সাতটি দরজা বাদ |
+| **আরও** | নতুন গ্রুপ **একাডেমিক ও শ্রেণি**: একাডেমিক কার্যক্রম · শ্রেণি চ্যাট · নোটিশ বোর্ড — তারপর রিপোর্ট, প্রোফাইল, সেটিংস | নোটিশ বোর্ড এখানে *দেখার/সম্পাদনার* দরজা; নতুন নোটিশ কেন্দ্রীয় কাজ-প্যানেল থেকেও তৈরি হয় |
+
+* সব দরজা আসল `<button>` + `data-panel-view`; রুট বদলায় `setView`, তাই hash,
+  Back এবং deep link আগের মতোই কাজ করে।
+* `data-panel-entry` (`notice` · `lecture` · `chat` · `report`) চার-প্যানেল
+  এন্ট্রি-চুক্তি ধরে রাখে; লেকচার দরজায় `data-cap="content.lecture-sheets"`
+  থাকায় capability gate আগের মতোই লুকায় **এবং** নিষ্ক্রিয় করে।
+* রিমুভ করা শুধু *বাটন* — রুট নয়। `#homework`, `#suggestion`, `#notice`,
+  `#courses`, `#online-exams` সবই প্রথম শ্রেণির ভিউ হিসেবে আছে
+  (`tests/semantic-icons.test.mjs` রুট-টেবিলে তা যাচাই করে)।
+
+### 3.6 আমার ক্লাস
 
 The existing markup is preserved verbatim inside
 `<div id="teacherClassPane" data-work-pane="classes">`: the class list
@@ -318,7 +356,7 @@ read-only).
 | Delete/Archive stays safe | untouched owner workflows (`deleteActivity`, `archiveCourseRecord`, exam archive) |
 | Offline and sync behave | no new storage; existing sync suites; precache updated |
 | Old data and old Student activity survive | no migration, no rewrite |
-| Mobile and desktop | CSS breakpoints at 380/420px, targets ≥44px, no horizontal overflow (same shell) |
+| Mobile and desktop | CSS breakpoints at 380/420px, targets ≥44px, no horizontal overflow (same shell); the new home/academic markup reuses the compiled card classes, so no new CSS path is introduced |
 | Security rules block unauthorised writes | **not yet true on the live v1 path** — the strict v2 rule set exists and is emulator-tested but not activated (audit H1/H2, §5.3) |
 
 ---

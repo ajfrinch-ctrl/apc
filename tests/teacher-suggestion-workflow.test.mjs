@@ -24,6 +24,11 @@ const NOTISE = 'নোটি';
 
 let ctx;
 const $ = sel => ctx.$(sel);
+const followHash = async hash => {
+  ctx.window.location.hash = hash;
+  ctx.window.dispatchEvent(new ctx.window.Event('hashchange'));
+  await settle();
+};
 
 before(async () => {
   ctx = await loadPage('teacher.html', {
@@ -49,13 +54,10 @@ before(async () => {
 after(() => ctx?.window.close());
 
 test('the academic সাজেশন door opens the full suggestion page, never the notice board', async () => {
-  /* মালিক-নির্দেশ ২০২৬-১১-০১: দরজা আগে সম্পূর্ণ পেজ খোলে (একাডেমিক হাব →
-     সাজেশন), তারপর সেই পেজের তৈরি-কার্ড কম্পোজার খোলে। নোটিশ বোর্ড আলাদা
-     সিস্টেম — সেটি বন্ধই থাকে। */
-  ctx.click($('#teacherHome .teacher-academic-hub'));
-  await settle();
-  ctx.click($('#teacherAcademic [data-panel-view="suggestion"]'));
-  await settle();
+  /* ২০২৬-১১-১১: সাজেশন তৈরির একমাত্র পথ কেন্দ্রীয় কাজ-প্যানেল; পুরোনো
+     `#suggestion` deep link অটুট এবং সেটি সম্পূর্ণ পেজ খোলে। নোটিশ বোর্ড
+     আলাদা সিস্টেম — সেটি বন্ধই থাকে। */
+  await followHash('#suggestion');
   assert.equal($('#teacherRecords').hidden, false, 'the suggestion page opens first');
   assert.equal($('#teacherModalBackdrop').hidden, true, 'no composer over the hub');
   assert.equal(ctx.window.location.hash, '#suggestion');
@@ -75,8 +77,7 @@ test('the academic সাজেশন door opens the full suggestion page, never
 test('the suggestion records screen names itself সাজেশন everywhere the teacher reads', async () => {
   /* The records list keeps its own screen; সাজেশন is one of its type tabs, so
      the teacher can also reach it from the বাড়ির কাজ page. */
-  ctx.click($('#teacherHome [data-panel-view="homework"]'));
-  await settle();
+  await followHash('#homework');
   ctx.click($('.teacher-type-tabs [data-type-tab="suggestion"]'));
   await settle();
   assert.equal($('#teacherRecords').hidden, false, 'the records screen opens');
@@ -92,8 +93,7 @@ test('the suggestion records screen names itself সাজেশন everywhere t
 });
 
 test('the notice tile still opens the notice board on its own', async () => {
-  ctx.click($('[data-panel-view="notice"]'));
-  await settle();
+  await followHash('#notice');
   assert.equal($('#teacherNotice').hidden, false, 'the real notice board is its own screen');
   assert.equal($('#teacherRecords').hidden, true, 'and it is not the suggestion list wearing another name');
 });

@@ -40,8 +40,8 @@ paths, permissions, approval, offline-first sync, tests.
 
 | Route | Screen | Purpose | Writes |
 |---|---|---|---|
-| `#home` | `teacherHome` | Five-door launcher (2 hubs + 3 shortcuts) | none |
-| `#academic` | `teacherAcademic` | Hub for homework/suggestion/bank/materials/exams/notice | none |
+| `#home` | `teacherHome` | কাজ-কেন্দ্রিক লঞ্চার: ১ প্রধান দরজা + ৩ কাজের কার্ড (২০২৬-১১-১১) | none |
+| `#academic` | `teacherAcademic` | রিসোর্স হাব: কাজ প্যানেলের সূত্র + ৪টি দেখার দরজা (তৈরি-দরজা নেই) | none |
 | `#classes` | `teacherClasses` | Assigned classes + routine door | none |
 | `#homework` | `teacherRecords` | Homework list + create card | `teachingRepository.saveActivity` |
 | `#suggestion` | `teacherRecords` | Suggestion list + create card | `teachingRepository.saveActivity` |
@@ -80,12 +80,17 @@ paths, permissions, approval, offline-first sync, tests.
 ### 2.3 What was duplicated today
 
 * Homework/suggestion/notice creation was reachable from the Home launcher,
-  the Academic hub, and each records screen's own create card.
+  the Academic hub, and each records screen's own create card. **Resolved
+  2026-11-11:** the Home shortcuts and the Academic hub's creation doors were
+  removed (owner decision); the central work panel is the only creation entry,
+  while each records screen keeps its own create card for its own content.
 * Marks entry is reachable from the exam seat and from the records `exam` lane.
 * Routine is reachable from Home, Classes and the bottom "কাজ" seat.
-* The new workspace removes the *conceptual* duplication (one entry, one
-  registry) but deliberately keeps every old route working — removing old
-  doors would break documented navigation contracts and deep links.
+* The new workspace removed the *conceptual* duplication, and on 2026-11-11 the
+  owner approved the visual consolidation: Home lost its second/third doors and
+  the Academic hub lost all seven creation doors. **Routes** were not removed —
+  old deep links still resolve — so no bookmark, Manager cross-link or test
+  fixture breaks at the URL level.
 
 ---
 
@@ -346,10 +351,12 @@ teaching/exams/notices, and links materials to their editor.
 **M3 — Practice visibility absent.** Student practice attempts are local-only.
 A teacher-facing practice view cannot be honest without a new synced store.
 
-**M4 — Historical duplicate doors.** Home, Academic hub, records screens and
-the bottom nav each opened some of the same work. The central entry now exists
-and the registry is the single contract, but old doors were intentionally kept.
-Collapsing them is a navigation decision, not a data decision.
+**M4 — Historical duplicate doors — addressed (2026-11-11).** Home, the
+Academic hub, the records screens and the bottom nav each opened some of the
+same work. The owner approved the consolidation: Home is work-centric, the
+Academic hub is read-only resources, and both old doors moved to **আরও**.
+Routes remain, so links survive; only buttons changed. Records screens keep
+their own create card (they own the content, not a second entry point).
 
 ### Low
 
@@ -384,9 +391,10 @@ change; full suite run confirms no drift.
 3. **Practice visibility (M3).** Leave device-local, or approve a new
    privacy-reviewed `practiceAttempts` store? *Impact:* new schema + rules +
    student consent copy.
-4. **Navigation consolidation (M4).** Keep every legacy door (safe, current),
-   or retire the Academic-hub duplicates once the central workspace is
-   accepted? *Impact:* updates the 2026-11-01 navigation contract and its tests.
+4. **Navigation consolidation (M4). — approved and implemented
+   (2026-11-11).** Home is work-centric; the Academic hub has no creation door;
+   the hub and class chat live in **আরও**; legacy routes are preserved and the
+   navigation contract tests were updated.
 5. **Merge/deploy.** Phase 4 is on the branch and fully tested; merge and
    production deployment await explicit approval.
 

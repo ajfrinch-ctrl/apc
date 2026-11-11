@@ -29,14 +29,13 @@ test('the Teacher panel opens the learning-library page for the assigned class o
   await openStaffPanel(ctx, 'teacher', {
     importPanel: () => import('../js/teacher.js'), shellId: 'teacherShell'
   });
-  /* The learning library moved to একাডেমিক → উপকরণ (docs/APP-ARCHITECTURE.md §9);
-     the feature is the same editor, opened from its new home. */
-  const entry = ctx.$('#teacherAcademic [data-panel-view="courses"]');
-  assert.ok(entry, 'the academic hub has the learning-library entry');
+  /* ২০২৬-১১-১১: হাবের কাজ-তৈরির দরজা বাদ; রিসোর্স দরজা এখন লেকচার স্টুডিও,
+     আর উপকরণ পেজ নিজের রুটেই খোলে (পুরোনো deep link অটুট)। */
+  const entry = ctx.$('#teacherAcademic [data-panel-view="lecture-sheets"]');
+  assert.ok(entry, 'the academic hub has the resource entry');
   assert.match(entry.textContent, /উপকরণ/);
-  /* The hub tiles carry a single clean label now — the old "নোট, PDF, লেকচার"
-     subtitle retired with the pre-hub card design. */
-  ctx.click(entry);
+  ctx.window.location.hash = '#courses';
+  ctx.window.dispatchEvent(new ctx.window.Event('hashchange'));
   await ctx.waitFor(() => ctx.$('#teacherCourses')?.hidden === false);
   const editor = ctx.$('#teacherCourses #teacherCourseEditor');
   assert.ok(editor, 'the page carries its editor mount');

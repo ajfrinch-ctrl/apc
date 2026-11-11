@@ -388,12 +388,17 @@ test('workflow 8 — a teacher notice reaches its own class only: board and noti
     shellId: 'teacherShell',
     ready: () => teacher.$$('#teacherClassFilter option').length > 1
   });
-  teacher.click(teacher.$('#teacherHome .teacher-academic-hub'));
+  /* ২০২৬-১১-১১: একাডেমিক হাব "আরও"-তে; নোটিশ তৈরির সূত্র কাজ-প্যানেল, আর
+     পুরোনো #notice deep link আগের মতোই সম্পূর্ণ বোর্ড খোলে। */
+  teacher.click(teacher.$('.admin-bottom [data-panel-view="more"]'));
   await teacher.flush(6);
-  assert.equal(teacher.$('#teacherAcademic').hidden, false, 'একাডেমিক is the hub seat');
-  teacher.click(teacher.$('#teacherAcademic [data-panel-view="notice"]'));
+  teacher.click(teacher.$('#teacherMore [data-panel-view="academic"]'));
+  await teacher.flush(6);
+  assert.equal(teacher.$('#teacherAcademic').hidden, false, 'একাডেমিক is the resource hub');
+  teacher.window.location.hash = '#notice';
+  teacher.window.dispatchEvent(new teacher.window.Event('hashchange'));
   await teacher.flush(8);
-  assert.equal(teacher.$('#teacherNotice').hidden, false, 'the hub door opens the full notice board screen');
+  assert.equal(teacher.$('#teacherNotice').hidden, false, 'the notice route opens the full notice board screen');
   assert.equal(teacher.$('#teacherModalBackdrop').hidden, true, 'a door never opens the composer by itself');
   assert.equal(teacher.$('#teacherNotice').dataset.noticeOpen, '1', 'the published/draft list is open on arrival');
   teacher.click(teacher.$('#teacherNewNotice'));

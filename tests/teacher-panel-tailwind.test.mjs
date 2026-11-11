@@ -134,15 +134,17 @@ test('ক্লাস uses the same compact head and two class-scoped action car
   assert.equal(examsView.querySelector('#teacherExamWorkspace')?.hidden, true, 'exam workspace is hidden by default');
 
   const hub = page.querySelector('#teacherHome .teacher-academic-hub');
-  assert.ok(hub, 'Home carries the academic feature card');
-  assert.equal(hub.getAttribute('data-panel-view'), 'academic', 'the card opens the academic hub screen');
-  assert.match(hub.textContent, /একাডেমিক কার্যক্রম/);
+  assert.ok(hub, 'Home carries one primary work card');
+  assert.equal(hub.getAttribute('data-panel-view'), 'work-new', 'the card opens the central work panel');
+  assert.match(hub.textContent, /নতুন কাজ তৈরি করুন/);
   assert.match(hub.getAttribute('aria-label'), /[ঀ-৿]/, 'the card carries a Bengali aria-label');
   assert.equal(hub.tagName, 'BUTTON', 'the card is a real button');
-  /* ২০২৬-১১-০১: হোমের দরজাগুলো এখন শুধু নেভিগেশন — ফর্ম খোলে গন্তব্য পেজের
-     নিজস্ব তৈরি-কার্ড থেকে, হোমের ওপর মডেল হিসেবে নয়। */
-  assert.ok(page.querySelector('#teacherHome .teacher-home-actions .teacher-action-card[data-panel-view="homework"]'),
-    'Home keeps a full-page বাড়ির কাজ door beside the hub');
+  /* ২০২৬-১১-১১: হোমের দরজাগুলো শুধু নেভিগেশন — কাজ তৈরি হয় কেন্দ্রীয় প্যানেলে,
+     হোমের ওপর মডেল হিসেবে নয়। একাডেমিক হাব এখন "আরও"-তে। */
+  assert.ok(page.querySelector('#teacherHome .teacher-home-actions .teacher-action-card[data-panel-view="work-published"]'),
+    'Home keeps a work door beside the primary entry');
+  assert.equal(page.querySelector('#teacherHome [data-panel-view="academic"]'), null,
+    'the academic hub moved to আরও');
   assert.equal(page.querySelector('#teacherHome [data-new-activity]'), null,
     'Home opens no create form of its own');
   assert.equal(page.querySelector('#teacherAcademicTitle').textContent.trim(), 'একাডেমিক কার্যক্রম',
@@ -203,7 +205,7 @@ test('every teacher view starts with the compact head: heading, advice line, no 
     }
   }
   const moreCards = [...page.querySelectorAll('#teacherMore .teacher-more-actions .teacher-action-card')];
-  assert.equal(moreCards.length, 6, 'আরও has 6 full-width action cards');
+  assert.equal(moreCards.length, 9, 'আরও has 9 full-width action cards (academic + class chat + notice + six settings)');
   assert.equal(page.querySelector('#teacherProfile > #teacherProfileCard')?.tagName, 'ARTICLE',
     'আমার প্রোফাইল card sits directly on #teacherProfile outside the collapsed settings groups');
 });

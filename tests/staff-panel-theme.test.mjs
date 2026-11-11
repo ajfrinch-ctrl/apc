@@ -38,7 +38,7 @@ test('all four staff home dashboards use the shared responsive action grid', asy
   const { readFile } = await import('node:fs/promises');
   const cases = [
     ['admin.html', 'adminFeatureGrid'],
-    ['teacher.html', 'দ্রুত কাজ'],
+    ['teacher.html', 'আপনার কাজ'],
     ['manager.html', 'দ্রুত অ্যাক্সেস'],
     ['payment.html', 'pay-home-actions']
   ];
