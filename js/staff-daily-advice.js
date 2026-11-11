@@ -57,7 +57,7 @@ const SECTION_ALIASES = Object.freeze({
   'online-exams': 'academic', marks: 'academic', attendance: 'academic',
   homework: 'academic', suggestion: 'academic', routine: 'academic',
   'routine-view': 'academic', courses: 'academic', 'lecture-sheets': 'academic',
-  notice: 'academic', notices: 'academic', results: 'academic',
+  notice: 'academic', notices: 'academic', results: 'academic', detail: 'academic',
   payment: 'finance', reports: 'finance', collection: 'finance',
   profile: 'more', settings: 'more', security: 'more', roles: 'more',
   data: 'more', backup: 'more', content: 'more', advice: 'more',

@@ -1014,7 +1014,7 @@ export function initNotifications() {
     if (reviewsRegistrations()) {
       const pollTimer = setInterval(() => {
         if (document.visibilityState === 'hidden' || !panelVisible()) return;
-        import('../sync/sync-core.js?v=481')
+        import('../sync/sync-core.js?v=482')
           .then(bridge => bridge.pollRegistrationFeedOnline?.())
           .catch(() => {})
           .finally(() => scheduleRefresh());

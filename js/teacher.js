@@ -31,6 +31,22 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 initOrgInfo();
 const state = { db: { activities: [] }, courses: [], students: [], assignments: [], teacher: null, exams: null, view: 'home', detail: null, status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', routineTab: 'today' };
 let modalTrigger, toastTimer;
+let deferredTeacherRefresh = false;
+const teacherEditorActive = () => state.view === 'detail' && Boolean(state.detail?.inline);
+function refreshTeacherDataWhenSafe() {
+  if (!$('#teacherShell') || $('#teacherShell').hidden) return;
+  if (state.busy || teacherEditorActive() || ($('#teacherModalBackdrop') && !$('#teacherModalBackdrop').hidden)) {
+    deferredTeacherRefresh = true;
+    return;
+  }
+  deferredTeacherRefresh = false;
+  void reload();
+}
+function flushDeferredTeacherRefresh() {
+  if (!deferredTeacherRefresh || state.busy || teacherEditorActive()) return;
+  deferredTeacherRefresh = false;
+  if ($('#teacherShell') && !$('#teacherShell').hidden) void reload();
+}
 initFixedShell();
 /* The examination workspace is the single exam/question surface; the academic
    hub only deep-links into its own screens. It is mounted at import time (its
@@ -461,6 +477,33 @@ function showCourseModal(old = null) {
   });
 }
 
+function confirmCourseDelete(course) {
+  if (!course || state.busy) return;
+  openModal('কোর্সটি স্থায়ীভাবে মুছবেন?', `<form id="teacherCourseDeleteForm"><p class="modal-copy"><strong>${esc(course.title || course.subject)}</strong> এবং এর সব অধ্যায় মুছে যাবে। এটি ফেরানো যাবে না; অধ্যায়গুলোর বিষয়বস্তু আগে যাচাই করুন।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, কোর্স রাখুন</button><button class="admin-btn primary danger" type="submit">হ্যাঁ, কোর্স ও অধ্যায় মুছুন</button></div></form>`);
+  $('#teacherCourseDeleteForm')?.addEventListener('submit', event => {
+    event.preventDefault();
+    save(event.currentTarget, async () => {
+      const result = await courseRepository.deleteCourse(course.id);
+      state.courses = result.courses || [];
+      return state.db;
+    }, 'কোর্স ও অধ্যায় মুছে ফেলা হয়েছে', () => setView('courses', { history: 'replace' }));
+  });
+}
+
+function confirmChapterDelete(course, chapterId) {
+  const chapter = (course?.chapters || []).find(item => String(item.id) === String(chapterId));
+  if (!course || !chapter || state.busy) return;
+  openModal('অধ্যায়টি স্থায়ীভাবে মুছবেন?', `<form id="teacherChapterDeleteForm"><p class="modal-copy"><strong>${esc(chapter.title)}</strong> অধ্যায়টি “${esc(course.title || course.subject)}” কোর্স থেকে মুছে যাবে। এটি ফেরানো যাবে না।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, অধ্যায় রাখুন</button><button class="admin-btn primary danger" type="submit">হ্যাঁ, অধ্যায় মুছুন</button></div></form>`);
+  $('#teacherChapterDeleteForm')?.addEventListener('submit', event => {
+    event.preventDefault();
+    save(event.currentTarget, async () => {
+      const result = await courseRepository.deleteChapter(course.id, chapterId);
+      state.courses = result.courses || [];
+      return state.db;
+    }, 'অধ্যায়টি মুছে ফেলা হয়েছে');
+  });
+}
+
 function showAddChapterModal(course) {
   if (!course || state.busy) return;
   const nextOrd = (course.chapters?.length || 0) + 1;
@@ -500,7 +543,7 @@ function renderTeacherDetail() {
   const content = $('#teacherDetailContent');
   if (!title || !content) return;
   const detail = state.detail;
-  if (!detail) { title.textContent = 'বিস্তারিত'; subtitle.textContent = ''; content.innerHTML = '<p class="teacher-empty">এই পেইজের তথ্য পাওয়া যায়নি।</p>'; return; }
+  if (!detail) { title.textContent = 'বিস্তারিত'; subtitle.textContent = 'রেকর্ডের তথ্য দেখুন, সম্পাদনা করুন বা আগের কর্মক্ষেত্রে ফিরে যান।'; content.innerHTML = '<p class="teacher-empty">এই পেইজের তথ্য পাওয়া যায়নি।</p>'; return; }
   if (detail.inline) {
     title.textContent = detail.inline.title;
     subtitle.textContent = 'বিস্তারিত পেইজ';
@@ -609,7 +652,7 @@ function renderTeacherDetail() {
     return;
   }
   title.textContent = 'বিস্তারিত';
-  subtitle.textContent = '';
+  subtitle.textContent = 'রেকর্ডের তথ্য দেখুন, সম্পাদনা করুন বা আগের কর্মক্ষেত্রে ফিরে যান।';
   content.innerHTML = '<p class="teacher-empty">এই পেইজের তথ্য পাওয়া যায়নি।</p>';
 }
 
@@ -856,17 +899,37 @@ function openModal(title, html) {
 function closeModal() {
   if (state.busy) return;
   if (state.view === 'detail' && state.detail?.inline) {
-    state.detail.inline = null;
+    const detail = state.detail;
+    detail.inline = null;
+    /* A create page is a child of its owning list, not a destination in its own
+       right. Cancelling (or finishing) returns to that list and replaces the
+       transient editor route so browser Back does not reopen a blank composer. */
+    if (['activity-create', 'course-create', 'notice-create'].includes(detail.kind)) {
+      setView(TEACHER_VIEWS.includes(detail.parentView) ? detail.parentView : 'home', { history: 'replace' });
+      flushDeferredTeacherRefresh();
+      return;
+    }
     renderTeacherDetail();
+    flushDeferredTeacherRefresh();
     return;
   }
   $('#teacherModalBackdrop').hidden = true; document.body.classList.remove('admin-modal-open');
+  flushDeferredTeacherRefresh();
   const target = modalTrigger?.isConnected && modalTrigger.getClientRects().length && !modalTrigger.disabled ? modalTrigger : $('.admin-bottom-item.active');
   target?.focus({ preventScroll: true });
 }
 function showEditor(type, old = null) {
   if (type === 'exam') return setView('online-exams');
   if (!state.ready || state.busy) return toast('আগে ডেটা লোড হতে দিন বা আবার চেষ্টা করুন।');
+  /* All long activity forms have an addressable detail route. Existing records
+     retain a read-only detail as their parent; new records return to the type's
+     list when cancelled. */
+  const parentView = ACTIVITY_TYPES[state.view] ? state.view : state.detail?.parentView || 'homework';
+  const expectedKind = old ? 'activity' : 'activity-create';
+  const expectedId = old ? String(old.id) : type;
+  if (state.view !== 'detail' || state.detail?.kind !== expectedKind || String(state.detail?.id) !== expectedId) {
+    openTeacherDetail(expectedKind, expectedId, parentView);
+  }
   const a = old || { type, date: todayISO(), time: '17:00', duration: 60, totalMarks: 100, status: type === 'homework' ? 'published' : 'draft', className: assignedClasses()[0] || '' };
   const timed = ['exam', 'routine'].includes(type);
   const field = (name, label, inputType = 'text', extra = '') => `<div><label for="activity-${name}">${label}</label><input id="activity-${name}" name="${name}" type="${inputType}" value="${esc(a[name] ?? '')}" ${extra}></div>`;
@@ -965,7 +1028,7 @@ function prepareHomeworkEditor(activity) {
   $('#activity-status').addEventListener('change', syncStatus); syncStatus();
 }
 
-async function save(form, operation, message) {
+async function save(form, operation, message, afterSuccess = null) {
   if (state.busy || !state.ready) return;
   state.busy = true; form.setAttribute('aria-busy', 'true'); $('#teacherSaveError').hidden = true;
   const controls = [...form.querySelectorAll('input, select, textarea, button')];
@@ -977,14 +1040,18 @@ async function save(form, operation, message) {
     $('#teacherSaveError').textContent = error instanceof DOMException ? 'সংরক্ষণ হয়নি। ব্রাউজারের স্টোরেজ/খালি জায়গা পরীক্ষা করে আবার চেষ্টা করুন।' : error.message || 'সংরক্ষণ হয়নি। আবার চেষ্টা করুন।';
     $('#teacherSaveError').hidden = false;
   } finally { state.busy = false; form.removeAttribute('aria-busy'); controls.forEach(el => { el.disabled = false; }); submit.textContent = label; }
-  if (success) { closeModal(); toast(message); }
+  if (success) { closeModal(); toast(message); afterSuccess?.(); }
 }
 function showDetail(a) {
-  const link = safeResourceURL(a.resourceURL);
-  openModal(a.title, `<article class="teaching-card"><span class="teaching-kind">${ACTIVITY_TYPES[a.type].label} • ${a.status === 'draft' ? 'খসড়া' : 'প্রকাশিত'}</span><h3>${esc(a.subject)}</h3><small>${esc(a.className)} • ${esc(a.group || 'সব বিভাগ')}</small><p>${esc(activityMeta(a))}</p><small>${esc(a.room)}</small><p class="teaching-body">${esc(a.details || 'অতিরিক্ত নির্দেশনা নেই।')}</p>${link ? `<a class="teaching-resource" href="${esc(link)}" target="_blank" rel="noopener noreferrer">সহায়ক উপকরণ খুলুন <svg class="resource-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}<div class="teaching-actions"><button type="button" data-record-action="edit" data-id="${esc(a.id)}">সম্পাদনা</button>${ACTIVITY_TYPES[a.type].progress && a.status === 'published' ? `<button type="button" class="primary" data-record-action="progress" data-id="${esc(a.id)}">${ACTIVITY_TYPES[a.type].progress}</button>` : ''}</div></article>`);
+  const parentView = ACTIVITY_TYPES[state.view] ? state.view : state.detail?.parentView || 'homework';
+  openTeacherDetail('activity', a.id, parentView);
 }
 function showProgress(a) {
   if (a.status !== 'published' || !ACTIVITY_TYPES[a.type].progress) return;
+  if (state.view !== 'detail' || state.detail?.kind !== 'activity' || String(state.detail?.id) !== String(a.id)) {
+    const parentView = ACTIVITY_TYPES[state.view] ? state.view : 'homework';
+    openTeacherDetail('activity', a.id, parentView);
+  }
   const students = rosterFor(a);
   const isExam = a.type === 'exam';
   const options = isExam ? [] : a.type === 'homework' ? ['pending', 'done', 'reviewed'] : ['present', 'absent', 'late'];
@@ -1085,8 +1152,12 @@ function showProgress(a) {
 }
 
 function showDelete(a) {
-  openModal('কাজটি মুছে ফেলবেন?', `<form id="teacherDeleteForm"><p class="modal-copy"><strong>${esc(a.title)}</strong> মুছে গেলে শিক্ষার্থী অ্যাপ থেকেও সরে যাবে। এই কাজের নম্বর, জমার অবস্থা বা উপস্থিতিও মুছে যাবে।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, রাখুন</button><button class="admin-btn primary" type="submit">হ্যাঁ, মুছে ফেলুন</button></div></form>`);
-  $('#teacherDeleteForm').addEventListener('submit', event => { event.preventDefault(); save(event.currentTarget, () => teachingRepository.deleteActivity(a.id), 'কাজটি মুছে ফেলা হয়েছে'); });
+  if (state.view !== 'detail' || state.detail?.kind !== 'activity' || String(state.detail?.id) !== String(a.id)) {
+    const parentView = ACTIVITY_TYPES[state.view] ? state.view : 'homework';
+    openTeacherDetail('activity', a.id, parentView);
+  }
+  openModal('কাজটি মুছে ফেলবেন?', `<form id="teacherDeleteForm"><p class="modal-copy"><strong>${esc(a.title)}</strong> মুছে গেলে শিক্ষার্থী অ্যাপ থেকেও সরে যাবে। এই কাজের নম্বর, জমার অবস্থা বা উপস্থিতিও মুছে যাবে। এই কাজের সংশ্লিষ্ট অগ্রগতি ও উপস্থিতির তথ্যও মুছে যাবে; এটি ফেরানো যাবে না।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, রাখুন</button><button class="admin-btn primary" type="submit">হ্যাঁ, এই কাজ মুছে ফেলুন</button></div></form>`);
+  $('#teacherDeleteForm').addEventListener('submit', event => { event.preventDefault(); save(event.currentTarget, () => teachingRepository.deleteActivity(a.id), 'কাজটি মুছে ফেলা হয়েছে', () => setView(ACTIVITY_TYPES[state.detail?.parentView] ? state.detail.parentView : 'home', { history: 'replace' })); });
 }
 ['teacherClassFilter'].forEach(id => { $('#' + id).insertAdjacentHTML('beforeend', classOptions()); });
 /* ---- একাডেমিক hub, notice composer and quick actions ------------------------ */
@@ -1263,14 +1334,32 @@ async function saveNoticeRecord(values, old) {
 
 async function runNoticeAction(action, notice) {
   if (state.busy || !state.ready) return;
+  const username = String(state.teacher?.username || 'teacher.apc');
+  const mine = ownNotices(username).find(item => String(item.id) === String(notice?.id));
+  if (!mine) return toast('নোটিশটি পাওয়া যায়নি অথবা আপনার অ্যাকাউন্টের নয়।');
+  if (action === 'delete') {
+    openModal('নোটিশটি স্থায়ীভাবে মুছবেন?', `<form id="teacherNoticeDeleteForm"><p class="modal-copy"><strong>${esc(mine.title)}</strong> নোটিশটি ${esc(noticeAudienceLabel(mine))}-এর বোর্ড থেকে সরিয়ে যাবে। এটি ফেরানো যাবে না; ইতোমধ্যে দেখা নোটিফিকেশন/রসিদ আলাদা থাকতে পারে।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, নোটিশ রাখুন</button><button class="admin-btn primary danger" type="submit">হ্যাঁ, এই নোটিশ মুছুন</button></div></form>`);
+    $('#teacherNoticeDeleteForm')?.addEventListener('submit', event => {
+      event.preventDefault();
+      save(event.currentTarget, async () => {
+        const current = loadNotices();
+        const index = current.findIndex(item => String(item?.id) === String(mine.id) && item?.createdByRole === 'teacher' && String(item?.createdBy || '') === username);
+        if (index < 0) throw new Error('নোটিশটি পাওয়া যায়নি অথবা আপনার অ্যাকাউন্টের নয়।');
+        current.splice(index, 1);
+        if (!saveNotices(current)) throw new Error('নোটিশ সংরক্ষণ হয়নি।');
+        return state.db;
+      }, 'নোটিশ মুছে ফেলা হয়েছে', () => setView('notice', { history: 'replace' }));
+    });
+    return;
+  }
+  if (action !== 'toggle') return;
   const notices = loadNotices();
-  const index = notices.findIndex(item => item?.id === notice.id);
-  if (index < 0) return toast('নোটিশটি পাওয়া যায়নি।');
-  if (action === 'toggle') notices[index] = { ...notices[index], status: notice.status === 'published' ? 'draft' : 'published', updatedAt: new Date().toISOString() };
-  if (action === 'delete') notices.splice(index, 1);
+  const index = notices.findIndex(item => String(item?.id) === String(mine.id) && item?.createdByRole === 'teacher' && String(item?.createdBy || '') === username);
+  if (index < 0) return toast('নোটিশটি পাওয়া যায়নি অথবা আপনার অ্যাকাউন্টের নয়।');
+  notices[index] = { ...notices[index], status: mine.status === 'published' ? 'draft' : 'published', updatedAt: new Date().toISOString() };
   if (!saveNotices(notices)) return toast('নোটিশ সংরক্ষণ হয়নি।');
-  renderNotices();
-  toast(action === 'delete' ? 'নোটিশ মুছে ফেলা হয়েছে।' : notice.status === 'published' ? 'নোটিশ প্রকাশ বন্ধ হয়েছে।' : 'নোটিশ প্রকাশ হয়েছে।');
+  renderNotices(); renderTeacherDetail();
+  toast(mine.status === 'published' ? 'নোটিশ প্রকাশ বন্ধ হয়েছে।' : 'নোটিশ প্রকাশ হয়েছে।');
 }
 
 async function showTeacherShell() {
@@ -1564,12 +1653,12 @@ document.addEventListener('click', event => {
     else if (act === 'add-chapter' && course) showAddChapterModal(course);
     else if (act === 'cycle-chapter' && cId && chId) {
       courseRepository.cycleChapterStatus(cId, chId).then(res => { state.courses = res.courses || []; renderCourseChapters(); toast('অধ্যায়ের অবস্থা আপডেট হয়েছে'); }).catch(e => toast(e.message));
-    } else if (act === 'delete-chapter' && cId && chId) {
-      courseRepository.deleteChapter(cId, chId).then(res => { state.courses = res.courses || []; renderCourseChapters(); toast('অধ্যায় মুছে ফেলা হয়েছে'); }).catch(e => toast(e.message));
+    } else if (act === 'delete-chapter' && cId && chId && course) {
+      confirmChapterDelete(course, chId);
     } else if (act === 'toggle-course' && course) {
       courseRepository.setCourseStatus(cId, course.status === 'published' ? 'draft' : 'published').then(res => { state.courses = res.courses || []; renderCourseChapters(); toast(course.status === 'published' ? 'কোর্স খসড়া করা হয়েছে' : 'কোর্স প্রকাশ করা হয়েছে'); }).catch(e => toast(e.message));
-    } else if (act === 'delete-course' && cId) {
-      courseRepository.deleteCourse(cId).then(res => { state.courses = res.courses || []; renderCourseChapters(); toast('কোর্স মুছে ফেলা হয়েছে'); }).catch(e => toast(e.message));
+    } else if (act === 'delete-course' && cId && course) {
+      confirmCourseDelete(course);
     }
     return;
   }
@@ -1607,17 +1696,15 @@ document.addEventListener('keydown', event => {
     else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0]?.focus(); }
   }
 });
-watchCourses(() => { if (!state.busy && !$('#teacherShell').hidden) reload(); });
+watchCourses(() => refreshTeacherDataWhenSafe());
 watchTeachingData(() => {
-  if (!state.busy && !$('#teacherShell').hidden) reload();
+  refreshTeacherDataWhenSafe();
   refreshReports($('#teacherReports'));
 });
 /* Admin assignment changes reach this panel in real time: the local projection
    event (same tab) and the cloud bridge (other devices). Either one reloads the
    scope — a newly নির্ধারিত শ্রেণি shows up without a manual refresh. */
-window.addEventListener('teacher-assignments-updated', () => {
-  if (!state.busy && $('#teacherShell') && !$('#teacherShell').hidden) reload();
-});
+window.addEventListener('teacher-assignments-updated', () => refreshTeacherDataWhenSafe());
 const TEACHER_WATCHED_COLLECTIONS = new Set([
   'students',
   'academics',
@@ -1641,9 +1728,8 @@ let teacherCloudRefreshTimer = 0;
 function scheduleTeacherLiveRefresh() {
   clearTimeout(teacherCloudRefreshTimer);
   teacherCloudRefreshTimer = setTimeout(() => {
-    if (state.busy || !$('#teacherShell') || $('#teacherShell').hidden) return;
-    if ($('#teacherModalBackdrop') && !$('#teacherModalBackdrop').hidden) return;
-    void reload();
+    if (!$('#teacherShell') || $('#teacherShell').hidden) return;
+    refreshTeacherDataWhenSafe();
     refreshReports($('#teacherReports'));
   }, 60);
 }

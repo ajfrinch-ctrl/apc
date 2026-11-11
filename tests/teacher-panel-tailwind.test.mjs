@@ -117,7 +117,7 @@ test('ক্লাস uses the same compact head and two class-scoped action car
     'the academic hub is not duplicated on ক্লাস');
   const panel = view.querySelector('#teacherClassPanel');
   assert.ok(panel, 'class panel exists');
-  assert.equal(panel.hidden, true, 'primary class list data stays hidden');
+  assert.equal(panel.hidden, false, 'assigned class list is visible on the class hub');
   assert.ok(view.querySelector('#teacherClassPanel #teacherClassList'), 'the class list remains mounted inside the hidden panel');
 
   const examsView = page.querySelector('#teacherOnlineExams');
@@ -177,9 +177,9 @@ test('the retired teacher hero artwork is no longer referenced by any panel', ()
 
 test('every teacher view starts with the compact head: heading, advice line, no artwork', () => {
   const views = [...page.querySelectorAll('.teacher-view')];
-  /* 14 since 2026-11-02: the lecture-sheet studio (2026-10-28) plus the separate
-     Settings screen (profile and settings are two surfaces, owner order). */
-  assert.equal(views.length, 14, 'all 14 teacher views are audited');
+  /* 16: the lecture-sheet studio, separate Settings screen, routed detail and
+     dedicated notification history are all first-class Teacher views. */
+  assert.equal(views.length, 16, 'all 16 teacher views are audited');
   for (const view of views) {
     const hero = view.querySelector(':scope > .home-dashboard-intro.teacher-home-intro');
     assert.ok(hero, `${view.id} starts with a page head`);

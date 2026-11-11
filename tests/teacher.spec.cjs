@@ -99,15 +99,15 @@ async function seed(page, activities) {
 test('the Teacher home homework hero opens the reused create form directly', async ({ page }) => {
   await enter(page);
   await expect(page.locator('#teacherClassFilter option').first()).toHaveText('সব নির্ধারিত শ্রেণি');
-  // Home heroes are create doors: the reused assignment form pops over Home.
+  // Home shortcuts open the records page; long forms use an addressable detail page, not a modal over the list.
   await page.locator('#teacherHome [data-panel-view=homework]').click();
   await page.locator('#teacherRecords [data-records-action=create]').click();
-  await expect(page.locator('#teacherModalBackdrop')).toBeVisible();
-  await expect(page.locator('#teacherModalTitle')).toContainText('নতুন');
-  await expect(page.locator('#teacherModalTitle')).toContainText('কাজ');
+  await expect(page.locator('#teacherDetailView')).toBeVisible();
+  await expect(page.locator('#teacherDetailTitle')).toContainText('নতুন');
+  await expect(page.locator('#teacherDetailTitle')).toContainText('কাজ');
   await expect(page.locator('#activity-title')).toBeVisible();
-  await page.locator('#teacherModalClose').click();
-  await expect(page.locator('#teacherModalBackdrop')).toBeHidden();
+  await page.locator('#teacherActivityForm [data-close-teacher]').click();
+  await expect(page.locator('#teacherDetailView')).toBeHidden();
   await page.locator('.admin-bottom [data-panel-view=home]').click();
   await expect(page.locator('#teacherHome')).toBeVisible();
 });
@@ -159,9 +159,13 @@ test('homework student self-report is visible to teacher, review is visible to s
   await page.locator('#teacherAcademic [data-panel-view=homework]').click();
   await page.locator('#teacherClassFilter').selectOption('দশম শ্রেণি');
   const activityId = await card.getAttribute('data-activity-id');
-  await card.locator('[data-record-action=progress]').click(); await expect(page.locator('[data-progress-id="AP-1024"]')).toHaveValue('done');
-  await page.locator('[data-progress-id="AP-1024"]').selectOption('reviewed'); await page.locator('#teacherProgressForm [type=submit]').click();
-  await expect(page.locator('#teacherModalBackdrop')).toBeHidden();
+  await card.click();
+  await page.locator('#teacherDetailContent [data-record-action=progress]').click();
+  await expect(page.locator('#teacherDetailContent [data-progress-id="AP-1024"]')).toHaveValue('done');
+  await page.locator('#teacherDetailContent [data-progress-id="AP-1024"]').selectOption('reviewed');
+  await expect(page.locator('#teacherDetailContent [data-progress-id="AP-1024"]')).toHaveValue('reviewed');
+  await page.locator('#teacherDetailContent #teacherProgressForm [type=submit]').click();
+  await expect.poll(async () => page.evaluate(({ key, id }) => JSON.parse(localStorage.getItem(key)).activities.find(item => item.id === id).progress['AP-1024'].value, { key: KEY, id: activityId })).toBe('reviewed');
   const teacherProgress = await page.evaluate(({ key, id }) => JSON.parse(localStorage.getItem(key)).activities.find(item => item.id === id).progress['AP-1024'].value, { key: KEY, id: activityId });
   expect(teacherProgress).toBe('reviewed');
   await syncStorage(page, student, [KEY]);
@@ -174,7 +178,9 @@ test('homework student self-report is visible to teacher, review is visible to s
 
 test('routine creation, attendance, schedule conflicts and student routine', async ({ page, context }) => {
   await enter(page); const card = await create(page, 'routine', 'অতিরিক্ত গণিত ক্লাস', { room: 'কক্ষ ২', className: 'দশম শ্রেণি' });
-  await card.locator('[data-record-action=progress]').click(); await page.locator('[data-progress-id="AP-1024"]').selectOption('present'); await page.locator('#teacherProgressForm [type=submit]').click();
+  await card.click();
+  await page.locator('#teacherDetailContent [data-record-action=progress]').click();
+  await page.locator('#teacherDetailContent [data-progress-id="AP-1024"]').selectOption('present'); await page.locator('#teacherProgressForm [type=submit]').click();
   const student = await studentPage(context, page); await student.locator('.bottom-nav [data-view=routine]').click();
   await expect(student.locator('#teacherRoutineList')).toContainText('অতিরিক্ত গণিত ক্লাস'); await expect(student.locator('#teacherRoutineList')).toContainText('উপস্থিত');
   await expect(student.locator('#teacherRoutineList')).toContainText('কক্ষ ২');
@@ -294,7 +300,8 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
       await goAcademic(page);
       await page.locator('#teacherAcademic [data-panel-view=homework]').click();
       await page.locator('#teacherRecords [data-records-action=create]').click();
-      await expect(page.locator('body')).toHaveClass(/admin-modal-open/);
+      await expect(page.locator('#teacherDetailView')).toBeVisible();
+      await expect(page.locator('body')).not.toHaveClass(/admin-modal-open/);
       await page.locator('#activity-title').fill('মোবাইল পরীক্ষা'); await page.locator('#activity-subject').fill('গণিত');
       const submit = page.locator('#teacherActivityForm [type=submit]'); await submit.scrollIntoViewIfNeeded();
       const rect = await submit.boundingBox(); expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);

@@ -32,8 +32,8 @@ test('Student home orders top bar → welcome → Hero carousel in the advice sl
   assert.ok(at('id="studentServices"') < at('id="dashboardExamCard"'), 'optional study/fee cards stay below quick actions');
   assert.match(html, /data-daily-quote-date/u, 'the retained quote renderer keeps its date hook');
   assert.match(html, /data-daily-advice-summary/u, 'the retained quote renderer keeps its legacy summary hook');
-  assert.match(html, /js\/student-home-hero-entry\.js\?v=481/u, 'the Student carousel has its own versioned entry');
-  assert.match(html, /js\/student-home-daily-hero\.js\?v=481/u, 'its featured slide follows the Dhaka calendar automatically');
+  assert.match(html, /js\/student-home-hero-entry\.js\?v=482/u, 'the Student carousel has its own versioned entry');
+  assert.match(html, /js\/student-home-daily-hero\.js\?v=482/u, 'its featured slide follows the Dhaka calendar automatically');
   const studentCss = readFileSync(new URL('../css/hero-cards.css', import.meta.url), 'utf8');
   assert.match(studentCss, /student-home-hero-section #dailyQuoteCard\s*\{[^}]*display:\s*none !important/u,
     'the carousel replaces the visible quote card without deleting its renderer');

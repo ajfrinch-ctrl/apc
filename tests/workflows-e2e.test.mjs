@@ -398,8 +398,9 @@ test('workflow 8 — a teacher notice reaches its own class only: board and noti
   assert.equal(teacher.$('#teacherNotice').dataset.noticeOpen, '1', 'the published/draft list is open on arrival');
   teacher.click(teacher.$('#teacherNewNotice'));
   await teacher.flush(8);
-  assert.equal(teacher.$('#teacherModalBackdrop').hidden, false, 'the board opens its own notice composer');
-  assert.equal(teacher.$('#teacherNotice').hidden, false, 'the board stays underneath the modal');
+  assert.equal(teacher.$('#teacherDetailView').hidden, false, 'the notice composer has its own detail route');
+  assert.equal(teacher.$('#teacherModalBackdrop').hidden, true, 'long composer is not an overlay modal');
+  assert.ok(teacher.$('#teacherNoticeForm'), 'notice form is mounted on its destination page');
   teacher.type(teacher.$('#notice-title'), 'আগামীকাল ক্লাস বন্ধ (ওয়ার্কফ্লো)');
   teacher.type(teacher.$('#notice-body'), 'শুক্রবার প্রতিষ্ঠান বন্ধ থাকবে।');
   teacher.$('#notice-className').value = CLASS;

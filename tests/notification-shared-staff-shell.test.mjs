@@ -10,7 +10,8 @@ test('all staff roles expose the same notification bell and shared stylesheet', 
     const html = await readFile(new URL('../' + page, import.meta.url), 'utf8');
     assert.match(html, /css\/notifications\.css\?v=\d+/, page + ' must load the shared notification styles');
     assert.match(html, /id="notificationButton"/, page + ' must expose the shared bell control');
-    assert.match(html, /aria-label="নোটিফিকেশন দেখুন"/, page + ' must keep the accessible bell label');
+    const bellLabel = page === 'teacher.html' ? 'নোটিফিকেশন পেইজ খুলুন' : 'নোটিফিকেশন দেখুন';
+    assert.match(html, new RegExp(`aria-label="${bellLabel}"`), page + ' must keep an accessible bell label for its actual destination');
   }
 });
 

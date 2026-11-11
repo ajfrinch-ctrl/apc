@@ -86,15 +86,17 @@ test('হোম → বাড়ির কাজ: `#homework` রুট, শু�
     'ইন-প্লেস "তালিকা দেখুন" টগল আর কোথাও নেই');
 });
 
-test('তৈরি-কর্ম: পেজের নিজস্ব কার্ড ফর্ম খোলে, বাতিলে শিক্ষক ওই পেজেই থাকেন', async () => {
+test('তৈরি-কর্ম: routed detail page-এ ফর্ম খোলে, বাতিলে মালিক পেজে ফেরা', async () => {
   ctx.click($('#teacherRecords [data-records-action="create"]'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, false, 'পেজের তৈরি-কার্ড ফর্ম খোলে');
-  assert.equal(nfc($('#teacherModalTitle').textContent), nfc('নতুন বাড়ির কাজ'));
-  ctx.click($('#teacherModalClose'));
+  assert.deepEqual(visibleScreens(), ['teacherDetailView'], 'ফর্মের নিজস্ব route/detail পেজ');
+  assert.ok(nfc($('#teacherDetailTitle').textContent).startsWith('নতুন') && $('#teacherDetailTitle').textContent.includes('কাজ'));
+  assert.ok($('#teacherActivityForm'), 'activity form is inline in the destination page');
+  assert.equal($('#teacherModalBackdrop').hidden, true, 'লম্বা ফর্মে overlay modal নেই');
+  ctx.click($('#teacherDetailContent [data-close-teacher]'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, true);
-  assert.deepEqual(visibleScreens(), ['teacherRecords'], 'বাতিল করলে সেই পেজেই ফেরা');
+  assert.deepEqual(visibleScreens(), ['teacherRecords'], 'বাতিল করলে মালিক তালিকায় ফেরা');
+  assert.equal(ctx.window.location.hash, '#homework');
 });
 
 test('একাডেমিক হাব: দরজাগুলো সম্পূর্ণ পেজ খোলে, হাবের ওপর মডেল নয়', async () => {
@@ -113,10 +115,12 @@ test('একাডেমিক হাব: দরজাগুলো সম্প�
   assert.equal($('#teacherNotice').dataset.noticeOpen, '1', 'প্রকাশিত/খসড়া তালিকা আগেই খোলা');
   ctx.click($('#teacherNewNotice'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, false, 'বোর্ডের নিজস্ব বাটন কম্পোজার খোলে');
-  ctx.click($('#teacherModalClose'));
+  assert.deepEqual(visibleScreens(), ['teacherDetailView'], 'নোটিশ কম্পোজারের নিজস্ব route/detail পেজ');
+  assert.ok($('#teacherNoticeForm'), 'notice form is inline in the destination page');
+  assert.equal($('#teacherModalBackdrop').hidden, true, 'লম্বা কম্পোজার overlay modal নয়');
+  ctx.click($('#teacherDetailContent [data-close-teacher]'));
   await settle();
-  assert.deepEqual(visibleScreens(), ['teacherNotice'], 'বাতিলে বোর্ডেই থাকা');
+  assert.deepEqual(visibleScreens(), ['teacherNotice'], 'বাতিলে নোটিশ বোর্ডে থাকা');
 
   ctx.click($('#teacherNotice [data-panel-view="home"]'));
   await settle();

@@ -227,7 +227,7 @@ async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS
   if (!LEGACY_CLOUD_ENABLED) return cloudPausedResult();
   if (!navigator.onLine) return;
   try {
-    const bridge = await withinBudget(import('../sync/sync-core.js?v=481'), 'online bridge import', budget);
+    const bridge = await withinBudget(import('../sync/sync-core.js?v=482'), 'online bridge import', budget);
     const result = await withinBudget(bridge.hydrateStaffAccounts({
       preserveLocalAdmin: staffAccountRecordExists('admin'),
       ...(roles ? { roles } : {})
@@ -242,12 +242,12 @@ async function hydrateStaffAccountsOnline(what, budget = ONLINE_BRIDGE_BUDGET_MS
 }
 
 async function loadSyncBridge(budget = LOGIN_BRIDGE_IMPORT_MS) {
-  return withinBudget(import('../sync/sync-core.js?v=481'), 'online identity import', budget);
+  return withinBudget(import('../sync/sync-core.js?v=482'), 'online identity import', budget);
 }
 
 function warmCloudBridge() {
   if (!LEGACY_CLOUD_ENABLED || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
-  void import('../sync/sync-core.js?v=481').catch(() => {});
+  void import('../sync/sync-core.js?v=482').catch(() => {});
 }
 
 async function hydrateUserIdentifiersOnline(what, identifier = '', password = '', budget = LOGIN_IDENTITY_BUDGET_MS) {
@@ -287,7 +287,7 @@ async function runBackgroundLoginSync() {
   // Sync is deliberately fire-and-forget from the authentication path.
   // A slow/failed cloud bridge must never mutate or gate the login form.
   try {
-    const bridge = await import('../sync/sync-core.js?v=481');
+    const bridge = await import('../sync/sync-core.js?v=482');
     void bridge.startRealtimeSync().catch(error => {
       console.warn('[Active Plus] background login sync unavailable:', error?.message || error);
     });

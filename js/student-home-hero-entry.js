@@ -11,7 +11,7 @@
      • প্রতিটি লাইন ছোট (এক-দুই লাইন) এবং বাংলায়।
    নতুন লাইন যোগ করলে `?v=` পিন বাড়াতে হবে (`student.html`, `sw.js`) যাতে
    ইনস্টল করা অ্যাপও নতুন লেখা পায়। */
-import { initHomeHero } from './home-hero.js?v=481';
+import { initHomeHero } from './home-hero.js?v=482';
 
 export const STUDENT_HOME_HERO_SLIDES = Object.freeze([
   {
@@ -31,7 +31,7 @@ export const STUDENT_HOME_HERO_SLIDES = Object.freeze([
       'আজ তোমার সবচেয়ে দুর্বল বিষয়টির দিকে একটু বেশি সময় দাও।',
       'প্রতিদিন একই সময়ে পড়তে বসলে অভ্যাসটা আপনিই শক্ত হয়ে যায়।',
     ],
-    image: 'assets/student-home-hero/hero-own-pace.webp?v=481',
+    image: 'assets/student-home-hero/hero-own-pace.webp?v=482',
     imageAlt: 'বাংলাদেশি ছাত্র খোলা বই পড়ছে আর পাশে ছাত্রী নোট লিখছে; টেবিলে বই, পেন্সিল বক্স ও স্কুলব্যাগ।'
   },
   {
@@ -51,7 +51,7 @@ export const STUDENT_HOME_HERO_SLIDES = Object.freeze([
       'আজকের জন্য একটা সময় ঠিক করো, তারপর শুধু বই খুলে বসে যাও।',
       'পড়ার সময় ফোনটা অন্য ঘরে রেখে আসো — মন এক জায়গায় থাকবে।',
     ],
-    image: 'assets/student-home-hero/hero-daily-goal.webp?v=481',
+    image: 'assets/student-home-hero/hero-daily-goal.webp?v=482',
     imageAlt: 'বাংলাদেশি স্কুলছাত্রী খোলা বইয়ের পাশে ঘড়ি রেখে চেকলিস্টে টিক দিচ্ছে ও পড়ার পরিকল্পনা লিখছে।'
   },
   {
@@ -71,7 +71,7 @@ export const STUDENT_HOME_HERO_SLIDES = Object.freeze([
       'যেটা কঠিন লাগছে, সেটাই একদিন তোমার সবচেয়ে বড় শক্তি হবে।',
       'পড়ার পাশাপাশি প্রশ্ন করতে শেখো — জিজ্ঞাসাই জ্ঞানের শুরু।',
     ],
-    image: 'assets/student-home-hero/hero-joy-of-learning.webp?v=481',
+    image: 'assets/student-home-hero/hero-joy-of-learning.webp?v=482',
     imageAlt: 'বাংলাদেশি ছাত্র ও ছাত্রী খোলা বইয়ের বিজ্ঞানচিত্র নিয়ে আলোচনা করছে; টেবিলে খাতা ও পেন্সিল বক্স।'
   },
   {
@@ -92,7 +92,7 @@ export const STUDENT_HOME_HERO_SLIDES = Object.freeze([
       'পানির বোতল পাশে রাখো, অনেকক্ষণ পড়তে আরাম লাগবে।',
       'পরীক্ষার আগের রাতে নতুন কিছু নয়, পুরোনো পড়াটাই রিভিশন করো।',
     ],
-    image: 'assets/student-home-hero/hero-daily-tip.webp?v=481',
+    image: 'assets/student-home-hero/hero-daily-tip.webp?v=482',
     imageAlt: 'বাংলাদেশি ছাত্র পাশে বন্ধ বই রেখে নিজের ভাষায় মনে করে খাতায় নোট লিখছে।'
   }
 ]);

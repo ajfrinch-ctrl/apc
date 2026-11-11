@@ -327,10 +327,12 @@ test('teacher আরও holds only secondary settings — academic work and prim
 
 test('teacher ক্লাস hub groups the class list, read-only routine and academic work doors', () => {
   const classes = teacherHtml.slice(teacherHtml.indexOf('id="teacherClasses"'), teacherHtml.indexOf('id="teacherRoutine"'));
-  /* The existing rendered list and its loader stay exactly where the
-     teacher-assigned-classes tests read them, kept hidden by default. */
+  /* The assigned class list is an always-visible part of the class hub;
+     each card opens its own routed detail rather than an expandable panel. */
   assert.match(classes, /id="teacherClassList"/);
-  assert.match(classes, /id="teacherClassPanel"[^>]*hidden/);
+  assert.match(classes, /id="teacherClassPanel"/);
+  assert.doesNotMatch(classes.match(/<div class="teacher-class-panel"[^>]*>/)?.[0] || '', /\shidden(?:\s|>)/,
+    'the class list is not tucked behind a hidden disclosure panel');
   /* ২০২৬-১১-০১: একাডেমিক হাবের দরজা হোমের কার্ডেই আছে, তাই ক্লাস স্ক্রিনে
      সেটির পুনরাবৃত্তি বাদ — এখানে শুধু ক্লাস-কেন্দ্রিক দুই দরজা। */
   assert.deepEqual([...classes.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]),

@@ -141,16 +141,31 @@ test('the home homework door opens the full records page; the form opens on that
   assert.notEqual($('#teacherRecordList').innerHTML, '', 'তালিকা একই পেজে রেন্ডার হয়');
   ctx.click($('#teacherRecords [data-records-action="create"]'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, false, 'গন্তব্য স্ক্রিনের তৈরি-কার্ড ফর্ম খোলে');
-  assert.equal(nfc($('#teacherModalTitle').textContent), nfc('নতুন বাড়ির কাজ'));
-  assert.ok($('#activity-title'), 'the normal assignment form is reused');
-  ctx.click($('#teacherModalClose'));
+  assert.equal($('#teacherDetailView').hidden, false, 'গন্তব্য পেজে ফর্মের route খোলে');
+  assert.equal($('#teacherModalBackdrop').hidden, true, 'long form is not an overlay modal');
+  assert.ok($('#activity-title'), 'the normal assignment form is reused in the detail page');
+  ctx.click($('#teacherDetailContent [data-close-teacher]'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, true);
+  assert.equal($('#teacherDetailView').hidden, true);
   assert.equal($('#teacherRecords').hidden, false, 'বাতিল করলে শিক্ষক ওই পেজেই থাকেন');
   ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
   assert.equal($('#teacherHome').hidden, false, 'Home navigation returns to the launcher');
+});
+
+test('live cloud refresh waits for a routed editor to close, preserving every typed field', async () => {
+  ctx.click($('.admin-bottom [data-panel-view="home"]')); await settle();
+  ctx.click($('#teacherHome [data-panel-view="homework"]')); await settle();
+  ctx.click($('#teacherRecords [data-records-action="create"]')); await settle();
+  const title = $('#activity-title');
+  title.value = 'টাইপ করা অসম্পূর্ণ কাজ';
+  title.dispatchEvent(new ctx.window.Event('input', { bubbles: true }));
+  ctx.window.dispatchEvent(new ctx.window.CustomEvent('apc-sync-updated', { detail: { collection: 'academics' } }));
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.ok($('#teacherActivityForm'), 'editor remains mounted while remote data arrives');
+  assert.equal($('#activity-title').value, 'টাইপ করা অসম্পূর্ণ কাজ', 'typed work is not replaced by a refresh');
+  ctx.click($('#teacherDetailContent [data-close-teacher]')); await settle();
+  assert.equal($('#teacherRecords').hidden, false, 'cancel returns to the owning records page');
 });
 
 test('the clean home has no work feed, while every activity stays reachable on its records tab', async () => {
@@ -204,9 +219,11 @@ test('the উপস্থিতি ক্লাস tab opens the marking sheet a
   ctx.click($('[data-type-tab="routine"]'));
   await settle();
   const recordCard = $$('#teacherRecordList .teaching-card').find(c => c.querySelector('h3')?.textContent === 'গতকালের ক্লাস');
-  ctx.click(recordCard.querySelector('.teaching-actions .primary'));
-  assert.equal($('#teacherModalBackdrop').hidden, false);
-  const fields = $$('[data-progress-id]');
+  ctx.click(recordCard);
+  await settle();
+  ctx.click($('#teacherDetailContent [data-record-action="progress"]'));
+  assert.equal($('#teacherModalBackdrop').hidden, true, 'progress editor lives in the record detail page');
+  const fields = $$('#teacherDetailContent [data-progress-id]');
   assert.equal(fields.length, 2, 'দশম শ্রেণি has two approved students');
   assert.match($('#teacherProgressSummary').textContent, /২ জনের ০ জন নথিভুক্ত • বাকি ২ জন/);
 
@@ -219,6 +236,8 @@ test('the উপস্থিতি ক্লাস tab opens the marking sheet a
   await settle();
   assert.equal($('#teacherModalBackdrop').hidden, true);
   assert.equal($('#navDot-routine').textContent, '১', 'one attendance record is still open');
+  ctx.click($('[data-type-tab="routine"]'));
+  await settle();
   const marked = $$('#teacherRecordList .teaching-card').find(c => c.querySelector('h3')?.textContent === 'গতকালের ক্লাস');
   assert.equal(marked.querySelector('.teaching-progress-line.pending'), null, 'the record card drops its pending line');
   assert.match(marked.querySelector('.teaching-progress-line').textContent, /২\/২ জন • সব নথিভুক্ত/);
@@ -231,8 +250,10 @@ test('"শুধু বাকিরা" filters assignment evaluation rows and b
   ctx.click($('[data-type-tab="homework"]'));
   await settle();
   const card = $$('#teacherRecordList .teaching-card').find(c => c.querySelector('h3').textContent === 'আজকের কাজ');
-  ctx.click(card.querySelector('[data-record-action="progress"]'));
-  const fields = $$('[data-progress-id]');
+  ctx.click(card);
+  await settle();
+  ctx.click($('#teacherDetailContent [data-record-action="progress"]'));
+  const fields = $$('#teacherDetailContent [data-progress-id]');
   fields[0].value = 'done'; fields[0].dispatchEvent(new ctx.window.Event('change', { bubbles: true }));
   assert.match($('#teacherProgressSummary').textContent, /২ জনের ১ জন নথিভুক্ত/);
   ctx.click($('#teacherOnlyMissing'));
@@ -240,7 +261,8 @@ test('"শুধু বাকিরা" filters assignment evaluation rows and b
   ctx.click($$('.teacher-quick-fill [data-quick-fill]').find(b => b.textContent === 'সবাই দেখা হয়েছে'));
   assert.equal(fields[0].value, 'done'); assert.equal(fields[1].value, 'reviewed');
   ctx.click($('#teacherOnlyMissing')); assert.deepEqual($$('[data-progress-row]').map(r => r.hidden), [false, false]);
-  ctx.click($('#teacherModalClose'));
+  ctx.click($('#teacherDetailContent [data-close-teacher]'));
+  await settle();
 });
 
 test('assignment tabs scope their saved records and report the status split', async () => {
@@ -298,9 +320,13 @@ test('attendance marking from the উপস্থিতি ক্লাস tab c
   await settle();
   const findRoutineCard = () => $$('#teacherRecordList .teaching-card').find(c => c.querySelector('h3')?.textContent === 'আজকের গণিত ক্লাস');
   assert.match(findRoutineCard().querySelector('.teaching-progress-line').textContent, /উপস্থিতি বাকি/);
-  ctx.click(findRoutineCard().querySelector('.teaching-actions .primary'));
-  const allPresent = $$('.teacher-quick-fill [data-quick-fill]').find(b => b.textContent === 'সবাই উপস্থিত');
+  ctx.click(findRoutineCard());
+  await settle();
+  ctx.click($('#teacherDetailContent [data-record-action="progress"]'));
+  const allPresent = $$('#teacherDetailContent .teacher-quick-fill [data-quick-fill]').find(b => b.textContent === 'সবাই উপস্থিত');
   ctx.click(allPresent); ctx.submit($('#teacherProgressForm')); await settle();
+  ctx.click($('[data-type-tab="routine"]'));
+  await settle();
   assert.equal(findRoutineCard().querySelector('.teaching-progress-line.pending'), null);
   assert.equal($('#navDot-routine').textContent, '১', 'only the older open record remains');
 });
@@ -446,9 +472,11 @@ test('the grid doors open their own screens and the routine lives on one screen'
   assert.equal(nfc($('#teacherRecordsTitle').textContent.trim()), nfc('সাজেশন'), 'শিরোনাম খোলা টাইপের নাম নেয়');
   ctx.click($('#teacherRecords [data-records-action="create"]'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, false, 'সাজেশনের নিজস্ব পেজ ফর্ম খোলে');
-  assert.match($('#teacherModalTitle').textContent, /সাজেশন/);
-  ctx.click($('#teacherModalClose'));
+  assert.equal($('#teacherDetailView').hidden, false, 'সাজেশনের নিজস্ব পেজ ফর্ম খোলে');
+  assert.equal($('#teacherModalBackdrop').hidden, true);
+  assert.match($('#teacherDetailTitle').textContent, /সাজেশন/);
+  assert.ok($('#teacherActivityForm'));
+  ctx.click($('#teacherDetailContent [data-close-teacher]'));
   await settle();
 });
 
@@ -500,6 +528,54 @@ test('the exam seat lands on one CTA and four doors, not a nine-tile shelf', asy
   assert.equal($('#teacherExamWorkspace [data-quick-step="2"]').hidden, false, 'questions from both entry modes validate');
 });
 
+test('activity hard-delete requires explicit confirmation and cancellation preserves the record', async () => {
+  const title = 'নিশ্চিতকরণ পরীক্ষার কাজ';
+  await teachingRepository.saveActivity({ type: 'suggestion', title, subject: 'গণিত', className: 'দশম শ্রেণি', status: 'draft', details: 'রেকর্ড থাকবে।' });
+  await settle();
+  ctx.click($('.admin-bottom [data-panel-view="home"]')); await settle();
+  ctx.click($('#teacherHome .teacher-academic-hub')); await settle();
+  ctx.click($('#teacherAcademic [data-panel-view="suggestion"]')); await settle();
+  const card = $$('#teacherRecordList .teaching-card').find(item => item.querySelector('h3')?.textContent === title);
+  assert.ok(card, 'record is visible before delete');
+  ctx.click(card); await settle();
+  ctx.click($('#teacherDetailContent [data-record-action="delete"]'));
+  assert.ok($('#teacherDetailContent').textContent.includes('ফেরানো যাবে না'), 'confirmation explains the irreversible consequence');
+  assert.equal((await teachingRepository.list()).activities.some(item => item.title === title), true, 'opening confirmation does not delete');
+  ctx.click($('#teacherDetailContent [data-close-teacher]')); await settle();
+  assert.equal((await teachingRepository.list()).activities.some(item => item.title === title), true, 'cancel leaves the original record intact');
+  ctx.click($('#teacherDetailContent [data-record-action="delete"]'));
+  ctx.submit($('#teacherDeleteForm')); await settle();
+  assert.equal((await teachingRepository.list()).activities.some(item => item.title === title), false, 'only explicit confirmation deletes this record');
+  assert.equal($('#teacherRecords').hidden, false, 'successful delete returns to the owning records page');
+});
+
+test('notice delete is record-scoped, confirmed, and cancel leaves the audience record unchanged', async () => {
+  ctx.click($('.admin-bottom [data-panel-view="home"]')); await settle();
+  ctx.click($('#teacherHome .teacher-academic-hub')); await settle();
+  ctx.click($('#teacherAcademic [data-panel-view="notice"]')); await settle();
+  ctx.click($('#teacherNewNotice')); await settle();
+  ctx.$('#notice-title').value = 'নোটিশ মুছুন নিশ্চিতকরণ পরীক্ষা';
+  ctx.$('#notice-body').value = 'শ্রেণির শিক্ষার্থীদের জন্য নোটিশ।';
+  ctx.$('#notice-className').value = 'দশম শ্রেণি';
+  ctx.submit($('#teacherNoticeForm')); await settle();
+  const key = 'activePlus.admin.notices.v1';
+  const current = () => JSON.parse(ctx.window.localStorage.getItem(key) || '[]');
+  const saved = current().find(notice => notice.title === 'নোটিশ মুছুন নিশ্চিতকরণ পরীক্ষা');
+  assert.ok(saved, 'notice saved before delete workflow');
+  const noticeCard = () => $$('#teacherNoticeList [data-notice-open]').find(card => card.dataset.noticeOpen === saved.id);
+  ctx.click(noticeCard()); await settle();
+  ctx.click($('#teacherDetailContent [data-notice-action="delete"]'));
+  assert.match($('#teacherDetailContent').textContent, /ফেরানো যাবে না/);
+  assert.equal(current().some(notice => notice.id === saved.id), true, 'confirmation does not mutate the shared notices store');
+  ctx.click($('#teacherDetailContent [data-close-teacher]')); await settle();
+  assert.equal(current().some(notice => notice.id === saved.id), true, 'cancel preserves the notice');
+  ctx.click(noticeCard()); await settle();
+  ctx.click($('#teacherDetailContent [data-notice-action="delete"]'));
+  ctx.submit($('#teacherNoticeDeleteForm')); await settle();
+  assert.equal(current().some(notice => notice.id === saved.id), false, 'explicit confirmation removes only the selected notice');
+  assert.equal($('#teacherNotice').hidden, false, 'after delete return to the notice list');
+});
+
 test('unified Bengali labels, local date display, and single-badge class nav dot', async () => {
   ctx.click($('.admin-bottom [data-panel-view="home"]'));
   await settle();
@@ -517,7 +593,7 @@ test('unified Bengali labels, local date display, and single-badge class nav dot
   assert.equal(dateInput.getAttribute('lang'), 'bn-BD');
   assert.ok((dateInput.dataset.dateBn || '').length > 0 && !/\d{1,2}\/\d{1,2}\/\d{4}/.test(dateInput.dataset.dateBn),
     'date field carries a Bengali-friendly formatted date');
-  ctx.click($('#teacherModalClose'));
+  ctx.click($('#teacherDetailContent [data-close-teacher]'));
   await settle();
 
   // Verify ক্লাস bottom nav never shows two visible .nav-dot badges at once

@@ -1,7 +1,7 @@
 /* The notification bell + inbox, and the one topbar every panel shares.
  *
  * Two things are verified here:
- *   1. every page ships the exact same topbar — brand, slogan, bell, sign-out —
+ *   1. every page ships the same topbar structure — brand, slogan, bell, sign-out —
  *      with nothing else in it, and
  *   2. the bell on any panel opens the inbox, shows what is unread, escapes the
  *      text it renders, and marks the list read in one receipt store.
@@ -51,7 +51,7 @@ function normalised(bar) {
   clone.querySelectorAll('#classChatTopbarButton').forEach(node => node.remove());
   return clone.outerHTML
     .replace(/<strong class="app-brand-name">[\s\S]*?<\/strong>/, '')
-    .replace(/\s(?:id|title|data-action|data-view|data-panel-view|data-panel-view|data-panel-view|data-admin-cap)="[^"]*"/g, '');
+    .replace(/\s(?:id|title|aria-label|aria-haspopup|data-action|data-view|data-panel-view|data-admin-cap)="[^"]*"/g, '');
 }
 
 test('the login page keeps its brand-only card (no topbar, no bell, no sign-out)', () => {
