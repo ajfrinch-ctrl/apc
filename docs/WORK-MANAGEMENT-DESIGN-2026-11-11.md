@@ -319,7 +319,7 @@ read-only).
 | Offline and sync behave | no new storage; existing sync suites; precache updated |
 | Old data and old Student activity survive | no migration, no rewrite |
 | Mobile and desktop | CSS breakpoints at 380/420px, targets ≥44px, no horizontal overflow (same shell) |
-| Security rules block unauthorised writes | **not yet true** — audit H1/H2; needs approved rules v3 |
+| Security rules block unauthorised writes | **not yet true on the live v1 path** — the strict v2 rule set exists and is emulator-tested but not activated (audit H1/H2, §5.3) |
 
 ---
 
@@ -388,7 +388,10 @@ receipt/offline precache, work registry, work management.
 The safest next increment is **not** more UI. It is the security/behaviour
 foundation the audit flagged:
 
-1. Rules v3 (role + assignment + legal status transitions) with emulator tests.
+1. Finish the already-designed staged v1→v2 rule activation (§5.3 of the
+   audit): project live data into `activePlusV2`, provision the same claims the
+   rules read, then cut over — emulator tests already exist
+   (`functions/test/rtdb-rules.test.js`).
 2. Notification approval decision (keep direct or add a queue).
 3. Practice-visibility decision (device-local or a new store).
 4. Only then consider retiring the legacy duplicate doors.

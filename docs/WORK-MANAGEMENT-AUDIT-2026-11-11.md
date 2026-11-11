@@ -204,6 +204,43 @@ enforced in application code only. This is the highest-severity gap found and
 it predates this work; **this change neither weakens nor silently "fixes" the
 rules** — a rules migration needs its own approval and simulation suite.
 
+### 5.3 The strict model already exists — it is staged, not live
+
+**Correction to the first revision of this audit**, which implied no strict
+model existed. In fact the repository already contains a complete role-scoped
+data model:
+
+* `database.rules.v2.draft.json` — a separate `activePlusV2` namespace with
+  **27 collections** (`notices`, `noticeDraftsByAuthor`, `studentNotices`,
+  `teachingByTeacher`, `teachingDraftsByTeacher`, `studentTeaching`,
+  `questionBank`, `questionBankDraftsByTeacher`, `courseContentByAuthor`,
+  `courseContentDraftsByAuthor`, `exams`, `studentExams`, `attempts`,
+  `results`, `students`, `transactions`, `teacherAssignments`, `routine`,
+  `academics`, `pushTokens`, …). Every read/write rule requires a non-anonymous
+  provider, `mustChangePassword !== true`, `status === 'active'` (staff) or
+  `'approved'` (student), an explicit `role`, and for a teacher
+  `auth.token.teacherId != null`; students are bound to
+  `auth.token.studentId`.
+* Writes are split into **per-author draft nodes** and publishable projections,
+  so "draft" is a server-side visibility boundary, not a client flag.
+* `functions/test/rtdb-rules.test.js` — 297 lines, 123 `assertSucceeds`/
+  `assertFails` assertions on the emulator — already exercises it.
+* `functions/notice-projection.js`, `functions/question-bank-projection.js`,
+  `sync/notices-v2-sync.js`, `sync/question-bank-v2-sync.js` are the staged
+  writers; `js/realtime-sync-entry.js` boots exactly those two v2 controllers
+  **next to** the v1 bridge, and only for a signed-in user whose claims already
+  satisfy the same selector the rules enforce.
+
+Two consequences that matter for planning:
+
+1. The draft closes `activePlusSync` entirely (`".read": false,
+   ".write": false` at the root). Deploying it is a **hard cutover**, not a
+   tightening: every module still reading `activePlusSync/v1` would break the
+   same minute.
+2. The live data therefore has to be **projected into `activePlusV2`** before
+   or during that cutover — which is a genuine data migration (copy + dual-read
+   + freeze), even though no record is edited or deleted.
+
 ---
 
 ## 6. Feature → Student Panel mapping (registry)
@@ -280,14 +317,19 @@ the new workspace only navigates to it and pre-fills scope.
 
 ### High
 
-**H1 — Security rules do not enforce the business model.** See §5.2. Any
-authenticated token can write teaching/notices/routine/exams; exam approval can
-be bypassed by writing `status: "published"` directly. The UI gates are not a
-substitute. **Needs approval for a rules migration; not performed here.**
+**H1 — The live (v1) rules do not enforce the business model.** See §5.2.
+Any authenticated token can write teaching/notices/routine/exams; exam approval
+can be bypassed by writing `status: "published"` directly. The UI gates are not
+a substitute. A strict v2 rule set covering the same 27 collections already
+exists and is tested (§5.3), but it is a hard cutover that closes the v1
+namespace, so it cannot be switched on before the projections and claim
+provisioning are ready. **Needs an activation decision, not new rule design.**
 
-**H2 — Teacher scope is client-side only.** `isTeacherAssigned` /
-`isTeacherAllowedSubject` run in the browser against local storage. A modified
-client can write another class's records. Same remediation as H1.
+**H2 — Teacher scope is enforced client-side on the live path.**
+`isTeacherAssigned` / `isTeacherAllowedSubject` run in the browser against local
+storage. A modified client can write another class's records. The v2 model does
+bind this server-side (`auth.token.teacherId` plus per-teacher draft nodes), so
+the fix is activation, not invention.
 
 ### Medium
 
@@ -326,10 +368,16 @@ change; full suite run confirms no drift.
 
 ## 9. Decisions requested from the owner
 
-1. **Rules v3 (H1/H2).** Approve a separate, simulated RTDB rules migration
-   that binds writes to role + assignment + legal status transitions?
-   *Impact:* blocks forged writes; may break legacy `role === null` sessions —
-   needs a session-audit first.
+1. **Rules activation (H1/H2).** The strict rule set already exists
+   (`database.rules.v2.draft.json`, 27 collections, emulator-tested). Choose:
+   **(A) leave v1 as-is for now** — no risk, no migration, gap remains;
+   **(B) tighten the v1 rules in place** — no data movement, but only safe if
+   every live staff/student account already carries `role`/`status`/
+   `teacherId`/`studentId` claims, otherwise accounts are locked out mid-day;
+   **(C) finish the staged v1→v2 cutover** — project live data into
+   `activePlusV2`, provision claims, then deploy (this is the only route that
+   also fixes assignment scope and exam-status forgery, and it *is* a data
+   migration, so it needs explicit approval).
 2. **Notice approval (M1).** Keep direct publish (current), or introduce
    Admin/Manager approval for notices? *Impact of change:* new status,
    new queue, migration of existing notices, new tests.
