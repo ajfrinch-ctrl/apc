@@ -38,7 +38,7 @@ test('a staff panel knows which person is using it', () => {
 test('a notice published elsewhere reaches the staff device too', async () => {
   const notice = {
     id: 'N1', title: 'অফিসের নোটিশ', body: 'সকাল ১০টায় মিটিং', audience: 'সকল শিক্ষার্থী',
-    status: 'published', date: '২৯ সেপ্টেম্বর', createdAt: '2026-09-29T10:00:00.000Z'
+    status: 'published', date: 'আজ', createdAt: new Date(Date.now() - 60_000).toISOString()
   };
   ctx.window.localStorage.setItem(KEYS.notices, JSON.stringify([notice]));
   controller.refresh();

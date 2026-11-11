@@ -44,7 +44,8 @@ async function enter(page) {
   await enterStudentApp(page);
 }
 async function seedNoticeBoard(page) {
-  await page.addInitScript(({ key, notices }) => localStorage.setItem(key, JSON.stringify(notices)), { key: NOTICE_KEY, notices: NOTICE_FIXTURE });
+  const notices = NOTICE_FIXTURE.map((notice, index) => ({ ...notice, createdAt: new Date(Date.now() - index * 60_000).toISOString() }));
+  await page.addInitScript(({ key, notices }) => localStorage.setItem(key, JSON.stringify(notices)), { key: NOTICE_KEY, notices });
 }
 async function openBoard(page) {
   if (!(await page.locator('#notice-boardView').isVisible())) {

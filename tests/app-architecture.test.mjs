@@ -193,11 +193,13 @@ test('the teacher bottom bar is exactly হোম / ক্লাস / পরী�
   /* মালিক-আদেশ ২০২৬-১০-২১: শিক্ষক প্যানেল থেকে শিক্ষার্থীর তালিকা (স্ক্রিন ও নিচের
      ন্যাভ-সিট) সম্পূর্ণ সরানো হয়েছে; শিক্ষার্থী-ডেটা উপস্থিতি/হোমওয়ার্ক/ক্লাস
      কর্মপ্রবাহে অক্ষত, শুধু তালিকা সারফেস ও তার সিট নেই। */
-  const nav = teacherHtml.slice(teacherHtml.indexOf('<nav class="admin-bottom"'), teacherHtml.indexOf('</nav>', teacherHtml.indexOf('<nav class="admin-bottom"')));
-  assert.deepEqual([...nav.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]),
-    ['home', 'classes', 'online-exams', 'more']);
+  const nav = teacherHtml.slice(teacherHtml.indexOf('<nav class="admin-bottom staff-bottom-nav"'), teacherHtml.indexOf('</nav>', teacherHtml.indexOf('<nav class="admin-bottom staff-bottom-nav"')));
+  assert.deepEqual([...nav.matchAll(/data-staff-tab="([a-z-]+)"/g)].map(match => match[1]),
+    ['home', 'work', 'academic', 'finance', 'more']);
   assert.deepEqual([...nav.matchAll(/<span class="nav-label">([^<]+)<\/span>/g)].map(match => nfc(match[1])),
-    ['হোম', 'ক্লাস', 'পরীক্ষা', 'আরও'].map(nfc));
+    ['হোম', 'কাজ', 'একাডেমিক', 'হিসাব', 'আরও'].map(nfc));
+  assert.match(nav, /data-staff-tab="finance" disabled/, 'Finance remains a visible disabled seat for Teacher');
+  assert.deepEqual([...nav.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]), ['home', 'classes', 'academic', 'more']);
   assert.equal(nav.includes('data-panel-view="students"'), false, 'the students seat is gone');
   for (const item of nav.split('<button').slice(1)) assert.match(item, /<svg/, 'every bottom-bar item keeps its icon');
   assert.equal(teacherHtml.includes('id="teacherStudents"'), false, 'the student list screen no longer exists');
@@ -233,8 +235,8 @@ test('teacher Home is a five-door launcher: two hubs, three shortcuts, today, no
   const home = teacherHtml.slice(teacherHtml.indexOf('id="teacherHome"'), teacherHtml.indexOf('id="teacherRecords"'));
   assert.equal(home.includes('teacher-home-grid'), false, 'the old 3×2 tile grid is retired');
   assert.equal((home.match(/class="teacher-home-tile/g) || []).length, 0, 'no old pay-tile launcher remains on home');
-  assert.match(home, /class="teacher-home-actions"/);
-  const actionsStart = home.indexOf('class="teacher-home-actions"');
+  assert.match(home, /class="teacher-home-actions(?:\s|")/);
+  const actionsStart = home.indexOf('class="teacher-home-actions');
   const actionsEnd = home.indexOf('</nav>', actionsStart);
   const actions = home.slice(actionsStart, actionsEnd);
   assert.equal((actions.match(/class="teacher-action-card/g) || []).length, 3, 'three full-width shortcut cards');
@@ -325,10 +327,12 @@ test('teacher আরও holds only secondary settings — academic work and prim
 
 test('teacher ক্লাস hub groups the class list, read-only routine and academic work doors', () => {
   const classes = teacherHtml.slice(teacherHtml.indexOf('id="teacherClasses"'), teacherHtml.indexOf('id="teacherRoutine"'));
-  /* The existing rendered list and its loader stay exactly where the
-     teacher-assigned-classes tests read them, kept hidden by default. */
+  /* The assigned class list is an always-visible part of the class hub;
+     each card opens its own routed detail rather than an expandable panel. */
   assert.match(classes, /id="teacherClassList"/);
-  assert.match(classes, /id="teacherClassPanel"[^>]*hidden/);
+  assert.match(classes, /id="teacherClassPanel"/);
+  assert.doesNotMatch(classes.match(/<div class="teacher-class-panel"[^>]*>/)?.[0] || '', /\shidden(?:\s|>)/,
+    'the class list is not tucked behind a hidden disclosure panel');
   /* ২০২৬-১১-০১: একাডেমিক হাবের দরজা হোমের কার্ডেই আছে, তাই ক্লাস স্ক্রিনে
      সেটির পুনরাবৃত্তি বাদ — এখানে শুধু ক্লাস-কেন্দ্রিক দুই দরজা। */
   assert.deepEqual([...classes.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]),
@@ -364,11 +368,11 @@ test('a teacher notice is class/batch-scoped and stays a notice, never a notific
 const managerHtml = read('manager.html');
 
 test('the Manager bottom bar has five shared seats and Reports/Advice stay in More', () => {
-  const nav = managerHtml.slice(managerHtml.indexOf('<nav class="admin-bottom manager-bottom"'), managerHtml.indexOf('</nav>', managerHtml.indexOf('<nav class="admin-bottom manager-bottom"')));
+  const nav = managerHtml.slice(managerHtml.indexOf('<nav class="admin-bottom staff-bottom-nav"'), managerHtml.indexOf('</nav>', managerHtml.indexOf('<nav class="admin-bottom staff-bottom-nav"')));
   assert.deepEqual([...nav.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]),
     ['dashboard', 'students', 'academic', 'finance', 'more']);
   assert.deepEqual([...nav.matchAll(/<span class="nav-label">([^<]+)<\/span>/g)].map(match => nfc(match[1])),
-    ['হোম', 'শিক্ষার্থী', 'একাডেমিক', 'হিসাব', 'আরও'].map(nfc));
+    ['হোম', 'কাজ', 'একাডেমিক', 'হিসাব', 'আরও'].map(nfc));
   for (const item of nav.split('<button').slice(1)) assert.match(item, /<svg/, 'every bottom-bar item keeps its icon');
   const more = managerHtml.slice(managerHtml.indexOf('id="managerMoreHub"'), managerHtml.indexOf('</nav>', managerHtml.indexOf('id="managerMoreHub"')));
   assert.deepEqual([...more.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]),
@@ -446,9 +450,12 @@ test('a Manager notice is class/batch-scoped and Notice stays separate from Noti
 
 test('the Cash Counter bottom bar is exactly হোম / শিক্ষার্থী / পেমেন্ট / রিপোর্ট / আরও', async () => {
   const ctx = await loadPage('payment.html');
-  const seats = ctx.$$('.admin-bottom .admin-bottom-item');
-  assert.deepEqual(seats.map(seat => seat.dataset.panelView), ['home', 'students', 'payment', 'reports', 'more']);
-  assert.deepEqual(seats.map(seat => nfc(seat.textContent.trim())), ['হোম', 'শিক্ষার্থী', 'পেমেন্ট', 'রিপোর্ট', 'আরও'].map(nfc));
+  const seats = ctx.$$('.staff-bottom-nav > .admin-bottom-item');
+  assert.equal(seats.length, 5, 'the counter keeps all five shared seats');
+  assert.deepEqual(seats.map(seat => seat.dataset.staffTab), ['home', 'work', 'academic', 'finance', 'more']);
+  assert.deepEqual(seats.filter(seat => seat.dataset.panelView).map(seat => seat.dataset.panelView), ['home', 'students', 'payment', 'more']);
+  assert.deepEqual(seats.map(seat => nfc(seat.textContent.trim())), ['হোম', 'কাজ', 'একাডেমিক', 'হিসাব', 'আরও'].map(nfc));
+  assert.equal(seats[2].disabled, true, 'Academic stays visible but unavailable to the counter');
   for (const seat of seats) assert.ok(seat.querySelector('svg'), 'every seat keeps its icon');
   assert.equal(ctx.$('.admin-bottom [aria-current="page"]').dataset.panelView, 'home');
   ctx.window.close();
@@ -502,16 +509,16 @@ test('Cash Counter হোম is the day’s own ledger: no dashboard tiles, one 
 
 test('the Admin bottom bar has five shared seats; Content, Data, Profile and Advice stay in More', () => {
   const html = read('admin.html');
-  const nav = html.slice(html.indexOf('<nav class="admin-bottom"'), html.indexOf('</nav>', html.indexOf('<nav class="admin-bottom"')));
+  const nav = html.slice(html.indexOf('<nav class="admin-bottom staff-bottom-nav"'), html.indexOf('</nav>', html.indexOf('<nav class="admin-bottom staff-bottom-nav"')));
   assert.deepEqual([...nav.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]),
-    ['dashboard', 'staff', 'reports', 'system', 'more']);
+    ['dashboard', 'staff', 'academics', 'reports', 'more']);
   assert.deepEqual([...nav.matchAll(/<span class="nav-label">([^<]+)<\/span>/g)].map(match => nfc(match[1])),
-    ['হোম', 'স্টাফ', 'রিপোর্ট', 'সিস্টেম', 'আরও'].map(nfc));
-  for (const seat of ['dashboard', 'staff', 'reports', 'system', 'more'])
+    ['হোম', 'কাজ', 'একাডেমিক', 'হিসাব', 'আরও'].map(nfc));
+  for (const seat of ['dashboard', 'staff', 'academics', 'reports', 'more'])
     assert.ok(nav.includes(`data-panel-view="${seat}"`), `${seat} keeps a seat`);
   assert.doesNotMatch(nav, /data-panel-view="students"/, 'student management is not an Admin seat');
   const more = html.slice(html.indexOf('id="adminMoreMenu"'), html.indexOf('</nav>', html.indexOf('id="adminMoreMenu"')));
-  assert.deepEqual([...more.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]), ['data', 'content', 'profile', 'advice']);
+  assert.deepEqual([...more.matchAll(/data-panel-view="([a-z-]+)"/g)].map(match => match[1]), ['system', 'data', 'content', 'profile', 'advice']);
 });
 
 test('Admin সিস্টেম and ডেটা are hubs over the screens that already own the work', () => {
@@ -529,9 +536,9 @@ test('Admin সিস্টেম and ডেটা are hubs over the screens tha
   assert.match(source, /export const ADMIN_SYSTEM_NAV/);
   assert.match(source, /export const ADMIN_DATA_NAV/);
   /* A screen inside a hub keeps its own seat lit. */
-  assert.equal(VIEW_SEAT.students, 'dashboard');
+  assert.equal(VIEW_SEAT.students, 'staff');
   assert.equal(VIEW_SEAT['backup-export'], 'more');
-  assert.equal(VIEW_SEAT['security-owner'], 'system');
+  assert.equal(VIEW_SEAT['security-owner'], 'more');
   assert.match(read('js/admin.js'), /const seatFor = view => VIEW_SEAT\[view\] \|\| view;/);
 });
 
@@ -558,8 +565,9 @@ test('the Admin slot is the only one with staff CRUD, and its hub cards are capa
   const source = read('js/admin-permissions.js');
   assert.match(source, /STAFF_MANAGE: 'staff\.manage'/);
   const adminGrant = source.slice(source.indexOf('const ADMIN = Object.freeze(['), source.indexOf(']);', source.indexOf('const ADMIN = Object.freeze([')));
-  for (const withheld of ['FINANCE_COLLECT', 'FINANCE_VIEW', 'NOTICES_MANAGE', 'ROUTINE_MANAGE', 'EXAMS_PUBLISH', 'TEACHING_PANEL', 'PAYMENT_PANEL'])
+  for (const withheld of ['FINANCE_COLLECT', 'FINANCE_VIEW', 'NOTICES_MANAGE', 'ROUTINE_MANAGE', 'TEACHING_PANEL', 'PAYMENT_PANEL'])
     assert.equal(adminGrant.includes(withheld), false, `${withheld} stays outside Admin`);
+  assert.equal(adminGrant.includes('EXAMS_PUBLISH'), true, 'Admin owns exam approval and publication');
   /* Every hub card carries the capability that unlocks it. */
   const system = ctxSection(html, 'system');
   for (const match of system.matchAll(/data-panel-view="([a-z-]+)" data-admin-cap="([a-z.]+)"/g)) {

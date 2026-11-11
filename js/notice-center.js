@@ -1,5 +1,5 @@
 import { iconMarkup as minimalIcon } from './icons.js';
-import { SECTION_LABEL } from './notification-store.js';
+import { NOTIFICATION_CATEGORIES, notificationPresentation } from './notification-presentation.js';
 /* The notification centre behind the bell button — one design on every panel.
  *
  * The bell in the topbar is the same control for a student, the Admin, the
@@ -173,7 +173,7 @@ function iconMarkup(kind) {
   return minimalIcon(document.getElementById('icon-bell') ? 'icon-bell' : wanted);
 }
 
-const sectionOf = item => SECTION_LABEL[item?.kind] || 'নোটিশ';
+const sectionOf = item => notificationPresentation(item).categoryLabel;
 
 /* ---- modal ------------------------------------------------------------------ */
 
@@ -204,6 +204,7 @@ function buildModal() {
       '<div class="apc-fb-list" data-apc-notice-list role="feed" aria-label="নোটিফিকেশন তালিকা"></div>' +
       '<p class="form-note" data-apc-notice-push role="status"></p>' +
       '<footer class="apc-fb-footer">' +
+        '<button type="button" class="apc-fb-history-link" data-apc-notice-history>🗂️ হিস্টোরি দেখুন</button>' +
         '<button type="button" class="apc-fb-settings-link" data-apc-notice-settings>⚙️ নোটিফিকেশন সেটিংস</button>' +
       '</footer>' +
     '</section>';
@@ -270,6 +271,8 @@ export function mountNoticeCenter(api) {
   let pushRow = null;
   let shownFeed = [];
   let filter = 'all';
+  let categoryFilter = 'all';
+  let historyController = null;
   let detailKey = '';
   const expandedKeys = new Set();
   const PAGE_SIZE = 40;
@@ -301,6 +304,49 @@ export function mountNoticeCenter(api) {
       '<button type="button" class="chip" role="tab" aria-selected="false" data-apc-notice-filter="unread">অপঠিত<span data-apc-notice-unread-chip></span></button>' +
       '<button type="button" class="mini-btn notice-read-all" data-apc-notice-read-all>সব পড়া করুন</button>';
     listBox.before(filterRow);
+  }
+
+  /* Category filter is shared by every role; legacy event kinds are mapped
+     through the same six-category contract used by the History page. */
+  let categorySelect = modal.querySelector('[data-apc-notice-category-filter]');
+  if (!categorySelect && filterRow) {
+    categorySelect = document.createElement('select');
+    categorySelect.className = 'apc-fb-category-select';
+    categorySelect.dataset.apcNoticeCategoryFilter = '';
+    categorySelect.setAttribute('aria-label', 'ক্যাটাগরি অনুযায়ী নোটিফিকেশন');
+    categorySelect.innerHTML = '<option value="all">সব ক্যাটাগরি</option>';
+    for (const row of NOTIFICATION_CATEGORIES) {
+      const option = document.createElement('option');
+      option.value = row.id; option.textContent = row.label;
+      categorySelect.append(option);
+    }
+    const categoryRow = document.createElement('div');
+    categoryRow.className = 'apc-fb-category-row';
+    categoryRow.append(categorySelect);
+    filterRow.after(categoryRow);
+  }
+  let historyButton = modal.querySelector('[data-apc-notice-history]');
+  if (!historyButton) {
+    historyButton = document.createElement('button');
+    historyButton.type = 'button';
+    historyButton.className = 'apc-fb-history-link';
+    historyButton.dataset.apcNoticeHistory = '';
+    historyButton.textContent = '🗂️ হিস্টোরি দেখুন';
+    const footer = modal.querySelector('.apc-fb-footer');
+    if (footer) footer.prepend(historyButton);
+    else if (listBox) listBox.after(historyButton);
+  }
+
+  async function openHistory() {
+    show(false);
+    try {
+      const module = await import('./notification-history.js');
+      if (!historyController) historyController = module.mountNotificationHistory(api);
+      historyController?.open();
+    } catch (error) {
+      if (statusLine) statusLine.textContent = 'হিস্টোরি খোলা যায়নি। আবার চেষ্টা করুন।';
+      console.warn('[Active Plus] notification history unavailable:', error?.name || 'unknown');
+    }
   }
 
   /* "তালিকা খালি করুন": one button on every panel (page modal or built modal).
@@ -496,8 +542,7 @@ export function mountNoticeCenter(api) {
 
   function paintCard(item, unread) {
     const opens = Boolean(item.actionable || item.target || item.body) && (typeof api.openItem === 'function' || Boolean(item.body));
-    const defaultNoticeLabel = item.kind === 'notice' ? 'নোটিশ খুলুন' : (item.kind === 'broadcast' ? 'জরুরি ঘোষণা খুলুন' : '');
-    const label = actionLabel(item) || defaultNoticeLabel || (item.actionable || item.target ? 'খুলুন' : '');
+    const label = opens ? 'বিস্তারিত দেখুন' : '';
     const rowOpens = opens && !label;
     const heading = displayTitle(item);
     const bodyText = String(item.body || '').trim();
@@ -519,7 +564,8 @@ export function mountNoticeCenter(api) {
       ? '<div class="notice-card-actions apc-fb-actions">' + expandButton + openButton + '</div>'
       : '';
     const avatar = '<span class="apc-fb-avatar" style="' + avatarStyle(item.kind) + '" aria-hidden="true">' + iconMarkup(item.kind) + '</span>';
-    const meta = '<div class="apc-fb-meta"><span class="apc-fb-section">' + escapeHtml(sectionOf(item)) + '</span><span class="apc-fb-dot">·</span><span class="notice-time apc-fb-time">' + escapeHtml(whenText(item)) + '</span></div>';
+    const presentation = notificationPresentation(item);
+    const meta = '<div class="apc-fb-meta"><span class="apc-fb-section">' + escapeHtml(presentation.categoryLabel) + '</span><span class="apc-fb-priority is-' + escapeHtml(presentation.priority) + '">' + escapeHtml(presentation.priorityLabel) + '</span><span class="apc-fb-dot">·</span><span class="notice-time apc-fb-time">' + escapeHtml(whenText(item)) + '</span></div>';
     // Facebook card: avatar + content + unread dot
     return '<article class="notice-detail apc-fb-card' + (unread ? ' unread apc-fb-unread' : '') + (opens ? ' actionable' : '') + (label ? ' has-action' : '') + (expanded ? ' is-expanded' : '') + (item.kind === 'birthday' || item.kind === 'birthday-soon' ? ' is-birthday' : '') + '"' +
       (opens ? ' data-apc-notice-open="' + escapeHtml(item.key) + '"' : '') +
@@ -537,14 +583,19 @@ export function mountNoticeCenter(api) {
   function paintDetailSheet(item) {
     const heading = displayTitle(item);
     const bodyText = String(item.body || '').trim();
+    const presentation = notificationPresentation(item);
+    const canOpenContext = Boolean(item.actionable || item.target);
+    const actionText = actionLabel(item) || item.actionLabel || 'সংশ্লিষ্ট অংশ খুলুন';
     return '<article class="notice-modal-detail-sheet" data-apc-notice-detail-sheet="' + escapeHtml(item.key) + '">' +
       '<div class="notice-modal-detail-head">' +
         '<button type="button" class="mini-btn notice-detail-back" data-apc-notice-detail-back>← তালিকায় ফিরুন</button>' +
-        '<span class="notice-section-chip">' + escapeHtml(sectionOf(item)) + '</span>' +
+        '<span class="notice-section-chip">' + escapeHtml(presentation.categoryLabel) + '</span>' +
       '</div>' +
-      '<span class="notice-time">' + escapeHtml(whenText(item)) + '</span>' +
+      '<div class="apc-notice-detail-meta"><span class="notice-time">' + escapeHtml(whenText(item)) + '</span>' +
+        '<span class="apc-fb-priority is-' + escapeHtml(presentation.priority) + '">' + escapeHtml(presentation.priorityLabel) + '</span></div>' +
       '<h3>' + escapeHtml(heading) + '</h3>' +
-      (bodyText ? '<div class="notification-body notice-content">' + escapeHtml(bodyText) + '</div>' : '') +
+      (bodyText ? '<div class="notification-body notice-content">' + escapeHtml(bodyText) + '</div>' : '<p>এই নোটিফিকেশনের অতিরিক্ত বিবরণ নেই।</p>') +
+      (canOpenContext ? '<div class="notice-card-actions"><button type="button" class="mini-btn primary" data-apc-notice-detail-action="' + escapeHtml(item.key) + '">' + escapeHtml(actionText) + '</button></div>' : '') +
     '</article>';
   }
 
@@ -580,8 +631,9 @@ export function mountNoticeCenter(api) {
   function paint() {
     let feed = [];
     try { feed = centerFeed(api.feed() || []); } catch { feed = []; }
-    // Respect per-type toggles: hide disabled types
+    // Respect per-type toggles and the six-category filter.
     try { feed = feed.filter(item => isTypeEnabled(item.kind || item.type)); } catch {}
+    if (categoryFilter !== 'all') feed = feed.filter(item => notificationPresentation(item).category === categoryFilter);
     const state = unreadKeys(feed);
     const unreadItems = feed.filter(item => isUnread(item, state));
     const unread = state.count === null ? unreadItems.length : state.count;
@@ -706,11 +758,22 @@ export function mountNoticeCenter(api) {
     const bell = event.target?.closest?.('#notificationButton');
     if (bell) { event.preventDefault(); open(); return; }
     if (!modal.contains(event.target)) return;
+    if (event.target?.closest?.('[data-apc-notice-history]')) { event.preventDefault(); void openHistory(); return; }
     const tab = event.target?.closest?.('[data-apc-notice-filter]');
     if (tab) {
       detailKey = '';
       filter = tab.dataset.apcNoticeFilter === 'all' ? 'all' : 'unread';
       paint();
+      return;
+    }
+    const detailAction = event.target?.closest?.('[data-apc-notice-detail-action]');
+    if (detailAction) {
+      event.preventDefault();
+      const item = shownFeed.find(entry => entry.key === detailAction.dataset.apcNoticeDetailAction);
+      if (item && typeof api.openItem === 'function') {
+        closeModal();
+        void Promise.resolve(api.openItem(item)).finally(() => paint());
+      }
       return;
     }
     if (event.target?.closest?.('[data-apc-notice-detail-back]')) {
@@ -776,6 +839,13 @@ export function mountNoticeCenter(api) {
     }
     if (!ownsModal) return;
   });
+  modal.addEventListener('change', event => {
+    if (event.target === categorySelect) {
+      categoryFilter = categorySelect.value || 'all';
+      detailKey = '';
+      paint();
+    }
+  });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !modal.hidden) show(false);
     if ((event.key === 'Enter' || event.key === ' ') && event.target?.matches?.('article[data-apc-notice-open]')) {
@@ -810,19 +880,10 @@ export function mountNoticeCenter(api) {
       if (typeof api.markRead === 'function') api.markRead([key]);
       else if (typeof api.markAllSeen === 'function') api.markAllSeen();
     } catch { /* opening still works */ }
-    const needsInlineDetail = ((item.kind === 'notice' || item.kind === 'broadcast') && !isStudentViewer())
-      || (!item.actionable && !item.target && Boolean(item.body));
-    if (needsInlineDetail) {
-      detailKey = item.key;
-      filter = 'all';
-      paint();
-      return;
-    }
-    if (typeof api.openItem === 'function' && (item.actionable || item.target)) {
-      closeModal();
-      void Promise.resolve(api.openItem(item)).finally(() => paint());
-      return;
-    }
+    // Context-detail is the selected interaction: inspect the notification
+    // first, then explicitly open its related panel/action from the detail view.
+    detailKey = item.key;
+    filter = 'all';
     paint();
   }
 
@@ -884,14 +945,10 @@ export function mountNoticeCenter(api) {
       try {
         if (typeof api.markRead === 'function') api.markRead([item.key]);
       } catch { /* opening still proceeds */ }
-      const staffNoticeDetail = (item.kind === 'notice' || item.kind === 'broadcast') && !isStudentViewer();
-      if (!staffNoticeDetail && (item.actionable || item.target) && typeof api.openItem === 'function') {
-        hideAlerts();
-        void Promise.resolve(api.openItem(item)).finally(() => paint());
-      } else {
-        hideAlerts();
-        open(item.body ? item.key : '');
-      }
+      // Match the inbox's context-detail behavior: an in-app alert opens
+      // its full detail first; the related action is a separate explicit tap.
+      hideAlerts();
+      open(item.key);
     });
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && alertBackdrop && !alertBackdrop.hidden) hideAlerts();
@@ -918,8 +975,7 @@ export function mountNoticeCenter(api) {
     if (!alertItems.length) { hideAlerts(); return; }
     ensureAlertShell();
     const rows = alertItems.slice(0, 3).map(item => {
-      const defaultNoticeLabel = item.kind === 'notice' ? 'নোটিশ খুলুন' : (item.kind === 'broadcast' ? 'জরুরি ঘোষণা খুলুন' : '');
-      const label = actionLabel(item) || defaultNoticeLabel || (item.actionable || item.target ? 'খুলুন' : '');
+      const label = item.actionable || item.target || item.body ? 'বিস্তারিত দেখুন' : '';
       const heading = displayTitle(item);
       const preview = item.body ? buildCardPreview(item.body) : '';
       const key = escapeHtml(item.key);

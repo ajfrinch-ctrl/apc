@@ -13,7 +13,14 @@ async function enter(page, role = 'admin') {
   await enterPortal(page, role);
   await expect(page.locator(SHELL[role])).toBeVisible();
 }
-const bottom = (page, role, view) => page.locator(`.admin-bottom [data-panel-view=${view}]`).click();
+const bottom = async (page, role, view) => {
+  if (role === 'admin' && view === 'system') {
+    await page.locator('.admin-bottom [data-panel-view=more]').click();
+    await page.locator('#adminMoreMenu [data-panel-view=system]').click();
+    return;
+  }
+  await page.locator(`.admin-bottom [data-panel-view=${view}]`).click();
+};
 
 test('manager dashboard summarises the coaching, money included', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-09-22T12:00:00Z'));

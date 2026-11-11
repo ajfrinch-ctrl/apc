@@ -1,8 +1,8 @@
 /* Student-only daily selection for the existing four-slide Home carousel.
    A Dhaka calendar date picks the featured slide; the selection updates again
    at midnight or when a hidden tab becomes visible. */
-import { STUDENT_HOME_HERO_SLIDES } from './student-home-hero-entry.js?v=480';
-import { pickHeroMessage } from './home-hero.js?v=480';
+import { STUDENT_HOME_HERO_SLIDES } from './student-home-hero-entry.js?v=482';
+import { pickHeroMessage } from './home-hero.js?v=482';
 import {
   BUILT_IN_QUOTES, pickQuote, quoteDateKey, quoteDayNumber, readQuoteCache
 } from './daily-quote.js';

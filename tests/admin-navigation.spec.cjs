@@ -2,13 +2,18 @@ const { test, expect } = require('./fixtures.cjs');
 const { enterPortal } = require('./portal-session.cjs');
 // Five shared seats: Home, Staff, Reports, System, More. Data/Profile/Advice
 // remain in the More hub; daily operations stay with their owning panels.
-const mobileViews = ['dashboard', 'staff', 'reports', 'system', 'more'];
-const systemViews = ['roles', 'security', 'settings', 'academics', 'migration'];
+const mobileViews = ['dashboard', 'staff', 'academics', 'reports', 'more'];
+const systemViews = ['roles', 'security', 'settings', 'migration'];
 async function enter(page) {
   await enterPortal(page, 'admin');
   await expect(page.locator('#adminShell')).toBeVisible();
 }
 async function bottom(page, view) {
+  if (view === 'system') {
+    await page.locator('.admin-bottom [data-panel-view="more"]').click();
+    await page.locator('#adminMoreMenu .admin-more-item[data-panel-view="system"]').click();
+    return;
+  }
   await page.locator(`.admin-bottom [data-panel-view="${view}"]`).click();
 }
 async function more(page, view) {
@@ -24,14 +29,14 @@ function recordUnexpectedPageErrors(page, errors) {
 
 test('Admin Home stays compact, readable and tappable at 320/390px in both themes', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 844 });
-  await page.clock.setFixedTime(new Date('2026-09-22T12:00:00Z'));
+  await page.clock.setFixedTime(new Date('2026-11-10T12:00:00Z'));
   await enter(page);
   await page.evaluate(() => document.fonts.ready);
   const home = page.locator('.admin-view[data-view-panel="dashboard"]');
   await expect(home.locator('#dashTitle')).toContainText('স্বাগতম');
   await expect(home.locator('#adminTodayDate')).toBeVisible();
   await expect(home.locator('#adminHeroAdvice')).toBeVisible();
-  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(2);
+  await expect(home.locator('#adminFeatureGrid .admin-feature-tile')).toHaveCount(6);
   await expect(home.locator('.admin-portal-grid > a')).toHaveCount(3);
 
   for (const theme of ['light', 'dark']) {
@@ -41,7 +46,7 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
       await page.setViewportSize({ width, height: 844 });
       const layout = await page.evaluate(() => {
         const home = document.querySelector('.admin-view[data-view-panel="dashboard"]');
-        const intro = home.querySelector('.admin-page-header');
+        const intro = home.querySelector('.home-dashboard-intro');
         const box = element => {
           const { left, right, top, bottom, height } = element.getBoundingClientRect();
           return { left, right, top, bottom, height };
@@ -58,10 +63,10 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
           adviceWidth: home.querySelector('#adminHeroAdvice').scrollWidth,
           adviceClientWidth: home.querySelector('#adminHeroAdvice').clientWidth,
           textColor: getComputedStyle(home.querySelector('#adminHeroAdvice')).color,
-          weekdayColor: getComputedStyle(home.querySelector('.admin-weekday-label')).color,
+          weekdayColor: getComputedStyle(home.querySelector('#adminTodayWeekday')).color,
           headerColor: getComputedStyle(intro).backgroundColor,
-          dateChipColor: getComputedStyle(home.querySelector('.admin-date-pill')).color,
-          dateChipBackground: getComputedStyle(home.querySelector('.admin-date-pill')).backgroundColor
+          dateChipColor: getComputedStyle(home.querySelector('.teacher-hero-date-pill')).color,
+          dateChipBackground: getComputedStyle(home.querySelector('.teacher-hero-date-pill')).backgroundColor
         };
       });
       expect(layout.documentWidth).toBeLessThanOrEqual(width);
@@ -84,7 +89,13 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
         return (light + 0.05) / (dark + 0.05);
       };
       expect(contrast(layout.weekdayColor, layout.headerColor)).toBeGreaterThanOrEqual(4.5);
-      expect(contrast(layout.dateChipColor, layout.dateChipBackground)).toBeGreaterThanOrEqual(4.5);
+      const compositedDateBackground = (() => {
+        const layer = layout.dateChipBackground.match(/[\d.]+/g).map(Number);
+        const base = layout.headerColor.match(/[\d.]+/g).map(Number);
+        const alpha = layer.length > 3 ? layer[3] : 1;
+        return `rgb(${layer.slice(0, 3).map((value, index) => Math.round(value * alpha + base[index] * (1 - alpha))).join(', ')})`;
+      })();
+      expect(contrast(layout.dateChipColor, compositedDateBackground)).toBeGreaterThanOrEqual(4.5);
       expect(layout.hero.bottom).toBeLessThanOrEqual(layout.approval[0].top);
       expect(layout.approval.at(-1).bottom).toBeLessThanOrEqual(layout.links[0].top);
       for (const rect of [layout.hero, ...layout.approval, ...layout.links, ...layout.footer]) {
@@ -102,7 +113,7 @@ test('Admin Home stays compact, readable and tappable at 320/390px in both theme
 for (const width of [320, 390]) {
 test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
-      await page.clock.setFixedTime(new Date('2026-09-22T12:00:00Z'));
+      await page.clock.setFixedTime(new Date('2026-11-10T12:00:00Z'));
       const errors = [];
       recordUnexpectedPageErrors(page, errors);
       await enter(page);
@@ -110,8 +121,8 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await expect(footer.locator('button')).toHaveCount(5);
       expect(await footer.locator('button').evaluateAll(buttons => buttons.map(b => b.dataset.panelView))).toEqual(mobileViews);
       await expect(page.locator('#dashTitle')).toBeVisible();
-      await expect(page.locator('#adminTodayDate')).toHaveText('২২ সেপ্টেম্বর ২০২৬');
-      await expect(page.locator('#adminTodayDate')).toHaveAttribute('datetime', '2026-09-22');
+      await expect(page.locator('#adminTodayDate')).toHaveText('১০ নভেম্বর ২০২৬');
+      await expect(page.locator('#adminTodayDate')).toHaveAttribute('datetime', '2026-11-10');
       await expect(page.locator('#adminHeroAdvice')).toBeVisible();
       const home = page.locator('.admin-view[data-view-panel="dashboard"]');
       await expect(home.locator('.teacher-hero-scene, [data-admin-hero-art], .admin-home-summary, .admin-hero-stats')).toHaveCount(0);
@@ -123,14 +134,14 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
       await expect(page.locator('#dashAppStatusRow, #dashTodayList, #dashPendingList, #dashNoticeCount')).toHaveCount(0);
       // Permission grid: one generated icon + one label per allowed section.
       const tiles = page.locator('#adminFeatureGrid .admin-feature-tile');
-      await expect(tiles).toHaveCount(2);
+      await expect(tiles).toHaveCount(6);
       const quickGrid = page.locator('#adminFeatureGrid');
       const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), tiles.first().boundingBox()]);
       expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
       // The current Admin skin uses full-width horizontal action cards.
       expect(await tiles.first().evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
       // One inline SVG per tile, inside a fixed container: never a missing image.
-      expect(await tiles.locator('.admin-feature-icon svg').evaluateAll(icons => icons.length)).toBe(2);
+      expect(await tiles.locator('.admin-feature-icon svg').evaluateAll(icons => icons.length)).toBe(6);
       expect(await tiles.locator('.admin-feature-icon > svg').evaluateAll(icons => icons.every(icon => icon.querySelector('image[href], path, circle, rect')))).toBe(true);
       expect(await tiles.locator('.admin-feature-label').evaluateAll(labels => labels.every(label => label.textContent.trim().length > 1))).toBe(true);
       // System Owner monitoring is not mixed with the Cash Counter collection action.
@@ -140,7 +151,7 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
         await bottom(page, view);
         await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
         await expect(footer.locator('[aria-current=page]')).toHaveCount(1);
-        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', view);
+        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', view === 'academics' ? 'academics' : view);
       }
       // Every footer tab shows exactly one icon, inside its chip (no emoji, no
       // empty chip, no second painted icon).
@@ -174,13 +185,13 @@ test(`compact dashboard and five-item mobile footer (${width}px)`, async ({ page
         const panel = page.locator(`.admin-view[data-view-panel="${view}"]`);
         await expect(panel).toBeVisible();
         await expect(panel.locator('h1')).toBeFocused();
-        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+        await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       }
       // More maps Data, Content, Profile and Advice without a sixth bottom seat.
       await bottom(page, 'more');
-      await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(4);
-      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.panelView))).toEqual(['data', 'content', 'profile', 'advice']);
+      await expect(page.locator('#adminMoreMenu .admin-more-item')).toHaveCount(5);
+      expect(await page.locator('#adminMoreMenu .admin-more-item').evaluateAll(items => items.map(item => item.dataset.panelView))).toEqual(['system', 'data', 'content', 'profile', 'advice']);
       await page.locator('#adminMoreMenu .admin-more-item[data-panel-view=data]').click();
       await expect(page.locator('.admin-view[data-view-panel=data]')).toBeVisible();
       await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
@@ -412,7 +423,7 @@ test('the Admin student roster retains filters and exposes pending review action
   await expect(studentShortcut).toBeVisible();
   await studentShortcut.click();
   await expect(page.locator('.admin-view[data-view-panel="students"]')).toBeVisible();
-  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'dashboard');
+  await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'staff');
 
   const firstStudent = page.locator('#studentList .student-row').first();
   await expect(firstStudent).toBeVisible();
@@ -541,7 +552,7 @@ for (const width of [320, 390]) {
     await bottom(page, 'system');
     await page.locator('#adminSystemMenu .admin-more-item[data-panel-view="security"]').click();
     await expect(page.locator('.admin-view[data-view-panel="security"]')).toBeVisible();
-    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+    await expect(footer.locator('[aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
     await more(page, 'profile');
     await expect(page.locator('.admin-view[data-view-panel="profile"]')).toBeVisible();
     await expect(groupNav).toBeVisible();
@@ -598,7 +609,7 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
   expect(bottomBar.x).toBe(phoneShell.x);
   const quickGrid = page.locator('#adminFeatureGrid');
   const quickTile = page.locator('#adminFeatureGrid .admin-feature-tile');
-  await expect(quickTile).toHaveCount(2);
+  await expect(quickTile).toHaveCount(6);
   const [quickGridBox, quickTileBox] = await Promise.all([quickGrid.boundingBox(), quickTile.first().boundingBox()]);
   expect(Math.abs(quickTileBox.width - quickGridBox.width)).toBeLessThanOrEqual(1);
   expect(await quickTile.first().evaluate(tile => getComputedStyle(tile).flexDirection)).toBe('row');
@@ -611,7 +622,7 @@ test('wide viewport keeps the same five-item interface without a sidebar', async
     await bottom(page, 'system');
     await page.locator(`#adminSystemMenu .admin-more-item[data-panel-view="${view}"]`).click();
     await expect(page.locator(`.admin-view[data-view-panel="${view}"]`)).toBeVisible();
-    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'system');
+    await expect(page.locator('.admin-bottom [aria-current=page]')).toHaveAttribute('data-panel-view', 'more');
   }
   await more(page, 'data');
   await page.locator('#adminDataMenu .admin-more-item[data-panel-view=backup]').click();

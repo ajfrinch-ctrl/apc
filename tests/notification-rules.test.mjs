@@ -5,12 +5,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   notificationFeed, planDeliveries, seenRecord, markLocalSource, isSelfAuthored,
-  pushPayload, pushTokenRecord, tokenPathKey, noticeItem, examItems,
+  pushPayload, pushTokenRecord, tokenPathKey, noticeItem, examItems, examReviewItems, staffExamItems,
   viewerKeyOf, audienceMatches, claimDelivery, MAX_BURST
 } from '../js/notification-rules.js';
 
 const student = { kind: 'student', studentId: 's260929001', username: 'raisa.islam', name: 'রাইসা' };
 const manager = { kind: 'staff', role: 'manager', username: 'manager.apc' };
+const admin = { kind: 'staff', role: 'admin', username: 'admin.apc' };
 
 const notice = (overrides = {}) => ({
   id: 'N1', title: 'পরীক্ষার সময়সূচি', body: 'আগামী শুক্রবার মডেল টেস্ট।',
@@ -78,6 +79,38 @@ test('a paper the sender would announce is listed, and a finished one is not', (
   assert.deepEqual(examItems(view(over), student, now), [], 'a finished paper without results is not news');
   assert.deepEqual(examItems(view({ ...over, resultsPublished: true, resultsPublishedAt: now }), student, now)
     .map(item => item.kind), ['result'], 'but its results are');
+});
+
+test('pending exam review alerts reach Admin and Manager with role-correct destinations', () => {
+  const examDb = { exams: [{
+    id: 'E-REVIEW', title: 'HSC মডেল টেস্ট', className: 'দ্বাদশ',
+    teacherName: 'Test Teacher', status: 'pending', submittedAt: 123456
+  }] };
+  const adminItems = examReviewItems(examDb, admin);
+  const managerItems = examReviewItems(examDb, manager);
+  assert.equal(adminItems.length, 1);
+  assert.equal(managerItems.length, 1);
+  assert.equal(adminItems[0].target, 'audit-exam');
+  assert.equal(managerItems[0].target, 'exams');
+  assert.equal(adminItems[0].audience, 'Admin/Manager');
+  assert.deepEqual(examReviewItems(examDb, student), []);
+  assert.equal(notificationFeed({ examDb, viewer: admin })[0].kind, 'exam-review');
+});
+
+test('Admin and Manager receive published-exam and result updates in their own panel', () => {
+  const examDb = { exams: [{
+    id: 'E-PUBLISHED', title: 'HSC প্রস্তুতি পরীক্ষা', status: 'published',
+    publishedAt: 100, resultsPublished: true, resultsPublishedAt: 200
+  }] };
+  const adminItems = staffExamItems(examDb, admin);
+  const managerItems = staffExamItems(examDb, manager);
+  assert.deepEqual(adminItems.map(item => item.kind), ['exam-published', 'result-published']);
+  assert.deepEqual(managerItems.map(item => item.kind), ['exam-published', 'result-published']);
+  assert.ok(adminItems.every(item => item.target === 'audit-exam'));
+  assert.ok(managerItems.every(item => item.target === 'exams'));
+  assert.equal(adminItems[1].actionLabel, 'ফলাফল দেখুন');
+  assert.deepEqual(notificationFeed({ examDb, viewer: admin }).map(item => item.kind),
+    ['result-published', 'exam-published'], 'newest result update is first in the inbox');
 });
 
 test('a brand-new device records the existing list silently — no burst of old news', () => {

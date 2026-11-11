@@ -61,12 +61,14 @@ test('the academic সাজেশন door opens the full suggestion page, never
   assert.equal(ctx.window.location.hash, '#suggestion');
   ctx.click($('#teacherRecords [data-records-action="create"]'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, false, 'the page opens its own composer');
-  assert.match(nfc($('#teacherModalTitle').textContent), /সাজেশন/, 'the composer is for a suggestion');
+  assert.equal($('#teacherDetailView').hidden, false, 'the composer is its own page route');
+  assert.match(nfc($('#teacherDetailTitle').textContent), /সাজেশন/, 'the composer is for a suggestion');
+  assert.ok($('#teacherActivityForm'), 'suggestion form is mounted on the destination page');
+  assert.equal($('#teacherModalBackdrop').hidden, true, 'long form is not an overlay modal');
   assert.equal($('#teacherNotice').hidden, true, 'the notice board stays closed — these are two different things');
-  ctx.click($('#teacherModalClose'));
+  ctx.click($('#teacherDetailContent [data-close-teacher]'));
   await settle();
-  assert.equal($('#teacherModalBackdrop').hidden, true);
+  assert.equal($('#teacherDetailView').hidden, true);
   assert.equal($('#teacherRecords').hidden, false, 'cancelling keeps the teacher on the suggestion page');
 });
 

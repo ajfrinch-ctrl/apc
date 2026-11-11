@@ -398,8 +398,9 @@ test('workflow 8 — a teacher notice reaches its own class only: board and noti
   assert.equal(teacher.$('#teacherNotice').dataset.noticeOpen, '1', 'the published/draft list is open on arrival');
   teacher.click(teacher.$('#teacherNewNotice'));
   await teacher.flush(8);
-  assert.equal(teacher.$('#teacherModalBackdrop').hidden, false, 'the board opens its own notice composer');
-  assert.equal(teacher.$('#teacherNotice').hidden, false, 'the board stays underneath the modal');
+  assert.equal(teacher.$('#teacherDetailView').hidden, false, 'the notice composer has its own detail route');
+  assert.equal(teacher.$('#teacherModalBackdrop').hidden, true, 'long composer is not an overlay modal');
+  assert.ok(teacher.$('#teacherNoticeForm'), 'notice form is mounted on its destination page');
   teacher.type(teacher.$('#notice-title'), 'আগামীকাল ক্লাস বন্ধ (ওয়ার্কফ্লো)');
   teacher.type(teacher.$('#notice-body'), 'শুক্রবার প্রতিষ্ঠান বন্ধ থাকবে।');
   teacher.$('#notice-className').value = CLASS;
@@ -473,7 +474,7 @@ test('workflow 8b — a Manager-written notice carries its class scope and stays
     importPanel: () => import('../js/manager.js'),
     shellId: 'managerShell'
   });
-  manager.click(manager.$('.manager-bottom [data-panel-view="academic"]'));
+  manager.click(manager.$('.staff-bottom-nav [data-panel-view="academic"]'));
   await manager.flush(6);
   assert.equal(manager.$('[data-view-panel="academic"]').hidden, false, 'একাডেমিক is the hub');
   manager.click(manager.$('#managerAcademicMenu [data-academic-section="notice"]'));

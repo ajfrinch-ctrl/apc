@@ -1,5 +1,5 @@
 const { test, expect } = require('./fixtures.cjs');
-const { enterPortal } = require('./portal-session.cjs');
+const { openTeacherExams, enterPortal } = require('./portal-session.cjs');
 test.use({ serviceWorkers: 'block', reducedMotion: 'reduce' });
 for (const width of [320, 390, 1024]) {
   test(`teacher dashboard reference keeps routes and homework creation at ${width}px`, async ({ page }) => {
@@ -18,7 +18,7 @@ for (const width of [320, 390, 1024]) {
     await expect(page.locator('#teacherHome .teacher-summary-section, #teacherHomeStudentTotal')).toHaveCount(0);
     await expect(page.locator('#teacherHome .hero-slider, #teacherHome .admin-hero')).toHaveCount(0);
     await expect(page.locator('#notificationButton')).toBeVisible();
-    await expect(page.locator('.teacher-shell .admin-bottom .admin-bottom-item')).toHaveCount(4);
+    await expect(page.locator('.teacher-shell .admin-bottom .admin-bottom-item')).toHaveCount(5);
     // ২০২৬-১০-২১: শিক্ষার্থীর তালিকা সম্পূর্ণ বাদ — স্ক্রিন ও নিচের ন্যাভ-সিট দুটোই নেই।
     await expect(page.locator('.admin-bottom [data-panel-view="students"]')).toHaveCount(0);
     await expect(page.locator('#teacherStudents')).toHaveCount(0);
@@ -37,7 +37,7 @@ for (const width of [320, 390, 1024]) {
     // ২০২৬-১১-০১: নম্বর ও ফলাফল is a lane of the পরীক্ষা seat; its own route is
     // #marks, and the homework type tab switches to the বাড়ির কাজ lane (which
     // lights the ক্লাস seat).
-    await page.locator('.admin-bottom [data-panel-view="online-exams"]').click();
+    await openTeacherExams(page);
     await page.locator('#teacherOnlineExams [data-panel-view="exam"]').click();
     await page.locator('.teacher-type-tabs [data-type-tab="homework"]').click();
     await expect(page.locator('#teacherRecords')).toBeVisible();

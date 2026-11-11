@@ -1,5 +1,5 @@
 const { test, expect } = require('./fixtures.cjs');
-const { enterPortal, enterStudentApp, newDevice, syncStorage } = require('./portal-session.cjs');
+const { openTeacherExams, enterPortal, enterStudentApp, newDevice, syncStorage } = require('./portal-session.cjs');
 const fs = require('node:fs/promises');
 const KEY = 'activePlus.exams.v1';
 const t0 = new Date('2026-10-01T09:00:00Z'), start = new Date('2026-10-01T10:00:00Z'), end = new Date('2026-10-01T11:00:00Z');
@@ -40,7 +40,7 @@ async function teacher(page) {
   /* The exam workspace is one screen; the hub card is the documented door
      (ফলাফল seat keeps the marks records of the class tests). */
   /* The teacher bottom-nav পরীক্ষা item opens the existing online-exam hub directly. */
-  await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
+  await openTeacherExams(page);
 }
 async function manager(context, screen = 'upcoming') {
   const page = await context.newPage(); await page.clock.setFixedTime(t0);
@@ -49,7 +49,7 @@ async function manager(context, screen = 'upcoming') {
   await enterPortal(page, 'manager');
   await page.clock.setFixedTime(t0);
   await page.evaluate(() => sessionStorage.removeItem('activePlus.lastSeenClock.v1'));
-  await page.locator('.manager-bottom [data-panel-view=academic]').click();
+  await page.locator('.admin-bottom [data-panel-view=academic]').click();
   await page.locator('#managerAcademicMenu [data-academic-section=exams]').click();
   await page.locator(`#managerExamHub [data-manager-exam=${screen}]`).click();
   await page.locator('#managerExamWorkspace').waitFor({ state: 'visible' });
@@ -267,7 +267,7 @@ for (const type of ['written','short']) {
 
     await syncStorage(office, page, [KEY, 'activePlus.admin.students.v1']);
     await page.clock.setFixedTime(new Date('2026-10-02T09:00:00Z'));
-    await page.reload(); await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
+    await page.reload(); await openTeacherExams(page);
     await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
     const teacherRoot=page.locator('#teacherExamWorkspace'); await teacherRoot.locator('[data-exam-action=grade]').click();
     await teacherRoot.locator('[name=studentId]').selectOption('AP-1024'); await teacherRoot.locator('[name=q1]').fill('4'); await teacherRoot.locator('[name=q2]').fill('2'); await teacherRoot.locator('[value=marks]').click();
@@ -280,7 +280,7 @@ for (const type of ['written','short']) {
 
     await syncStorage(page, office, [KEY]);
     await office.clock.setFixedTime(new Date('2026-10-02T09:00:00Z'));
-    await office.reload(); await office.locator('.manager-bottom [data-panel-view=academic]').click();
+    await office.reload(); await office.locator('.admin-bottom [data-panel-view=academic]').click();
     await office.locator('#managerAcademicMenu [data-academic-section=results]').click();
     await office.locator('[data-results-action=list]').click();
     await office.locator('[data-manager-action=publish-results]').click();
@@ -299,7 +299,7 @@ test('Manager returns corrections, malformed paste and write failure preserve te
   await root.locator('[data-exam-action=detail]').click(); await root.locator('[name=note]').fill('নম্বর সংশোধন করুন'); await root.locator('[value=reject]').click();
   await expect(root.locator('[data-rejection-reason]')).toContainText('নম্বর সংশোধন করুন');
   await syncStorage(office, page, [KEY]);
-  await page.reload(); await page.locator('.admin-bottom [data-panel-view=online-exams]').click(); await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
+  await page.reload(); await openTeacherExams(page); await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
   const teacherRoot=page.locator('#teacherExamWorkspace'); await expect(teacherRoot.locator('[data-managed-exam]')).toContainText('নম্বর সংশোধন করুন'); await teacherRoot.locator('[data-managed-exam] [data-exam-action=edit]').click();
   await teacherRoot.locator('[name=template]').fill('ভুল টেমপ্লেট'); await expect(teacherRoot.locator('[data-parsed-preview]')).toContainText('টেমপ্লেট'); await teacherRoot.locator('[data-exam-form] [type=submit]').click(); await expect(teacherRoot.locator('[data-exam-error]')).toBeVisible();
   await teacherRoot.locator('[name=template]').fill(template); await page.evaluate(key=>{const set=Storage.prototype.setItem; Storage.prototype.setItem=function(k,v){if(k===key)throw new DOMException('Quota','QuotaExceededError');return set.call(this,k,v);};},KEY);
@@ -364,7 +364,7 @@ test('copyable templates and long Bengali exam PDFs paginate without print dialo
   const longTemplate=Array.from({length:30},(_,i)=>template.split('\n---\n')[0].replace('বাংলাদেশের রাজধানী কোনটি?',`প্রশ্ন ${i+1}: বাংলাদেশের রাজধানী ও প্রশাসনিক বিভাগ সম্পর্কে তোমার জানা তথ্য অনুযায়ী সঠিক উত্তরটি নির্বাচন করো।`)).join('\n---\n');
   await seed(page,{template:longTemplate});
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).exams[0].questions.length, KEY)).toBe(30);
-  await page.reload(); await page.locator('.admin-bottom [data-panel-view=online-exams]').click(); await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click(); await root.locator('[data-exam-action=detail]').click();
+  await page.reload(); await openTeacherExams(page); await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click(); await root.locator('[data-exam-action=detail]').click();
   const promise=page.waitForEvent('download'); await root.locator('[data-exam-action=paper]').click(); const bytes=await fs.readFile(await (await promise).path()); const pdf=bytes.toString('latin1'); expect(Number(pdf.match(/\/Count (\d+)/)[1])).toBeGreaterThan(1); expect(bytes.length).toBeGreaterThan(100000);
 });
 

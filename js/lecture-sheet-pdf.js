@@ -16,7 +16,7 @@
 import { toBanglaNumber as bn } from './ui.js';
 import { escapeHtml } from './sanitize.js';
 import { BRAND_NAME, BRAND_TAGLINE, brandLogoLargeSrc, loadWatermark, drawWatermark } from './brand.js';
-import { normalizeLecturePageSettings, sanitizeLectureDocJson } from './course-content.js';
+import { attachmentHref, normalizeLecturePageSettings, sanitizeLectureDocJson } from './course-content.js';
 import { isSafeLectureImageSrc, sanitizeLectureHtml, sanitizeRichHtml } from './rich-sanitize.js';
 import { buildLecturePdfFilename } from './lecture-sheet-store.js';
 
@@ -1239,7 +1239,7 @@ async function canvasToJpegBytes(canvas) {
   return out;
 }
 
-export async function generateLecturePdfBlob(record = {}, { onProgress = null } = {}) {
+async function buildLecturePdfBlob(record = {}, { onProgress = null } = {}) {
   const startedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   if (typeof onProgress === 'function') onProgress({ stage: 'layout', currentPage: 0, totalPages: 0 });
 
@@ -1301,6 +1301,34 @@ export async function generateLecturePdfBlob(record = {}, { onProgress = null } 
   };
 }
 
+// A one-document cache guarantees that reading a lecture sheet and pressing
+// its separate download action consume the same generated PDF Blob. The full
+// serialized record is the key, so edits invalidate the cached artifact.
+let cachedLecturePdfKey = '';
+let cachedLecturePdfResult = null;
+const pendingLecturePdfs = new Map();
+export async function generateLecturePdfBlob(record = {}, options = {}) {
+  let key = '';
+  try { key = JSON.stringify(record); } catch { key = ''; }
+  if (key && cachedLecturePdfKey === key && cachedLecturePdfResult) {
+    options.onProgress?.({ stage: 'complete', currentPage: cachedLecturePdfResult.totalPages, totalPages: cachedLecturePdfResult.totalPages });
+    return cachedLecturePdfResult;
+  }
+  if (key && pendingLecturePdfs.has(key)) return pendingLecturePdfs.get(key);
+
+  const generation = buildLecturePdfBlob(record, options);
+  if (!key) return generation;
+  pendingLecturePdfs.set(key, generation);
+  try {
+    const result = await generation;
+    cachedLecturePdfKey = key;
+    cachedLecturePdfResult = result;
+    return result;
+  } finally {
+    pendingLecturePdfs.delete(key);
+  }
+}
+
 export function triggerPdfDownload(blob, filename) {
   const safeName = String(filename || 'Lecture_Sheet.pdf').trim() || 'Lecture_Sheet.pdf';
   const url = URL.createObjectURL(blob);
@@ -1317,6 +1345,134 @@ export async function downloadLectureSheetPDF(record, options = {}) {
   const result = await generateLecturePdfBlob(record, options);
   triggerPdfDownload(result.blob, result.filename);
   return result;
+}
+
+/** Open the exact PDF artifact used by the download action in the browser's
+ * native PDF viewer. Lecture-sheet reading and downloading share one generated
+ * Blob, so their pagination, fonts, images and page breaks cannot drift apart. */
+export function openStudentPdfReader(record = {}, { sourceUrl = '', generatePdf = false } = {}) {
+  if (!record || typeof document === 'undefined') return null;
+  document.getElementById('apcStudentPdfReader')?.__apcPdfReaderClose?.();
+  const overlay = document.createElement('div');
+  overlay.id = 'apcStudentPdfReader';
+  overlay.className = 'ls-studio-overlay apc-student-pdf-reader';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', record.title || 'PDF পাঠক');
+  const meta = [record.className, record.subjectName || record.subject, record.chapterName, record.topic]
+    .filter(Boolean).join(' • ');
+  overlay.innerHTML = `
+    <div class="ls-studio-shell">
+      <header class="ls-topbar">
+        <div class="ls-topbar-start">
+          <button type="button" class="ls-btn" data-spdf-close>← ফিরে যান</button>
+          <div class="ls-title-wrap">
+            <strong>${escapeHtml(record.title || 'PDF উপকরণ')}</strong>
+            ${meta ? `<small>${escapeHtml(meta)}</small>` : ''}
+          </div>
+        </div>
+        <div class="ls-topbar-actions">
+          <button type="button" class="ls-btn ls-publish-btn" data-spdf-download>⬇ PDF ডাউনলোড</button>
+        </div>
+      </header>
+      <main class="apc-student-pdf-stage">
+        <p class="apc-student-pdf-status" data-spdf-status role="status">PDF প্রস্তুত হচ্ছে…</p>
+        <button type="button" class="ls-btn" data-spdf-retry hidden>আবার চেষ্টা করুন</button>
+        <iframe data-spdf-frame title="${escapeHtml(record.title || 'PDF উপকরণ')}" hidden></iframe>
+        <p class="apc-student-pdf-hint">PDF দেখা না গেলে “PDF ডাউনলোড” চাপুন।</p>
+      </main>
+    </div>`;
+  document.documentElement.classList.add('apc-lecture-studio-open');
+  document.body.append(overlay);
+
+  const frame = overlay.querySelector('[data-spdf-frame]');
+  const status = overlay.querySelector('[data-spdf-status]');
+  const retry = overlay.querySelector('[data-spdf-retry]');
+  const download = overlay.querySelector('[data-spdf-download]');
+  let blob = null;
+  let filename = 'Study_Material.pdf';
+  let objectUrl = '';
+  let disposed = false;
+  let busy = false;
+
+  const setError = () => {
+    status.textContent = 'PDF দেখানো যাচ্ছে না। আবার চেষ্টা করুন অথবা ডাউনলোড করুন।';
+    status.hidden = false;
+    retry.hidden = false;
+    frame.hidden = true;
+  };
+  const showUrl = url => {
+    frame.hidden = false;
+    status.textContent = 'PDF লোড হচ্ছে…';
+    status.hidden = false;
+    retry.hidden = true;
+    frame.src = `${url}${url.includes('#') ? '&' : '#'}toolbar=1&navpanes=0&view=FitH`;
+  };
+  const loadPdf = async () => {
+    if (busy || disposed) return;
+    busy = true;
+    retry.hidden = true;
+    status.hidden = false;
+    status.textContent = 'PDF তৈরি হচ্ছে…';
+    try {
+      const result = await generateLecturePdfBlob(record);
+      if (disposed) return;
+      blob = result.blob;
+      filename = result.filename || filename;
+      if (objectUrl) (window.URL || URL).revokeObjectURL(objectUrl);
+      objectUrl = (window.URL || URL).createObjectURL(blob);
+      showUrl(objectUrl);
+    } catch {
+      if (!disposed) setError();
+    } finally {
+      busy = false;
+    }
+  };
+  const onFrameLoad = () => {
+    if (frame.hidden || disposed) return;
+    status.textContent = 'PDF প্রস্তুত।';
+    status.hidden = false;
+  };
+  frame.addEventListener('load', onFrameLoad);
+  frame.addEventListener('error', setError);
+  const close = () => {
+    if (disposed) return;
+    disposed = true;
+      if (objectUrl) (window.URL || URL).revokeObjectURL(objectUrl);
+      overlay.remove();
+    document.documentElement.classList.remove('apc-lecture-studio-open');
+    document.removeEventListener('keydown', onKey);
+  };
+  const onKey = event => { if (event.key === 'Escape') close(); };
+  overlay.__apcPdfReaderClose = close;
+  overlay.addEventListener('click', async event => {
+    if (event.target.closest('[data-spdf-close]')) { close(); return; }
+    if (event.target.closest('[data-spdf-retry]')) {
+      if (generatePdf) await loadPdf();
+      else if (sourceUrl) showUrl(sourceUrl);
+      return;
+    }
+    if (!event.target.closest('[data-spdf-download]')) return;
+    if (generatePdf) {
+      if (!blob) await loadPdf();
+      if (blob && !disposed) triggerPdfDownload(blob, filename);
+    } else if (sourceUrl) {
+      const link = document.createElement('a');
+      link.href = sourceUrl;
+      link.download = String(record.title || 'Study_Material').replace(/[^\p{L}\p{N}_.-]+/gu, '_') + '.pdf';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.append(link);
+      link.click();
+      link.remove();
+    }
+  });
+  document.addEventListener('keydown', onKey);
+  const controller = { overlay, close, retry: loadPdf };
+  if (generatePdf) void loadPdf();
+  else if (sourceUrl) showUrl(sourceUrl);
+  else setError();
+  return controller;
 }
 
 export async function printLectureSheet(record, { renderMath = null } = {}) {
@@ -1511,18 +1667,23 @@ export async function openStudentLectureReaderModal(record) {
 }
 
 /* A published material opens INSIDE the app: the list in উপকরণ stays a list of
-   titles, and reading happens on a full-screen sheet. A lecture sheet
-   keeps the A4 reader (docJson → paginated pages); a note or lesson, which only
-   has HTML, gets the same shell with a readable sheet instead of a wall of text
-   inside the card. The caller may also just hand over the record; an attachment
-   link is the card's own business. */
+   titles; lecture sheets are rendered to the same PDF Blob as the download and
+   opened in the browser's full-screen PDF viewer. Notes and lessons retain the
+   readable in-app sheet, and linked PDFs use the same viewer with a download
+   fallback. */
 export async function openStudentMaterialReader(record = {}) {
   if (!record || typeof document === 'undefined') return null;
   const doc = record.docJson;
   const sheetDoc = Boolean(doc && typeof doc === 'object' && doc.type === 'doc' && Array.isArray(doc.content)
     && doc.content.some(node => node && (node.type !== 'paragraph'
       || (Array.isArray(node.content) && node.content.length))));
-  if (sheetDoc) return openStudentLectureReaderModal(record);
+  if (sheetDoc || (record.isLectureSheet === true && doc)) {
+    return openStudentPdfReader(record, { generatePdf: true });
+  }
+  const pdfUrl = attachmentHref(record.attachmentUrl);
+  if (pdfUrl && (String(record.type || '').toLowerCase() === 'pdf' || /\.pdf(?:$|[?#])/i.test(pdfUrl))) {
+    return openStudentPdfReader(record, { sourceUrl: pdfUrl });
+  }
 
   const bodyHtml = record.richContent
     ? (record.isLectureSheet === true ? sanitizeLectureHtml(record.richContent) : sanitizeRichHtml(record.richContent))

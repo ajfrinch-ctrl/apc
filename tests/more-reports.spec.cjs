@@ -65,7 +65,7 @@ for (const scene of SCENES) {
     await prepare(page,'payment',scene);
     await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
     for(const selector of ['#payDeskTools','#payKeypad','#payStickyBar']) await expect(page.locator(selector)).toHaveCount(0);
-    await expect(page.locator('nav.admin-bottom [data-panel-view]')).toHaveCount(5);
+    await expect(page.locator('nav.admin-bottom > .admin-bottom-item')).toHaveCount(5);
     await expect(page.locator('#payProfileCard')).toBeHidden();
     await expect(page.locator('#payReportsCard')).toBeHidden();
     await expect(page.locator('#paymentReports')).toHaveCount(1);
@@ -99,7 +99,7 @@ for (const role of ['admin','manager','teacher']) for (const scene of SCENES.sli
     /* Admin and Manager each own a reports seat (Phase 3/5): the report center
        is that screen, and it never becomes a second row inside More. */
     if (role === 'manager') {
-      await page.locator('.manager-bottom [data-panel-view="more"]').click();
+      await page.locator('.admin-bottom [data-panel-view="more"]').click();
       await page.locator('.manager-view[data-view-panel="more"] [data-panel-view="reports"]').click();
       await page.locator('.manager-view[data-view-panel="reports"] [data-reports-action="builder"]').click();
     } else {
@@ -202,7 +202,7 @@ test.describe('arranged menus remain offline', () => {
       await expect(page.locator('#paymentReports')).toHaveCount(1);
       await expect(page.locator('#payReportsCard')).toBeHidden();
       await expect(page.locator('#payDeskTools')).toHaveCount(0);
-      await expect(page.locator('nav.admin-bottom [data-panel-view]')).toHaveCount(5);
+      await expect(page.locator('nav.admin-bottom > .admin-bottom-item')).toHaveCount(5);
       await expect(page.locator('#payProfileCard')).toBeHidden();
       await page.locator('[data-pay-toggle="today-list"]').click();
       await expect(page.locator('#payTodayList')).toBeVisible();

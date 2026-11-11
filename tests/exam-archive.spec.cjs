@@ -3,7 +3,7 @@
    approves/publishes/unpublishes, the student only ever sees the published
    paper — and on a phone the dashboard table becomes cards. */
 const { test, expect } = require('./fixtures.cjs');
-const { enterPortal, enterStudentApp, newDevice, syncStorage } = require('./portal-session.cjs');
+const { openTeacherExams, enterPortal, enterStudentApp, newDevice, syncStorage } = require('./portal-session.cjs');
 
 const EXAM_KEY = 'activePlus.exams.v1';
 const ROSTER_KEY = 'activePlus.admin.students.v1';
@@ -44,7 +44,7 @@ async function teacherWorkspace(page) {
   await enterPortal(page, 'teacher');
   /* One door per screen: the exam workspace opens from the academic hub, the
      same place the teacher's "+ পরীক্ষা" quick action points to. */
-  await page.locator('.admin-bottom [data-panel-view=online-exams]').click();
+  await openTeacherExams(page);
   await page.locator('#teacherOnlineExams [data-teacher-exam=home]').click();
   return page.locator('#teacherExamWorkspace');
 }
@@ -58,7 +58,7 @@ async function managerWorkspace(page, screen = 'upcoming') {
   await page.evaluate(({ key, className }) => localStorage.setItem(key, JSON.stringify([
     { id: 'AP-1024', name: 'রাইসা', className, group: '', mobile: '01700000000', guardianMobile: '01800000000', status: 'approved', monthlyFee: 1500 }
   ])), { key: ROSTER_KEY, className: CLASS });
-  await page.locator('.manager-bottom [data-panel-view=academic]').click({ timeout: 10000 });
+  await page.locator('.admin-bottom [data-panel-view=academic]').click({ timeout: 10000 });
   await page.locator('#managerAcademicMenu [data-academic-section=exams]').click();
   await page.locator(`#managerExamHub [data-manager-exam=${screen}]`).click();
   return page.locator('#managerExamWorkspace');

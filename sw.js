@@ -225,7 +225,7 @@
 //       the staff directory and edits its own profile; the System Owner stays protected.
 // v439: Yellow Pages hides every primary field by default — one click on a card
 //       reveals that card only; a release no longer wipes the panel-hint cache.
-const CACHE_VERSION = 480;
+const CACHE_VERSION = 482;
 const CACHE_NAME = `active-plus-student-v${CACHE_VERSION}-minimal-education`;
 /* One cache, two precache sets, one release pin.
 
@@ -365,7 +365,7 @@ const APP_SHELL = [
   './css/app-polish.css',
   './css/student-record.css',
   './css/ui-wallet.css',
-  './css/hero-cards.css' + '?v=480',
+  './css/hero-cards.css' + '?v=482',
   './css/student-home-design.css',
   './sync/cloud-access.js',
   './sync/backend-selection.js',
@@ -437,8 +437,13 @@ const APP_SHELL = [
   './js/username-sync-codec.js',
   './js/notification-rules.js',
   './js/birthday-date.js',
+  './js/birthday.js',
+  './js/notification-presentation.js',
+  './js/notification-history.js',
   './js/notifications.js',
   './js/push-notifications.js',
+  './js/analytics.js',
+  './js/speed-insights.js',
   './',
   './index.html',
   './student.html',
@@ -502,22 +507,22 @@ const APP_SHELL = [
   './js/student-more.js',
   './js/rich-sanitize.js',
   './js/daily-quote.js',
-  './js/hero-cards.js' + '?v=480',
+  './js/hero-cards.js' + '?v=482',
   './assets/daily-quotes.json',
   './assets/daily-advice.json',
   './js/home-hero.js',
-  './js/home-hero.js' + '?v=480',
+  './js/home-hero.js' + '?v=482',
   './js/home-hero-entry.js',
-  './js/student-home-hero-entry.js' + '?v=480',
-  './js/student-home-daily-hero.js' + '?v=480',
+  './js/student-home-hero-entry.js' + '?v=482',
+  './js/student-home-daily-hero.js' + '?v=482',
   './assets/home-hero/hero-own-pace.webp',
   './assets/home-hero/hero-daily-goal.webp',
   './assets/home-hero/hero-joy-of-learning.webp',
   './assets/home-hero/hero-daily-tip.webp',
-  './assets/student-home-hero/hero-own-pace.webp' + '?v=480',
-  './assets/student-home-hero/hero-daily-goal.webp' + '?v=480',
-  './assets/student-home-hero/hero-joy-of-learning.webp' + '?v=480',
-  './assets/student-home-hero/hero-daily-tip.webp' + '?v=480',
+  './assets/student-home-hero/hero-own-pace.webp' + '?v=482',
+  './assets/student-home-hero/hero-daily-goal.webp' + '?v=482',
+  './assets/student-home-hero/hero-joy-of-learning.webp' + '?v=482',
+  './assets/student-home-hero/hero-daily-tip.webp' + '?v=482',
   './js/exam-archive.js',
   './js/exam-pdf.js',
   './js/material-pdf.js',
@@ -577,6 +582,12 @@ const APP_SHELL = [
 /* Staff half of the precache — see the note above APP_SHELL. These files are
    fetched the first time a staff panel asks for them, not at install. */
 const STAFF_SHELL = [
+  './css/staff-panel-theme.css',
+  './js/staff-panel-theme.js',
+  './js/staff-navigation.js',
+  './js/staff-daily-advice.js',
+  './js/panel-capabilities.js',
+  './js/admin-permissions.js',
   './css/teacher-panel.css',
   './admin.html',
   './manager.html',
@@ -598,8 +609,6 @@ const STAFF_SHELL = [
   './js/admin-migration.js',
   './js/admin-panel-ui.js',
   './js/admin-operational-advice.js',
-  './js/admin-permissions.js',
-  './js/panel-capabilities.js',
   './js/advice-admin.js',
   './js/advice-admin-entry.js',
   './js/backup-crypto.js',

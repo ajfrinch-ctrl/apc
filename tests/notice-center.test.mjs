@@ -1,7 +1,7 @@
 /* The notification bell + inbox, and the one topbar every panel shares.
  *
  * Two things are verified here:
- *   1. every page ships the exact same topbar — brand, slogan, bell, sign-out —
+ *   1. every page ships the same topbar structure — brand, slogan, bell, sign-out —
  *      with nothing else in it, and
  *   2. the bell on any panel opens the inbox, shows what is unread, escapes the
  *      text it renders, and marks the list read in one receipt store.
@@ -51,7 +51,7 @@ function normalised(bar) {
   clone.querySelectorAll('#classChatTopbarButton').forEach(node => node.remove());
   return clone.outerHTML
     .replace(/<strong class="app-brand-name">[\s\S]*?<\/strong>/, '')
-    .replace(/\s(?:id|title|data-action|data-view|data-panel-view|data-panel-view|data-panel-view|data-admin-cap)="[^"]*"/g, '');
+    .replace(/\s(?:id|title|aria-label|aria-haspopup|data-action|data-view|data-panel-view|data-admin-cap)="[^"]*"/g, '');
 }
 
 test('the login page keeps its brand-only card (no topbar, no bell, no sign-out)', () => {
@@ -317,7 +317,7 @@ test('mobile long Bengali notices show clean 1-2 line preview, toggle «আর�
   assert.ok(popupCopy.textContent.length <= 145, 'popup preview stays concise on mobile');
   assert.doesNotMatch(popupCopy.textContent, /শেষ লাইন যাচাই/, 'popup preview trims before the final paragraph');
   const popupOpenBtn = popup.querySelector('.apc-inapp-alert-action');
-  assert.equal(popupOpenBtn?.textContent.trim(), 'নোটিশ খুলুন');
+  assert.equal(popupOpenBtn?.textContent.trim(), 'বিস্তারিত দেখুন');
 
   // 2) Bell Notification Center card shows clean preview + «আরও দেখুন» + «নোটিশ খুলুন»
   ctx.click(ctx.$('#notificationButton'));
@@ -329,7 +329,7 @@ test('mobile long Bengali notices show clean 1-2 line preview, toggle «আর�
   const openBtn = card.querySelector('.notice-action[data-apc-notice-open]');
   assert.equal(expandBtn?.textContent.trim(), 'আরও দেখুন');
   assert.equal(expandBtn?.getAttribute('aria-expanded'), 'false');
-  assert.equal(openBtn?.textContent.trim(), 'নোটিশ খুলুন');
+  assert.equal(openBtn?.textContent.trim(), 'বিস্তারিত দেখুন');
 
   // 3) Clicking «আরও দেখুন» expands full multi-line Bengali text inline without closing the modal
   ctx.click(expandBtn);

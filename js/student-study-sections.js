@@ -98,6 +98,11 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     return subjects().find(item => text(item.name) === text(name)) || null;
   }
 
+  function subjectNameOf(record) {
+    return text(record?.subjectName) || text(record?.subject)
+      || subjects().find(item => text(item.id) === text(record?.subjectId))?.name || '';
+  }
+
   function recordsFor(subjectName = '') {
     const current = student();
     const cls = academic();
@@ -150,14 +155,15 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   function contentCard(record) {
     const isSheet = record.isLectureSheet === true;
     const link = attachmentHref(record.attachmentUrl);
-    const canRead = isSheet || Boolean(record.richContent || record.content);
+    const canRead = isSheet || Boolean(record.richContent || record.content)
+      || (courseTypeOf(record) === 'pdf' && Boolean(link));
     const kind = isSheet ? 'শিট'
       : record.type === 'pdf' ? 'PDF'
         : record.type === 'important_question' ? 'প্রশ্ন'
           : record.type === 'model_test' ? 'টেস্ট'
             : record.type === 'previous_question' ? 'বোর্ড'
               : record.type === 'mcq' ? 'MCQ' : 'নোট';
-    const meta = [text(record.subject) || '', chapterOf(record)].filter(Boolean).join(' • ');
+    const meta = [subjectNameOf(record), chapterOf(record)].filter(Boolean).join(' • ');
     return `<article class="course-item ls-material-row${isSheet ? ' ls-student-sheet-card' : ''}" data-study-item="${esc(record.id)}" data-study-open="${esc(record.id)}">
       <span class="ls-row-kind">${esc(kind)}</span>
       <span class="ls-row-main">
@@ -248,7 +254,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
   function matchesQuery(record, query) {
     const needle = norm(query);
     if (!needle) return true;
-    const haystack = [record.title, record.subject, chapterOf(record), record.topic, record.subtitle, record.description]
+    const haystack = [record.title, subjectNameOf(record), chapterOf(record), record.topic, record.subtitle, record.description]
       .filter(Boolean).join(' ');
     return norm(haystack).includes(needle);
   }
@@ -259,7 +265,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     const chapterName = suggestionChapter;
     const rows = suggestionRecords.filter(record => {
       if (suggestionTypes.size && ![...suggestionTypes].some(key => SUGGESTION_TYPES[key]?.(record))) return false;
-      if (suggestionSubject && text(record.subject) !== suggestionSubject) return false;
+      if (suggestionSubject && subjectNameOf(record) !== suggestionSubject) return false;
       if (chapterName && !(norm(chapterOf(record)) === norm(chapterName) || record.chapterId === chapterName)) return false;
       if (!matchesQuery(record, suggestionQuery)) return false;
       return true;
@@ -280,7 +286,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     const chapterName = materialChapter;
     const rows = materialRecords.filter(record => {
       if (!(MATERIAL_TYPES[materialType] || MATERIAL_TYPES.all)(record)) return false;
-      if (materialSubject && text(record.subject) !== materialSubject) return false;
+      if (materialSubject && subjectNameOf(record) !== materialSubject) return false;
       if (chapterName && !(norm(chapterOf(record)) === norm(chapterName) || record.chapterId === chapterName)) return false;
       if (!matchesQuery(record, materialQuery)) return false;
       return true;
@@ -615,7 +621,7 @@ export function initStudentStudySections({ getStudent, teaching = null } = {}) {
     const enriched = {
       ...allowed,
       className: cur.className || '',
-      subjectName: text(allowed.subject) || ''
+      subjectName: subjectNameOf(allowed)
     };
     const mod = await import('./lecture-sheet-pdf.js');
     if (!pdfBtn) {

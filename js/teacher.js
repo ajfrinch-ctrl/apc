@@ -5,7 +5,7 @@ import { listTeacherAssignments, syncTeacherAssignmentFromDirectory, effectiveTe
 import { setTeachingScope, currentTeacherProfile, currentTeacherId, isOwnTeacherRecord } from './teaching-data.js';
 import { hasStaffSession, clearStaffSession, goToLoginPage } from './staff-auth.js';
 import { installPanelGuard, lockPanel, rememberPanelPage, watchOwnPanelSession } from './panel-lockdown.js';
-import { rememberRoute, onRouteChange, routeName } from './panel-route.js';
+import { rememberRoute, pushRoute, onRouteChange, routeName } from './panel-route.js';
 import { openStaffPasswordDialog } from './staff-password-dialog.js';
 import { loadAppConfig } from './storage.js';
 import { toBanglaNumber as bn } from './ui.js';
@@ -23,14 +23,30 @@ import { initFixedShell } from './fixed-shell.js';
 import { registerServiceWorker } from './service-worker.js';
 import { mountReports, refreshReports } from './reports.js';
 import { teachingRepository, DEMO_TEACHER, ACTIVITY_TYPES, PROGRESS_LABELS, escapeText as esc, todayISO, displayDate, safeResourceURL, matchesStudent, watchTeachingData } from './teaching-data.js';
-import { pickTeacherAdvice, pickTeacherSectionAdvice } from './teacher-daily-advice.js';
+import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { initOrgInfo } from './org-info.js';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 initOrgInfo();
-const state = { db: { activities: [] }, courses: [], students: [], assignments: [], teacher: null, exams: null, view: 'home', status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', routineTab: 'today' };
+const state = { db: { activities: [] }, courses: [], students: [], assignments: [], teacher: null, exams: null, view: 'home', detail: null, status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', routineTab: 'today' };
 let modalTrigger, toastTimer;
+let deferredTeacherRefresh = false;
+const teacherEditorActive = () => state.view === 'detail' && Boolean(state.detail?.inline);
+function refreshTeacherDataWhenSafe() {
+  if (!$('#teacherShell') || $('#teacherShell').hidden) return;
+  if (state.busy || teacherEditorActive() || ($('#teacherModalBackdrop') && !$('#teacherModalBackdrop').hidden)) {
+    deferredTeacherRefresh = true;
+    return;
+  }
+  deferredTeacherRefresh = false;
+  void reload();
+}
+function flushDeferredTeacherRefresh() {
+  if (!deferredTeacherRefresh || state.busy || teacherEditorActive()) return;
+  deferredTeacherRefresh = false;
+  if ($('#teacherShell') && !$('#teacherShell').hidden) void reload();
+}
 initFixedShell();
 /* The examination workspace is the single exam/question surface; the academic
    hub only deep-links into its own screens. It is mounted at import time (its
@@ -88,16 +104,12 @@ function activityMeta(a) {
 function recordCard(a) {
   const stats = a.status === 'published' && a.type !== 'suggestion' ? progressStats(a) : null;
   const note = pendingNote(a);
-  return `<article class="teaching-card" data-activity-id="${esc(a.id)}">
+  return `<article class="teaching-card teacher-route-card" role="link" tabindex="0" aria-label="${esc(a.title)} — বিস্তারিত পেইজ খুলুন" data-activity-id="${esc(a.id)}">
     <div class="teaching-card-head"><span class="teaching-kind">${ACTIVITY_TYPES[a.type].label}</span><span class="teaching-status ${a.status}">${a.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}</span></div>
     <h3>${esc(a.title)}</h3><small>${esc(a.subject)} • ${esc(a.className)} • ${esc(a.group || 'সব বিভাগ')}</small>
     <p>${esc(activityMeta(a))}</p>${a.room ? `<small>স্থান: ${esc(a.room)}</small>` : ''}
     ${stats && stats.total ? `<p class="teaching-progress-line ${note ? 'pending' : stats.recorded === stats.total ? 'clear' : 'idle'}">অগ্রগতি ${bn(stats.recorded)}/${bn(stats.total)} জন${note ? ' • ' + esc(note) : stats.recorded === stats.total ? ' • সব নথিভুক্ত' : ''}</p>` : note ? `<p class="teaching-progress-line pending">${esc(note)}</p>` : ''}
-    <p class="teaching-preview">${esc(a.details)}</p>
-    <div class="teaching-actions">
-      <button type="button" data-record-action="detail" data-id="${esc(a.id)}">বিস্তারিত</button>
-      ${a.type !== 'exam' ? `<button type="button" data-record-action="edit" data-id="${esc(a.id)}">সম্পাদনা</button>${a.status === 'published' && ACTIVITY_TYPES[a.type].progress ? `<button class="primary" type="button" data-record-action="progress" data-id="${esc(a.id)}">${ACTIVITY_TYPES[a.type].progress}</button>` : ''}<button class="danger" type="button" data-record-action="delete" data-id="${esc(a.id)}">মুছুন</button>` : '<small>পরীক্ষার approval ও score-entry Examination workflow-এ নিয়ন্ত্রিত</small>'}
-    </div></article>`;
+    <span class="teacher-route-card-hint">বিস্তারিত দেখুন →</span></article>`;
 }
 /** Today first, then the nearest upcoming date, then the most recent past date. */
 function byDueDate(a, b) {
@@ -165,20 +177,15 @@ function renderHome() {
   /* প্রতিদিন নতুন পরামর্শ: একই ঢাকা-দিনে একই লাইন, পরদিন নিজে থেকে বদলায়।
      কোনো স্টোরেজ/নেটওয়ার্ক নেই — বিশুদ্ধ তারিখ-ভিত্তিক নির্বাচন। */
   const warmLine = $('.teacher-hero-warm');
-  if (warmLine) warmLine.textContent = pickTeacherAdvice();
+  if (warmLine) warmLine.textContent = pickStaffSectionAdvice('home');
   $$('[data-teacher-hero-advice]').forEach(el => {
     const section = el.dataset.teacherHeroAdvice || 'home';
-    if (section === 'home') {
-      el.textContent = pickTeacherAdvice();
-    } else if (section === 'records') {
-      /* `records` follows the open record view (homework / suggestion / exam /
-         routine). Until one is chosen the card must not borrow the daily home
-         line, so it shows the section's own bank. */
-      el.textContent = ACTIVITY_TYPES[state.view]
-        ? pickTeacherSectionAdvice(state.view)
-        : pickTeacherSectionAdvice('records');
+    if (section === 'records') {
+      /* `records` follows the open record view, while the route maps to its
+         shared Academic advice bank for all staff roles. */
+      el.textContent = pickStaffSectionAdvice(state.view || 'homework');
     } else {
-      el.textContent = pickTeacherSectionAdvice(section);
+      el.textContent = pickStaffSectionAdvice(section);
     }
   });
   const themeStatus = $('[data-more-theme-status]');
@@ -195,7 +202,7 @@ function renderHome() {
   $('#teacherTodayClassCount').textContent = hasAssignments ? `${bn(todays.length)}টি ক্লাস` : '—';
   renderTypeCounts();
   $('#teacherTodayClasses').innerHTML = todays.length
-    ? todays.map(item => `<article class="teacher-home-class"><span class="teacher-home-class-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false" data-icon="class-today" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/class-today.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><div><h3>${esc(item.className || 'ক্লাস')} · ${esc(item.subject || 'বিষয় উল্লেখ নেই')}</h3><p>${esc(item.time || 'সময় নির্ধারিত নয়')}${item.room ? ` · ${esc(item.room)}` : ''}</p></div><small>আজকের</small></article>`).join('')
+    ? todays.map(item => `<article class="teacher-home-class teacher-route-card" role="link" tabindex="0" data-teacher-open-class="${esc(item.className || '')}" data-teacher-open-group="${esc(item.group || '')}" aria-label="${esc(item.className || 'ক্লাস')} ${esc(item.subject || '')} — বিস্তারিত খুলুন"><span class="teacher-home-class-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false" data-icon="class-today" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/class-today.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><div><h3>${esc(item.className || 'ক্লাস')} · ${esc(item.subject || 'বিষয় উল্লেখ নেই')}</h3><p>${esc(item.time || 'সময় নির্ধারিত নয়')}${item.room ? ` · ${esc(item.room)}` : ''}</p></div><small>আজকের</small></article>`).join('')
     : '<p class="teacher-empty">আজ কোনো নির্ধারিত ক্লাস নেই</p>';
   /* মালিকের নির্দেশ (২০২৬-১০): হোমপেজ ক্লিন — কোনো "সাম্প্রতিক কাজ" ফিড নেই।
      সব কার্যক্রম (উপস্থিতি ক্লাসসহ) তার নিজস্ব রেকর্ডস ট্যাব ও রুটিন স্ক্রিনে অক্ষত
@@ -205,9 +212,7 @@ function renderRecords() {
   if (!ACTIVITY_TYPES[state.view]) return;
   $('#teacherRecordsTitle').textContent = ACTIVITY_TYPES[state.view].plural;
   const recordAdvice = $('#teacherRecords [data-teacher-hero-advice="records"]');
-  if (recordAdvice) {
-    recordAdvice.textContent = pickTeacherSectionAdvice(ACTIVITY_TYPES[state.view] ? state.view : 'records');
-  }
+  if (recordAdvice) recordAdvice.textContent = pickStaffSectionAdvice(state.view || 'homework');
   const status = $('#teacherStatusFilter');
   if (status && status.tagName === 'SELECT') status.value = state.status;
   $('#teacherNewActivity').hidden = state.view === 'exam';
@@ -274,7 +279,7 @@ function renderTeacherClasses() {
     const subjectChips = subjects.length
       ? subjects.map(sub => `<span class="teacher-class-subject-chip">${esc(sub)}</span>`).join('')
       : '<span class="teacher-class-subject-chip">—</span>';
-    return `<article class="teaching-card teacher-class-card" data-teacher-open-class="${esc(item.className)}" data-teacher-open-group="${esc(item.group || '')}">
+    return `<article class="teaching-card teacher-class-card teacher-route-card" role="link" tabindex="0" aria-label="${esc(item.className)} ${esc(item.group || '')} — ক্লাসের বিস্তারিত খুলুন" data-teacher-open-class="${esc(item.className)}" data-teacher-open-group="${esc(item.group || '')}">
           <div class="teacher-class-hero-main">
             <div class="teacher-class-heading">
               <h3>${esc(item.className)}${item.group ? ` • ${esc(item.group)}` : ''}</h3>
@@ -328,6 +333,9 @@ function openRoutineSession(btn) {
   };
   const students = state.students.filter(s => matchesStudent(sessionRecord, s));
   const options = ['present', 'absent', 'late'];
+  const detailId = slotId || JSON.stringify({ className, group, subject });
+  state.detail = { kind: 'attendance', id: detailId, parentView: 'routine-view', title: `${subject || className} • উপস্থিতি ও সেশন`, subtitle: `${className}${group ? ' • ' + group : ''}`, sessionRecord };
+  setView('detail');
   openModal(`ক্লাস সেশন ও উপস্থিতি • ${subject || className}`, `<form id="teacherRoutineSessionForm" class="teacher-form">
     <input type="hidden" name="routineSlotId" value="${esc(slotId)}">
     <div><label for="rs-date">তারিখ *</label><input id="rs-date" name="date" type="date" value="${esc(sessionRecord.date)}" required></div>
@@ -431,28 +439,16 @@ function renderCourseChapters() {
   const host = $('#teacherCourseChaptersBox');
   if (!host) return;
   const list = state.courses || [];
-  host.innerHTML = `<div class="teaching-card-head" style="margin-bottom:0.75rem"><h2>কোর্স ও অধ্যায় (${bn(list.length)})</h2><button type="button" class="admin-btn primary" data-course-ch-action="new">+ নতুন কোর্স</button></div>`
+  host.innerHTML = `<div class="teaching-card-head" style="margin-bottom:0.75rem"><h2>কোর্স ও অধ্যায় (${bn(list.length)})</h2></div>`
     + (list.length ? list.map(course => {
       const prog = courseProgress(course);
-      return `<article class="teaching-card" data-course-card="${esc(course.id)}">
+      return `<article class="teaching-card teacher-route-card" role="link" tabindex="0" aria-label="${esc(course.title || course.subject)} — কোর্স বিস্তারিত খুলুন" data-course-open="${esc(course.id)}">
         <div class="teaching-card-head"><span class="teaching-kind">${esc(course.subject)}</span><span class="teaching-status ${course.status}">${course.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}</span></div>
         <h3>${esc(course.title || course.subject)}</h3>
         <small>${esc(course.className)} • ${esc(course.group || 'সব বিভাগ')} • সম্পন্ন ${bn(prog.completed)}/${bn(prog.total)} অধ্যায় (${bn(prog.percent)}%)</small>
-        <div class="course-chapter-list" style="margin:0.5rem 0">${course.chapters.length ? course.chapters.map(ch => `<div class="teacher-progress-row" data-chapter-row="${esc(ch.id)}" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.35rem 0">
-          <span><strong>${bn(ch.order)}. ${esc(ch.title)}</strong>${ch.status === 'শেষ' && ch.completedDate ? ` <small>(শেষ: ${esc(displayDate(ch.completedDate))})</small>` : ''}</span>
-          <span style="display:flex;gap:0.35rem;align-items:center">
-            <button type="button" class="mini-btn ${ch.status === 'শেষ' ? 'approve' : ch.status === 'চলছে' ? 'primary' : ''}" data-course-ch-action="cycle-chapter" data-course-id="${esc(course.id)}" data-chapter-id="${esc(ch.id)}">${esc(ch.status)}</button>
-            <button type="button" class="mini-btn danger" data-course-ch-action="delete-chapter" data-course-id="${esc(course.id)}" data-chapter-id="${esc(ch.id)}" aria-label="অধ্যায় মুছুন">×</button>
-          </span>
-        </div>`).join('') : '<p class="teacher-empty">এখনো কোনো অধ্যায় যোগ করা হয়নি।</p>'}</div>
-        <div class="teaching-actions">
-          <button type="button" class="primary" data-course-ch-action="add-chapter" data-course-id="${esc(course.id)}">+ অধ্যায় যোগ</button>
-          <button type="button" data-course-ch-action="edit-course" data-course-id="${esc(course.id)}">সম্পাদনা</button>
-          <button type="button" data-course-ch-action="toggle-course" data-course-id="${esc(course.id)}">${course.status === 'published' ? 'খসড়া করুন' : 'প্রকাশ করুন'}</button>
-          <button type="button" class="danger" data-course-ch-action="delete-course" data-course-id="${esc(course.id)}">মুছুন</button>
-        </div>
+        <span class="teacher-route-card-hint">কোর্সের অধ্যায় ও সেটিংস দেখুন →</span>
       </article>`;
-    }).join('') : '<p class="teacher-empty">এখনো কোনো কোর্স তৈরি করা হয়নি। “+ নতুন কোর্স” বাটনে ট্যাপ করে কোর্স ও অধ্যায় যোগ করুন।</p>');
+    }).join('') : '<p class="teacher-empty">এখনো কোনো কোর্স তৈরি করা হয়নি। “নতুন কোর্স” feature থেকে কোর্স ও অধ্যায় যোগ করুন।</p>');
 }
 
 function showCourseModal(old = null) {
@@ -481,6 +477,33 @@ function showCourseModal(old = null) {
   });
 }
 
+function confirmCourseDelete(course) {
+  if (!course || state.busy) return;
+  openModal('কোর্সটি স্থায়ীভাবে মুছবেন?', `<form id="teacherCourseDeleteForm"><p class="modal-copy"><strong>${esc(course.title || course.subject)}</strong> এবং এর সব অধ্যায় মুছে যাবে। এটি ফেরানো যাবে না; অধ্যায়গুলোর বিষয়বস্তু আগে যাচাই করুন।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, কোর্স রাখুন</button><button class="admin-btn primary danger" type="submit">হ্যাঁ, কোর্স ও অধ্যায় মুছুন</button></div></form>`);
+  $('#teacherCourseDeleteForm')?.addEventListener('submit', event => {
+    event.preventDefault();
+    save(event.currentTarget, async () => {
+      const result = await courseRepository.deleteCourse(course.id);
+      state.courses = result.courses || [];
+      return state.db;
+    }, 'কোর্স ও অধ্যায় মুছে ফেলা হয়েছে', () => setView('courses', { history: 'replace' }));
+  });
+}
+
+function confirmChapterDelete(course, chapterId) {
+  const chapter = (course?.chapters || []).find(item => String(item.id) === String(chapterId));
+  if (!course || !chapter || state.busy) return;
+  openModal('অধ্যায়টি স্থায়ীভাবে মুছবেন?', `<form id="teacherChapterDeleteForm"><p class="modal-copy"><strong>${esc(chapter.title)}</strong> অধ্যায়টি “${esc(course.title || course.subject)}” কোর্স থেকে মুছে যাবে। এটি ফেরানো যাবে না।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, অধ্যায় রাখুন</button><button class="admin-btn primary danger" type="submit">হ্যাঁ, অধ্যায় মুছুন</button></div></form>`);
+  $('#teacherChapterDeleteForm')?.addEventListener('submit', event => {
+    event.preventDefault();
+    save(event.currentTarget, async () => {
+      const result = await courseRepository.deleteChapter(course.id, chapterId);
+      state.courses = result.courses || [];
+      return state.db;
+    }, 'অধ্যায়টি মুছে ফেলা হয়েছে');
+  });
+}
+
 function showAddChapterModal(course) {
   if (!course || state.busy) return;
   const nextOrd = (course.chapters?.length || 0) + 1;
@@ -504,9 +527,138 @@ function showAddChapterModal(course) {
   });
 }
 
-function render() { renderHome(); renderRecords(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports(); renderTeacherProfile(); renderAcademic(); renderNotices(); renderCourseChapters(); }
+
+function openTeacherDetail(kind, id, parentView = state.view, extra = {}) {
+  state.detail = { kind, id: String(id ?? ''), parentView, ...extra };
+  setView('detail');
+}
+function classIdentityFromDetail(id) {
+  try { const value = JSON.parse(id); if (value && typeof value === 'object') return { className: String(value.className || ''), group: String(value.group || '') }; } catch {}
+  const [className = '', group = ''] = String(id || '').split('|');
+  return { className, group };
+}
+function renderTeacherDetail() {
+  const title = $('#teacherDetailTitle');
+  const subtitle = $('#teacherDetailSubtitle');
+  const content = $('#teacherDetailContent');
+  if (!title || !content) return;
+  const detail = state.detail;
+  if (!detail) { title.textContent = 'বিস্তারিত'; subtitle.textContent = 'রেকর্ডের তথ্য দেখুন, সম্পাদনা করুন বা আগের কর্মক্ষেত্রে ফিরে যান।'; content.innerHTML = '<p class="teacher-empty">এই পেইজের তথ্য পাওয়া যায়নি।</p>'; return; }
+  if (detail.inline) {
+    title.textContent = detail.inline.title;
+    subtitle.textContent = 'বিস্তারিত পেইজ';
+    content.innerHTML = detail.inline.html;
+    return;
+  }
+  const id = String(detail.id || '');
+  if (detail.kind === 'activity-create') {
+    const type = ACTIVITY_TYPES[id] ? id : 'homework';
+    title.textContent = `নতুন ${ACTIVITY_TYPES[type].label}`;
+    subtitle.textContent = 'নির্ধারিত শ্রেণি ও বিষয়ের জন্য নতুন কাজ তৈরি করুন।';
+    content.innerHTML = `<article class="teaching-card"><h2>${esc(ACTIVITY_TYPES[type].label)} তৈরি</h2><p>এই ফর্মটি আলাদা পেইজে খুলবে; বাতিল করলে কাজের তালিকায় ফিরবেন।</p><button class="admin-btn primary" type="button" data-detail-action="activity-create-open" data-type="${esc(type)}">ফর্ম খুলুন</button></article>`;
+    return;
+  }
+  if (detail.kind === 'activity') {
+    const activity = own().find(item => String(item.id) === id);
+    if (!activity) { title.textContent = 'কাজ পাওয়া যায়নি'; content.innerHTML = '<p class="teacher-empty">এই কাজটি মুছে ফেলা হয়েছে অথবা আপনার অ্যাকাউন্টে নেই।</p>'; return; }
+    title.textContent = activity.title || ACTIVITY_TYPES[activity.type]?.label || 'কাজের বিস্তারিত';
+    subtitle.textContent = `${ACTIVITY_TYPES[activity.type]?.label || 'কাজ'} • ${activity.className || ''}${activity.group ? ' • ' + activity.group : ''}`;
+    const link = safeResourceURL(activity.resourceURL);
+    content.innerHTML = `<article class="teaching-card teacher-record-detail">
+      <div class="teaching-card-head"><span class="teaching-kind">${esc(ACTIVITY_TYPES[activity.type]?.label || 'কাজ')}</span><span class="teaching-status ${activity.status}">${activity.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}</span></div>
+      <h2>${esc(activity.title)}</h2><p><strong>বিষয়:</strong> ${esc(activity.subject || '—')}</p>
+      <p><strong>শ্রেণি/ব্যাচ:</strong> ${esc(activity.className || '—')} • ${esc(activity.group || 'সব বিভাগ')}</p>
+      <p><strong>তারিখ ও সময়:</strong> ${esc(activityMeta(activity))}</p>${activity.room ? `<p><strong>স্থান:</strong> ${esc(activity.room)}</p>` : ''}
+      <div class="teacher-detail-prose"><h3>বিস্তারিত নির্দেশনা</h3><p>${esc(activity.details || 'অতিরিক্ত নির্দেশনা নেই।')}</p></div>
+      ${activity.status === 'published' && ACTIVITY_TYPES[activity.type]?.progress ? `<p class="teaching-progress-line">${esc(pendingNote(activity) || 'অগ্রগতি নথিভুক্ত করুন')}</p>` : ''}
+      ${link ? `<p><a class="teaching-resource" href="${esc(link)}" target="_blank" rel="noopener noreferrer">সহায়ক উপকরণ খুলুন</a></p>` : ''}
+      <div class="teaching-actions"><button type="button" data-record-action="edit" data-id="${esc(activity.id)}">সম্পাদনা</button>
+      ${activity.status === 'published' && ACTIVITY_TYPES[activity.type]?.progress ? `<button class="primary" type="button" data-record-action="progress" data-id="${esc(activity.id)}">${esc(ACTIVITY_TYPES[activity.type].progress)}</button>` : ''}
+      <button class="danger" type="button" data-record-action="delete" data-id="${esc(activity.id)}">মুছুন</button></div></article>`;
+    return;
+  }
+  if (detail.kind === 'class') {
+    const identity = classIdentityFromDetail(id);
+    const assignment = state.assignments.find(item => item.className === identity.className && String(item.group || '') === identity.group) || state.assignments.find(item => item.className === identity.className);
+    const subjects = assignment ? (assignment.subjects?.length ? assignment.subjects : [assignment.subject]).filter(Boolean) : [];
+    const students = state.students.filter(student => String(student.className || student.class || '') === identity.className && (!identity.group || String(student.group || '') === identity.group));
+    title.textContent = identity.className || 'ক্লাসের বিস্তারিত';
+    subtitle.textContent = identity.group ? `ব্যাচ: ${identity.group}` : 'আপনার নির্ধারিত ক্লাস';
+    content.innerHTML = `<article class="teaching-card"><h2>বিষয় ও পাঠদান</h2><p>${subjects.length ? subjects.map(esc).join(' • ') : 'নির্ধারিত বিষয় পাওয়া যায়নি।'}</p>
+      <div class="teaching-actions"><button type="button" data-class-detail-action="homework">এই ক্লাসের কাজ</button><button type="button" data-class-detail-action="routine">রুটিন ও উপস্থিতি</button></div></article>
+      <section class="teacher-detail-list"><div class="teacher-section-heading"><h2>শিক্ষার্থী</h2><small>${bn(students.length)} জন</small></div>
+      ${students.length ? students.map(student => `<article class="teaching-card teacher-route-card" role="link" tabindex="0" data-teacher-open-student="${esc(student.id)}" aria-label="${esc(student.name)} — শিক্ষার্থী পেইজ খুলুন"><h3>${esc(student.name || 'নাম নেই')}</h3><small>${esc(student.id || 'আইডি নেই')}${student.group ? ' • ' + esc(student.group) : ''}</small><span class="teacher-route-card-hint">শিক্ষার্থীর তথ্য →</span></article>`).join('') : '<p class="teacher-empty">এই ক্লাসের অনুমোদিত শিক্ষার্থীর তথ্য নেই।</p>'}</section>`;
+    return;
+  }
+  if (detail.kind === 'student') {
+    const student = state.students.find(item => String(item.id) === id);
+    if (!student) { title.textContent = 'শিক্ষার্থী পাওয়া যায়নি'; content.innerHTML = '<p class="teacher-empty">এই শিক্ষার্থীর তথ্য আপনার নির্ধারিত ক্লাসে নেই।</p>'; return; }
+    title.textContent = student.name || 'শিক্ষার্থীর তথ্য';
+    subtitle.textContent = `${student.className || student.class || 'শ্রেণি উল্লেখ নেই'}${student.group ? ' • ' + student.group : ''}`;
+    content.innerHTML = `<article class="teaching-card"><h2>শিক্ষার্থী পরিচিতি</h2><dl class="teacher-detail-fields"><div><dt>নাম</dt><dd>${esc(student.name || '—')}</dd></div><div><dt>শিক্ষার্থী আইডি</dt><dd>${esc(student.id || '—')}</dd></div><div><dt>শ্রেণি</dt><dd>${esc(student.className || student.class || '—')}</dd></div><div><dt>ব্যাচ</dt><dd>${esc(student.group || '—')}</dd></div>${student.mobile ? `<div><dt>যোগাযোগ</dt><dd>${esc(student.mobile)}</dd></div>` : ''}</dl></article>`;
+    return;
+  }
+  if (detail.kind === 'course-create') {
+    title.textContent = 'নতুন কোর্স তৈরি';
+    subtitle.textContent = 'কোর্স ও অধ্যায়ের তথ্য আলাদা পেইজে যোগ করুন।';
+    content.innerHTML = '<article class="teaching-card"><h2>নতুন কোর্স</h2><p>কোর্সের শ্রেণি, বিষয় ও প্রকাশের অবস্থা নির্ধারণ করুন।</p><button class="admin-btn primary" type="button" data-detail-action="course-create-open">কোর্স ফর্ম খুলুন</button></article>';
+    return;
+  }
+  if (detail.kind === 'course') {
+    const course = (state.courses || []).find(item => String(item.id) === id);
+    if (!course) { title.textContent = 'কোর্স পাওয়া যায়নি'; content.innerHTML = '<p class="teacher-empty">এই কোর্সটি আর নেই অথবা আপনার জন্য নির্ধারিত নয়।</p>'; return; }
+    const progress = courseProgress(course);
+    title.textContent = course.title || course.subject;
+    subtitle.textContent = `${course.className} • ${course.group || 'সব বিভাগ'} • ${course.subject}`;
+    content.innerHTML = `<article class="teaching-card"><div class="teaching-card-head"><span class="teaching-kind">${esc(course.subject)}</span><span class="teaching-status ${course.status}">${course.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}</span></div><h2>কোর্সের অগ্রগতি</h2><p>${bn(progress.completed)}/${bn(progress.total)} অধ্যায় সম্পন্ন (${bn(progress.percent)}%)</p>
+      <div class="course-chapter-list">${(course.chapters || []).length ? course.chapters.map(ch => `<div class="teacher-progress-row" data-chapter-row="${esc(ch.id)}"><span><strong>${bn(ch.order)}. ${esc(ch.title)}</strong>${ch.status === 'শেষ' && ch.completedDate ? ` <small>(শেষ: ${esc(displayDate(ch.completedDate))})</small>` : ''}</span><span class="teaching-actions"><button type="button" class="mini-btn" data-course-ch-action="cycle-chapter" data-course-id="${esc(course.id)}" data-chapter-id="${esc(ch.id)}">${esc(ch.status)}</button><button type="button" class="mini-btn danger" data-course-ch-action="delete-chapter" data-course-id="${esc(course.id)}" data-chapter-id="${esc(ch.id)}" aria-label="অধ্যায় মুছুন">×</button></span></div>`).join('') : '<p class="teacher-empty">এখনো কোনো অধ্যায় যোগ করা হয়নি।</p>'}</div>
+      <div class="teaching-actions"><button type="button" class="primary" data-course-ch-action="add-chapter" data-course-id="${esc(course.id)}">+ অধ্যায় যোগ</button><button type="button" data-course-ch-action="edit-course" data-course-id="${esc(course.id)}">সম্পাদনা</button><button type="button" data-course-ch-action="toggle-course" data-course-id="${esc(course.id)}">${course.status === 'published' ? 'খসড়া করুন' : 'প্রকাশ করুন'}</button><button type="button" class="danger" data-course-ch-action="delete-course" data-course-id="${esc(course.id)}">মুছুন</button></div></article>`;
+    return;
+  }
+  if (detail.kind === 'notice-create') {
+    title.textContent = 'নতুন নোটিশ';
+    subtitle.textContent = 'শ্রেণি/ব্যাচের জন্য ঘোষণা তৈরি করুন।';
+    content.innerHTML = '<article class="teaching-card"><h2>নোটিশ তৈরি</h2><p>শিরোনাম, পূর্ণ বিবরণ ও লক্ষ্য শ্রেণি নির্ধারণ করুন।</p><button class="admin-btn primary" type="button" data-detail-action="notice-create-open">নোটিশ ফর্ম খুলুন</button></article>';
+    return;
+  }
+  if (detail.kind === 'notice') {
+    const notice = ownNotices(String(state.teacher?.username || 'teacher.apc')).find(item => String(item.id) === id);
+    if (!notice) { title.textContent = 'নোটিশ পাওয়া যায়নি'; content.innerHTML = '<p class="teacher-empty">এই নোটিশটি আর নেই অথবা আপনার অ্যাকাউন্টে নেই।</p>'; return; }
+    title.textContent = notice.title || 'নোটিশের বিস্তারিত';
+    subtitle.textContent = `${noticeAudienceLabel(notice)} • ${notice.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}`;
+    content.innerHTML = `<article class="teaching-card"><p><strong>তারিখ:</strong> ${esc(displayDate(String(notice.createdAt || '').slice(0, 10)))}</p><div class="teacher-detail-prose"><h2>নোটিশের পূর্ণ বিবরণ</h2><p>${esc(notice.body || 'বিস্তারিত লেখা নেই।')}</p></div><div class="teaching-actions"><button type="button" data-notice-action="edit" data-id="${esc(notice.id)}">সম্পাদনা</button><button type="button" class="${notice.status === 'published' ? '' : 'primary'}" data-notice-action="toggle" data-id="${esc(notice.id)}">${notice.status === 'published' ? 'প্রকাশ বন্ধ করুন' : 'প্রকাশ করুন'}</button><button type="button" class="danger" data-notice-action="delete" data-id="${esc(notice.id)}">মুছুন</button></div></article>`;
+    return;
+  }
+  if (detail.kind === 'password') {
+    title.textContent = 'পাসওয়ার্ড পরিবর্তন';
+    subtitle.textContent = 'নিরাপদে নতুন পাসওয়ার্ড নির্ধারণ করুন।';
+    content.innerHTML = '<article class="teaching-card"><h2>অ্যাকাউন্ট নিরাপত্তা</h2><p>নতুন পাসওয়ার্ড এই Teacher অ্যাকাউন্টের জন্য সংরক্ষিত হবে।</p><button class="admin-btn primary" type="button" data-detail-action="password-open">পাসওয়ার্ড ফর্ম খুলুন</button></article>';
+    return;
+  }
+  if (detail.kind === 'attendance') {
+    let identity = {};
+    try { identity = JSON.parse(id); } catch { identity = { slotId: id }; }
+    const slotId = String(identity.slotId || id);
+    const record = own().find(item => item.type === 'routine' && (String(item.id) === id || (slotId && item.routineSlotId === slotId && item.date === todayISO())));
+    const slot = WEEK_DAYS.flatMap(day => assignedRoutineRows(day).map(item => ({ ...item, day }))).find(item => String(item.id || '') === slotId);
+    const subject = record?.subject || slot?.subject || identity.subject || 'ক্লাস';
+    const className = record?.className || slot?.className || identity.className || '';
+    const group = record?.group || slot?.group || identity.group || '';
+    title.textContent = detail.title || `${subject} • উপস্থিতি ও সেশন`;
+    subtitle.textContent = detail.subtitle || `${className}${group ? ' • ' + group : ''}`;
+    content.innerHTML = `<article class="teaching-card"><h2>${esc(subject)}</h2><p>${esc(className)}${group ? ' • ' + esc(group) : ''}${slot?.time || record?.time ? ' • ' + esc(slot?.time || record?.time) : ''}</p>
+      ${record ? `<p><strong>তারিখ:</strong> ${esc(displayDate(record.date))} • <strong>উপস্থিতি:</strong> ${bn(Object.keys(record.progress || {}).length)} জন নথিভুক্ত</p><div class="teacher-detail-prose"><h3>সেশন নোট</h3><p>${esc(record.details || 'অতিরিক্ত নোট নেই।')}</p></div>` : '<p>এই ক্লাসের সেশনের উপস্থিতি ও নোট নথিভুক্ত করুন।</p>'}
+      <div class="teaching-actions"><button class="primary" type="button" data-attendance-edit="${esc(slotId)}" data-routine-subject="${esc(subject)}" data-routine-class="${esc(className)}" data-routine-group="${esc(group)}" data-routine-time="${esc(slot?.rawTime || record?.time || '10:00')}" data-routine-room="${esc(slot?.room || record?.room || '')}">${record ? 'উপস্থিতি/নোট সম্পাদনা' : 'উপস্থিতি নথিভুক্ত করুন'}</button></div></article>`;
+    return;
+  }
+  title.textContent = 'বিস্তারিত';
+  subtitle.textContent = 'রেকর্ডের তথ্য দেখুন, সম্পাদনা করুন বা আগের কর্মক্ষেত্রে ফিরে যান।';
+  content.innerHTML = '<p class="teacher-empty">এই পেইজের তথ্য পাওয়া যায়নি।</p>';
+}
+
+function render() { renderHome(); renderRecords(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports(); renderTeacherProfile(); renderAcademic(); renderNotices(); renderCourseChapters(); renderTeacherDetail(); }
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'online-exams', 'courses', 'lecture-sheets', 'classes', 'class-chat', 'routine-view', 'reports', 'profile', 'settings', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
+const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'online-exams', 'courses', 'courses-progress', 'course-new', 'lecture-sheets', 'classes', 'class-chat', 'routine-view', 'reports', 'reports-summary', 'notifications', 'profile', 'settings', 'detail', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
 /* মালিক-নির্দেশ ২০২৬-১১-০১: প্রতিটি ফিচারের একটাই রুট-নাম। রেকর্ডস-পরিবারের
    দুটি টাইপ আগে exam / routine নামে URL-এ বসত — যা পরীক্ষা-ওয়ার্কস্পেস
    (online-exams) ও রুটিন স্ক্রিন (routine-view) দুটোর সাথেই মিশে যেত। এখন
@@ -514,9 +666,57 @@ const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam
    হিসেবে হুবহু আগের স্ক্রিনেই খোলে (ভাঙা ডিপ-লিংক নেই)। */
 const ROUTE_OF_VIEW = Object.freeze({ exam: 'marks', routine: 'attendance' });
 const VIEW_OF_ROUTE = Object.freeze({ marks: 'exam', attendance: 'routine' });
-const routeFor = view => ROUTE_OF_VIEW[view] || view;
+const DETAIL_KINDS = new Set(['activity', 'activity-create', 'class', 'student', 'course', 'course-create', 'notice', 'notice-create', 'attendance', 'password']);
+const routeFor = view => {
+  if (view === 'detail' && state.detail?.kind && state.detail?.id != null) {
+    return `${state.detail.kind}/${encodeURIComponent(String(state.detail.id))}`;
+  }
+  if (view === 'course-new') return 'course-new';
+  if (view === 'courses-progress') return 'course-progress';
+  if (view === 'reports-summary') return 'reports-summary';
+  return ROUTE_OF_VIEW[view] || view;
+};
 const viewForRoute = name => VIEW_OF_ROUTE[name] || name;
+function parseTeacherRoute(name) {
+  const [kind, encodedId] = String(name || '').split('/', 2);
+  if (DETAIL_KINDS.has(kind) && encodedId) {
+    let id = encodedId;
+    try { id = decodeURIComponent(encodedId); } catch { /* refuse malformed data later */ }
+    return { view: 'detail', detail: { kind, id } };
+  }
+  if (kind === 'course-progress') return { view: 'courses-progress' };
+  return { view: viewForRoute(name), detail: null };
+}
 let teacherChatFlight = null;
+let teacherNotificationHistory = null;
+let teacherNotificationFlight = null;
+async function mountTeacherNotifications() {
+  if (teacherNotificationHistory) {
+    teacherNotificationHistory.refresh?.();
+    teacherNotificationHistory.open?.();
+    return;
+  }
+  teacherNotificationFlight ??= (async () => {
+    const notifications = await import('./notifications.js');
+    const api = notifications.initNotifications?.() || window.apcNotifications;
+    const history = await import('./notification-history.js');
+    teacherNotificationHistory = history.mountNotificationHistory(api, {
+      mount: '#teacherNotificationHistoryMount',
+      page: true,
+      onBack: () => {
+        const current = window.history.state || {};
+        if (current.apcPanelRole === 'teacher' && Number(current.apcPanelDepth) > 0) window.history.back();
+        else setView('more', { history: 'replace' });
+      }
+    });
+    teacherNotificationHistory?.open?.();
+  })().catch(error => {
+    teacherNotificationFlight = null;
+    console.warn('[Active Plus] teacher notification page failed:', error?.name || 'unknown');
+  });
+  await teacherNotificationFlight;
+  teacherNotificationFlight = null;
+}
 function mountTeacherClassChat() {
   const mount = $('#teacherClassChatMount');
   if (!mount) return;
@@ -549,10 +749,8 @@ function mountTeacherLectureSheets() {
     .catch(err => console.warn('[Active Plus] teacher lecture studio failed:', err?.message));
 }
 
-/* The active pane of every two/three-mode screen. The mode cards stay as plain
-   tabs: the first one is already open when the screen arrives, so a card never
-   has to be tapped first, and tapping the active card no longer closes the
-   whole pane (the empty-screen bug of the old toggle cards). */
+/* Keep the active feature card marked for assistive technology. Each card
+   below navigates to its own route; local tabs and filters stay within it. */
 function openScreenPanes() {
   const records = $('#teacherRecords'); if (records) records.dataset.recordsOpen = '1';
   const notice = $('#teacherNotice'); if (notice) notice.dataset.noticeOpen = '1';
@@ -585,12 +783,13 @@ function markScreenModes() {
     });
   }
 }
-function setView(view) {
+function setView(view, { history = 'push' } = {}) {
   if (!TEACHER_VIEWS.includes(view)) return;
-  /* The nine routine pages are one screen now; their routes stay as aliases
-     so old deep links and notifications keep landing on the right tab. */
+  /* The nine routine categories are filters on their own routine page. */
   if (ROUTINE_CHILD_VIEWS.includes(view)) { state.routineTab = view.slice('routine-'.length); view = 'routine-view'; }
   const previous = state.view;
+  if (previous === 'notifications' && view !== 'notifications') teacherNotificationHistory?.close?.();
+  if (view !== 'detail') state.detail = null;
   // A search typed for one record type must not silently hide the next one.
   if (ACTIVITY_TYPES[view] && previous !== view) {
     const search = $('#teacherRecordSearch');
@@ -598,15 +797,26 @@ function setView(view) {
     state.recordLimit = 15;
   }
   state.view = view;
-  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : { home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams', more: 'teacherMore', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses', 'lecture-sheets': 'teacherLectureSheets', classes: 'teacherClasses', 'class-chat': 'teacherClassChat', 'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports', profile: 'teacherProfile', settings: 'teacherSettings' }[view];
+  const panel = ACTIVITY_TYPES[view] ? 'teacherRecords' : ({
+    home: 'teacherHome', academic: 'teacherAcademic', notice: 'teacherNotice', exam: 'teacherOnlineExams',
+    more: 'teacherMore', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses',
+    'courses-progress': 'teacherCourses', 'course-new': 'teacherCourses',
+    'lecture-sheets': 'teacherLectureSheets', classes: 'teacherClasses', 'class-chat': 'teacherClassChat',
+    'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports',
+    'reports-summary': 'teacherAcademicReports', profile: 'teacherProfile', settings: 'teacherSettings',
+    detail: 'teacherDetailView', notifications: 'teacherNotifications'
+  })[view];
   $$('.teacher-view').forEach(el => { el.hidden = el.id !== panel; });
+  if (view === 'courses-progress') $('#teacherCourses')?.setAttribute('data-courses-open', 'chapters');
+  else if (view === 'course-new') $('#teacherCourses')?.setAttribute('data-courses-open', 'new');
+  else if (view === 'courses') $('#teacherCourses')?.setAttribute('data-courses-open', 'materials');
+  if (view === 'reports-summary') $('#teacherAcademicReports')?.setAttribute('data-reports-open', 'summary');
+  else if (view === 'reports') $('#teacherAcademicReports')?.setAttribute('data-reports-open', 'generator');
+  $('#teacherBackButton')?.toggleAttribute('hidden', view === 'home');
   const isChatFullscreen = view === 'class-chat';
   $('#teacherShell')?.classList.toggle('is-chat-fullscreen', isChatFullscreen);
   $('#teacherMain')?.classList.toggle('is-chat-view', isChatFullscreen);
   if (isChatFullscreen) mountTeacherClassChat();
-  /* মালিক-নির্দেশ ২০২৬-১১-০১: প্রতিটি মেনু-আইটেম = একটি সম্পূর্ণ পেজ। তাই
-     স্ক্রিনে ঢুকলেই তার মূল কনটেন্ট (তালিকা/এডিটর) খোলা থাকে — আগের মতো
-     আলাদা "তালিকা দেখুন" টগল-কার্ডে চাপ দিতে হয় না। */
   openScreenPanes();
   if (panel === 'teacherClasses') syncClassTabs('list');
   $$('.teacher-type-tabs [data-type-tab]').forEach(el => {
@@ -615,25 +825,31 @@ function setView(view) {
     el.setAttribute('aria-selected', String(active));
     if (el.matches('.pay-tile')) el.setAttribute('aria-pressed', String(active));
   });
-  /* The bottom bar keeps its four seats: the academic/class screens light up
-     the ক্লাস seat, the class-test results the পরীক্ষা seat. */
-  const bottomView = view === 'home' ? 'home'
-    : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'lecture-sheets', 'notice', 'routine', 'routine-view', ...ROUTINE_CHILD_VIEWS].includes(view) ? 'classes'
-        : ['exam', 'online-exams'].includes(view) ? 'online-exams' : 'more';
+  const normalizedView = view === 'detail' ? state.detail?.parentView || 'home' : view;
+  const bottomView = normalizedView === 'home' ? 'home'
+    : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'courses-progress', 'course-new', 'lecture-sheets', 'notice', 'routine', 'routine-view', ...ROUTINE_CHILD_VIEWS].includes(normalizedView) ? 'classes'
+      : ['exam', 'online-exams'].includes(normalizedView) ? 'academic' : normalizedView === 'notifications' ? 'more' : 'more';
   $$('.admin-bottom [data-panel-view]').forEach(el => {
     const active = el.dataset.panelView === bottomView;
     el.classList.toggle('active', active);
     if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
   if (view === 'lecture-sheets') mountTeacherLectureSheets();
-  /* মালিক-নির্দেশ ২০২৬-১১-০২: প্রোফাইল আর সেটিংস দুটি আলাদা স্ক্রিন। সেটিংসে
-     ঢুকলেই শুধু গ্রুপ-মেনু — পুরোনো `সব বিভাগ` চিপ-সারি আর নেই, তাই এক ক্লিকে
-     একটাই সারফেস খোলে। */
+  if (view === 'notifications') void mountTeacherNotifications();
   if (view === 'settings') resetSettingsHub('[data-settings-hub="teacher"]');
   paintTeacherExam();
-  $('#teacherMain').scrollTo({ top: 0, behavior: 'instant' }); render();
-  // The open page lives in the URL, so a refresh lands back on it.
-  rememberRoute(routeFor(view));
+  $('#teacherMain').scrollTo({ top: 0, behavior: 'instant' });
+  render();
+  const route = routeFor(view);
+  if (route && history !== 'keep' && route !== routeName()) {
+    const currentState = window.history.state || {};
+    if (history === 'push') {
+      const depth = currentState.apcPanelRole === 'teacher' ? Number(currentState.apcPanelDepth) || 0 : 0;
+      pushRoute(route, { ...currentState, apcPanelRole: 'teacher', apcPanelDepth: depth + 1 });
+    } else {
+      rememberRoute(route, { mode: 'replace', state: { ...currentState, apcPanelRole: 'teacher', apcPanelDepth: 0 } });
+    }
+  }
 }
 async function reload() {
   try {
@@ -661,6 +877,15 @@ async function reload() {
   }
 }
 function openModal(title, html) {
+  // Record/course/notice actions stay inside their routed detail screen instead
+  // of opening an overlay that hides the destination page and its Back control.
+  if (state.view === 'detail' && state.detail) {
+    state.detail.inline = { title, html };
+    renderTeacherDetail();
+    syncAllDateInputs($('#teacherDetailContent'));
+    $('#teacherDetailContent button, #teacherDetailContent input, #teacherDetailContent select, #teacherDetailContent textarea')?.focus?.();
+    return;
+  }
   if ($('#teacherModalBackdrop').hidden) modalTrigger = document.activeElement;
   $('#teacherModalClose').textContent = '×';
   $('#teacherModalClose').setAttribute('aria-label', 'বন্ধ করুন');
@@ -673,13 +898,38 @@ function openModal(title, html) {
 }
 function closeModal() {
   if (state.busy) return;
+  if (state.view === 'detail' && state.detail?.inline) {
+    const detail = state.detail;
+    detail.inline = null;
+    /* A create page is a child of its owning list, not a destination in its own
+       right. Cancelling (or finishing) returns to that list and replaces the
+       transient editor route so browser Back does not reopen a blank composer. */
+    if (['activity-create', 'course-create', 'notice-create'].includes(detail.kind)) {
+      setView(TEACHER_VIEWS.includes(detail.parentView) ? detail.parentView : 'home', { history: 'replace' });
+      flushDeferredTeacherRefresh();
+      return;
+    }
+    renderTeacherDetail();
+    flushDeferredTeacherRefresh();
+    return;
+  }
   $('#teacherModalBackdrop').hidden = true; document.body.classList.remove('admin-modal-open');
+  flushDeferredTeacherRefresh();
   const target = modalTrigger?.isConnected && modalTrigger.getClientRects().length && !modalTrigger.disabled ? modalTrigger : $('.admin-bottom-item.active');
   target?.focus({ preventScroll: true });
 }
 function showEditor(type, old = null) {
   if (type === 'exam') return setView('online-exams');
   if (!state.ready || state.busy) return toast('আগে ডেটা লোড হতে দিন বা আবার চেষ্টা করুন।');
+  /* All long activity forms have an addressable detail route. Existing records
+     retain a read-only detail as their parent; new records return to the type's
+     list when cancelled. */
+  const parentView = ACTIVITY_TYPES[state.view] ? state.view : state.detail?.parentView || 'homework';
+  const expectedKind = old ? 'activity' : 'activity-create';
+  const expectedId = old ? String(old.id) : type;
+  if (state.view !== 'detail' || state.detail?.kind !== expectedKind || String(state.detail?.id) !== expectedId) {
+    openTeacherDetail(expectedKind, expectedId, parentView);
+  }
   const a = old || { type, date: todayISO(), time: '17:00', duration: 60, totalMarks: 100, status: type === 'homework' ? 'published' : 'draft', className: assignedClasses()[0] || '' };
   const timed = ['exam', 'routine'].includes(type);
   const field = (name, label, inputType = 'text', extra = '') => `<div><label for="activity-${name}">${label}</label><input id="activity-${name}" name="${name}" type="${inputType}" value="${esc(a[name] ?? '')}" ${extra}></div>`;
@@ -778,7 +1028,7 @@ function prepareHomeworkEditor(activity) {
   $('#activity-status').addEventListener('change', syncStatus); syncStatus();
 }
 
-async function save(form, operation, message) {
+async function save(form, operation, message, afterSuccess = null) {
   if (state.busy || !state.ready) return;
   state.busy = true; form.setAttribute('aria-busy', 'true'); $('#teacherSaveError').hidden = true;
   const controls = [...form.querySelectorAll('input, select, textarea, button')];
@@ -790,14 +1040,18 @@ async function save(form, operation, message) {
     $('#teacherSaveError').textContent = error instanceof DOMException ? 'সংরক্ষণ হয়নি। ব্রাউজারের স্টোরেজ/খালি জায়গা পরীক্ষা করে আবার চেষ্টা করুন।' : error.message || 'সংরক্ষণ হয়নি। আবার চেষ্টা করুন।';
     $('#teacherSaveError').hidden = false;
   } finally { state.busy = false; form.removeAttribute('aria-busy'); controls.forEach(el => { el.disabled = false; }); submit.textContent = label; }
-  if (success) { closeModal(); toast(message); }
+  if (success) { closeModal(); toast(message); afterSuccess?.(); }
 }
 function showDetail(a) {
-  const link = safeResourceURL(a.resourceURL);
-  openModal(a.title, `<article class="teaching-card"><span class="teaching-kind">${ACTIVITY_TYPES[a.type].label} • ${a.status === 'draft' ? 'খসড়া' : 'প্রকাশিত'}</span><h3>${esc(a.subject)}</h3><small>${esc(a.className)} • ${esc(a.group || 'সব বিভাগ')}</small><p>${esc(activityMeta(a))}</p><small>${esc(a.room)}</small><p class="teaching-body">${esc(a.details || 'অতিরিক্ত নির্দেশনা নেই।')}</p>${link ? `<a class="teaching-resource" href="${esc(link)}" target="_blank" rel="noopener noreferrer">সহায়ক উপকরণ খুলুন <svg class="resource-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}<div class="teaching-actions"><button type="button" data-record-action="edit" data-id="${esc(a.id)}">সম্পাদনা</button>${ACTIVITY_TYPES[a.type].progress && a.status === 'published' ? `<button type="button" class="primary" data-record-action="progress" data-id="${esc(a.id)}">${ACTIVITY_TYPES[a.type].progress}</button>` : ''}</div></article>`);
+  const parentView = ACTIVITY_TYPES[state.view] ? state.view : state.detail?.parentView || 'homework';
+  openTeacherDetail('activity', a.id, parentView);
 }
 function showProgress(a) {
   if (a.status !== 'published' || !ACTIVITY_TYPES[a.type].progress) return;
+  if (state.view !== 'detail' || state.detail?.kind !== 'activity' || String(state.detail?.id) !== String(a.id)) {
+    const parentView = ACTIVITY_TYPES[state.view] ? state.view : 'homework';
+    openTeacherDetail('activity', a.id, parentView);
+  }
   const students = rosterFor(a);
   const isExam = a.type === 'exam';
   const options = isExam ? [] : a.type === 'homework' ? ['pending', 'done', 'reviewed'] : ['present', 'absent', 'late'];
@@ -898,8 +1152,12 @@ function showProgress(a) {
 }
 
 function showDelete(a) {
-  openModal('কাজটি মুছে ফেলবেন?', `<form id="teacherDeleteForm"><p class="modal-copy"><strong>${esc(a.title)}</strong> মুছে গেলে শিক্ষার্থী অ্যাপ থেকেও সরে যাবে। এই কাজের নম্বর, জমার অবস্থা বা উপস্থিতিও মুছে যাবে।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, রাখুন</button><button class="admin-btn primary" type="submit">হ্যাঁ, মুছে ফেলুন</button></div></form>`);
-  $('#teacherDeleteForm').addEventListener('submit', event => { event.preventDefault(); save(event.currentTarget, () => teachingRepository.deleteActivity(a.id), 'কাজটি মুছে ফেলা হয়েছে'); });
+  if (state.view !== 'detail' || state.detail?.kind !== 'activity' || String(state.detail?.id) !== String(a.id)) {
+    const parentView = ACTIVITY_TYPES[state.view] ? state.view : 'homework';
+    openTeacherDetail('activity', a.id, parentView);
+  }
+  openModal('কাজটি মুছে ফেলবেন?', `<form id="teacherDeleteForm"><p class="modal-copy"><strong>${esc(a.title)}</strong> মুছে গেলে শিক্ষার্থী অ্যাপ থেকেও সরে যাবে। এই কাজের নম্বর, জমার অবস্থা বা উপস্থিতিও মুছে যাবে। এই কাজের সংশ্লিষ্ট অগ্রগতি ও উপস্থিতির তথ্যও মুছে যাবে; এটি ফেরানো যাবে না।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, রাখুন</button><button class="admin-btn primary" type="submit">হ্যাঁ, এই কাজ মুছে ফেলুন</button></div></form>`);
+  $('#teacherDeleteForm').addEventListener('submit', event => { event.preventDefault(); save(event.currentTarget, () => teachingRepository.deleteActivity(a.id), 'কাজটি মুছে ফেলা হয়েছে', () => setView(ACTIVITY_TYPES[state.detail?.parentView] ? state.detail.parentView : 'home', { history: 'replace' })); });
 }
 ['teacherClassFilter'].forEach(id => { $('#' + id).insertAdjacentHTML('beforeend', classOptions()); });
 /* ---- একাডেমিক hub, notice composer and quick actions ------------------------ */
@@ -1002,15 +1260,10 @@ function renderNotices() {
   if (count) count.textContent = `${bn(list.length)}টি নোটিশ${className === 'all' ? '' : ' • ' + esc(className)}`;
   const badge = $('[data-academic-count="notice"]');
   if (badge) badge.textContent = mine.length ? bn(mine.length) : '';
-  host.innerHTML = list.map(notice => `<article class="teaching-card" data-notice-id="${esc(notice.id)}">
+  host.innerHTML = list.map(notice => `<article class="teaching-card teacher-route-card" role="link" tabindex="0" aria-label="নোটিশ: ${esc(notice.title)} — বিস্তারিত খুলুন" data-notice-open="${esc(notice.id)}">
     <div class="teaching-card-head"><span class="teaching-kind">নোটিশ</span><span class="teaching-status ${notice.status === 'published' ? 'published' : 'draft'}">${notice.status === 'published' ? 'প্রকাশিত' : 'খসড়া'}</span></div>
     <h3>${esc(notice.title)}</h3><small>${esc(noticeAudienceLabel(notice))} • ${esc(displayDate(String(notice.createdAt || '').slice(0, 10)))}</small>
-    <p class="teaching-preview">${esc(notice.body || '')}</p>
-    <div class="teaching-actions">
-      <button type="button" data-notice-action="edit" data-id="${esc(notice.id)}">সম্পাদনা</button>
-      <button type="button" class="${notice.status === 'published' ? '' : 'primary'}" data-notice-action="toggle" data-id="${esc(notice.id)}">${notice.status === 'published' ? 'প্রকাশ বন্ধ করুন' : 'প্রকাশ করুন'}</button>
-      <button class="danger" type="button" data-notice-action="delete" data-id="${esc(notice.id)}">মুছুন</button>
-    </div></article>`).join('')
+    <span class="teacher-route-card-hint">বিস্তারিত দেখুন →</span></article>`).join('')
     || `<p class="teacher-empty">${mine.length ? 'এই শ্রেণির কোনো নোটিশ নেই।' : 'এখনও কোনো নোটিশ লেখা হয়নি। “+ নোটিশ” চেপে শ্রেণি/ব্যাচের জন্য ঘোষণা দিন।'}</p>`;
 }
 
@@ -1081,14 +1334,32 @@ async function saveNoticeRecord(values, old) {
 
 async function runNoticeAction(action, notice) {
   if (state.busy || !state.ready) return;
+  const username = String(state.teacher?.username || 'teacher.apc');
+  const mine = ownNotices(username).find(item => String(item.id) === String(notice?.id));
+  if (!mine) return toast('নোটিশটি পাওয়া যায়নি অথবা আপনার অ্যাকাউন্টের নয়।');
+  if (action === 'delete') {
+    openModal('নোটিশটি স্থায়ীভাবে মুছবেন?', `<form id="teacherNoticeDeleteForm"><p class="modal-copy"><strong>${esc(mine.title)}</strong> নোটিশটি ${esc(noticeAudienceLabel(mine))}-এর বোর্ড থেকে সরিয়ে যাবে। এটি ফেরানো যাবে না; ইতোমধ্যে দেখা নোটিফিকেশন/রসিদ আলাদা থাকতে পারে।</p><p class="finance-error" id="teacherSaveError" role="alert" hidden></p><div class="modal-actions"><button class="admin-btn ghost" type="button" data-close-teacher>না, নোটিশ রাখুন</button><button class="admin-btn primary danger" type="submit">হ্যাঁ, এই নোটিশ মুছুন</button></div></form>`);
+    $('#teacherNoticeDeleteForm')?.addEventListener('submit', event => {
+      event.preventDefault();
+      save(event.currentTarget, async () => {
+        const current = loadNotices();
+        const index = current.findIndex(item => String(item?.id) === String(mine.id) && item?.createdByRole === 'teacher' && String(item?.createdBy || '') === username);
+        if (index < 0) throw new Error('নোটিশটি পাওয়া যায়নি অথবা আপনার অ্যাকাউন্টের নয়।');
+        current.splice(index, 1);
+        if (!saveNotices(current)) throw new Error('নোটিশ সংরক্ষণ হয়নি।');
+        return state.db;
+      }, 'নোটিশ মুছে ফেলা হয়েছে', () => setView('notice', { history: 'replace' }));
+    });
+    return;
+  }
+  if (action !== 'toggle') return;
   const notices = loadNotices();
-  const index = notices.findIndex(item => item?.id === notice.id);
-  if (index < 0) return toast('নোটিশটি পাওয়া যায়নি।');
-  if (action === 'toggle') notices[index] = { ...notices[index], status: notice.status === 'published' ? 'draft' : 'published', updatedAt: new Date().toISOString() };
-  if (action === 'delete') notices.splice(index, 1);
+  const index = notices.findIndex(item => String(item?.id) === String(mine.id) && item?.createdByRole === 'teacher' && String(item?.createdBy || '') === username);
+  if (index < 0) return toast('নোটিশটি পাওয়া যায়নি অথবা আপনার অ্যাকাউন্টের নয়।');
+  notices[index] = { ...notices[index], status: mine.status === 'published' ? 'draft' : 'published', updatedAt: new Date().toISOString() };
   if (!saveNotices(notices)) return toast('নোটিশ সংরক্ষণ হয়নি।');
-  renderNotices();
-  toast(action === 'delete' ? 'নোটিশ মুছে ফেলা হয়েছে।' : notice.status === 'published' ? 'নোটিশ প্রকাশ বন্ধ হয়েছে।' : 'নোটিশ প্রকাশ হয়েছে।');
+  renderNotices(); renderTeacherDetail();
+  toast(mine.status === 'published' ? 'নোটিশ প্রকাশ বন্ধ হয়েছে।' : 'নোটিশ প্রকাশ হয়েছে।');
 }
 
 async function showTeacherShell() {
@@ -1101,11 +1372,18 @@ async function showTeacherShell() {
   }
   $('#teacherShell').hidden = false;
   // A refresh (or a shared link) reopens the page that was open.
-  const wanted = viewForRoute(routeName());
-  setView(TEACHER_VIEWS.includes(wanted) ? wanted : 'home');
+  const initial = parseTeacherRoute(routeName());
+  state.detail = initial.detail;
+  setView(TEACHER_VIEWS.includes(initial.view) ? initial.view : 'home', { history: 'replace' });
   onRouteChange(name => {
-    const next = viewForRoute(name);
-    if (TEACHER_VIEWS.includes(next) && next !== state.view) setView(next);
+    const parsed = parseTeacherRoute(name);
+    const next = parsed.view;
+    const sameDetail = next === 'detail' && state.view === 'detail'
+      && state.detail?.kind === parsed.detail?.kind && String(state.detail?.id) === String(parsed.detail?.id);
+    if (TEACHER_VIEWS.includes(next) && (next !== state.view || (!sameDetail && next === 'detail'))) {
+      state.detail = parsed.detail;
+      setView(next, { history: 'keep' });
+    }
   });
   const loaded = await reload();
   /* ধাপ C ও D (মালিক-নির্দেশ ২০২৬-১১-০২): এক permission gate + হোমের
@@ -1163,6 +1441,24 @@ async function mountCourseEditor() {
     await editor.ready;
   } catch (error) { console.warn('[Active Plus] course editor unavailable:', error?.name || 'unknown'); }
 }
+function teacherBackFallback() {
+  if (state.detail?.parentView) return state.detail.parentView;
+  if (state.detail?.kind === 'activity') return own().find(item => String(item.id) === String(state.detail.id))?.type || 'homework';
+  if (state.detail?.kind === 'class' || state.detail?.kind === 'student') return 'classes';
+  if (state.detail?.kind === 'course') return 'courses';
+  if (state.detail?.kind === 'notice') return 'notice';
+  if (state.detail?.kind === 'attendance') return 'routine-view';
+  if (state.detail?.kind === 'password') return 'more';
+  return ({ profile: 'more', settings: 'more', reports: 'more', 'reports-summary': 'reports', 'courses-progress': 'courses', 'course-new': 'courses', 'lecture-sheets': 'academic', 'online-exams': 'academic', academic: 'home', more: 'home', classes: 'home', 'routine-view': 'classes', notice: 'academic', homework: 'academic', suggestion: 'academic', exam: 'academic', 'class-chat': 'home' })[state.view] || 'home';
+}
+$('#teacherBackButton')?.addEventListener('click', () => {
+  const current = window.history.state || {};
+  if (current.apcPanelRole === 'teacher' && Number(current.apcPanelDepth) > 0) {
+    window.history.back();
+    return;
+  }
+  setView(teacherBackFallback(), { history: 'replace' });
+});
 $('#teacherExit').addEventListener('click', () => {
   clearStaffSession('teacher');
   window.dispatchEvent(new Event('apc-session-ended'));
@@ -1171,9 +1467,9 @@ $('#teacherExit').addEventListener('click', () => {
   goToLoginPage();
 });
 $('#teacherRetry').addEventListener('click', reload);
-$('#teacherNewNotice')?.addEventListener('click', () => showNoticeEditor());
+$('#teacherNewNotice')?.addEventListener('click', () => { openTeacherDetail('notice-create', 'new', 'notice'); showNoticeEditor(); });
 $('#teacherNoticeClass')?.addEventListener('change', renderNotices);
-$('#teacherNewActivity').addEventListener('click', () => showEditor(state.view));
+$('#teacherNewActivity').addEventListener('click', () => { const type = state.view; openTeacherDetail('activity-create', type, type); showEditor(type); });
 ['teacherRecordSearch', 'teacherClassFilter', 'teacherStatusFilter'].forEach(id => {
   const node = $('#' + id); if (!node) return;
   node.addEventListener(id.includes('Search') ? 'input' : 'change', () => {
@@ -1187,26 +1483,51 @@ $('.teacher-type-tabs')?.addEventListener('click', event => {
   state.recordLimit = 15; setView(tab.dataset.typeTab);
 });
 $('#teacherRecordMore').addEventListener('click', () => { state.recordLimit += 15; renderRecords(); });
-/* আমার ক্লাস: every নির্ধারিত শ্রেণি opens its own work. The list is one row per
-   Teacher + Class + Batch, so a teacher with three classes gets three buttons —
-   choosing one must never leave the other two behind. */
 $('#teacherClassList')?.addEventListener('click', event => {
-  if (event.target.closest('[data-teacher-class-retry]')) return reload();
-  const open = event.target.closest('[data-teacher-open-class]');
-  if (!open) return;
-  const select = $('#teacherClassFilter');
-  const className = open.dataset.teacherOpenClass;
-  if (select) {
-    if (![...select.options].some(option => option.value === className)) select.insertAdjacentHTML('beforeend', `<option value="${esc(className)}">${esc(className)}</option>`);
-    select.value = className;
-    select.dispatchEvent(new Event('change'));
-  }
-  /* The records screen, narrowed to this class: its type tabs are the teacher's
-     existing হোমওয়ার্ক / সাজেশন / উপজাতি / পরীক্ষা workflow. */
-  setView('homework');
+  if (event.target.closest('[data-teacher-class-retry]')) void reload();
 });
+// The Teacher bell and Settings → notification-history control are page routes,
+// not global popovers. Capture before the shared notice-center click handler.
+document.addEventListener('click', event => {
+  if (!$('#teacherShell') || $('#teacherShell').hidden) return;
+  if (event.target.closest('#notificationButton, [data-notice-open-history]')) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    setView('notifications');
+  }
+}, true);
 document.addEventListener('click', event => {
   if (state.busy) return;
+  const activityCard = event.target.closest('[data-activity-id]');
+  if (activityCard && !event.target.closest('button, a, input, select, textarea')) {
+    openTeacherDetail('activity', activityCard.dataset.activityId, state.view);
+    return;
+  }
+  const classCard = event.target.closest('[data-teacher-open-class]');
+  if (classCard && !event.target.closest('button, a, input, select, textarea')) {
+    const identity = JSON.stringify({ className: classCard.dataset.teacherOpenClass || '', group: classCard.dataset.teacherOpenGroup || '' });
+    openTeacherDetail('class', identity, state.view);
+    return;
+  }
+  const studentCard = event.target.closest('[data-teacher-open-student]');
+  if (studentCard) { openTeacherDetail('student', studentCard.dataset.teacherOpenStudent, 'classes'); return; }
+  const courseCard = event.target.closest('[data-course-open]');
+  if (courseCard && !event.target.closest('button, a, input, select, textarea')) { openTeacherDetail('course', courseCard.dataset.courseOpen, state.view); return; }
+  const noticeCard = event.target.closest('[data-notice-open]');
+  if (noticeCard && !event.target.closest('button, a, input, select, textarea')) { openTeacherDetail('notice', noticeCard.dataset.noticeOpen, state.view); return; }
+  const attendanceEdit = event.target.closest('[data-attendance-edit]');
+  if (attendanceEdit) { openRoutineSession({ dataset: { ...attendanceEdit.dataset, openRoutineSession: attendanceEdit.dataset.attendanceEdit } }); return; }
+  const classAction = event.target.closest('[data-class-detail-action]');
+  if (classAction) {
+    const identity = classIdentityFromDetail(state.detail?.id);
+    const select = $('#teacherClassFilter');
+    if (select && identity.className) {
+      if (![...select.options].some(option => option.value === identity.className)) select.insertAdjacentHTML('beforeend', `<option value="${esc(identity.className)}">${esc(identity.className)}</option>`);
+      select.value = identity.className;
+    }
+    setView(classAction.dataset.classDetailAction === 'routine' ? 'routine-view' : 'homework');
+    return;
+  }
   const classTab = event.target.closest('.teacher-class-tabs [role="tab"]');
   if (classTab && classTab.hasAttribute('data-panel-view')) syncClassTabs('routine');
   const examTile = event.target.closest('[data-teacher-exam]');
@@ -1230,37 +1551,41 @@ document.addEventListener('click', event => {
      only the create card, which opens the editor on this very screen. */
   const recordsAction = event.target.closest('[data-records-action]');
   if (recordsAction) {
-    if (recordsAction.dataset.recordsAction === 'create') $('#teacherNewActivity')?.click();
+    if (recordsAction.dataset.recordsAction === 'create') {
+      const type = state.view;
+      openTeacherDetail('activity-create', type, type);
+      showEditor(type);
+    }
     return;
   }
-  /* রিপোর্ট / উপকরণ mode cards are tabs: a tap selects a pane, it never closes
-     the one that is already open (an empty screen with no way back). */
   const reportsAction = event.target.closest('[data-reports-action]');
   if (reportsAction) {
-    const sec = $('#teacherAcademicReports');
-    const mode = reportsAction.dataset.reportsAction;
-    if (sec && mode) { sec.dataset.reportsOpen = mode; markScreenModes(); }
+    setView(reportsAction.dataset.reportsAction === 'summary' ? 'reports-summary' : 'reports');
     return;
   }
   const coursesAction = event.target.closest('[data-courses-action]');
   if (coursesAction) {
-    const sec = $('#teacherCourses');
     const mode = coursesAction.dataset.coursesAction;
     if (mode === 'new') {
-      if (sec) sec.dataset.coursesOpen = 'materials';
-      markScreenModes();
-      $('#teacherCourseEditor [data-ce-new]')?.click();
-    } else if (sec && mode) {
-      sec.dataset.coursesOpen = mode;
-      markScreenModes();
-    }
+      openTeacherDetail('course-create', 'new', 'courses');
+      showCourseModal();
+    } else setView(mode === 'chapters' ? 'courses-progress' : 'courses');
+    return;
+  }
+  const detailAction = event.target.closest('[data-detail-action]');
+  if (detailAction) {
+    if (detailAction.dataset.detailAction === 'activity-create-open') showEditor(state.detail?.id || 'homework');
+    else if (detailAction.dataset.detailAction === 'course-create-open') showCourseModal();
+    else if (detailAction.dataset.detailAction === 'notice-create-open') showNoticeEditor();
+    else if (detailAction.dataset.detailAction === 'password-open') openStaffPasswordDialog({ role: 'teacher', mode: 'change', container: '#teacherDetailContent', onCancel: renderTeacherDetail, onDone: renderTeacherDetail });
     return;
   }
   const moreAction = event.target.closest('[data-more-action]');
   if (moreAction) {
     const kind = moreAction.dataset.moreAction;
     if (kind === 'password') {
-      openStaffPasswordDialog({ role: 'teacher', mode: 'change' });
+      openTeacherDetail('password', 'change', 'more');
+      openStaffPasswordDialog({ role: 'teacher', mode: 'change', container: '#teacherDetailContent', onCancel: renderTeacherDetail, onDone: renderTeacherDetail });
       return;
     }
     if (kind === 'settings') {
@@ -1290,13 +1615,14 @@ document.addEventListener('click', event => {
      ফেরেন না। */
   const create = event.target.closest('[data-new-activity]');
   if (create) {
-    if (create.dataset.panelView) setView(create.dataset.panelView);
-    showEditor(create.dataset.newActivity);
+    const type = create.dataset.newActivity;
+    openTeacherDetail('activity-create', type, state.view);
+    showEditor(type);
     return;
   }
   const newNotice = event.target.closest('[data-new-notice]');
   if (newNotice) {
-    if (newNotice.dataset.panelView) setView(newNotice.dataset.panelView);
+    openTeacherDetail('notice-create', 'new', state.view);
     showNoticeEditor();
     return;
   }
@@ -1313,7 +1639,7 @@ document.addEventListener('click', event => {
     setView(nav.dataset.panelView);
     if (nav.dataset.panelView === 'profile') {
       const adviceEl = $('#teacherProfile [data-teacher-hero-advice]');
-      if (adviceEl) adviceEl.textContent = pickTeacherSectionAdvice('profile');
+      if (adviceEl) adviceEl.textContent = pickStaffSectionAdvice('profile');
     }
   }
   const courseChBtn = event.target.closest('[data-course-ch-action]');
@@ -1327,12 +1653,12 @@ document.addEventListener('click', event => {
     else if (act === 'add-chapter' && course) showAddChapterModal(course);
     else if (act === 'cycle-chapter' && cId && chId) {
       courseRepository.cycleChapterStatus(cId, chId).then(res => { state.courses = res.courses || []; renderCourseChapters(); toast('অধ্যায়ের অবস্থা আপডেট হয়েছে'); }).catch(e => toast(e.message));
-    } else if (act === 'delete-chapter' && cId && chId) {
-      courseRepository.deleteChapter(cId, chId).then(res => { state.courses = res.courses || []; renderCourseChapters(); toast('অধ্যায় মুছে ফেলা হয়েছে'); }).catch(e => toast(e.message));
+    } else if (act === 'delete-chapter' && cId && chId && course) {
+      confirmChapterDelete(course, chId);
     } else if (act === 'toggle-course' && course) {
       courseRepository.setCourseStatus(cId, course.status === 'published' ? 'draft' : 'published').then(res => { state.courses = res.courses || []; renderCourseChapters(); toast(course.status === 'published' ? 'কোর্স খসড়া করা হয়েছে' : 'কোর্স প্রকাশ করা হয়েছে'); }).catch(e => toast(e.message));
-    } else if (act === 'delete-course' && cId) {
-      courseRepository.deleteCourse(cId).then(res => { state.courses = res.courses || []; renderCourseChapters(); toast('কোর্স মুছে ফেলা হয়েছে'); }).catch(e => toast(e.message));
+    } else if (act === 'delete-course' && cId && course) {
+      confirmCourseDelete(course);
     }
     return;
   }
@@ -1370,17 +1696,15 @@ document.addEventListener('keydown', event => {
     else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0]?.focus(); }
   }
 });
-watchCourses(() => { if (!state.busy && !$('#teacherShell').hidden) reload(); });
+watchCourses(() => refreshTeacherDataWhenSafe());
 watchTeachingData(() => {
-  if (!state.busy && !$('#teacherShell').hidden) reload();
+  refreshTeacherDataWhenSafe();
   refreshReports($('#teacherReports'));
 });
 /* Admin assignment changes reach this panel in real time: the local projection
    event (same tab) and the cloud bridge (other devices). Either one reloads the
    scope — a newly নির্ধারিত শ্রেণি shows up without a manual refresh. */
-window.addEventListener('teacher-assignments-updated', () => {
-  if (!state.busy && $('#teacherShell') && !$('#teacherShell').hidden) reload();
-});
+window.addEventListener('teacher-assignments-updated', () => refreshTeacherDataWhenSafe());
 const TEACHER_WATCHED_COLLECTIONS = new Set([
   'students',
   'academics',
@@ -1404,9 +1728,8 @@ let teacherCloudRefreshTimer = 0;
 function scheduleTeacherLiveRefresh() {
   clearTimeout(teacherCloudRefreshTimer);
   teacherCloudRefreshTimer = setTimeout(() => {
-    if (state.busy || !$('#teacherShell') || $('#teacherShell').hidden) return;
-    if ($('#teacherModalBackdrop') && !$('#teacherModalBackdrop').hidden) return;
-    void reload();
+    if (!$('#teacherShell') || $('#teacherShell').hidden) return;
+    refreshTeacherDataWhenSafe();
     refreshReports($('#teacherReports'));
   }, 60);
 }

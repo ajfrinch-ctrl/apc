@@ -2105,9 +2105,15 @@ $('#adminProfileCard')?.addEventListener('click', event => {
   if (!edit) return;
   // Reuse the mounted Settings hub's account door; it reveals the existing
   // profile form without creating a second editor or changing profile rules.
-  const accountDoor = $('[data-settings-hub="admin"] [data-settings-open="account"]');
-  if (accountDoor) accountDoor.click();
-  else $('[data-settings-hub="admin"]')?.__apcShowSettingsGroup?.('account');
+  const accountGroup = $('[data-settings-group="account"]');
+  // The identity card appears on both the group menu and the Account detail.
+  // Avoid clicking the Account door a second time when it is already open: the
+  // hub treats that as Back and would hide the form before focus can move.
+  if (!accountGroup || accountGroup.hidden) {
+    const accountDoor = $('[data-settings-hub="admin"] [data-settings-open="account"]');
+    if (accountDoor) accountDoor.click();
+    else $('[data-settings-hub="admin"]')?.__apcShowSettingsGroup?.('account');
+  }
   const nameField = $('#adminProfileName');
   nameField?.focus({ preventScroll: true });
   nameField?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
@@ -2272,7 +2278,7 @@ async function reconcileRosterFromRegistrationRecords() {
   rosterReconcileStarted = true;
   try {
     const [{ readStudentAccountRecords }, { mergeAccountRecordsIntoRoster, quarantineShippedSampleRows }] = await Promise.all([
-      import('../sync/sync-core.js?v=480'),
+      import('../sync/sync-core.js?v=482'),
       import('./office-data.js')
     ]);
     const result = await readStudentAccountRecords();

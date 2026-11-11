@@ -63,10 +63,10 @@ function setup(activeStudent = sciStudent1) {
   return { store, roster };
 }
 
-test('Manager is the single approver/publisher; Admin views reports only', async () => {
+test('Admin and Manager can both approve and publish; Teacher remains submit-only', async () => {
   setup();
   assert.equal(ROLE_CAPABILITIES.admin.includes(CAPABILITIES.REPORTS_VIEW), true);
-  assert.equal(ROLE_CAPABILITIES.admin.includes(CAPABILITIES.EXAMS_PUBLISH), false);
+  assert.equal(ROLE_CAPABILITIES.admin.includes(CAPABILITIES.EXAMS_PUBLISH), true);
   assert.equal(ROLE_CAPABILITIES.manager.includes(CAPABILITIES.EXAMS_PUBLISH), true);
 
   const futureStart = Date.now() + 3600000;
@@ -86,15 +86,15 @@ test('Manager is the single approver/publisher; Admin views reports only', async
   }, TEACHER_ACTOR);
   const exam = draftSnap.exams[0];
 
-  // Admin has no review/approve/publish permissions
+  // Admin and Manager both hold the approval/publishing capability.
   const adminPerm = examPermissions(ADMIN_ACTOR, { ...exam, status: 'pending' }, { now: Date.now() });
-  assert.equal(adminPerm.review, false);
-  assert.equal(adminPerm.approve, false);
-  assert.equal(adminPerm.publish, false);
+  assert.equal(adminPerm.review, true);
+  assert.equal(adminPerm.approve, true);
+  assert.equal(adminPerm.publish, true);
 
-  // Teacher requests approval -> Manager rejects with reason -> Teacher sees rejection reason
+  // Teacher requests approval -> Admin rejects with reason -> Teacher sees rejection reason
   await repo.requestApproval(exam.id, TEACHER_ACTOR);
-  await repo.reject(exam.id, 'প্রশ্ন ২ যোগ করে আবার পাঠান।', MANAGER_ACTOR);
+  await repo.reject(exam.id, 'প্রশ্ন ২ যোগ করে আবার পাঠান।', ADMIN_ACTOR);
 
   const teacherView = await repo.list(TEACHER_ACTOR);
   const rejectedExam = teacherView.exams.find(e => e.id === exam.id);

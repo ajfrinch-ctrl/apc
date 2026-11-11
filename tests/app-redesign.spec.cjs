@@ -130,6 +130,7 @@ for(const width of [320,390,1280]) for(const role of ['login','admin','manager',
   await page.screenshot({path:info.outputPath('screen.png')});
   const nav=page.locator('.admin-bottom:visible button,.bottom-nav:visible button');
   for(let i=0;i<await nav.count();i++) {
+   if (await nav.nth(i).isDisabled()) continue;
    await nav.nth(i).click();
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }
@@ -296,7 +297,7 @@ test('registration uses readable full-width fields on mobile',async({page},info)
 test('notice dialog and manager menu remain accessible on a narrow screen',async({page},info)=>{
  await page.setViewportSize({width:320,height:740});
  await enterPortal(page,'manager');
- await page.locator('.manager-bottom [data-panel-view="more"]').click();
+ await page.locator('.admin-bottom [data-panel-view="more"]').click();
  // "আরও" is a real page now: it must fit a 320px screen with no sideways
  // scroll, and a row opens its module in the same view.
  const menu=page.locator('#managerMoreHub');

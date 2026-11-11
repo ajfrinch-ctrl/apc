@@ -236,6 +236,10 @@ test('the Teacher Panel lists all three classes, opens the clicked one, and neve
     const openButtons = page.$$('#teacherClassList [data-teacher-open-class]');
     assert.equal(openButtons.length, 3, '\u09aa\u09cd\u09b0\u09a4\u09bf\u099f\u09bf \u0995\u09cd\u09b2\u09be\u09b8 \u0986\u09b2\u09be\u09a6\u09be \u0996\u09c1\u09b2\u09b8\u09c7');
     page.click(openButtons[1]);
+    await page.waitFor(() => page.$('#teacherDetailView').hidden === false);
+    assert.equal(nfc(page.$('#teacherDetailTitle').textContent), nfc(CLASS_SEVEN), 'the selected class opens its own detail route');
+    assert.ok(page.$('#teacherDetailContent [data-class-detail-action="homework"]'), 'class detail keeps its scoped work door');
+    page.click(page.$('#teacherDetailContent [data-class-detail-action="homework"]'));
     await page.waitFor(() => page.$('#teacherRecords').hidden === false);
     assert.equal(nfc(page.$('#teacherClassFilter').value), nfc(CLASS_SEVEN), '\u0995\u09cd\u09b2\u09bf\u0995 \u0995\u09b0\u09be \u0995\u09cd\u09b2\u09be\u09b8\u099f\u09bf\u0987 filter \u09b9\u09df');
 

@@ -28,7 +28,7 @@ const homeShortcuts = {
   manager: '.manager-view[data-view-panel="dashboard"] nav[aria-label="দ্রুত অ্যাক্সেস"] > button[data-panel-view]',
   teacher: '#teacherHome [data-panel-view="routine-view"], #teacherHome [data-panel-view="homework"]'
 };
-const navCount = { student: 5, admin: 5, manager: 5, teacher: 4, payment: 5 };
+const navCount = { student: 5, admin: 5, manager: 5, teacher: 5, payment: 5 };
 const shell = { student: '#appShell', admin: '#adminShell', manager: '#managerShell', teacher: '#teacherShell', payment: '#payShell' };
 
 for (const width of [320, 390, 1280]) for (const theme of ['light', 'dark']) for (const role of ['student', 'admin', 'manager', 'teacher', 'payment']) {
@@ -173,7 +173,7 @@ for (const scene of [{ width:320, theme:'dark' },{ width:390, theme:'light' }]) 
     await page.goto('/demo/offline-roles.html');await seed(page,'payment');
     await page.evaluate(async()=>{const {adminStudents}=await import('/js/admin-data.js');const {KEYS}=await import('/js/database.js');localStorage.setItem(KEYS.students,JSON.stringify(adminStudents));localStorage.setItem(KEYS.transactions,'[]');});
     await page.goto('/payment.html');await expect(page.locator('#paymentMain')).toHaveAttribute('data-counter-ready','true');
-    await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom [data-panel-view]')).toHaveCount(5);
+    await expect(page.locator('#payProfileCard')).toBeHidden();await expect(page.locator('.admin-bottom > .admin-bottom-item')).toHaveCount(5);
     await page.locator('.admin-bottom [data-panel-view="students"]').click();await expect(page.locator('#payStudentsPanel')).toBeVisible();
     await page.locator('[data-pay-toggle="student-search"]').click();
     await page.locator('#payStudentSearch').fill('AP-1024');await page.locator('#paySearchResults .fee-search-result').click();

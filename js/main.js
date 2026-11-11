@@ -13,7 +13,6 @@ import { activeStaffRoles } from './staff-auth.js';
 import { staffPanelPath } from './login.js';
 import { switchAuthTab, initLogin } from './login.js';
 import { requestLogout, initLogout } from './logout.js';
-import { initNavigation } from './navigation.js';
 import { initFixedShell } from './fixed-shell.js';
 import { loadStudentFeatures } from './student-features.js';
 
@@ -345,7 +344,27 @@ function handleAction(action) {
   }
 }
 
-function enterApp() {
+let navigationReady = null;
+function ensureNavigation() {
+  navigationReady ||= import('./navigation.js').then(({ initNavigation }) => {
+    initNavigation({ onAction: handleAction });
+  });
+  return navigationReady;
+}
+
+async function enterApp(expectedSequence = null) {
+  /* The navigation engine belongs to the signed-in Student surface, not the
+     login first-paint graph. Wait for it before exposing the app shell. */
+  try {
+    await ensureNavigation();
+  } catch (error) {
+    navigationReady = null;
+    console.warn('[Active Plus] Student navigation could not be loaded:', error?.message || error);
+    setAuthMessage('অ্যাপের নেভিগেশন লোড করা যায়নি। ইন্টারনেট সংযোগ যাচাই করে আবার চেষ্টা করুন।');
+    return;
+  }
+  if (expectedSequence !== null && expectedSequence !== sessionRestoreSequence) return;
+  if (!hasSession()) return;
   sessionRestoreSequence += 1;
   setView(viewRouteFromHash(), { history: 'replace' });
   openStudentApp(state);
@@ -373,7 +392,6 @@ async function shouldAutoLogin() {
 }
 
 renderStudent(state.student);
-initNavigation({ onAction: handleAction });
 const refreshNotices = () => { window.apcNoticeCenter?.paint?.(); noticeBoard.refresh(); };
 let rosterProfileSyncFlight = null;
 async function applyRosterProfileToStudent() {
@@ -408,7 +426,7 @@ void import('./install.js').then(({ initInstallPrompt }) => initInstallPrompt())
 void import('./service-worker.js').then(({ registerServiceWorker }) => registerServiceWorker()).catch(() => {});
 initLogin({
   state,
-  onAuthenticated: ON_AUTH_PAGE ? goToStudentPanel : enterApp
+  onAuthenticated: ON_AUTH_PAGE ? goToStudentPanel : () => enterApp()
 });
 if (ON_AUTH_PAGE) {
   void import('./register.js').then(({ initRegister }) => initRegister({ state }));
@@ -445,7 +463,7 @@ async function restoreEntrySession() {
     state.student = { ...state.student, ...(state.account.student || {}) };
     saveStudent(state.student);
     if (sequence !== sessionRestoreSequence) return;
-    enterApp();
+    await enterApp(sequence);
   } else if (ON_APP_PAGE) {
     // No session: the panel page never renders for a signed-out visitor.
     window.location.replace('index.html');

@@ -22,7 +22,7 @@ test('the reports page opens from the আরও menu and survives a refresh', as
   assert.equal(active.dataset.viewPanel, 'reports', 'a refresh lands on Reports');
   assert.equal(active.hidden, false);
   // Reports stays in the More hub, and the URL follows the existing route.
-  manager.click(manager.$('.manager-bottom [data-panel-view="more"]'));
+  manager.click(manager.$('.staff-bottom-nav [data-panel-view="more"]'));
   await manager.flush();
   manager.click(manager.$('#managerMoreHub [data-panel-view="reports"]'));
   await manager.flush();

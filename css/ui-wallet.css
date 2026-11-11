@@ -8921,4 +8921,12 @@ body.admin-reference .admin-detail-view[data-parent-view="profile"] .settings-gr
        (top aligned, scrollable) when the form is taller than the viewport. */
     .auth-screen .auth-card{margin-block:auto !important}
   }
+
+  /* On Admin detail routes the floating class-chat shortcut can sit over a
+     destructive action or form control near the footer. The persistent chat
+     control in the topbar remains available; hide only the draggable bubble
+     while a nested detail panel is open. */
+  body:has(#adminShell .admin-view.active[data-parent-view]) .class-chat-head {
+    display: none !important;
+  }
 }

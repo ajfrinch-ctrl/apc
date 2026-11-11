@@ -22,7 +22,7 @@ for (const width of [320, 360, 375, 390, 412, 430]) {
       await page.evaluate(view => { location.hash = view; }, view);
       await expect(page.locator(`.admin-view.active[data-view-panel="${view}"]`)).toBeVisible();
       await expect(page.locator('.admin-view.active')).toHaveCount(1);
-      const seat = ({ students: 'dashboard', roles: 'system', migration: 'system', academics: 'system', security: 'system', settings: 'system', data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', more: 'more' })[view] || view;
+      const seat = ({ students: 'staff', roles: 'more', migration: 'more', academics: 'academics', security: 'more', settings: 'more', system: 'more', data: 'more', backup: 'more', audit: 'more', profile: 'more', advice: 'more', more: 'more' })[view] || view;
       await expect(page.locator('.admin-bottom [aria-current="page"]')).toHaveAttribute('data-panel-view', seat);
       const result = await page.evaluate(() => {
         const bar = document.querySelector('.admin-bottom').getBoundingClientRect();
