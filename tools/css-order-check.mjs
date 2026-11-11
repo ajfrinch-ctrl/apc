@@ -16,13 +16,19 @@ import path from 'node:path';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PAGES = ['index.html', 'admin.html', 'manager.html', 'teacher.html', 'payment.html'];
 
-/* Pages may append their own scoped sheet after the canonical fifteen. Only the
+/* Pages may append their own scoped sheets after the canonical fifteen. Only the
    teacher panel does: css/teacher-panel.css is the Tailwind build, wrapped in
    `.teacher-reference` (the body class only teacher.html carries) with preflight
    off, so it cannot reach another portal. Keeping it out of design-system.css
-   keeps the other four portals on exactly the same fifteen-sheet cascade. */
+   keeps the other four portals on exactly the same fifteen-sheet cascade.
+
+   2026-11-11: the teacher panel also loads css/work-management.css — the
+   central Work Management workspace. It is scoped under `.teacher-reference`
+   and sits before the Tailwind build so the panel's own component rules still
+   win. It is intentionally NOT part of design-system.css: the other portals do
+   not render that workspace and must keep the same cascade they had. */
 export const PAGE_SCOPED_SHEETS = Object.freeze({
-  'teacher.html': Object.freeze(['staff-panel-theme.css', 'teacher-panel.css']),
+  'teacher.html': Object.freeze(['staff-panel-theme.css', 'work-management.css', 'teacher-panel.css']),
   'admin.html': Object.freeze(['staff-panel-theme.css']),
   'manager.html': Object.freeze(['staff-panel-theme.css']),
   'payment.html': Object.freeze(['staff-panel-theme.css'])

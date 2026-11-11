@@ -56,6 +56,7 @@
        Every colour is a foundation palette token, so light and AMOLED inherit
        the same language from this one sheet. The old inline style block is
        gone; nothing visual lives in this file any more. -->
+  <link rel="stylesheet" href="css/work-management.css?v=482">
   <link rel="stylesheet" href="css/teacher-panel.css?v=482">
   <script type="module" src="js/ui-accessibility.js?v=482"></script>
   <script src="js/launch-screen.js?v=482" defer></script>
@@ -428,6 +429,11 @@
             </div>
           </div>
         </div>
+        <!-- কেন্দ্রীয় Work Management (মালিক-নির্দেশ ২০২৬-১১-১১): এক প্রবেশপথ →
+             বিভাগ → ফিচার → শ্রেণি/বিষয় → প্রিভিউ → Draft/Publish/Approval।
+             চারটি অংশ: নতুন কাজ · আমার প্রকাশিত কাজ · শিক্ষার্থীদের কার্যক্রম · আমার ক্লাস। -->
+        <div id="teacherWorkMount" class="work-mgmt" data-work-mount="teacher"></div>
+        <div id="teacherClassPane" data-work-pane="classes">
         <nav class="teacher-home-actions teacher-classes-actions teacher-submenu" aria-label="ক্লাস বিভাগ">
           <button class="teacher-action-card" id="teacherClassTabList" type="button" data-panel-view="homework" aria-label="আমার ক্লাস ও বিষয় — ট্যাপ করে এই ক্লাসের কাজে যান">
             <span class="teacher-action-body">
@@ -447,6 +453,7 @@
         <div class="teacher-class-panel" id="teacherClassPanel" role="region" aria-labelledby="teacherClassesTitle">
           <div class="teacher-section-heading"><h2>আপনার ক্লাস</h2><small id="teacherClassCount">—</small></div>
           <div id="teacherClassList" class="teacher-record-list"></div>
+        </div>
         </div>
       </section>
       <section id="teacherRoutine" class="teacher-view" data-routine-open="1" aria-labelledby="teacherRoutineTitle" hidden>

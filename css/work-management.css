@@ -1,0 +1,417 @@
+/* কেন্দ্রীয় Work Management — Teacher Panel (২০২৬-১১-১১)।
+   রঙ/ছায়া/রেডিয়াস সব বিদ্যমান ডিজাইন-টোকেন থেকে; নতুন কোনো থিম বানানো হয়নি। */
+
+.teacher-reference .work-mgmt {
+  display: grid;
+  gap: 12px;
+  margin: 2px 0 16px;
+}
+
+/* এক প্রধান প্রবেশপথ */
+.teacher-reference .work-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.teacher-reference .work-start {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 16px;
+  text-align: start;
+  cursor: pointer;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 34%, var(--glass-border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 14%, var(--glass-surface)), var(--glass-surface));
+  box-shadow: var(--glass-shadow);
+  color: var(--color-text);
+  transition: transform .16s var(--t-ease, ease), box-shadow .16s var(--t-ease, ease);
+}
+.teacher-reference .work-start:hover { transform: translateY(-1px); box-shadow: var(--glass-shadow-strong); }
+.teacher-reference .work-start:active { transform: translateY(0); }
+.teacher-reference .work-start-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+.teacher-reference .work-start-copy { display: grid; gap: 2px; min-width: 0; }
+.teacher-reference .work-start-copy strong { font-size: 16px; font-weight: 800; line-height: 1.3; }
+.teacher-reference .work-start-copy small { font-size: 12.5px; font-weight: 550; color: var(--color-text-secondary); line-height: 1.45; }
+.teacher-reference .work-hero-note { display: flex; flex-wrap: wrap; gap: 6px; }
+.teacher-reference .work-hero-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--glass-border));
+  background: color-mix(in srgb, var(--color-primary) 9%, var(--glass-surface));
+  color: var(--color-primary);
+}
+.teacher-reference .work-hero-chip.is-approval {
+  border-color: color-mix(in srgb, var(--color-warning) 34%, var(--glass-border));
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--glass-surface));
+  color: color-mix(in srgb, var(--color-warning) 72%, var(--color-text));
+}
+
+/* চারটি অংশ */
+.teacher-reference .work-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+}
+.teacher-reference .work-tabs::-webkit-scrollbar { display: none; }
+.teacher-reference .work-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.teacher-reference .work-tab:is(.is-active, [aria-selected="true"]) {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--glass-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--glass-border));
+  color: var(--color-primary);
+}
+.teacher-reference .work-tab-icon { display: inline-flex; }
+.teacher-reference .work-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 750;
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--glass-surface));
+  color: var(--color-primary);
+}
+.teacher-reference .work-tab:not(.is-active) .work-tab-count { background: var(--glass-bg-soft); color: var(--color-text-secondary); }
+
+.teacher-reference .work-pane { display: grid; gap: 12px; }
+.teacher-reference .work-pane[hidden] { display: none !important; }
+
+/* ধাপ-নिर्देशक */
+.teacher-reference .work-wizard-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.teacher-reference .work-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.teacher-reference .work-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+  background: var(--glass-bg-soft);
+  border: 1px solid var(--glass-border);
+}
+.teacher-reference .work-steps li > span {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  background: var(--glass-surface);
+  color: var(--color-text-secondary);
+}
+.teacher-reference .work-steps li.is-current {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 32%, var(--glass-border));
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--glass-surface));
+}
+.teacher-reference .work-steps li.is-current > span,
+.teacher-reference .work-steps li.is-done > span {
+  background: var(--color-primary);
+  color: var(--color-on-accent, #fff);
+}
+.teacher-reference .work-steps li.is-done { color: var(--color-text); }
+
+.teacher-reference .work-link {
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.teacher-reference .work-lead,
+.teacher-reference .work-note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+.teacher-reference .work-empty {
+  margin: 0;
+  padding: 18px 14px;
+  border-radius: 16px;
+  border: 1px dashed var(--glass-border);
+  background: var(--glass-surface);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ক্যাটাগরি */
+.teacher-reference .work-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.teacher-reference .work-category {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  text-align: start;
+  cursor: pointer;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+  color: var(--color-text);
+}
+.teacher-reference .work-category:hover { border-color: color-mix(in srgb, var(--color-primary) 40%, var(--glass-border)); }
+.teacher-reference .work-category:disabled { opacity: .55; cursor: not-allowed; }
+.teacher-reference .work-category strong { font-size: 14.5px; font-weight: 800; }
+.teacher-reference .work-category small { font-size: 12px; line-height: 1.45; color: var(--color-text-secondary); }
+.teacher-reference .work-category-count {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--glass-surface));
+  color: var(--color-primary);
+}
+.teacher-reference .work-category-icon { display: inline-flex; }
+
+/* ফিচার */
+.teacher-reference .work-feature-head { display: grid; gap: 4px; }
+.teacher-reference .work-feature-head h3 { margin: 0; font-size: 16px; font-weight: 800; }
+.teacher-reference .work-feature-head p { margin: 0; font-size: 12.5px; color: var(--color-text-secondary); }
+.teacher-reference .work-feature-list { display: grid; gap: 8px; }
+.teacher-reference .work-feature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  text-align: start;
+  cursor: pointer;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+  color: var(--color-text);
+}
+.teacher-reference .work-feature[aria-disabled="true"] { opacity: .6; cursor: not-allowed; }
+.teacher-reference .work-feature-icon { display: inline-flex; flex: none; }
+.teacher-reference .work-feature-copy { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.teacher-reference .work-feature-copy strong { font-size: 14px; font-weight: 750; }
+.teacher-reference .work-feature-copy small { font-size: 11.5px; line-height: 1.4; color: var(--color-text-secondary); }
+.teacher-reference .work-feature-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.teacher-reference .work-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-soft);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.teacher-reference .work-badge.is-approval {
+  border-color: color-mix(in srgb, var(--color-warning) 34%, var(--glass-border));
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--glass-surface));
+  color: color-mix(in srgb, var(--color-warning) 72%, var(--color-text));
+}
+.teacher-reference .work-badge.is-direct {
+  border-color: color-mix(in srgb, var(--color-success, #16a34a) 30%, var(--glass-border));
+  background: color-mix(in srgb, var(--color-success, #16a34a) 9%, var(--glass-surface));
+  color: color-mix(in srgb, var(--color-success, #16a34a) 76%, var(--color-text));
+}
+
+/* স্কোপ ও তথ্য */
+.teacher-reference .work-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.teacher-reference .work-field { display: grid; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--color-text); }
+.teacher-reference .work-field select {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 550;
+}
+.teacher-reference .work-students {
+  margin: 0;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+}
+.teacher-reference .work-students legend { padding: 0 4px; font-size: 12.5px; font-weight: 750; }
+.teacher-reference .work-students label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.teacher-reference .work-students input { width: 18px; height: 18px; }
+.teacher-reference .work-summary {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+}
+.teacher-reference .work-summary > div { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.teacher-reference .work-summary dt { color: var(--color-text-secondary); font-weight: 600; }
+.teacher-reference .work-summary dd { margin: 0; text-align: end; font-weight: 750; }
+.teacher-reference .work-summary code { font-size: 11.5px; }
+.teacher-reference .work-wizard-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.teacher-reference .work-wizard-actions .admin-btn { flex: 1 1 150px; }
+.teacher-reference .work-alert {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 34%, var(--glass-border));
+  background: color-mix(in srgb, var(--color-danger) 7%, var(--glass-surface));
+  color: var(--color-danger);
+  font-size: 12.5px;
+}
+.teacher-reference .work-alert ul { margin: 6px 0 0; padding-inline-start: 18px; }
+.teacher-reference .work-preview-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 40%, var(--glass-border));
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--glass-surface));
+}
+.teacher-reference .work-preview-tag { font-size: 10.5px; font-weight: 800; letter-spacing: .04em; color: var(--color-primary); text-transform: uppercase; }
+.teacher-reference .work-preview-card h4 { margin: 0; font-size: 15px; font-weight: 800; }
+.teacher-reference .work-preview-card p { margin: 0; font-size: 12.5px; color: var(--color-text-secondary); }
+
+/* আমার প্রকাশিত কাজ ও কার্যক্রম */
+.teacher-reference .work-summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.teacher-reference .work-summary-row > div {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+  text-align: center;
+}
+.teacher-reference .work-summary-row strong { font-size: 20px; font-weight: 800; line-height: 1.2; }
+.teacher-reference .work-summary-row span { font-size: 11.5px; font-weight: 600; color: var(--color-text-secondary); }
+.teacher-reference .work-filter-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.teacher-reference .work-list { display: grid; gap: 8px; }
+.teacher-reference .work-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+}
+.teacher-reference .work-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.teacher-reference .work-kind { font-size: 11.5px; font-weight: 750; color: var(--color-primary); }
+.teacher-reference .work-card h3 { margin: 0; font-size: 14.5px; font-weight: 750; line-height: 1.35; }
+.teacher-reference .work-card small { font-size: 11.5px; color: var(--color-text-secondary); }
+.teacher-reference .work-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.teacher-reference .work-destination { font-size: 10.5px; color: var(--color-text-secondary); text-align: end; }
+.teacher-reference .work-section {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+}
+.teacher-reference .work-section h3 { margin: 0; font-size: 14.5px; font-weight: 800; }
+.teacher-reference .work-activity-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.teacher-reference .work-activity-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--glass-bg-soft);
+  border: 1px solid var(--glass-border);
+}
+.teacher-reference .work-activity-list li > div { display: grid; gap: 1px; min-width: 0; }
+.teacher-reference .work-activity-list strong { font-size: 13px; font-weight: 700; }
+.teacher-reference .work-activity-list small { font-size: 11px; color: var(--color-text-secondary); }
+
+.teacher-reference .work-mgmt :is(button, select, input):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 70%, transparent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 420px) {
+  .teacher-reference .work-tab { font-size: 11.5px; padding: 8px 6px; }
+  .teacher-reference .work-tab-count { display: none; }
+  .teacher-reference .work-summary-row strong { font-size: 17px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacher-reference .work-start { transition: none; }
+  .teacher-reference .work-start:hover { transform: none; }
+}

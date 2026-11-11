@@ -25,11 +25,13 @@ import { mountReports, refreshReports } from './reports.js';
 import { teachingRepository, DEMO_TEACHER, ACTIVITY_TYPES, PROGRESS_LABELS, escapeText as esc, todayISO, displayDate, safeResourceURL, matchesStudent, watchTeachingData } from './teaching-data.js';
 import { pickStaffSectionAdvice } from './staff-daily-advice.js';
 import { initOrgInfo } from './org-info.js';
+import { mountWorkManagement } from './work-management.js';
+import { featureById, teacherCan, requiresApproval } from './work-registry.js';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 initOrgInfo();
-const state = { db: { activities: [] }, courses: [], students: [], assignments: [], teacher: null, exams: null, view: 'home', detail: null, status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', routineTab: 'today' };
+const state = { db: { activities: [] }, courses: [], students: [], assignments: [], teacher: null, exams: null, examAttempts: [], contents: [], questions: [], view: 'home', detail: null, status: 'all', ready: false, busy: false, recordLimit: 15, examScreen: '', routineTab: 'today', workTab: 'classes' };
 let modalTrigger, toastTimer;
 let deferredTeacherRefresh = false;
 const teacherEditorActive = () => state.view === 'detail' && Boolean(state.detail?.inline);
@@ -54,12 +56,143 @@ initFixedShell();
 const examWorkspace = initExamManager('#teacherExamWorkspace', 'teacher');
 registerServiceWorker();
 
+
 function toast(message) {
   $('.admin-toast')?.remove();
   const el = document.createElement('p'); el.className = 'admin-toast'; el.setAttribute('role', 'status'); el.textContent = message;
   document.body.append(el); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 3200);
 }
 const own = () => state.db.activities.filter(a => isOwnTeacherRecord(a.teacherId));
+
+/* কেন্দ্রীয় Work Management (২০২৬-১১-১১)। চারটি অংশ একই স্ক্রিনে; কাজের
+   প্রতিটি ধরন তার নিজের বিদ্যমান এডিটরেই হ্যান্ডঅফ করে — এখানে কোনো ডেটা
+   লেখা হয় না, কোনো দ্বিতীয় স্টোরও নেই। */
+const workUi = mountWorkManagement({
+  mount: '#teacherWorkMount',
+  section: '#teacherClasses',
+  getData: () => ({
+    activities: own(),
+    exams: state.exams || [],
+    examAttempts: state.examAttempts || [],
+    notices: loadNotices(),
+    contents: state.contents || [],
+    questions: state.questions || [],
+    assignments: state.assignments,
+    students: state.students,
+    teacher: state.teacher,
+    loading: !state.ready,
+    error: state.ready ? '' : 'ডেটা আনা হচ্ছে…'
+  }),
+  onOpenFeature: (featureId, scope, intent) => openWorkFeature(featureId, scope, intent),
+  onOpenItem: item => openWorkItem(item),
+  toast
+});
+
+/* ---------- কেন্দ্রীয় কাজ → বিদ্যমান এডিটর হ্যান্ডঅফ ----------
+   Registry-তে ঘোষিত `form.handoff` ছাড়া এখানে অন্য কিছু হয় না। প্রতিটি শাখা
+   সেই স্ক্রিনেই নিয়ে যায়, যা ওই কাজের একমাত্র লেখার পথ; scope শুধু ফর্মের
+   প্রাথমিক মান হিসেবে বসানো হয়, কোথাও নতুন রেকর্ড তৈরি হয় না। */
+const WORK_SCOPE_INPUTS = Object.freeze({
+  homework: { class: 'activity-className', subject: 'activity-subject', group: 'activity-group', status: 'activity-status' },
+  suggestion: { class: 'activity-className', subject: 'activity-subject', group: 'activity-group', status: 'activity-status' },
+  notice: { class: 'notice-className', group: 'notice-group', status: 'notice-status' }
+});
+function setFormValue(id, value) {
+  const node = document.getElementById(id);
+  if (!node || value === undefined || value === null || value === '') return;
+  if (node.tagName === 'SELECT') {
+    if (![...node.options].some(option => option.value === String(value))) return;
+    node.value = String(value);
+    node.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  node.value = String(value);
+}
+function prefillWorkForm(featureId, scope = {}, status = '') {
+  const map = WORK_SCOPE_INPUTS[featureId];
+  if (!map) return;
+  if (scope.className) setFormValue(map.class, scope.className);
+  if (scope.group) setFormValue(map.group, scope.group);
+  if (scope.subject) setFormValue(map.subject, scope.subject);
+  if (status) setFormValue(map.status, status);
+}
+function openWorkFeature(featureId, scope = {}, intent = 'draft') {
+  const feature = featureById(featureId);
+  if (!feature) return toast('এই কাজের ধরনটি রেজিস্টারিতে নেই।');
+  if (!teacherCan(featureId, 'create')) return toast('এই কাজ তৈরির অনুমতি আপনার নেই।');
+  const status = intent === 'publish' && feature.approval === 'direct' ? 'published' : 'draft';
+  const handoff = feature.form.handoff;
+  if (handoff === 'activity-create') {
+    const type = feature.form.activityType;
+    if (!ACTIVITY_TYPES[type]) return toast('এই কাজের ফর্ম এখনো পাওয়া যায়নি।');
+    setView(type, { history: 'push' });
+    openTeacherDetail('activity-create', type, type);
+    showEditor(type);
+    prefillWorkForm(featureId, scope, status);
+    toast(intent === 'publish'
+      ? 'নির্বাচিত শ্রেণি/বিষয় ফর্মে বসানো হয়েছে — যাচাই করে প্রকাশ করুন।'
+      : 'নির্বাচিত শ্রেণি/বিষয় ফর্মে বসানো হয়েছে — খসড়া হিসেবে সংরক্ষণ করুন।');
+    return;
+  }
+  if (handoff === 'notice') {
+    setView('notice', { history: 'push' });
+    openTeacherDetail('notice-create', 'new', 'notice');
+    showNoticeEditor();
+    prefillWorkForm('notice', scope, status);
+    toast(intent === 'publish' ? 'শ্রেণি বসানো হয়েছে — যাচাই করে নোটিশ প্রকাশ করুন।' : 'শ্রেণি বসানো হয়েছে — খসড়া হিসেবে সংরক্ষণ করুন।');
+    return;
+  }
+  if (handoff === 'online-exams' || handoff === 'exam') {
+    setView(handoff === 'exam' ? 'exam' : 'online-exams', { history: 'push' });
+    toast(requiresApproval(featureId)
+      ? 'খসড়া তৈরি করে “অনুমোদনের জন্য পাঠান” চাপুন — প্রকাশ করবেন Admin/Manager।'
+      : 'এই কাজ এই স্ক্রিনেই তৈরি ও প্রকাশ হয়।');
+    return;
+  }
+  if (handoff === 'lecture-sheets') {
+    setView('lecture-sheets', { history: 'push' });
+    toast('লেকচার শিট স্টুডিওতে শ্রেণি ও বিষয় আপনার অ্যাসাইনমেন্ট থেকেই আসবে।');
+    return;
+  }
+  if (handoff === 'courses') {
+    setView('courses', { history: 'push' });
+    toast('উপকরণ স্ক্রিন — নির্বাচিত শ্রেণি/বিষয়ের অধ্যায়ে নতুন কনটেন্ট যোগ করুন।');
+    return;
+  }
+  if (handoff === 'routine-view') {
+    setView('routine-view', { history: 'push' });
+    toast('রুটিন স্ক্রিনে নিজের সেশনের পাশে “উপস্থিতি নথিভুক্ত করুন” আছে।');
+    return;
+  }
+  if (handoff === 'class-chat') {
+    setView('class-chat', { history: 'push' });
+    return;
+  }
+  toast('এই কাজের পথ এখনো যুক্ত হয়নি।');
+}
+function openWorkItem({ kind = '', id = '' } = {}) {
+  const key = String(id || '');
+  if (kind === 'activity') {
+    const record = own().find(item => String(item.id) === key);
+    if (!record) return toast('কাজটি পাওয়া যায়নি।');
+    return openTeacherDetail('activity', key, record.type);
+  }
+  if (kind === 'notice') {
+    const mine = ownNotices(String(state.teacher?.username || 'teacher.apc')).find(item => String(item.id) === key);
+    if (!mine) return toast('নোটিশটি পাওয়া যায়নি।');
+    setView('notice');
+    return openTeacherDetail('notice', key, 'notice');
+  }
+  if (kind === 'exam') {
+    setView('online-exams');
+    return toast('পরীক্ষাটি পরীক্ষা সিটে খুলুন — অনুমোদন ও প্রকাশ ওখানেই হয়।');
+  }
+  if (kind === 'content') {
+    setView('courses');
+    return;
+  }
+  return toast('এই রেকর্ডের পথ পাওয়া যায়নি।');
+}
 const rosterFor = a => state.students.filter(s => matchesStudent(a, s));
 /** How much of a published activity is still waiting on the teacher. */
 function progressStats(a) {
@@ -656,9 +789,22 @@ function renderTeacherDetail() {
   content.innerHTML = '<p class="teacher-empty">এই পেইজের তথ্য পাওয়া যায়নি।</p>';
 }
 
-function render() { renderHome(); renderRecords(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports(); renderTeacherProfile(); renderAcademic(); renderNotices(); renderCourseChapters(); renderTeacherDetail(); }
+function render() {
+  renderHome(); renderRecords(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports();
+  renderTeacherProfile(); renderAcademic(); renderNotices(); renderCourseChapters(); renderTeacherDetail();
+  /* কেন্দ্রীয় কাজের চারটি অংশ — প্রতিটি ডেটা বদলের পর একই রেন্ডারে হালনাগাদ,
+     যাতে Draft → Published পরিবর্তন শিক্ষককে দ্বিতীয়বার রিফ্রেশ না করতে হয়। */
+  workUi?.update?.();
+  /* The class list is one of the four panes; it is only visible while that pane
+     is the active part, and the workspace itself owns the switch. */
+  const classPane = $('#teacherClassPane');
+  if (classPane) classPane.toggleAttribute('hidden', (workUi?.currentTab?.() || 'classes') !== 'classes');
+}
 const ROUTINE_CHILD_VIEWS = Object.freeze(['routine-today', 'routine-tomorrow', 'routine-weekly', 'routine-class', 'routine-exam', 'routine-changed', 'routine-holiday', 'routine-important', 'routine-other']);
-const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'online-exams', 'courses', 'courses-progress', 'course-new', 'lecture-sheets', 'classes', 'class-chat', 'routine-view', 'reports', 'reports-summary', 'notifications', 'profile', 'settings', 'detail', ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
+/* `work-new` / `work-published` / `work-activity` একই স্ক্রিনের (classes) তিনটি
+   কেন্দ্রীয় অংশ — প্রতিটির নিজস্ব deep link, যাতে শেয়ার/রিফ্রেশে সঠিক tab খোলে। */
+const WORK_VIEW_TABS = Object.freeze({ 'work-new': 'new', 'work-published': 'published', 'work-activity': 'activity' });
+const TEACHER_VIEWS = Object.freeze(['home', 'academic', 'more', 'notice', 'exam', 'online-exams', 'courses', 'courses-progress', 'course-new', 'lecture-sheets', 'classes', 'class-chat', 'routine-view', 'reports', 'reports-summary', 'notifications', 'profile', 'settings', 'detail', ...Object.keys(WORK_VIEW_TABS), ...ROUTINE_CHILD_VIEWS, ...Object.keys(ACTIVITY_TYPES)]);
 /* মালিক-নির্দেশ ২০২৬-১১-০১: প্রতিটি ফিচারের একটাই রুট-নাম। রেকর্ডস-পরিবারের
    দুটি টাইপ আগে exam / routine নামে URL-এ বসত — যা পরীক্ষা-ওয়ার্কস্পেস
    (online-exams) ও রুটিন স্ক্রিন (routine-view) দুটোর সাথেই মিশে যেত। এখন
@@ -802,6 +948,7 @@ function setView(view, { history = 'push' } = {}) {
     more: 'teacherMore', 'online-exams': 'teacherOnlineExams', courses: 'teacherCourses',
     'courses-progress': 'teacherCourses', 'course-new': 'teacherCourses',
     'lecture-sheets': 'teacherLectureSheets', classes: 'teacherClasses', 'class-chat': 'teacherClassChat',
+    ...Object.fromEntries(Object.keys(WORK_VIEW_TABS).map(view => [view, 'teacherClasses'])),
     'routine-view': 'teacherRoutine', reports: 'teacherAcademicReports',
     'reports-summary': 'teacherAcademicReports', profile: 'teacherProfile', settings: 'teacherSettings',
     detail: 'teacherDetailView', notifications: 'teacherNotifications'
@@ -827,13 +974,16 @@ function setView(view, { history = 'push' } = {}) {
   });
   const normalizedView = view === 'detail' ? state.detail?.parentView || 'home' : view;
   const bottomView = normalizedView === 'home' ? 'home'
-    : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'courses-progress', 'course-new', 'lecture-sheets', 'notice', 'routine', 'routine-view', ...ROUTINE_CHILD_VIEWS].includes(normalizedView) ? 'classes'
+    : ['academic', 'classes', 'class-chat', 'homework', 'suggestion', 'courses', 'courses-progress', 'course-new', 'lecture-sheets', 'notice', 'routine', 'routine-view', ...Object.keys(WORK_VIEW_TABS), ...ROUTINE_CHILD_VIEWS].includes(normalizedView) ? 'classes'
       : ['exam', 'online-exams'].includes(normalizedView) ? 'academic' : normalizedView === 'notifications' ? 'more' : 'more';
   $$('.admin-bottom [data-panel-view]').forEach(el => {
     const active = el.dataset.panelView === bottomView;
     el.classList.toggle('active', active);
     if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
+  /* A work deep link opens its own part; #classes keeps whichever part the
+     teacher was last using (the first arrival lands on আমার ক্লাস). */
+  if (WORK_VIEW_TABS[view]) workUi?.setTab?.(WORK_VIEW_TABS[view]);
   if (view === 'lecture-sheets') mountTeacherLectureSheets();
   if (view === 'notifications') void mountTeacherNotifications();
   if (view === 'settings') resetSettingsHub('[data-settings-hub="teacher"]');
@@ -863,7 +1013,10 @@ async function reload() {
       if (teacher?.assignment) syncTeacherAssignmentFromDirectory(teacher);
     } catch { /* best-effort: the merged read below still answers */ }
     const [db, students, courseData, examData] = await Promise.all([teachingRepository.list(), teachingRepository.listStudents(), courseRepository.list({ role: 'teacher' }).catch(() => ({ courses: [] })), examRepository.list({ role: 'teacher' }).catch(() => null)]);
-    state.db = db; state.courses = courseData.courses || []; state.students = students; state.teacher = teacher; state.exams = examData?.exams || null;
+    state.db = db; state.courses = courseData.courses || []; state.students = students; state.teacher = teacher;
+    state.exams = examData?.exams || null; state.examAttempts = examData?.attempts || [];
+    try { state.contents = listCourseContent({}); } catch { state.contents = []; }
+    try { state.questions = await listQuestionsForStaff('teacher'); } catch { state.questions = []; }
     state.assignments = await effectiveTeacherAssignments(teacher?.username || 'teacher.apc');
     state.ready = true;
     ['teacherClassFilter', 'teacherNoticeClass'].forEach(id => {
@@ -1449,7 +1602,7 @@ function teacherBackFallback() {
   if (state.detail?.kind === 'notice') return 'notice';
   if (state.detail?.kind === 'attendance') return 'routine-view';
   if (state.detail?.kind === 'password') return 'more';
-  return ({ profile: 'more', settings: 'more', reports: 'more', 'reports-summary': 'reports', 'courses-progress': 'courses', 'course-new': 'courses', 'lecture-sheets': 'academic', 'online-exams': 'academic', academic: 'home', more: 'home', classes: 'home', 'routine-view': 'classes', notice: 'academic', homework: 'academic', suggestion: 'academic', exam: 'academic', 'class-chat': 'home' })[state.view] || 'home';
+  return ({ profile: 'more', settings: 'more', reports: 'more', 'reports-summary': 'reports', 'courses-progress': 'courses', 'course-new': 'courses', 'lecture-sheets': 'academic', 'online-exams': 'academic', academic: 'home', more: 'home', 'work-new': 'classes', 'work-published': 'classes', 'work-activity': 'classes', classes: 'home', 'routine-view': 'classes', notice: 'academic', homework: 'academic', suggestion: 'academic', exam: 'academic', 'class-chat': 'home' })[state.view] || 'home';
 }
 $('#teacherBackButton')?.addEventListener('click', () => {
   const current = window.history.state || {};
