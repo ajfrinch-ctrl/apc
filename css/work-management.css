@@ -415,3 +415,36 @@
   .teacher-reference .work-start { transition: none; }
   .teacher-reference .work-start:hover { transform: none; }
 }
+
+
+/* হোমের কাজ-কার্ডে বাস্তব কাউন্ট (২০২৬-১১-১১)। সংখ্যা কাজ-প্যানেলের ট্যাব
+   ব্যাজের একই সূত্র থেকে আসে; শূন্য হলে চিপটি লুকানো থাকে। */
+#teacherHome .teacher-action-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-inline-start: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--work-chip-bg, rgba(15, 23, 42, 0.08));
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+#teacherHome .teacher-action-count[hidden] { display: none; }
+
+#teacherHome .teacher-action-card[data-has-count] .teacher-action-title {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  #teacherHome .teacher-action-count { background: var(--work-chip-bg, rgba(255, 255, 255, 0.12)); }
+}

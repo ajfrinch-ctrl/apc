@@ -560,6 +560,7 @@ export function mountWorkManagement({
     render,
     update,
     setTab,
+    counts: () => tabCounts(),
     currentTab: () => state.tab,
     wizard: () => ({ ...state, students: [...state.students] }),
     openWizard: (featureId = '') => {

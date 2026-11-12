@@ -405,7 +405,7 @@ change; full suite run confirms no drift.
 | Suite | Covers |
 |---|---|
 | `tests/work-registry.test.mjs` (new, 10) | registry completeness, real student views, real stores, approval policy, scope refusals, status mapping |
-| `tests/work-management.test.mjs` (new, 8) | one screen/four parts, wizard writes nothing, scope pre-fill into the canonical editor, exam has no publish action, real statuses listed, edit opens the same record, student activity summarises real submissions, a sync refresh keeps the active part |
+| `tests/work-management.test.mjs` (new, 9) | one screen/four parts, wizard writes nothing, scope pre-fill into the canonical editor, exam has no publish action, real statuses listed, edit opens the same record, student activity summarises real submissions, a sync refresh keeps the active part |
 | `tests/teacher-panel.test.mjs` | teacher CRUD, attendance, paging, settings, notices |
 | `tests/teacher-navigation-2026-11-01.test.mjs` | route contracts, home doors, deep links |
 | `tests/teacher-panel-tailwind.test.mjs` | scoped sheet ordering and panel styles |

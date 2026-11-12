@@ -333,6 +333,13 @@ function renderHome() {
      পরীক্ষা তার নিজস্ব স্ক্রিনে) — শুধু হোম-কার্ড তিনটি সরানো হয়েছে। */
   const todays = assignedRoutineRows(routineTodayKey()).sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
   $('#teacherTodayClassCount').textContent = hasAssignments ? `${bn(todays.length)}টি ক্লাস` : '—';
+  /* আজকের ক্লাসের কাউন্ট হোমের রুটিন-কার্ডেও দেখানো হয় — একই সূত্র। */
+  const routineCount = $('#workCountRoutine');
+  if (routineCount) {
+    const value = hasAssignments ? todays.length : 0;
+    routineCount.textContent = value ? bn(value) : '';
+    routineCount.hidden = value <= 0;
+  }
   renderTypeCounts();
   $('#teacherTodayClasses').innerHTML = todays.length
     ? todays.map(item => `<article class="teacher-home-class teacher-route-card" role="link" tabindex="0" data-teacher-open-class="${esc(item.className || '')}" data-teacher-open-group="${esc(item.group || '')}" aria-label="${esc(item.className || 'ক্লাস')} ${esc(item.subject || '')} — বিস্তারিত খুলুন"><span class="teacher-home-class-icon" aria-hidden="true"><svg class="apc-glyph-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false" data-icon="class-today" data-icon-set="active-plus-soft3d" data-icon-version="2" data-icon-style="glyph"><image href="assets/icons/ai-3d/class-today.svg" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg></span><div><h3>${esc(item.className || 'ক্লাস')} · ${esc(item.subject || 'বিষয় উল্লেখ নেই')}</h3><p>${esc(item.time || 'সময় নির্ধারিত নয়')}${item.room ? ` · ${esc(item.room)}` : ''}</p></div><small>আজকের</small></article>`).join('')
@@ -789,12 +796,32 @@ function renderTeacherDetail() {
   content.innerHTML = '<p class="teacher-empty">এই পেইজের তথ্য পাওয়া যায়নি।</p>';
 }
 
+/* হোমের তিনটি কাজ-কার্ডে বাস্তব কাউন্ট। সংখ্যা কাজ-প্যানেলের ট্যাব ব্যাজের
+   ঠিক একই সূত্র (workUi.counts) থেকে আসে — দুই জায়গায় দুই রকম সংখ্যা হয় না। */
+function paintWorkCounters() {
+  const counts = workUi?.counts?.();
+  if (!counts) return;
+  $$('#teacherHome [data-work-count]').forEach(node => {
+    if (node.dataset.workCount === 'routine') return; // painted by the home renderer
+    const value = Number(counts[node.dataset.workCount]) || 0;
+    node.textContent = value ? bn(value) : '';
+    node.hidden = value <= 0;
+    const card = node.closest('.teacher-action-card');
+    if (card) {
+      const base = card.dataset.baseLabel || card.getAttribute('aria-label') || '';
+      card.dataset.baseLabel = base;
+      card.toggleAttribute('data-has-count', value > 0);
+      if (base) card.setAttribute('aria-label', value ? `${base} — ${bn(value)}টি` : base);
+    }
+  });
+}
 function render() {
   renderHome(); renderRecords(); renderTeacherClasses(); renderTeacherRoutine(); renderAcademicReports();
   renderTeacherProfile(); renderAcademic(); renderNotices(); renderCourseChapters(); renderTeacherDetail();
   /* কেন্দ্রীয় কাজের চারটি অংশ — প্রতিটি ডেটা বদলের পর একই রেন্ডারে হালনাগাদ,
      যাতে Draft → Published পরিবর্তন শিক্ষককে দ্বিতীয়বার রিফ্রেশ না করতে হয়। */
   workUi?.update?.();
+  paintWorkCounters();
   /* The class list is one of the four panes; it is only visible while that pane
      is the active part, and the workspace itself owns the switch. */
   const classPane = $('#teacherClassPane');

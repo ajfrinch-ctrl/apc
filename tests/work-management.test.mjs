@@ -226,3 +226,42 @@ test('a data refresh keeps the teacher on the work part they were using', async 
   assert.equal($('#workPane-new').hidden, false, 'a sync refresh must not kick the teacher back to another part');
   assert.equal($('#teacherClassPane').hasAttribute('hidden'), true);
 });
+
+test('home work cards carry the same live counts as the work panel tabs', async () => {
+  const bn = value => String(value).replace(/\d/g, digit => '০১২৩৪৫৬৭৮৯'[digit]);
+  await teachingRepository.saveActivity({
+    type: 'homework', title: 'কাউন্টার যাচাই', subject: SUBJECT, className: CLASS,
+    status: 'published', details: 'হোম-কার্ডের সংখ্যা মিলিয়ে দেখা'
+  });
+  ctx.window.dispatchEvent(new ctx.window.Event('teaching-data-updated'));
+  await ctx.waitFor(() => $$('#teacherWorkMount .work-tab-count').length === 4);
+  await settle();
+  ctx.click($('.admin-bottom [data-panel-view="home"]'));
+  await settle();
+  await ctx.waitFor(() => $('#teacherHome [data-work-count="published"]')?.hidden === false);
+
+  const homePublished = $('#teacherHome [data-work-count="published"]');
+  const tabPublished = $('[data-work-tab="published"] .work-tab-count');
+  assert.equal(nfc(homePublished.textContent).trim(), nfc(tabPublished.textContent).trim(),
+    'home and the work panel read the same count');
+  assert.match(homePublished.closest('.teacher-action-card').getAttribute('aria-label'), /টি$/,
+    'the accessible name carries the number too');
+
+  const homeworkCount = (await teachingRepository.list()).activities
+    .filter(row => row.type === 'homework' && row.status === 'published').length;
+  const homeActivity = $('#teacherHome [data-work-count="activity"]');
+  assert.equal(homeActivity.hidden, false);
+  assert.equal(nfc(homeActivity.textContent).trim(), bn(homeworkCount),
+    'student-activity count is the published homework the teacher owns');
+
+  const before = nfc(homeActivity.textContent).trim();
+  await teachingRepository.saveActivity({
+    type: 'homework', title: 'আরও একটি কাজ', subject: SUBJECT, className: CLASS,
+    status: 'published', details: 'কাউন্ট বাড়ে কি না'
+  });
+  ctx.window.dispatchEvent(new ctx.window.Event('teaching-data-updated'));
+  await settle();
+  await ctx.waitFor(() => nfc($('#teacherHome [data-work-count="activity"]').textContent).trim() !== before);
+  assert.equal(nfc($('#teacherHome [data-work-count="activity"]').textContent).trim(),
+    bn(homeworkCount + 1), 'a new published homework raises the count without a reload');
+});
