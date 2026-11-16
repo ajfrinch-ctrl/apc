@@ -20,7 +20,7 @@
     "@electric-sql/pglite": "^0.5.12",
     "@playwright/test": "1.64.1",
     "@sparticuz/chromium": "^153.0.0",
-    "@supabase/supabase-js": "^2.118.0",
+    "@supabase/supabase-js": "^2.119.0",
     "@tiptap/core": "^3.33.1",
     "@tiptap/extension-color": "^3.33.1",
     "@tiptap/extension-highlight": "^3.33.1",
